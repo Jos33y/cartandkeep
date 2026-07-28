@@ -1,0 +1,7 @@
+<svg viewBox="0 0 600 100" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>Cart and Keep logo</title>
+  <desc>Charcoal square with cream C mark, paired with CART and KEEP wordmark</desc>
+  <rect x="10" y="10" width="80" height="80" fill="#2A2723"/>
+  <text x="50" y="76" text-anchor="middle" font-family="DM Sans, sans-serif" font-weight="600" font-size="72" fill="#FAF6EF">C</text>
+  <text x="120" y="70" text-anchor="start" font-family="DM Sans, sans-serif" font-weight="600" font-size="52" letter-spacing="8" fill="#2A2723">CART <tspan fill="#7A9575">&amp;</tspan> KEEP</text>
+</svg>

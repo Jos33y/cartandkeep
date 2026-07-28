@@ -1,0 +1,209 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: var(--c-ink);
+}
+
+.slab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  min-height: 100dvh;
+  padding: var(--s-6) var(--s-5) var(--s-5);
+  background: var(--c-base);
+}
+
+.slabHead { display: flex; align-items: center; gap: var(--s-3); }
+
+.mark { display: block; width: 36px; height: 36px; }
+
+.wordmark {
+  font-size: var(--t-lead);
+  font-weight: 560;
+  letter-spacing: -0.025em;
+}
+
+.body { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+
+.title {
+  font-size: 1.75rem;
+  font-weight: 560;
+  letter-spacing: -0.03em;
+  line-height: var(--lh-tight);
+}
+
+.blurb {
+  max-width: 32ch;
+  margin-top: var(--s-2);
+  font-size: var(--t-body);
+  line-height: var(--lh-snug);
+  color: var(--c-ink-soft);
+}
+
+/* Same device as the verdict bar, two segments instead of seven. */
+.steps { display: flex; gap: 3px; margin-top: var(--s-6); }
+
+.seg {
+  flex: 1;
+  height: 3px;
+  background: var(--c-brand-mid);
+  transition: background var(--dur) var(--ease);
+}
+
+.segOn { background: var(--c-brand); }
+
+.stepLabels {
+  display: flex;
+  gap: 3px;
+  margin-top: var(--s-2);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.stepLabels > span { flex: 1; }
+.stepNow { color: var(--c-ink); }
+
+.form { display: flex; flex-direction: column; margin-top: var(--s-6); }
+
+.label {
+  font-size: var(--t-label);
+  font-weight: 500;
+  margin-bottom: var(--s-2);
+}
+
+.input {
+  min-height: 50px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  background: var(--c-sunk);
+  font-size: var(--t-lead);
+  color: var(--c-ink);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.input::placeholder { color: var(--c-ink-faint); }
+.input:hover:not(:focus) { border-color: var(--c-control); }
+
+.input:focus {
+  outline: none;
+  border-color: var(--c-action-strong);
+  box-shadow: 0 0 0 3px var(--c-action-wash);
+}
+
+.codeInput {
+  font-family: var(--font-data);
+  font-size: var(--t-figure);
+  font-weight: 500;
+  letter-spacing: 0.32em;
+  text-indent: 0.32em;
+}
+
+.button {
+  min-height: 50px;
+  margin-top: var(--s-5);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-body);
+  font-weight: 500;
+  transition: filter var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.button:hover:not(:disabled) { filter: brightness(0.93); }
+
+/* Terracotta only once the action is available. A washed-out fill made the
+   loudest thing on the page a button that could not be pressed. */
+.button:disabled {
+  background: transparent;
+  border-color: var(--c-line-mid);
+  color: var(--c-ink-faint);
+  cursor: not-allowed;
+}
+
+.sentTo {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-5);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+}
+
+.sentTo strong { font-family: var(--font-data); font-weight: 500; color: var(--c-ink); }
+
+.icon { width: 16px; height: 16px; flex: none; }
+
+.footer { display: flex; justify-content: space-between; gap: var(--s-3); margin-top: var(--s-2); }
+
+.link {
+  min-height: var(--tap);
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.link:hover:not(:disabled) { color: var(--c-ink); }
+.link:disabled { text-decoration: none; cursor: default; opacity: 0.6; }
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 1.4em;
+  margin-top: var(--s-4);
+  font-size: var(--t-caption);
+  color: var(--c-negative);
+}
+
+.slabFoot {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.field {
+  position: relative;
+  min-height: 280px;
+  overflow: hidden;
+  padding: 0;
+  color: var(--c-base);
+}
+
+.art { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (min-width: 900px) {
+  .page { grid-template-rows: 1fr; grid-template-columns: minmax(420px, 34%) 1fr; }
+  .slab { padding: var(--s-7) var(--s-7) var(--s-6); }
+  .body { max-width: 380px; }
+  .field { padding: var(--s-7) var(--s-8); }
+
+}
+
+@media (max-width: 899px) {
+  .field { border-top: 1px solid rgba(250, 246, 239, 0.14); }
+  .slab { min-height: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .input, .button, .seg { transition: none; }
+}

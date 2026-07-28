@@ -1,0 +1,35 @@
+body {
+  background: var(--c-base);
+  color: var(--c-ink);
+  font-family: var(--font-ui);
+  font-size: var(--t-body);
+  font-synthesis: none;
+}
+
+h1, h2, h3, h4 {
+  line-height: var(--lh-tight);
+  font-weight: 560;
+  letter-spacing: -0.015em;
+}
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--c-action-strong);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+::selection {
+  background: var(--c-brand-mid);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

@@ -1,0 +1,4 @@
+/* Frame only. Width and spacing belong to the page. */
+.shell { min-height: 100dvh; background: var(--c-base); }
+
+.main { display: block; }

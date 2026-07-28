@@ -1,0 +1,3 @@
+.stub { padding: var(--s-6) 0; }
+.title { font-size: var(--t-xl); }
+.note { color: var(--c-ink-faint); font-size: var(--t-sm); margin-top: var(--s-2); }

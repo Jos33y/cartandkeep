@@ -1,0 +1,180 @@
+.page { display: flex; flex-direction: column; gap: var(--s-7); }
+
+.head { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.eyebrow {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 560;
+  letter-spacing: -0.035em;
+  line-height: var(--lh-tight);
+}
+
+.sub { font-size: var(--t-body); color: var(--c-ink-soft); }
+
+.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; color: var(--c-ink); }
+
+/* The batch as one bar. Width is the count, so the shape of the week is
+   readable before a single number is. */
+.split { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.splitBar { display: flex; gap: 2px; height: 10px; background: var(--c-line); }
+
+.seg { display: block; }
+.segApproved { background: var(--c-brand); }
+.segRejected { background: var(--c-action-strong); }
+.segDeferred { background: var(--c-warning); }
+.segPending { background: var(--c-line-mid); }
+
+.legend { display: flex; flex-wrap: wrap; gap: var(--s-4); }
+
+.legendItem { display: flex; align-items: baseline; gap: var(--s-2); font-size: var(--t-caption); }
+
+.legendItem dt { color: var(--c-ink-soft); }
+.legendItem dd { font-family: var(--font-data); font-variant-numeric: tabular-nums; font-weight: 500; }
+
+.swatch { width: 8px; height: 8px; border-radius: 2px; transform: translateY(-1px); }
+
+.splitMeta { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--c-line);
+  border: 1px solid var(--c-line);
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-5) var(--s-4);
+  background: var(--c-base);
+}
+
+.figureLink { text-decoration: none; color: inherit; transition: background var(--dur) var(--ease); }
+.figureLink:hover { background: var(--c-sunk); }
+
+.figureLabel {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.figureValue {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-display);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: var(--lh-tight);
+}
+
+.figureMoney { font-size: 2rem; }
+
+.figureCta {
+  font-size: var(--t-caption);
+  color: var(--c-action-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Stands in for the figures until there is something to report. */
+.flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+  background: var(--c-line);
+  border: 1px solid var(--c-line);
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-5) var(--s-4);
+  background: var(--c-base);
+}
+
+.stepIcon { width: 20px; height: 20px; color: var(--c-brand); margin-bottom: var(--s-2); }
+
+.stepTitle { font-size: var(--t-lead); font-weight: 560; letter-spacing: -0.02em; }
+
+.stepBody { font-size: var(--t-body); line-height: var(--lh-snug); color: var(--c-ink-soft); }
+
+.block { display: flex; flex-direction: column; gap: var(--s-4); }
+
+.blockLabel {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.blockNote { font-size: var(--t-caption); color: var(--c-ink-faint); max-width: 56ch; }
+
+.reasons { list-style: none; display: flex; flex-direction: column; gap: var(--s-3); }
+
+.reason {
+  display: grid;
+  grid-template-columns: minmax(0, 12rem) 1fr 2rem;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.reasonLabel { font-size: var(--t-body); }
+
+.reasonTrack { height: 8px; background: var(--c-sunk); }
+
+.reasonFill { display: block; height: 100%; background: var(--c-brand-mid); }
+
+.reason .num { text-align: right; font-size: var(--t-label); }
+
+.sources { list-style: none; display: flex; flex-direction: column; }
+
+.source {
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--c-line);
+}
+
+.dot { width: 8px; height: 8px; border-radius: var(--r-full); }
+.ok { background: var(--c-positive); }
+.bad { background: var(--c-negative); }
+.idle { background: var(--c-line-mid); }
+
+.sourceName { font-size: var(--t-body); }
+
+.sourceMeta {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+}
+
+@media (min-width: 720px) {
+  .title { font-size: 2.5rem; }
+  .figures { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .flow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .reason { grid-template-columns: minmax(0, 14rem) 1fr 2.5rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .figureLink { transition: none; }
+}

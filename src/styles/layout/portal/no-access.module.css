@@ -1,0 +1,26 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--s-4);
+}
+
+.card {
+  max-width: 360px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.title { font-size: var(--t-lg); }
+.body { font-size: var(--t-sm); color: var(--c-ink-soft); }
+
+.button {
+  min-height: 44px;
+  align-self: center;
+  padding: 0 var(--s-5);
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-md);
+  font-size: var(--t-sm);
+}

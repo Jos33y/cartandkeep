@@ -1,0 +1,15 @@
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  height: var(--header-h);
+  padding: 0 var(--s-4);
+  max-width: var(--shell-max);
+  margin: 0 auto;
+  width: 100%;
+  border-bottom: 1px solid var(--c-line);
+}
+
+.mark { font-weight: var(--w-bold); letter-spacing: -0.02em; }
+.nav { display: flex; gap: var(--s-4); font-size: var(--t-sm); }
+.cart { margin-left: auto; font-size: var(--t-sm); }

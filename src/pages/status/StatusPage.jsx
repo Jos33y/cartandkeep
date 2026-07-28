@@ -1,0 +1,275 @@
+import { useEffect, useState } from 'react';
+import {
+  STATUS_ITEMS,
+  STATE_LABEL,
+  activeItems,
+  upcomingPhases,
+  completedByMonth,
+  nextDated,
+  lastUpdated,
+} from './statusItems';
+import styles from '@styles/pages/status/status-page.module.css';
+
+const NAV_THRESHOLD = 20;
+
+const fmt = (iso, opts) =>
+  new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', ...opts }).format(new Date(`${iso}T12:00:00Z`));
+
+// Same host, different subdomain. Hardcoding cartandkeep.com would break for
+// the next tenant, and dev serves all three from one document.
+function portalUrl() {
+  if (typeof window === 'undefined') return '/';
+  const { protocol, hostname } = window.location;
+  if (hostname.startsWith('status.')) {
+    return `${protocol}//${hostname.replace(/^status\./, 'portal.')}`;
+  }
+  return '/?portal';
+}
+
+function Mark({ className }) {
+  return (
+    <svg viewBox="0 0 512 512" className={className} role="img" aria-label="Cart and Keep">
+      <rect width="512" height="512" rx="72" fill="var(--c-ink)" />
+      <text x="256" y="378" textAnchor="middle" fill="var(--c-base)"
+        fontFamily="var(--font-ui)" fontWeight="500" fontSize="360" letterSpacing="-12">C</text>
+    </svg>
+  );
+}
+
+function StateIcon({ state, className }) {
+  if (state === 'done') {
+    return (
+      <svg viewBox="0 0 18 18" className={className} aria-hidden="true" focusable="false">
+        <circle cx="9" cy="9" r="9" fill="var(--c-positive)" />
+        <path d="M5 9.2l2.7 2.7L13 6.6" fill="none" stroke="var(--c-base)" strokeWidth="1.8"
+          strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
+  if (state === 'active') {
+    return (
+      <svg viewBox="0 0 18 18" className={className} aria-hidden="true" focusable="false">
+        <circle cx="9" cy="9" r="4" fill="var(--c-warning)" />
+        <circle cx="9" cy="9" r="7.5" fill="none" stroke="var(--c-warning)" strokeWidth="1.5" className={styles.pulse} />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 18 18" className={className} aria-hidden="true" focusable="false">
+      <circle cx="9" cy="9" r="7.5" fill="none" stroke="var(--c-control)" strokeWidth="1.5" strokeDasharray="2 3" />
+    </svg>
+  );
+}
+
+function Chevron({ open }) {
+  return (
+    <svg viewBox="0 0 16 16" className={`${styles.chev} ${open ? styles.chevOpen : ''}`} aria-hidden="true">
+      <path d="M4 6.5L8 10.5 12 6.5" fill="none" stroke="currentColor" strokeWidth="1.6"
+        strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function Row({ item, showPhase = false, showDate = false }) {
+  return (
+    <li className={styles.row}>
+      <StateIcon state={item.state} className={styles.icon} />
+      <span className={styles.rowMain}>
+        <span className={styles.rowLabel}>{item.label}</span>
+        {item.detail ? <span className={styles.rowDetail}>{item.detail}</span> : null}
+        {item.due ? <span className={styles.rowDue}>{item.due}</span> : null}
+        {showPhase ? <span className={styles.rowPhase}>{item.phase}</span> : null}
+      </span>
+      <span className={styles.rowState}>
+        {showDate && item.date ? (
+          <span className={styles.rowDate}>{fmt(item.date, { day: '2-digit', month: 'short' })}</span>
+        ) : (
+          <span className={`${styles.stateText} ${styles[item.state]}`}>{STATE_LABEL[item.state]}</span>
+        )}
+      </span>
+    </li>
+  );
+}
+
+export function StatusPage() {
+  const [openHistory, setOpenHistory] = useState(false);
+  const [showAllMonths, setShowAllMonths] = useState(false);
+  const [current, setCurrent] = useState('now');
+
+  const done = STATUS_ITEMS.filter((i) => i.state === 'done').length;
+  const total = STATUS_ITEMS.length;
+  const running = activeItems();
+  const upcoming = upcomingPhases();
+  const history = completedByMonth();
+  const next = nextDated();
+  const updated = lastUpdated();
+  const queued = total - done - running.length;
+  const pct = Math.round((done / total) * 100);
+
+  const visibleHistory = showAllMonths ? history : history.slice(0, 1);
+  const hiddenMonths = history.length - visibleHistory.length;
+
+  // Chrome earns its place by length. Below this the whole page is one screen.
+  const showNav = total > NAV_THRESHOLD;
+
+  const sections = [
+    { id: 'now', label: 'In progress', count: running.length },
+    { id: 'next', label: 'Coming up', count: queued },
+    { id: 'done', label: 'Completed', count: done },
+  ].filter((s) => s.count > 0);
+
+  useEffect(() => {
+    if (!showNav) return;
+    const nodes = sections.map((s) => document.getElementById(s.id)).filter(Boolean);
+    if (!nodes.length) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        const seen = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (seen[0]) setCurrent(seen[0].target.id);
+      },
+      { rootMargin: '-96px 0px -60% 0px' },
+    );
+
+    nodes.forEach((n) => io.observe(n));
+    return () => io.disconnect();
+  }, [showNav, sections.length]);
+
+  function jump(e, id) {
+    e.preventDefault();
+    const el = document.getElementById(id);
+    if (!el) return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  }
+
+  return (
+    <div className={styles.page}>
+      <header className={styles.head}>
+        <Mark className={styles.mark} />
+        <span className={styles.wordmark}>Cart &amp; Keep</span>
+        <a className={styles.signIn} href={portalUrl()}>Sign in</a>
+      </header>
+
+      <section className={styles.hero}>
+        <p className={styles.verdict}>
+          <StateIcon state={running.length ? 'active' : 'queued'} className={styles.verdictIcon} />
+          <span>{running.length ? 'Build in progress' : 'No work in progress'}</span>
+        </p>
+
+        {next ? (
+          <p className={styles.next}>
+            Next up, {next.label.toLowerCase()}
+            <span className={styles.nextDue}>{next.due}</span>
+          </p>
+        ) : null}
+
+        <div className={styles.line} role="progressbar" aria-valuemin={0} aria-valuemax={total}
+          aria-valuenow={done} aria-label="Milestones complete">
+          <span className={styles.lineFill} style={{ width: `${pct}%` }} />
+        </div>
+
+        <p className={styles.meta}>
+          <span className={styles.metaNum}>{done}</span> of <span className={styles.metaNum}>{total}</span> milestones
+          complete{updated ? ` · updated ${fmt(updated, { day: 'numeric', month: 'long' })}` : ''}
+        </p>
+      </section>
+
+      {showNav && (
+        <nav className={styles.nav} aria-label="Sections">
+          {sections.map((s) => (
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              onClick={(e) => jump(e, s.id)}
+              aria-current={current === s.id ? 'true' : undefined}
+              className={`${styles.pill} ${current === s.id ? styles.pillOn : ''}`}
+            >
+              {s.label}
+              <span className={styles.pillCount}>{s.count}</span>
+            </a>
+          ))}
+        </nav>
+      )}
+
+      {running.length > 0 && (
+        <section id="now" className={`${styles.block} ${styles.live}`}>
+          <div className={styles.blockHead}>
+            <h2 className={styles.blockLabel}>In progress</h2>
+            <span className={styles.blockCount}>{running.length}</span>
+          </div>
+          <ul className={styles.list}>
+            {running.map((item) => (
+              <Row key={item.label} item={item} showPhase />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {upcoming.length > 0 && (
+        <section id="next" className={styles.block}>
+          <div className={styles.blockHead}>
+            <h2 className={styles.blockLabel}>Coming up</h2>
+            <span className={styles.blockCount}>{queued}</span>
+          </div>
+          {upcoming.map((phase) => (
+            <div key={phase.key} className={styles.phase}>
+              <p className={styles.phaseLabel}>{phase.label}</p>
+              <ul className={styles.list}>
+                {phase.items.map((item) => (
+                  <Row key={item.label} item={item} />
+                ))}
+              </ul>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {history.length > 0 && (
+        <section id="done" className={styles.block}>
+          {/* Shut by default. The log only grows, and it is the part nobody
+              opens twice. */}
+          <button
+            type="button"
+            className={styles.disclosure}
+            aria-expanded={openHistory}
+            aria-controls="completed-list"
+            onClick={() => setOpenHistory((v) => !v)}
+          >
+            <span className={styles.blockLabel}>Completed</span>
+            <span className={styles.blockCount}>{done}</span>
+            <Chevron open={openHistory} />
+          </button>
+
+          <div id="completed-list" hidden={!openHistory}>
+            {visibleHistory.map((group) => (
+              <div key={group.key} className={styles.phase}>
+                <p className={styles.phaseLabel}>{fmt(`${group.key}-01`, { month: 'long', year: 'numeric' })}</p>
+                <ul className={styles.list}>
+                  {group.items.map((item) => (
+                    <Row key={item.label} item={item} showPhase showDate />
+                  ))}
+                </ul>
+              </div>
+            ))}
+
+            {hiddenMonths > 0 && (
+              <button type="button" className={styles.more} onClick={() => setShowAllMonths(true)}>
+                Show {hiddenMonths} earlier {hiddenMonths === 1 ? 'month' : 'months'}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+
+      <footer className={styles.foot}>
+        <span>Built by The Brick Dev Studios</span>
+        <a className={styles.footLink} href="mailto:hello@thebrickdev.com">hello@thebrickdev.com</a>
+      </footer>
+    </div>
+  );
+}

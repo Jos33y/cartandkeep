@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <title>Cart &amp; Keep</title>
+    <meta name="description" content="Cart &amp; Keep is a UK multi-category shop for beauty and pet accessories, curated and delivered from the United Kingdom." />
+    <link rel="canonical" href="https://cartandkeep.com/" />
+
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#faf6ef" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cart &amp; Keep" />
+    <meta property="og:title" content="Cart &amp; Keep" />
+    <meta property="og:description" content="A UK multi-category shop for beauty and pet accessories." />
+    <meta property="og:url" content="https://cartandkeep.com/" />
+    <meta property="og:image" content="https://cartandkeep.com/assets/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="en_GB" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Cart &amp; Keep" />
+    <meta name="twitter:description" content="A UK multi-category shop for beauty and pet accessories." />
+    <meta name="twitter:image" content="https://cartandkeep.com/assets/og-image.png" />
+
+    <link rel="icon" href="/assets/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/assets/cnk-mark.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Organization and WebSite only. Product and BreadcrumbList get injected per
+         route once the catalogue is real, or they describe nothing. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://cartandkeep.com/#organization",
+            "name": "Cart & Keep",
+            "url": "https://cartandkeep.com/",
+            "logo": "https://cartandkeep.com/assets/cnk-lockup.svg",
+            "areaServed": "GB"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://cartandkeep.com/#website",
+            "url": "https://cartandkeep.com/",
+            "name": "Cart & Keep",
+            "publisher": { "@id": "https://cartandkeep.com/#organization" },
+            "inLanguage": "en-GB"
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

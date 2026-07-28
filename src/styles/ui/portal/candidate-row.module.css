@@ -1,0 +1,181 @@
+.row {
+  padding: var(--s-4) 0 var(--s-3);
+  border-bottom: 1px solid var(--c-line);
+  transition: opacity var(--dur-settle) var(--ease);
+}
+
+.approve { box-shadow: inset 3px 0 0 var(--c-positive); padding-left: var(--s-4); }
+.reject  { box-shadow: inset 3px 0 0 var(--c-negative); padding-left: var(--s-4); opacity: 0.5; }
+.defer   { box-shadow: inset 3px 0 0 var(--c-warning); padding-left: var(--s-4); }
+
+.head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: var(--s-4);
+  cursor: pointer;
+  margin-bottom: var(--s-3);
+}
+
+.score {
+  min-width: 3ch;
+  color: var(--c-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.middle { min-width: 0; }
+
+.title {
+  font-size: var(--t-lead);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: var(--lh-snug);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.meta {
+  margin-top: var(--s-1);
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+}
+
+.money { text-align: right; }
+.net { color: var(--c-ink); }
+
+.pct {
+  margin-top: 2px;
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+  white-space: nowrap;
+}
+
+.est {
+  font-family: var(--font-data);
+  font-size: var(--t-micro);
+  color: var(--c-warning);
+}
+
+.detail {
+  margin-top: var(--s-4);
+  padding: var(--s-4);
+  background: var(--c-sunk);
+  border-radius: var(--r-md);
+}
+
+.ledger { display: flex; flex-direction: column; gap: 3px; }
+
+.line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-4);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+}
+
+.sub {
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+  letter-spacing: 0.04em;
+}
+
+.lineStrong {
+  margin-top: var(--s-2);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--c-line-mid);
+  color: var(--c-ink);
+  font-weight: 500;
+  font-size: var(--t-body);
+}
+
+.sources {
+  margin-top: var(--s-3);
+  font-family: var(--font-data);
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+}
+
+.sources span { margin-right: var(--s-2); }
+
+.note {
+  margin-top: var(--s-3);
+  padding-left: var(--s-3);
+  border-left: 2px solid var(--c-brand);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+.primary, .ghost, .danger {
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border-radius: var(--r-md);
+  font-size: var(--t-label);
+  font-weight: 500;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.primary {
+  margin-left: auto;
+  background: var(--c-action-strong);
+  color: #fff;
+}
+.primary:hover:not(:disabled) { filter: brightness(0.93); }
+
+.ghost {
+  color: var(--c-ink-soft);
+  border: 1px solid var(--c-control);
+}
+.ghost:hover:not(:disabled) { background: var(--c-sunk); }
+
+.danger { background: var(--c-negative); color: #fff; }
+
+.primary:disabled, .ghost:disabled, .danger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.reject { display: flex; gap: var(--s-2); width: 100%; flex-wrap: wrap; }
+.reject .danger { margin-left: auto; }
+
+.select, .input {
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  font-size: var(--t-label);
+}
+.input { flex: 1; min-width: 100px; }
+
+.verdict { font-size: var(--t-label); font-weight: 500; }
+.reason { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.change {
+  min-height: var(--tap);
+  margin-left: auto;
+  padding: 0 var(--s-2);
+  font-size: var(--t-label);
+  color: var(--c-ink-faint);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .head { grid-template-columns: auto 1fr; gap: var(--s-3); }
+  .money { grid-column: 2; text-align: left; margin-top: var(--s-2); }
+  .money { display: flex; align-items: baseline; gap: var(--s-2); }
+  .pct { margin-top: 0; }
+  .foot { flex-wrap: wrap; }
+  .primary { margin-left: 0; flex: 1; }
+  .ghost { flex: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row, .primary, .ghost, .danger { transition: none; }
+}

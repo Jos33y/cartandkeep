@@ -1,0 +1,103 @@
+:root {
+  --c-base: #faf6ef;
+  --c-ink: #2a2723;
+  --c-brand: #7a9575;
+  --c-action: #c4674a;
+
+  --c-action-strong: #ba5a3d;
+  --c-action-text: #ad5438;
+
+  --c-surface: #ffffff;
+  --c-sunk: #f4efe6;
+  --c-raised: #fffdfa;
+
+  /* line is decorative and exempt. control clears 3:1 on every surface because
+     it is the only thing identifying an input or a ghost button. */
+  --c-line: #e8e0d3;
+  --c-line-mid: #d6cab5;
+  --c-control: #9d8764;
+  --c-line-strong: #9d8764;
+
+  --c-ink-soft: #6b6459;
+  --c-ink-faint: #736c5d;
+
+  --c-positive: #4e7849;
+  --c-warning: #966828;
+  --c-negative: #a3402c;
+
+  --c-brand-wash: #eef2ec;
+  --c-brand-mid: #cdd9c9;
+  --c-action-wash: #faeee9;
+
+  --font-data: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+  --font-ui: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  --t-display: 2.75rem;
+  --t-figure: 1.5rem;
+  --t-lead: 1.0625rem;
+  --t-body: 0.9375rem;
+  --t-label: 0.8125rem;
+  --t-caption: 0.75rem;
+  --t-micro: 0.6875rem;
+
+  --lh-tight: 1.05;
+  --lh-snug: 1.3;
+  --lh-body: 1.6;
+
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.5rem;
+  --s-6: 2rem;
+  --s-7: 3rem;
+  --s-8: 4.5rem;
+
+  --r-sm: 3px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --r-full: 999px;
+
+  --dur: 120ms;
+  --dur-settle: 260ms;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  --z-sticky: 10;
+  --z-drawer: 40;
+  --z-modal: 50;
+
+  --shell-max: 1180px;
+  --rail-w: 208px;
+  --bar-h: 56px;
+  --tap: 44px;
+}
+
+.display,
+.figure,
+[data-num] {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+}
+
+.display {
+  font-size: var(--t-display);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: var(--lh-tight);
+}
+
+.figure {
+  font-size: var(--t-figure);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: var(--lh-tight);
+}
+
+.micro {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}

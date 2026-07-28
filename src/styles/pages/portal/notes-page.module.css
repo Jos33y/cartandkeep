@@ -1,0 +1,158 @@
+.page { display: flex; flex-direction: column; gap: var(--s-6); }
+
+.head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--s-4); }
+
+.eyebrow {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.title { font-size: 2rem; font-weight: 560; letter-spacing: -0.035em; line-height: var(--lh-tight); }
+
+.sub { margin-top: var(--s-2); font-size: var(--t-body); color: var(--c-ink-soft); max-width: 52ch; }
+
+.add {
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border-radius: var(--r-sm);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-label);
+  font-weight: 500;
+}
+
+.add:hover { filter: brightness(0.93); }
+
+.state { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-7) var(--s-5);
+  border: 1px solid var(--c-line);
+  background: var(--c-sunk);
+}
+
+.emptyTitle { font-size: var(--t-lead); font-weight: 560; letter-spacing: -0.02em; }
+.emptyBody { font-size: var(--t-body); color: var(--c-ink-soft); max-width: 44ch; }
+
+.list { list-style: none; }
+
+.note { border-top: 1px solid var(--c-line); }
+.list .note:last-child { border-bottom: 1px solid var(--c-line); }
+
+.pinnedNote { border-left: 2px solid var(--c-brand); }
+
+.row { display: flex; align-items: flex-start; gap: var(--s-3); padding: var(--s-4) var(--s-3); }
+
+.rowMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.noteTitle { font-size: var(--t-lead); font-weight: 500; letter-spacing: -0.01em; color: var(--c-ink); }
+
+.notePreview {
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowSide { display: flex; align-items: center; gap: var(--s-3); flex: none; }
+
+.pin {
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  margin: calc(var(--s-2) * -1) 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+}
+
+.pin:hover { background: var(--c-sunk); }
+.pinIcon { width: 18px; height: 18px; color: var(--c-ink-faint); }
+.pin[aria-pressed='true'] .pinIcon { color: var(--c-brand); }
+
+.stamp {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+  white-space: nowrap;
+}
+
+.editor { display: flex; flex-direction: column; padding: 0 var(--s-3) var(--s-5); }
+
+.label {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+  margin-bottom: var(--s-2);
+}
+
+.input,
+.textarea {
+  padding: var(--s-3);
+  margin-bottom: var(--s-4);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  background: var(--c-sunk);
+  font-family: inherit;
+  font-size: var(--t-body);
+  color: var(--c-ink);
+  line-height: var(--lh-body);
+}
+
+.input { min-height: var(--tap); }
+.textarea { resize: vertical; }
+
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--c-action-strong);
+  box-shadow: 0 0 0 3px var(--c-action-wash);
+}
+
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+
+.confirmText { flex: 1; font-size: var(--t-caption); color: var(--c-ink-soft); }
+
+.ghost,
+.primary,
+.danger {
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border-radius: var(--r-sm);
+  font-size: var(--t-label);
+  font-weight: 500;
+}
+
+.ghost { border: 1px solid var(--c-control); color: var(--c-ink); background: transparent; }
+.ghost:hover { background: var(--c-sunk); }
+
+.primary { background: var(--c-action-strong); color: #fff; margin-left: auto; }
+.primary:hover:not(:disabled) { filter: brightness(0.93); }
+.primary:disabled { background: transparent; border: 1px solid var(--c-line-mid); color: var(--c-ink-faint); }
+
+.danger { background: var(--c-negative); color: #fff; }
+
+@media (min-width: 720px) {
+  .title { font-size: 2.25rem; }
+}
