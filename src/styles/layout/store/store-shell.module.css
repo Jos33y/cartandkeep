@@ -10,7 +10,7 @@
   background: var(--c-ink);
   color: var(--c-base);
   border-radius: var(--r-md);
-  font-size: var(--t-sm);
+  font-size: var(--t-label);
   transform: translateY(-200%);
 }
 

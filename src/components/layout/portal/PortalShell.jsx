@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { PORTAL_NAV_SECTIONS, portalPath } from '@utils/constants';
 import { Icon } from '@components/ui/icons';
-import { DemoBanner } from './DemoBanner';
 import { useAccount } from '@hooks/useAccount';
 import { supabase } from '@lib/supabase';
 import { useNoIndex } from '@hooks/useNoIndex';
@@ -126,7 +125,6 @@ export function PortalShell({ children }) {
         </header>
 
         <main id="portal-main" className={styles.main}>
-          <DemoBanner />
           {children}
         </main>
       </div>

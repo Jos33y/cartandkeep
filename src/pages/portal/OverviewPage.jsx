@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useOverview, nextMonday } from '@hooks/useOverview';
+import { BatchScatter } from '@components/ui/portal/BatchScatter';
 import { Icon } from '@components/ui/icons';
 import { loadTenant } from '@lib/tenant';
 import { formatGbp } from '@utils/formatGbp';
@@ -12,7 +13,7 @@ const day = (d, opts) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Lo
 const SPLIT = [
   { key: 'approved', label: 'Approved', cls: 'segApproved' },
   { key: 'rejected', label: 'Rejected', cls: 'segRejected' },
-  { key: 'deferred', label: 'Deferred', cls: 'segDeferred' },
+  { key: 'deferred', label: 'Later', cls: 'segDeferred' },
   { key: 'pending', label: 'To review', cls: 'segPending' },
 ];
 
@@ -23,6 +24,11 @@ export function OverviewPage() {
   const o = useOverview(tenant?.id);
   const delivery = useMemo(() => nextMonday(), []);
   const hasBatch = Boolean(o.batch);
+
+  // What is still on the table, which is the number that moves as she works.
+  const undecidedHeadroom = o.rows
+    .filter((r) => !r.action && r.headroom != null)
+    .reduce((a, r) => a + r.headroom, 0);
 
   const decided = o.counts.approved + o.counts.rejected + o.counts.deferred;
   const pct = o.counts.total ? Math.round((decided / o.counts.total) * 100) : 0;
@@ -77,8 +83,10 @@ export function OverviewPage() {
         <section className={styles.figures} aria-label="This week">
           <Figure label="To review" value={o.counts.pending}
             to={portalPath('/candidates')} cta="Open the queue" />
-          <Figure label="Approved" value={o.counts.approved} />
-          <Figure label="Net if all sell once" value={formatGbp(o.netIfSold)} money />
+          <Figure label="Headroom still to decide" value={formatGbp(undecidedHeadroom)} money />
+          {o.netIfSold > 0 && (
+            <Figure label="Net if all sell once" value={formatGbp(o.netIfSold)} money />
+          )}
           <Figure label="Live listings" value={o.listings} />
         </section>
       ) : (
@@ -89,6 +97,13 @@ export function OverviewPage() {
             body="Approve, reject or defer. Every rejection reason tunes the next batch." />
           <Step icon="IconTag" title="Approved go live"
             body="What you approve becomes a listing, then shows up in performance." />
+        </section>
+      )}
+
+      {hasBatch && o.rows.length > 1 && (
+        <section className={styles.block}>
+          <h2 className={styles.blockLabel}>The shape of this batch</h2>
+          <BatchScatter rows={o.rows} />
         </section>
       )}
 

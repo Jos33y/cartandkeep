@@ -3,6 +3,8 @@ import { collect } from './sources/index.js';
 import { pointsUsed } from './sources/cjDropshipping.js';
 import { groupSignals, median } from './lib/match.js';
 import { computeMargin, shippingBand } from './lib/margin.js';
+import { loadBands } from './lib/rates.js';
+import { detectBrand } from './lib/brand.js';
 import { evaluateGates } from './lib/gates.js';
 import { rankScore } from './lib/rank.js';
 import { computeConfidence, classify, isExcluded } from './lib/scoring.js';
@@ -33,6 +35,10 @@ async function main() {
     || E.VITE_TENANT_SLUG || 'cart-and-keep';
   const deliveredFor = args.find((a) => a.startsWith('--date='))?.split('=')[1] || nextMonday();
 
+  // Where exports land is a property of the machine, not of the client, so a
+  // tenant row only overrides it.
+  const dropDir = E.DROP_DIR || 'drops';
+
   const { data: tenant, error: tErr } = await db
     .from('tenants')
     .select('id, slug, name, marketplace, currency, fees, scoring, research')
@@ -47,13 +53,37 @@ async function main() {
   // Without a cost schedule every optional line resolves to zero and the margin
   // comes out flattering. That is the failure mode this pipeline exists to
   // avoid, so it is a preflight error rather than a silent default.
-  const costs = tenant.scoring?.costs;
-  if (!costs?.shipping?.bands || costs.ads_pct == null || !costs.returns) {
+  const configured = tenant.scoring?.costs;
+  if (
+    !configured?.shipping?.carrier
+    || !configured?.shipping?.service
+    || configured.ads_pct == null
+    || !configured.returns
+    || configured.goods_pct_estimate == null
+  ) {
     console.error(
-      'Missing scoring.costs on the tenant. Needs shipping.bands, shipping.packaging, ads_pct, returns and goods_pct_estimate.',
+      'Missing scoring.costs on the tenant. Needs shipping.carrier, shipping.service, shipping.packaging, ads_pct, returns and goods_pct_estimate.',
     );
     process.exit(1);
   }
+
+  // Priced on the batch date, not today, so a rerun of an old Monday prices that
+  // Monday's tariff.
+  const bands = await loadBands(db, {
+    carrier: configured.shipping.carrier,
+    service: configured.shipping.service,
+    on: deliveredFor,
+  });
+
+  if (!bands) {
+    console.error(
+      `No ${configured.shipping.carrier} ${configured.shipping.service} rate card in force on ${deliveredFor}. Insert into rate_cards.`,
+    );
+    process.exit(1);
+  }
+
+  const costs = { ...configured, shipping: { ...configured.shipping, bands } };
+  const brandConfig = tenant.research?.brands ?? {};
 
   const gateConfig = {
     ...(tenant.scoring?.gates ?? {}),
@@ -78,8 +108,14 @@ async function main() {
     marketplace: tenant.marketplace,
   };
 
+  const bandLine = Object.entries(bands)
+    .map(([b, p]) => `${b} £${p.toFixed(2)}`)
+    .join(', ');
+
   console.log(`\n${tenant.name}, batch for ${deliveredFor}`);
-  console.log(`  ${tenantSources.length} source(s) enabled, ${query.terms.length} terms\n`);
+  console.log(`  ${tenantSources.length} source(s) enabled, ${query.terms.length} terms`);
+  console.log(`  postage ${configured.shipping.service}: ${bandLine}`);
+  console.log(`  drops: ${dropDir}\n`);
 
   const runStatus = [];
   const collected = await collect({
@@ -87,7 +123,7 @@ async function main() {
     tenantSources: tenantSources.map((ts) => ({
       ...ts,
       credential_ref: credentialsFor(ts.credential_ref, E),
-      config: { ...(ts.config ?? {}), debug },
+      config: { dropDir, ...(ts.config ?? {}), debug },
     })),
     query,
     onSourceResult: async (r) => {
@@ -185,11 +221,21 @@ async function main() {
       weights: tenant.scoring?.weights,
     });
 
+    // The sources gate asks how many independent sources agree, so it counts
+    // distinct sources. Three signals from one source is still one opinion.
+    const sourceCount = new Set(g.signals.map((s) => s.sourceId)).size;
+
+    // Every merged title is screened, not just the longest one, and a clean
+    // screen is false rather than null so the gate passes instead of skipping.
+    const brandFlag = [g.title, ...(g.mergedTitles ?? [])]
+      .map((t) => detectBrand(t, brandConfig))
+      .find(Boolean) ?? false;
+
     // Demand metrics arrive with the demand sources. Absent, their gates skip
     // and their components drop out of the score, which the bar then shows.
     const candidate = {
       margin,
-      signal_count: signalCount,
+      signal_count: sourceCount,
       sell_through: g.sellThrough ?? null,
       sold30: g.sold30 ?? null,
       trend: g.trend ?? null,
@@ -197,7 +243,7 @@ async function main() {
       seller_concentration: g.sellerConcentration ?? null,
       stock: g.stock ?? null,
       lead_time_days: g.leadTimeDays ?? null,
-      brand_flag: g.brandFlag ?? null,
+      brand_flag: brandFlag,
     };
 
     const verdict = evaluateGates(candidate, gateConfig);

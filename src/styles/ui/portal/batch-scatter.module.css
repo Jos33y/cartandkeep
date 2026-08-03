@@ -1,0 +1,74 @@
+.wrap { display: flex; flex-direction: column; gap: var(--s-3); }
+
+/* A readout above the plot rather than a native tooltip, which arrives half a
+   second late in a system font. */
+.readout {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 40px;
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.readoutTitle {
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.readoutFigures { font-size: var(--t-caption); color: var(--c-ink-soft); }
+
+.readoutIdle { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.svg { width: 100%; height: auto; overflow: visible; }
+
+.axis { stroke: var(--c-control); stroke-width: 1; }
+
+.grid { stroke: var(--c-line); stroke-width: 1; }
+
+.gate { stroke: var(--c-warning); stroke-width: 1; stroke-dasharray: 3 4; }
+
+.gateLabel {
+  fill: var(--c-warning);
+  font-family: var(--font-data);
+  font-size: 11px;
+}
+
+.tick {
+  fill: var(--c-ink-faint);
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+
+.axisLabel {
+  fill: var(--c-ink-faint);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.dot {
+  fill: var(--c-brand-strong);
+  stroke: none;
+  cursor: pointer;
+  transition: r var(--dur) var(--ease);
+}
+
+.dotDecided { fill: none; stroke: var(--c-control); stroke-width: 1.5; }
+
+.dotOn { fill: var(--c-action-strong); stroke: none; }
+
+.caption {
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+  max-width: 62ch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot { transition: none; }
+}

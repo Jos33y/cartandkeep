@@ -1,17 +1,15 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@lib/supabase';
-import { isDemo } from '@lib/mode';
-import {
-  DEMO_BATCH,
-  DEMO_CANDIDATES,
-  DEMO_SOURCES,
-  DEMO_LISTINGS,
-  DEMO_PERFORMANCE,
-} from '@data/demo';
+
+// candidate_id is unique on decisions, so PostgREST returns a to-one embed here
+// and an array elsewhere. Reading [0] off an object gives undefined, which read
+// as nobody having decided anything.
+const one = (d) => (Array.isArray(d) ? d[0] ?? null : d ?? null);
 
 const EMPTY = {
   status: 'loading',
   batch: null,
+  rows: [],
   counts: { total: 0, approved: 0, rejected: 0, deferred: 0, pending: 0 },
   netIfSold: 0,
   reasons: [],
@@ -20,42 +18,11 @@ const EMPTY = {
   performance: { units: 0, revenue: 0, net: 0 },
 };
 
-function demoState() {
-  const rows = DEMO_CANDIDATES;
-  const by = (a) => rows.filter((r) => r.decision?.action === a).length;
-
-  const tally = new Map();
-  for (const r of rows) {
-    const reason = r.decision?.reason;
-    if (reason) tally.set(reason, (tally.get(reason) ?? 0) + 1);
-  }
-
-  return {
-    status: 'ready',
-    batch: DEMO_BATCH,
-    counts: {
-      total: rows.length,
-      approved: by('approve'),
-      rejected: by('reject'),
-      deferred: by('defer'),
-      pending: rows.filter((r) => !r.decision).length,
-    },
-    netIfSold: rows
-      .filter((r) => r.decision?.action === 'approve')
-      .reduce((a, r) => a + Number(r.margin?.net ?? 0), 0),
-    reasons: [...tally.entries()].map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count),
-    sources: DEMO_SOURCES,
-    listings: DEMO_LISTINGS,
-    performance: DEMO_PERFORMANCE,
-  };
-}
-
 export function useOverview(tenantId) {
-  const demo = isDemo();
-  const [state, setState] = useState(demo ? demoState() : EMPTY);
+  const [state, setState] = useState(EMPTY);
 
   useEffect(() => {
-    if (demo || !tenantId) return;
+    if (!tenantId) return;
     let live = true;
 
     (async () => {
@@ -72,7 +39,10 @@ export function useOverview(tenantId) {
         batch
           ? supabase
               .from('candidates')
-              .select('id, margin, decisions ( action, reason )')
+              .select(`
+                id, title, score, headroom, sold_30d, bulky, variation_count, margin,
+                decisions ( action, reason )
+              `)
               .eq('batch_id', batch.id)
           : Promise.resolve({ data: [] }),
         supabase
@@ -90,8 +60,14 @@ export function useOverview(tenantId) {
 
       if (!live) return;
 
-      const rows = candidates.data ?? [];
-      const decisionOf = (r) => r.decisions?.[0]?.action ?? null;
+      const rows = (candidates.data ?? []).map(({ decisions, ...c }) => ({
+        ...c,
+        headroom: c.headroom == null ? null : Number(c.headroom),
+        action: one(decisions)?.action ?? null,
+        reason: one(decisions)?.reason ?? null,
+      }));
+
+      const decisionOf = (r) => r.action;
 
       const counts = {
         total: rows.length,
@@ -109,8 +85,7 @@ export function useOverview(tenantId) {
       // overview rather than buried in a filter.
       const tally = new Map();
       for (const r of rows) {
-        const reason = r.decisions?.[0]?.reason;
-        if (reason) tally.set(reason, (tally.get(reason) ?? 0) + 1);
+        if (r.reason) tally.set(r.reason, (tally.get(r.reason) ?? 0) + 1);
       }
       const reasons = [...tally.entries()]
         .map(([reason, count]) => ({ reason, count }))
@@ -128,6 +103,7 @@ export function useOverview(tenantId) {
       setState({
         status: 'ready',
         batch: batch ?? null,
+        rows,
         counts,
         netIfSold,
         reasons,
@@ -143,7 +119,7 @@ export function useOverview(tenantId) {
     })();
 
     return () => { live = false; };
-  }, [tenantId, demo]);
+  }, [tenantId]);
 
   return state;
 }

@@ -1,0 +1,124 @@
+analyse-terapeak.py
+2026-07-31 21:51
+files: dog-bowl_2025-08.csv, dog-bowl_2025-09.csv, dog-bowl_2026-06.csv, dog-bowl_2026-07.csv
+
+DOG-BOWL, 4 WINDOWS ───────────────────────────────────────────────
+  2025-08   322 listings   4,335 units  £   36,925  avg £8.52
+  2025-09   353 listings   3,625 units  £   31,316  avg £8.64
+  2026-06   534 listings   5,361 units  £   45,583  avg £8.50
+  2026-07   291 listings   4,671 units  £   35,075  avg £7.51
+
+CATEGORY STRIP ────────────────────────────────────────────────────
+  window     avg   charged   free   sold-rate    sellers
+  2025-08  £  9.56  £  3.02    94%      9.15%      1239
+  2025-09  £  9.64  £  2.87    93%     12.92%      1121
+  2026-06  £  9.04  £  3.17    93%     19.39%      1332
+  2026-07  £  8.49  £  2.92    92%     20.37%      1450
+
+  charged postage excludes free-postage listings, so at 
+  90%+ free it describes a small minority and not the real cost.
+  sold-rate is eBay percentage of similar items that sold, which
+  is not the same metric as sell-through in the pipeline gates.
+
+HEADROOM AT CATEGORY AVERAGE ──────────────────────────────────────
+  before goods cost, postage absorbed by the seller
+  2025-08  £ 9.56  large_letter  £ 4.21 left
+  2025-08  £ 9.56  small_parcel  £ 3.41 left
+  2025-09  £ 9.64  large_letter  £ 4.28 left
+  2025-09  £ 9.64  small_parcel  £ 3.48 left
+  2026-06  £ 9.04  large_letter  £ 3.79 left
+  2026-06  £ 9.04  small_parcel  £ 2.99 left
+  2026-07  £ 8.49  large_letter  £ 3.34 left
+  2026-07  £ 8.49  small_parcel  £ 2.54 left
+
+WHERE THE SALES SIT, BY PRICE BAND ────────────────────────────────
+  head = headroom before goods cost at the band midpoint, small parcel
+  band            25-08    25-09    26-06    26-07     total   share    head
+  £0-4            811      453    1,043    1,351     3,658   20.3%  £ -2.73
+  £4-6          1,214    1,230    1,418      890     4,752   26.4%  £ -0.29
+  £6-8            621      522      677      593     2,413   13.4%  £  1.33
+  £8-10           435      316      818      750     2,319   12.9%  £  2.96
+  £10-12          456      329      420      448     1,653    9.2%  £  4.58
+  £12-15          316      365      482      352     1,515    8.4%  £  6.61
+  £15-20          277      202      368      226     1,073    6.0%  £  9.86
+  £20-30          188      179       81       38       486    2.7%  £ 15.95
+  £30+             17       29       54       23       123    0.7%  £ 27.32
+
+  Units at prices that can clear the £4 gate: 4,601 of 17,992 (25.6%)
+  Everything below that line loses money before goods cost.
+
+PATTERN ACROSS WINDOWS ────────────────────────────────────────────
+  evergreen     ████░░░░░░░░░░░░░░░░  18.6%    31 products   3,355 units
+  rising        █░░░░░░░░░░░░░░░░░░░   4.2%    23 products     762 units
+  intermittent  █░░░░░░░░░░░░░░░░░░░   4.1%    37 products     733 units
+  erratic       ░░░░░░░░░░░░░░░░░░░░   1.6%     4 products     293 units
+  new           ████████░░░░░░░░░░░░  38.9%   513 products   7,000 units
+  fading        ██░░░░░░░░░░░░░░░░░░   9.2%    57 products   1,651 units
+  gone          █████░░░░░░░░░░░░░░░  23.3%   323 products   4,198 units
+
+  Absent from a window means outside the scraped top N,
+  which is not the same as zero sales.
+
+EVERGREEN, UNSCREENED, BY HEADROOM ────────────────────────────────
+  headroom is what is left before goods cost, small parcel band
+   head   price   units   25-08  25-09  26-06  26-07  title
+  £11.82  £ 19.91     55       7     16     17     15  2 in1 Feeder Food Water Dispenser Bowl A
+  £ 8.38  £ 15.68     51      15     22      6      8  Pet Dog Food Feeding Station Double Stai
+  £ 4.60  £ 11.02    115      36     22     36     21  Pet Food water Dispenser Automatic Dog C
+  £ 3.71  £  9.92     43      18      8      5     12  Double Diner Pet Feeding Station Elevate
+  £ 2.26  £  8.14    102      27     10     28     37  Dog Collapsible LARGE & X-LARGE Pet Bowl
+  £ 1.68  £  7.43     87      27     22     23     15  Puppy Dog Pet Cat Litter Food Feeding We
+  £ 1.48  £  7.18     36       4      8      9     15  Dog Bowl Stainless Steel Metal Pet Puppy
+  £ 1.37  £  7.05     55      20     14     10     11  Double Cat Feeding Bowl Pet Bowls Stand 
+  £ 0.45  £  5.91     31       4      5     14      8  Pet Dog Puppy Stainless Steel Hanging Fo
+  £ 0.09  £  5.47    451     135    121     96     99  Cat Dog Food Mat For Pet Feeding Bowl Fl
+  £-0.37  £  4.90    178      47     48     41     42  Hang-on Bowl Metal For Pet Dog Cat Crate
+  £-0.39  £  4.88     71      23     21     11     16  Pet Dog Feeding Bowls - melamine bowl - 
+  £-0.64  £  4.57     38      17     10      5      6  Dog Collapsible Bowl Slow Food Feeder  P
+  £-0.77  £  4.41     48      12     11     16      9  xlarge Pet Collapsible Bowl 17.5cm dog c
+  £-1.03  £  4.09    170      63     46     19     42  Pet Puppy Silicone Waterproof Feeding Fo
+  £-1.13  £  3.96     99      30     16     26     27  Pet Feeding Mat Paw Shape Small Dog/Pupp
+  £-1.13  £  3.97     44       7      6     14     17  Pet Dog Cat Collapsible Feeding Bowl Tra
+  £-1.39  £  3.65    505     168     71    142    124  2 Pack Collapsible Dog Cat Pet Bowls Foo
+  £-1.48  £  3.53     51      16      4     15     16  Foldable Fabric Travel Pet Bowl Dog Wate
+  £-1.64  £  3.34    219      80     31     42     66  2 Collapsible Dog Bowls Food Water Dish 
+  £-2.04  £  2.85    150      33     21     30     66  Small/Medium/Large Collapsible Feeding B
+
+  Clearing the £4 gate: 3 of 21 evergreen products
+
+EVERGREEN BUT SCREENED OUT ────────────────────────────────────────
+    163  brand:me & my  Me & My Pets Classic Stainless Steel Dog Cat
+    111  bespoke        PERSONALISED DOG BOWL with Picture and Name 
+    101  brand:sureflap  Sureflap Pet Care Surefeed Rear Cover Only!!
+     94  trademark      ClearOFF™ Pet Urine Lawn Burn Rocks - Dogs W
+     78  brand:mason cash  Mason Cash Cane Lettered Dog Bowl 15, 18, 20
+     73  brand:road refresher  ROAD REFRESHER NON SPILL DOG PUPPY PET TRAVE
+     46  brand:trixie   Trixie Long Ear Dog Bowl Food & Water Stainl
+     40  electrical|brand:zeus  Zeus Pet Stainless Steel 6L Dog Drinking Fou
+     32  bespoke        Personalised Pet Name Sticker Vinyl Decal Pa
+     18  bespoke        Personalised Pet Bowl Cat Dog Food Water Dee
+
+LISTABLE ──────────────────────────────────────────────────────────
+  head >= £4.00 and 15+ units in 2026-07. proven and sourceable are annotations, not routes in.
+   head   price   now   mom  sku  routes                title
+  £ 6.18  £ 12.97   125  12.5   10  selling+sourceable    Large Dog Food Feeding Stand Station S
+  £ 5.74  £ 12.42    48   1.7    8  selling+sourceable    Large Dog Food Feeding Stand Station S
+  £11.82  £ 19.91    15   0.9    8  selling+proven+sourceable 2 in1 Feeder Food Water Dispenser Bowl
+  £ 4.02  £ 10.31    39   6.5    1  selling               Pet Food Feeding Stand Station Stainle
+  £ 4.31  £ 10.67    31   1.6    1  selling               Raised Double Dog Bowls Stainless Stee
+  £ 4.33  £ 10.69    23   7.7    1  selling               Raised Pet Bowls Elevated Dog Cat Feed
+  £ 4.60  £ 11.02    21   0.6    2  selling+proven        Pet Food water Dispenser Automatic Dog
+  £ 4.37  £ 10.74    17     -    1  selling               Large Automatic Water Trough Bowl Farm
+  £ 4.34  £ 10.70    16   2.0    1  selling               3L No Spill Dog Cat Water Bowl Non-Sli
+
+STOCK CANDIDATES ──────────────────────────────────────────────────
+  proven across all 4 windows, still selling, holding at 60%+ of own average
+   head   price   now  hold   /mo   band   title
+  £11.82  £ 19.91    15   1.1    14  parcel  2 in1 Feeder Food Water Dispenser Bowl A
+  £ 4.60  £ 11.02    21   0.7    29  parcel  Pet Food water Dispenser Automatic Dog C
+
+OUTPUT ────────────────────────────────────────────────────────────
+  drops/merged\dog-bowl_merged.csv   988 products across 4 windows
+  drops/merged\shortlist.csv   127 listable, 0 dropped, 8 new this run, 1 refreshed
+  records\terapeak_2026-07-31_2151.txt   run recorded
+

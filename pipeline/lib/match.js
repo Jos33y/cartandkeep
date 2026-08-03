@@ -70,6 +70,10 @@ export function groupSignals(collected, threshold = THRESHOLD) {
 
       if (!g) {
         g = {
+          // Frozen at the seed title. Widening this on every merge made each
+          // absorption easier than the last, which collapsed three lash kits at
+          // three different costs into one candidate, and made the result depend
+          // on the order sources happened to run in.
           tokens,
           title: signal.title ?? signal.externalRef,
           category: null,
@@ -80,10 +84,9 @@ export function groupSignals(collected, threshold = THRESHOLD) {
           signals: [],
           prices: [],
           landedCosts: [],
+          demand: null,
         };
         groups.push(g);
-      } else {
-        for (const t of tokens) g.tokens.add(t);
       }
 
       if (signal.title && !g.mergedTitles.includes(signal.title)) g.mergedTitles.push(signal.title);
@@ -105,10 +108,27 @@ export function groupSignals(collected, threshold = THRESHOLD) {
 
       if (Number.isFinite(signal.price)) g.prices.push(signal.price);
       if (Number.isFinite(signal.landedCost)) g.landedCosts.push(signal.landedCost);
+
+      // Demand facts travel on the signal and were being dropped here, so the
+      // trend and demand gates skipped on numbers the source had already
+      // computed. Keep the record with the most sold: a fuller window wins.
+      if (signal.demand && (signal.demand.sold30 ?? 0) > (g.demand?.sold30 ?? -1)) {
+        g.demand = signal.demand;
+      }
     }
   }
 
-  return groups.map(({ tokens, ...rest }) => ({ ...rest, key: [...tokens].sort().join('-') }));
+  return groups.map(({ tokens, demand, ...rest }) => ({
+    ...rest,
+    key: [...tokens].sort().join('-'),
+    sold30: demand?.sold30 ?? null,
+    trend: demand?.trend ?? null,
+    sellThrough: demand?.sellThrough ?? null,
+    activeListings: demand?.activeListings ?? null,
+    avgSoldPrice: demand?.avgSoldPrice ?? null,
+    windowStart: demand?.windowStart ?? null,
+    windowEnd: demand?.windowEnd ?? null,
+  }));
 }
 
 export function median(values) {

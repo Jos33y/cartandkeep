@@ -1,0 +1,58 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-6) var(--s-4);
+  background: rgba(42, 39, 35, 0.82);
+}
+
+.frame {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  max-width: 720px;
+  max-height: 100%;
+  padding: var(--s-4);
+  background: var(--c-base);
+  border-radius: var(--r-lg);
+  overflow: auto;
+}
+
+.image {
+  width: 100%;
+  height: auto;
+  max-height: 62vh;
+  object-fit: contain;
+  background: var(--c-surface);
+  border-radius: var(--r-md);
+}
+
+.caption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  font-size: var(--t-label);
+  line-height: var(--lh-snug);
+  color: var(--c-ink);
+}
+
+.note { font-size: var(--t-caption); color: var(--c-ink-soft); }
+
+.close {
+  position: absolute;
+  top: var(--s-4);
+  right: var(--s-4);
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid rgba(250, 246, 239, 0.4);
+  background: transparent;
+  color: var(--c-base);
+  font-size: var(--t-label);
+  font-weight: 500;
+}
+
+.close:hover { background: rgba(250, 246, 239, 0.12); }

@@ -15,6 +15,8 @@ const FinancePage = lazy(() => import('@pages/portal/FinancePage').then((m) => (
 const OrdersPage = lazy(() => import('@pages/portal/OrdersPage').then((m) => ({ default: m.OrdersPage })));
 const ActivityPage = lazy(() => import('@pages/portal/ActivityPage').then((m) => ({ default: m.ActivityPage })));
 const NotesPage = lazy(() => import('@pages/portal/NotesPage').then((m) => ({ default: m.NotesPage })));
+const CoveragePage = lazy(() => import('@pages/portal/CoveragePage').then((m) => ({ default: m.CoveragePage })));
+const MetricsPage = lazy(() => import('@pages/portal/MetricsPage').then((m) => ({ default: m.MetricsPage })));
 const SettingsPage = lazy(() => import('@pages/portal/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
 const deferred = (el) => <Suspense fallback={null}>{el}</Suspense>;
@@ -32,6 +34,8 @@ export const portalRouter = createBrowserRouter([
       { path: 'finance', element: deferred(<FinancePage />) },
       { path: 'orders', element: deferred(<OrdersPage />) },
       { path: 'notes', element: deferred(<NotesPage />) },
+      { path: 'coverage', element: deferred(<CoveragePage />) },
+      { path: 'metrics', element: deferred(<MetricsPage />) },
       { path: 'activity', element: deferred(<ActivityPage />) },
       { path: 'settings', element: deferred(<SettingsPage />) },
       // Catches everything unmatched, and does it inside the shell so she is

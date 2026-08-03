@@ -1,0 +1,174 @@
+analyse-terapeak.py
+2026-08-03 14:20
+files: dog-bed_2025-08.csv, dog-bed_2025-09.csv, dog-bed_2026-05.csv, dog-bed_2026-06.csv, dog-bed_2026-07.csv
+
+DOG-BED, 5 WINDOWS ────────────────────────────────────────────────
+  2025-08   427 listings   6,452 units  £  115,977  avg £17.98
+  2025-09   325 listings   6,780 units  £  119,795  avg £17.67
+  2026-05   491 listings   8,452 units  £  128,120  avg £15.16
+  2026-06   588 listings  12,151 units  £  159,410  avg £13.12
+  2026-07   688 listings  13,591 units  £  170,723  avg £12.56
+
+CATEGORY STRIP ────────────────────────────────────────────────────
+  window     avg   charged   free   sold-rate    sellers
+  2025-08  £ 18.13  £  5.20    96%     17.63%       962
+  2025-09  £ 18.98  £  5.74    96%     22.31%       911
+  2026-05  £ 16.44  £  5.19    95%     25.55%       879
+  2026-06  £ 14.15  £  4.40    96%     25.70%      1028
+  2026-07  £ 13.62  £  4.47    96%     29.59%      1318
+
+  charged postage excludes free-postage listings, so at 
+  90%+ free it describes a small minority and not the real cost.
+  sold-rate is eBay percentage of similar items that sold, which
+  is not the same metric as sell-through in the pipeline gates.
+
+HEADROOM AT CATEGORY AVERAGE ──────────────────────────────────────
+  before goods cost, postage absorbed by the seller
+  2025-08  £18.13  large_letter  £11.17 left
+  2025-08  £18.13  small_parcel  £10.37 left
+  2025-09  £18.98  large_letter  £11.86 left
+  2025-09  £18.98  small_parcel  £11.06 left
+  2026-05  £16.44  large_letter  £ 9.80 left
+  2026-05  £16.44  small_parcel  £ 9.00 left
+  2026-06  £14.15  large_letter  £ 7.94 left
+  2026-06  £14.15  small_parcel  £ 7.14 left
+  2026-07  £13.62  large_letter  £ 7.51 left
+  2026-07  £13.62  small_parcel  £ 6.71 left
+
+WHERE THE SALES SIT, BY PRICE BAND ────────────────────────────────
+  head = headroom before goods cost at the band midpoint, small parcel
+  band            25-08    25-09    26-05    26-06    26-07     total   share    head
+  £0-4            124       95       57      139      247       662    1.4%  £ -2.73
+  £4-6            156      136      657    1,275    1,150     3,374    7.1%  £ -0.29
+  £6-8            532      562      651    1,798    2,348     5,891   12.4%  £  1.33
+  £8-10           632      657    1,767    1,094    1,634     5,784   12.2%  £  2.96
+  £10-12          345      195      629    1,795    2,021     4,985   10.5%  £  4.58
+  £12-15        1,097    1,218    1,352    2,940    2,956     9,563   20.2%  £  6.61
+  £15-20        1,781    2,243    1,687    1,816    1,856     9,383   19.8%  £  9.86
+  £20-30        1,151    1,147    1,161      817    1,046     5,322   11.2%  £ 15.95
+  £30+            634      527      491      477      333     2,462    5.2%  £ 27.32
+
+  Units at prices that can clear the £4 gate: 30,928 of 47,426 (65.2%)
+  Everything below that line loses money before goods cost.
+
+PATTERN ACROSS WINDOWS ────────────────────────────────────────────
+  evergreen     ███░░░░░░░░░░░░░░░░░  16.5%    38 products   7,844 units
+  rising        █░░░░░░░░░░░░░░░░░░░   7.0%    57 products   3,309 units
+  intermittent  █░░░░░░░░░░░░░░░░░░░   2.5%    45 products   1,198 units
+  erratic       ███░░░░░░░░░░░░░░░░░  12.8%    41 products   6,059 units
+  new           ██████████░░░░░░░░░░  48.8%   929 products  23,132 units
+  fading        █░░░░░░░░░░░░░░░░░░░   6.4%    65 products   3,050 units
+  gone          █░░░░░░░░░░░░░░░░░░░   6.0%   264 products   2,834 units
+
+  Absent from a window means outside the scraped top N,
+  which is not the same as zero sales.
+
+EVERGREEN, UNSCREENED, BY HEADROOM ────────────────────────────────
+  headroom is what is left before goods cost, small parcel band
+   head   price   units   25-08  25-09  26-05  26-06  26-07  title
+  £50.70  £ 67.79     51      11     14      9     12      5  Ultimate Large Orthopedic Dog Bed High-l
+  £48.30  £ 64.84     96      31     28     13     15      9  Vet bed dog bed crate kennel whelping fl
+  £21.79  £ 32.19    329      77     81     80     61     30  Vet bed green back dog bedding various s
+  £21.24  £ 31.51    237      54     39     45     60     39  Vet bed dog bed crate kennel whelping fl
+  £21.01  £ 31.23    310      82     92     49     61     26  Traditional Grey Vet Bed.Vet Bedding ROL
+  £15.06  £ 23.90    198      43     46     36     48     25  Waterproof Dog Bed Washable Hardwearing 
+  £12.97  £ 21.33    118      15     12     32     28     31  Elevated Dog Bed Pet Cat Mesh Raised Cam
+  £12.62  £ 20.90    286      56     57     57     63     53  Professional vet bed Bedding NON SLIP Pe
+  £12.62  £ 20.90     62       6      9     14     15     18  EXTRA LARGE XL PLASTIC BLACK DOG / CAT /
+  £12.59  £ 20.86     48      11     11      9      5     12  Vet bed Premium dog Bedding Heavy weight
+  £12.19  £ 20.37    388      97    120     44     70     57  Heavy Duty Dog Cage Bed Waterproof Pet C
+  £11.83  £ 19.93    453      78    101     84     89    101  10Kg Shredded Paper Soft Tissue Absorben
+  £11.53  £ 19.56     43       7     12     12      5      7  Elevated Dog Bed Pet Cat Raised Camping 
+  £11.50  £ 19.52    109      17     12     38     12     30  Vet Bedding | Traditional Green Backing 
+  £10.94  £ 18.83    233      48     60     48     24     53  Vet Bedding Vet Bed Dog Bed Kennels Whel
+  £10.54  £ 18.34    900     225    257    191    150     77  Dog Bed Soft Pet Cushion Large Dog Crate
+  £10.10  £ 17.79    364      85     75     55     61     88  Waterproof Dog Bed Heavy Duty Cover Hard
+  £ 9.69  £ 17.29     86      13     31     11     23      8  Waterproof Large & Extra Large Dog Bed P
+  £ 9.62  £ 17.21     33       9      6      4      7      7  Elevated Pet Dog Bed Cat Raised Sides Ca
+  £ 9.49  £ 17.04    208      53     62     26     35     32  Dog Cage Bed Waterproof Heavy Duty Pet C
+  £ 8.67  £ 16.04    184      31     49     45     39     20  Extra Large Waterproof Warm Soft Fleece 
+  £ 8.20  £ 15.45    312      40    103     60     80     29  Pet Dog Bed Cat Puppy Beds Washable Soft
+  £ 7.84  £ 15.01    644     172    188    140     85     59  Dog Bed Donut Soft Large Plush Cat Beds 
+  £ 7.74  £ 14.89    166      60     46     24     18     18  Plastic Pet Bed Basket Waterproof Bed fo
+  £ 6.85  £ 13.79    210      53     48     45     45     19  Pet Dog Puppy Cat Bed Basket Heavy Duty 
+
+  Clearing the £4 gate: 31 of 34 evergreen products
+
+EVERGREEN BUT SCREENED OUT ────────────────────────────────────────
+     92  ingestible|brand:maximum pet  Maximum Pet Products 2" Tough Chew Dog Crate
+     89  ingestible|brand:maximum pet  Maximum Pet 4" Tough Dog Bed | Heavy Duty PV
+     41  ingestible     Dog Cage Mat Water and Chew Resistant Heavy 
+     41  bespoke        PERSONALISED DOG/PUPPY FLEECE FIRST BLANKET 
+
+LISTABLE ──────────────────────────────────────────────────────────
+  head >= £4.00 and 10+ units in 2026-07. proven and sourceable are annotations, not routes in.
+   head   price   now   mom  sku  routes                title
+  £ 7.09  £ 14.09   374   5.7  120  selling+sourceable    XL Large Self Cooling Mat Bed Pet Dog 
+  £ 6.34  £ 13.17   222     -  120  selling+sourceable    XL Large Self Cooling Mat Bed Pet Dog 
+  £17.40  £ 26.79    78     -    1  selling               Dog Beds Large Sofa Bed Orthopedic Dog
+  £ 3.98  £ 10.26   318     -   10  selling+sourceable    Pet Cooling Mat for Dogs Cats Summer I
+  £ 5.51  £ 12.14   219     -   10  selling+sourceable    Large Pet Cooling Mat Dog Ice Silk Coo
+  £11.83  £ 19.93   101   1.1    1  selling+proven        10Kg Shredded Paper Soft Tissue Absorb
+  £ 4.83  £ 11.31   217     -  120  selling+sourceable    XL LARGE SELF COOLING MAT BED PET DOG 
+  £ 7.67  £ 14.80   133     -    1  selling               2x Pet Foldable Cooling Mat Gel Pad fo
+  £ 5.59  £ 12.24   173   1.4    1  selling               Luxury Jumbo Box Dog Bed Cover & Fille
+  £10.10  £ 17.79    88   1.4   12  selling+proven+sourceable Waterproof Dog Bed Heavy Duty Cover Ha
+  £ 7.89  £ 15.07   106     -  120  selling+sourceable    XL Large Self Cooling Mat Bed Pet Dog 
+  £21.24  £ 31.51    39   0.7    1  selling+proven        Vet bed dog bed crate kennel whelping 
+  £10.54  £ 18.34    77   0.5   10  selling+proven+sourceable Dog Bed Soft Pet Cushion Large Dog Cra
+  £13.98  £ 22.58    57   0.7   12  selling+sourceable    Pet Self Cooling Mat Summer Cool Mat F
+  £ 3.75  £  9.98   193     -  120  selling+sourceable    XL Large Self Cooling Mat Bed Pet Dog 
+  £16.36  £ 25.51    44     -    1  selling               Large Dog Bed Sofa Orthopedic Dog Beds
+  £12.19  £ 20.37    57   0.8    5  selling+proven+sourceable Heavy Duty Dog Cage Bed Waterproof Pet
+  £ 5.17  £ 11.73   132   6.3   18  selling+sourceable    Dog Bed Cat Beds Soft Washable Fleece 
+  £ 6.39  £ 13.23   106   3.0    3  selling+sourceable    Pet Cooling Gel Mat Dog Cat Self-Cooli
+  £12.62  £ 20.90    53   0.8    1  selling+proven        Professional vet bed Bedding NON SLIP 
+  £21.79  £ 32.19    30   0.5    1  selling+proven        Vet bed green back dog bedding various
+  £10.01  £ 17.69    65     -  120  selling+sourceable    XL Large Self Cooling Mat Bed Pet Dog 
+  £16.65  £ 25.86    37   1.7    1  selling               Elevated Raised Dog Bed Pet with Roof 
+  £17.05  £ 26.36    35   4.4    1  selling               Dog Beds Large Sofa Bed Orthopedic Dog
+  £10.94  £ 18.83    53   2.2    1  selling+proven        Vet Bedding Vet Bed Dog Bed Kennels Wh
+
+  amber head: clears the gate only if it ships large letter.
+  Under 25mm thick and under 750g. Check before sourcing.
+
+SCREENED OUT BUT WOULD BE LISTABLE ────────────────────────────────
+  review these: the screen may be wrong
+  £ 4.50  £ 10.90    28  brand:skylos           Skylos Pet Bed Large Mattress Plush Do
+  £27.46  £ 39.18    24  trademark              PnH Veterinary Bedding® GREEN BACK, Do
+  £28.97  £ 41.04    15  ingestible|brand:maximum pet Maximum Pet Products 2" Tough Chew Dog
+  £ 7.66  £ 14.79    15  brand:skylos           Skylos Orthopedic Pet Bed Non-Slip Cor
+  £35.93  £ 49.61    14  ingestible|brand:maximum pet Maximum Pet 4" Tough Dog Bed | Heavy D
+  £ 9.04  £ 16.49    14  brand:skylos           Skylos Dog Car Seat Portable Pet Trave
+  £ 9.97  £ 17.63    12  ingestible             Pet sofa/dog bed/dog mat/pet winter wa
+  £ 3.81  £ 10.05    12  brand:skylos           Skylos Dog Bed Plush Pet Cushion Large
+  £29.60  £ 41.81    12  brand:skylos           Skylos Orthopedic Pet Bed Dog Memory F
+  £14.22  £ 22.87    11  brand:skylos           Skylos Raised Dog Bed Elevated Pet Bed
+  £ 9.09  £ 16.55    10  brand:skylos           Skylos Small Dog Booster Car Seat Dog 
+  £ 9.12  £ 16.59    10  brand:skylos           Skylos Dog Car Seat Bed Pet Booster Se
+
+STOCK CANDIDATES ──────────────────────────────────────────────────
+  proven across all 5 windows, still selling, holding at 60%+ of own average
+   head   price   now  hold   /mo   band   title
+  £11.83  £ 19.93   101   1.1    91  bulky   10Kg Shredded Paper Soft Tissue Absorben
+  £10.10  £ 17.79    88   1.2    73  bulky   Waterproof Dog Bed Heavy Duty Cover Hard
+  £21.24  £ 31.51    39   0.8    47  bulky   Vet bed dog bed crate kennel whelping fl
+  £12.19  £ 20.37    57   0.7    78  bulky   Heavy Duty Dog Cage Bed Waterproof Pet C
+  £12.62  £ 20.90    53   0.9    57  parcel  Professional vet bed Bedding NON SLIP Pe
+  £10.94  £ 18.83    53   1.1    47  parcel  Vet Bedding Vet Bed Dog Bed Kennels Whel
+  £12.97  £ 21.33    31   1.3    24  parcel  Elevated Dog Bed Pet Cat Mesh Raised Cam
+  £15.06  £ 23.90    25   0.6    40  parcel  Waterproof Dog Bed Washable Hardwearing 
+  £11.50  £ 19.52    30   1.4    22  parcel  Vet Bedding | Traditional Green Backing 
+  £ 9.49  £ 17.04    32   0.8    42  bulky   Dog Cage Bed Waterproof Heavy Duty Pet C
+  £12.62  £ 20.90    18   1.4    12  bulky   EXTRA LARGE XL PLASTIC BLACK DOG / CAT /
+  £12.59  £ 20.86    12   1.2    10  parcel  Vet bed Premium dog Bedding Heavy weight
+  £ 6.12  £ 12.89    19   0.7    28  parcel  Round Dog Bed Donut Pet Cat Kitten Puppy
+
+  bulky: headroom assumes a small parcel and is optimistic.
+  Get real dimensions from the supplier before trusting the margin.
+
+OUTPUT ────────────────────────────────────────────────────────────
+  drops/merged\dog-bed_merged.csv   1439 products across 5 windows
+  drops/merged\shortlist.csv   214 listable, 0 dropped, 194 new this run, 0 refreshed
+  records\terapeak_2026-08-03_1420.txt   run recorded
+

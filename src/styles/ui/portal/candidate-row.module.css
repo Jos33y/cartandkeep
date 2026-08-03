@@ -1,27 +1,116 @@
 .row {
-  padding: var(--s-4) 0 var(--s-3);
+  --gutter: calc(72px + var(--s-4));
+  position: relative;
+  padding: var(--s-3) var(--s-4) var(--s-3) var(--s-3);
   border-bottom: 1px solid var(--c-line);
-  transition: opacity var(--dur-settle) var(--ease);
+  border-radius: var(--r-md);
+  transition: background var(--dur) var(--ease), opacity var(--dur-settle) var(--ease);
 }
+
+/* Sixteen identical rows scan better when the one under the pointer lifts. */
+.row:hover { background: var(--c-raised); }
+.rowOpen { background: var(--c-raised); }
+
+.aligned { padding-left: var(--gutter); }
 
 .approve { box-shadow: inset 3px 0 0 var(--c-positive); padding-left: var(--s-4); }
 .reject  { box-shadow: inset 3px 0 0 var(--c-negative); padding-left: var(--s-4); opacity: 0.5; }
 .defer   { box-shadow: inset 3px 0 0 var(--c-warning); padding-left: var(--s-4); }
 
+/* One gutter, the width of the image, so the score, the bar, the detail and
+   the actions all start where the title starts. */
 .head {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: start;
+  grid-template-columns: 72px minmax(0, 1fr) auto 16px;
+  align-items: center;
   gap: var(--s-4);
   cursor: pointer;
-  margin-bottom: var(--s-3);
+  margin-bottom: var(--s-2);
 }
 
-.score {
-  min-width: 3ch;
-  color: var(--c-ink);
-  font-variant-numeric: tabular-nums;
+.caret {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--c-ink-faint);
+  transition: transform var(--dur) var(--ease);
 }
+
+.caret[data-open] { transform: rotate(180deg); }
+
+/* The bar carries the reasoning, the buttons carry the decision. Same line. */
+.control {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.controlWrap { flex-wrap: wrap; }
+.controlWrap .barSlot { flex-basis: 100%; }
+
+.barSlot { flex: 1; min-width: 0; }
+
+.score {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex-shrink: 0;
+  min-width: 96px;
+}
+
+.scoreLabel {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.scoreValue {
+  font-size: var(--t-figure);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--c-ink);
+}
+
+.thumb {
+  position: relative;
+  display: block;
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  border: 1px solid var(--c-line-mid);
+  background: var(--c-surface);
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.thumbEmpty { background: var(--c-sunk); }
+
+/* The image is evidence, so it opens. Without an affordance nobody finds out. */
+.zoom {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 3px 0;
+  background: rgba(42, 39, 35, 0.78);
+  color: var(--c-base);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.thumb:hover .zoom,
+.thumb:focus-visible .zoom { opacity: 1; }
 
 .middle { min-width: 0; }
 
@@ -43,6 +132,13 @@
 }
 
 .money { text-align: right; }
+
+.outOf {
+  margin-top: 2px;
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+  white-space: nowrap;
+}
 .net { color: var(--c-ink); }
 
 .pct {
@@ -56,6 +152,46 @@
   font-family: var(--font-data);
   font-size: var(--t-micro);
   color: var(--c-warning);
+}
+
+.legendWrap {
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--c-line-mid);
+}
+
+.legendWrap p { margin-bottom: var(--s-3); }
+
+.failed {
+  margin-top: var(--s-3);
+  font-size: var(--t-caption);
+  color: var(--c-negative);
+}
+
+.flagInline {
+  color: var(--c-warning);
+  font-weight: 500;
+}
+
+.flag {
+  margin-top: var(--s-3);
+  padding-left: var(--s-3);
+  border-left: 2px solid var(--c-warning);
+  font-size: var(--t-caption);
+  line-height: var(--lh-snug);
+  color: var(--c-ink-soft);
+  max-width: 62ch;
+}
+
+.reference {
+  margin-top: var(--s-3);
+  font-size: var(--t-caption);
+}
+
+.reference a {
+  color: var(--c-action-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .detail {
@@ -110,13 +246,17 @@
 .foot {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--s-2);
-  margin-top: var(--s-3);
+  flex-shrink: 0;
 }
+
+/* Decided rows are a record. They do not need tap targets, so they collapse. */
+.footSettled .change { min-height: auto; padding: 0; }
 
 .primary, .ghost, .danger {
   min-height: var(--tap);
-  padding: 0 var(--s-4);
+  padding: 0 var(--s-3);
   border-radius: var(--r-md);
   font-size: var(--t-label);
   font-weight: 500;
@@ -124,7 +264,6 @@
 }
 
 .primary {
-  margin-left: auto;
   background: var(--c-action-strong);
   color: #fff;
 }
@@ -153,7 +292,7 @@
 }
 .input { flex: 1; min-width: 100px; }
 
-.verdict { font-size: var(--t-label); font-weight: 500; }
+.verdict { font-size: var(--t-label); font-weight: 500; margin-right: var(--s-2); }
 .reason { font-size: var(--t-caption); color: var(--c-ink-faint); }
 
 .change {
@@ -167,8 +306,14 @@
 }
 
 @media (max-width: 640px) {
-  .head { grid-template-columns: auto 1fr; gap: var(--s-3); }
-  .money { grid-column: 2; text-align: left; margin-top: var(--s-2); }
+  .row { --gutter: 0px; padding: var(--s-3) 0; }
+  .head { grid-template-columns: 56px minmax(0, 1fr) 16px; gap: var(--s-3); }
+  .thumb { width: 56px; height: 56px; }
+  .control { flex-wrap: wrap; }
+  .score { min-width: auto; }
+  .barSlot { flex: 1; min-width: 120px; }
+  .foot { width: 100%; }
+  .money { grid-column: 1 / -1; text-align: left; margin-top: var(--s-2); }
   .money { display: flex; align-items: baseline; gap: var(--s-2); }
   .pct { margin-top: 0; }
   .foot { flex-wrap: wrap; }
@@ -177,5 +322,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .row, .primary, .ghost, .danger { transition: none; }
+  .row, .primary, .ghost, .danger, .zoom { transition: none; }
 }

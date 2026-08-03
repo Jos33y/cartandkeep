@@ -10,6 +10,6 @@
   border-bottom: 1px solid var(--c-line);
 }
 
-.mark { font-weight: var(--w-bold); letter-spacing: -0.02em; }
-.nav { display: flex; gap: var(--s-4); font-size: var(--t-sm); }
-.cart { margin-left: auto; font-size: var(--t-sm); }
+.mark { font-weight: 560; letter-spacing: -0.02em; }
+.nav { display: flex; gap: var(--s-4); font-size: var(--t-label); }
+.cart { margin-left: auto; font-size: var(--t-label); }

@@ -21,6 +21,12 @@
 .stat { display: flex; flex-direction: column; gap: var(--s-1); }
 .statValue { color: var(--c-ink); }
 
+.statFoot {
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+  letter-spacing: 0.01em;
+}
+
 .track {
   height: 2px;
   background: var(--c-line);
@@ -42,10 +48,21 @@
   border-radius: var(--r-full);
   font-size: var(--t-label);
   color: var(--c-ink-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 
-.chip:hover { background: var(--c-sunk); }
+.chipCount {
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+  letter-spacing: 0;
+}
+
+.chipOn .chipCount { color: var(--c-line-mid); }
+
+.chip:hover:not(.chipOn) { background: var(--c-sunk); }
 
 .chipOn {
   background: var(--c-ink);
@@ -54,6 +71,40 @@
 }
 
 .status { min-height: 1em; font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.groups { display: flex; flex-direction: column; gap: var(--s-6); }
+
+.group { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.groupHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--c-line-mid);
+}
+
+.groupLabel {
+  font-size: var(--t-lead);
+  font-weight: 560;
+  letter-spacing: -0.015em;
+}
+
+.groupCount { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+/* A category the research found money in but nobody agreed to is hers to rule
+   on, so it is labelled rather than quietly listed. */
+.outside {
+  margin-left: var(--s-3);
+  padding: 2px var(--s-2);
+  border-radius: var(--r-full);
+  background: var(--c-action-wash);
+  color: var(--c-action-text);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
 
 .ledger { border-top: 1px solid var(--c-line); }
 

@@ -1,8 +1,9 @@
 const round = (n) => Math.round(n * 100) / 100;
 
 // Royal Mail prices by size before weight. Large Letter is 353 x 250 x 25mm up
-// to 750g, and the step up to a parcel is often more than a pound. On a £14 item
-// that is most of the margin, so the band is a property worth carrying.
+// to 750g, and the step up to a parcel is 80p on the April 2026 tracked tariff.
+// On a £14 item that is a fifth of the net, so the band is a property worth
+// carrying. Prices themselves live in rate_cards, not here.
 export function shippingBand(dimensionsMm, weightG) {
   if (!dimensionsMm) return null;
   const [l, w, d] = [...dimensionsMm].sort((a, b) => b - a);
@@ -19,10 +20,13 @@ export function postageFor(band, costs) {
 export function returnsRate(category, costs) {
   const r = costs?.returns ?? {};
   if (!category) return r.default ?? 0;
-  const hit = Object.entries(r.by_category ?? {}).find(([k]) =>
-    category.toLowerCase().includes(k.toLowerCase()),
-  );
-  return hit ? hit[1] : (r.default ?? 0);
+  const hay = String(category).toLowerCase();
+  // jsonb does not preserve key order, so the match cannot rely on it: test the
+  // longest key first, and anchor to a word start or "carpet" takes the pet rate.
+  const key = Object.keys(r.by_category ?? {})
+    .sort((a, b) => b.length - a.length)
+    .find((k) => new RegExp(`\\b${k.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(hay));
+  return key ? r.by_category[key] : (r.default ?? 0);
 }
 
 /*

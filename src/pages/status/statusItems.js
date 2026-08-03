@@ -18,16 +18,18 @@ export const STATUS_PHASES = [
     items: [
       { label: 'Status page live', state: 'done', date: '2026-07-26' },
       { label: 'Portal sign in', state: 'done', date: '2026-07-27' },
-      { label: 'Candidate review interface', state: 'active' },
+      { label: 'Candidate review interface', state: 'done', date: '2026-08-03' },
+      { label: 'Product images and eBay categories', state: 'done', date: '2026-08-03' },
     ],
   },
   {
     key: 'research',
     label: 'Research pipeline',
     items: [
-      { label: 'Research pipeline data sources', state: 'active' },
-      { label: 'First review session', due: 'Wednesday 29 July, 7pm', state: 'queued' },
-      { label: 'First candidate batch delivered', due: 'Monday 10 August', state: 'queued' },
+      { label: 'Seller Hub research access', detail: 'Terapeak, research areas only', state: 'done', date: '2026-08-03' },
+      { label: 'Research pipeline data sources', state: 'done', date: '2026-08-03' },
+      { label: 'First review session', state: 'done', date: '2026-07-30' },
+      { label: 'First candidate batch delivered', due: 'Monday 10 August', state: 'active' },
     ],
   },
   {

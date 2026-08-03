@@ -5,7 +5,7 @@ const BROWSE = 'https://api.ebay.com/buy/browse/v1'
 export const id = 'ebay_browse'
 export const provides = ['pricing', 'depth']
 
-async function token({ clientId, clientSecret }) {
+export async function token({ clientId, clientSecret }) {
   const res = await fetch('https://api.ebay.com/identity/v1/oauth2/token', {
     method: 'POST',
     headers: {

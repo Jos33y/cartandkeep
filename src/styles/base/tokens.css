@@ -25,6 +25,10 @@
   --c-warning: #966828;
   --c-negative: #a3402c;
 
+  /* sage at 3.90:1 on the sunk panel is under 3:1 as a filled shape, so data
+     fills use the darker step at the same hue. Measured, not assumed. */
+  --c-brand-strong: #6f896a;
+
   --c-brand-wash: #eef2ec;
   --c-brand-mid: #cdd9c9;
   --c-action-wash: #faeee9;

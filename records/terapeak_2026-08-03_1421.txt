@@ -1,0 +1,105 @@
+analyse-terapeak.py
+2026-08-03 14:21
+files: cat-bowl_2025-08.csv, cat-bowl_2025-09.csv, cat-bowl_2026-05.csv, cat-bowl_2026-06.csv, cat-bowl_2026-07.csv
+
+CAT-BOWL, 5 WINDOWS ───────────────────────────────────────────────
+  2025-08   143 listings     933 units  £    9,623  avg £10.31
+  2025-09   122 listings     678 units  £    6,685  avg £9.86
+  2026-05   339 listings   1,725 units  £   17,033  avg £9.87
+  2026-06   345 listings   1,508 units  £   13,976  avg £9.27
+  2026-07   342 listings   1,684 units  £   15,306  avg £9.09
+
+CATEGORY STRIP ────────────────────────────────────────────────────
+  window     avg   charged   free   sold-rate    sellers
+  2025-08  £ 10.66  £  3.54    96%      9.49%       325
+  2025-09  £ 10.17  £  4.11    94%     10.90%       289
+  2026-05  £  9.94  £  2.88    96%     16.92%       329
+  2026-06  £  9.86  £  2.90    95%     15.69%       334
+  2026-07  £  9.42  £  3.46    95%     16.80%       342
+
+  charged postage excludes free-postage listings, so at 
+  90%+ free it describes a small minority and not the real cost.
+  sold-rate is eBay percentage of similar items that sold, which
+  is not the same metric as sell-through in the pipeline gates.
+
+HEADROOM AT CATEGORY AVERAGE ──────────────────────────────────────
+  before goods cost, postage absorbed by the seller
+  2025-08  £10.66  large_letter  £ 5.11 left
+  2025-08  £10.66  small_parcel  £ 4.31 left
+  2025-09  £10.17  large_letter  £ 4.71 left
+  2025-09  £10.17  small_parcel  £ 3.91 left
+  2026-05  £ 9.94  large_letter  £ 4.52 left
+  2026-05  £ 9.94  small_parcel  £ 3.72 left
+  2026-06  £ 9.86  large_letter  £ 4.46 left
+  2026-06  £ 9.86  small_parcel  £ 3.66 left
+  2026-07  £ 9.42  large_letter  £ 4.10 left
+  2026-07  £ 9.42  small_parcel  £ 3.30 left
+
+WHERE THE SALES SIT, BY PRICE BAND ────────────────────────────────
+  head = headroom before goods cost at the band midpoint, small parcel
+  band            25-08    25-09    26-05    26-06    26-07     total   share    head
+  £0-4             70       78      191      199      217       755   11.6%  £ -2.73
+  £4-6            275      175      386      418      362     1,616   24.8%  £ -0.29
+  £6-8            124      113      230      217      214       898   13.8%  £  1.33
+  £8-10           107       54      201      169      446       977   15.0%  £  2.96
+  £10-12          113       74      198       95       96       576    8.8%  £  4.58
+  £12-15           37       68      277      159      103       644    9.9%  £  6.61
+  £15-20           83       30       95      200      205       613    9.4%  £  9.86
+  £20-30          123       84      140       45       31       423    6.5%  £ 15.95
+  £30+              1        2        7        6       10        26    0.4%  £ 27.32
+
+  Units at prices that can clear the £4 gate: 2,112 of 6,528 (32.4%)
+  Everything below that line loses money before goods cost.
+
+PATTERN ACROSS WINDOWS ────────────────────────────────────────────
+  evergreen     ░░░░░░░░░░░░░░░░░░░░   2.1%     5 products     138 units
+  rising        █░░░░░░░░░░░░░░░░░░░   5.8%    21 products     376 units
+  intermittent  █░░░░░░░░░░░░░░░░░░░   2.7%    23 products     174 units
+  erratic       █░░░░░░░░░░░░░░░░░░░   6.7%    10 products     436 units
+  new           ████████████░░░░░░░░  62.0%   615 products   4,045 units
+  fading        ███░░░░░░░░░░░░░░░░░  15.0%    47 products     981 units
+  gone          █░░░░░░░░░░░░░░░░░░░   5.8%    81 products     378 units
+
+  Absent from a window means outside the scraped top N,
+  which is not the same as zero sales.
+
+EVERGREEN, UNSCREENED, BY HEADROOM ────────────────────────────────
+  headroom is what is left before goods cost, small parcel band
+   head   price   units   25-08  25-09  26-05  26-06  26-07  title
+  £11.82  £ 19.91     70       7     16     15     17     15  2 in1 Feeder Food Water Dispenser Bowl A
+  £ 4.17  £ 10.49     19       6      3      3      3      4  Raised Cat Bowl Water Food Feeding Eleva
+
+  Clearing the £4 gate: 2 of 2 evergreen products
+
+EVERGREEN BUT SCREENED OUT ────────────────────────────────────────
+     27  electrical     2L Cat Water Fountain for Pet Dog LED Drinki
+     14  brand:mason cash  CAT BOWL SAUCER x 2: Cat Drinking / Feeding 
+      8  brand:cat mate  Spare / Replacement Bowl: Cat Mate and Close
+
+LISTABLE ──────────────────────────────────────────────────────────
+  head >= £4.00 and 10+ units in 2026-07. proven and sourceable are annotations, not routes in.
+   head   price   now   mom  sku  routes                title
+  £11.82  £ 19.91    15   0.9   13  selling+proven+sourceable 2 in1 Feeder Food Water Dispenser Bowl
+  £ 6.68  £ 13.58    14     -   13  selling+sourceable    2 in1 Feeder Food Water Dispenser Bowl
+
+SCREENED OUT BUT WOULD BE LISTABLE ────────────────────────────────
+  review these: the screen may be wrong
+  £ 3.66  £  9.87    83  electrical             2Packs Automatic Cat Feeder and Water 
+  £ 8.05  £ 15.27    63  electrical             2.2L Led Automatic Cat Dog Kitten Wate
+  £ 3.70  £  9.91    28  electrical             2.2L Cat Water Fountain Pet Dog Puppy 
+  £ 6.15  £ 12.93    25  electrical             2 Meal Automatic Cat Feeder with 48H T
+  £ 8.83  £ 16.23    15  electrical             2.4L Cat Water Fountain for Pet Dog LE
+  £ 3.53  £  9.70    12  brand:mason cash       CAT/KITTEN/PUPPY BOWL x 2. Mason Cash 
+  £10.97  £ 18.87    11  electrical             4L Electric Pet Water Fountain LED Cat
+  £11.82  £ 19.91    11  electrical             4.2L Pet Water Fountain Automatic Dog 
+
+STOCK CANDIDATES ──────────────────────────────────────────────────
+  proven across all 5 windows, still selling, holding at 60%+ of own average
+   head   price   now  hold   /mo   band   title
+  £11.82  £ 19.91    15   1.1    14  parcel  2 in1 Feeder Food Water Dispenser Bowl A
+
+OUTPUT ────────────────────────────────────────────────────────────
+  drops/merged\cat-bowl_merged.csv   802 products across 5 windows
+  drops/merged\shortlist.csv   214 listable, 0 dropped, 0 new this run, 2 refreshed
+  records\terapeak_2026-08-03_1421.txt   run recorded
+

@@ -95,6 +95,13 @@ const IconPin = (p) => (
   </svg>
 );
 
+const IconMap = (p) => (
+  <svg {...base} {...p}>
+    <path d="M2.75 5.4l4.75-2.15 5 2.15 4.75-2.15v11.5l-4.75 2.15-5-2.15-4.75 2.15z" />
+    <path d="M7.5 3.25v11.5M12.5 5.4v11.5" />
+  </svg>
+);
+
 export const ICONS = {
   IconGrid,
   IconLayers,
@@ -107,6 +114,7 @@ export const ICONS = {
   IconExit,
   IconNote,
   IconPin,
+  IconMap,
 };
 
 export function Icon({ name, ...rest }) {

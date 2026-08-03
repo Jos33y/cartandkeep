@@ -4,6 +4,11 @@
  * weights renormalised. A candidate scored from four components and one scored
  * from seven both produce a usable number, with component_count exposed so the
  * reviewer can see the basis.
+ *
+ * Two routes feed this. The pipeline route carries margin, sell-through and
+ * listing counts. The Terapeak route carries headroom, windowed units and a
+ * same-SKU count. They are different measurements and get different components,
+ * because scoring headroom as margin would read as net when it is before goods.
  */
 
 const DEFAULT_WEIGHTS = {
@@ -14,6 +19,11 @@ const DEFAULT_WEIGHTS = {
   seller_spread: 10,
   shipping_band: 10,
   supply: 5,
+
+  volume: 20,
+  headroom: 25,
+  hold: 20,
+  same_sku: 15,
 };
 
 const clamp = (n) => Math.max(0, Math.min(1, n));
@@ -44,6 +54,20 @@ const COMPONENTS = {
     const speed = c.lead_time_days == null ? 0.5 : clamp(1 - c.lead_time_days / 21);
     return stock * 0.5 + speed * 0.5;
   },
+
+  // Units in the newest window. 100 a month is a strong seller at these prices.
+  volume: (c) => (c.recent_units == null ? null : clamp(c.recent_units / 100)),
+
+  // Before goods cost, so its own scale. The gate is £4 and £15 is the top.
+  headroom: (c) => (c.headroom == null ? null : clamp((c.headroom - 4) / 11)),
+
+  // Latest window against the product own average. 1.0 is holding, below 0.6
+  // is the test that excluded the cooling mats.
+  hold: (c) => (c.hold == null ? null : clamp((c.hold - 0.4) / 0.8)),
+
+  // Sellers carrying the same product. 40 is saturated. Not the same axis as
+  // competition, which counts active listings across a term.
+  same_sku: (c) => (c.same_sku_sellers == null ? null : clamp(1 - Math.min(c.same_sku_sellers, 40) / 40)),
 };
 
 export function rankScore(candidate, weights = {}) {

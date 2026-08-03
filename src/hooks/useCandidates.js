@@ -1,32 +1,33 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@lib/supabase';
-import { isDemo } from '@lib/mode';
-import { DEMO_BATCH, DEMO_CANDIDATES } from '@data/demo';
 
-// Nested array from the join, but unique on candidate_id, so zero or one.
+// The unique constraint on candidate_id makes this a to-one embed, so PostgREST
+// returns an object here and an array elsewhere. Take either.
+function one(decisions) {
+  if (Array.isArray(decisions)) return decisions[0] ?? null;
+  return decisions ?? null;
+}
+
 function flatten(row) {
   const { decisions, ...candidate } = row;
-  return { ...candidate, decision: decisions?.[0] ?? null };
+  return { ...candidate, decision: one(decisions) };
 }
 
 export function useCandidates(batchId) {
-  const demo = isDemo();
-  const [state, setState] = useState(
-    demo
-      ? { status: 'ready', rows: DEMO_CANDIDATES.map((c) => ({ ...c })), error: null }
-      : { status: 'loading', rows: [], error: null },
-  );
+  const [state, setState] = useState({ status: 'loading', rows: [], error: null });
 
   const load = useCallback(async () => {
-    if (demo || !batchId) return;
+    if (!batchId) return;
     setState((s) => ({ ...s, status: 'loading' }));
 
     const { data, error } = await supabase
       .from('candidates')
       .select(`
-        id, title, category, image_url, supplier_url, external_ref,
+        id, title, category, image_url, supplier_url, reference_url, external_ref,
         classification, score, component_count, breakdown,
+        ebay_category_id, ebay_category_path, variation_count,
         confidence, signal_count, signals, margin,
+        headroom, hold, same_sku_sellers, bulky, routes, window_series,
         sold_30d, avg_sold_price, active_listings, sell_through, trend,
         seller_concentration, window_start, window_end,
         recommended_channels, recommended_volume, analyst_note,
@@ -37,7 +38,7 @@ export function useCandidates(batchId) {
 
     if (error) return setState({ status: 'error', rows: [], error });
     setState({ status: 'ready', rows: data.map(flatten), error: null });
-  }, [batchId, demo]);
+  }, [batchId]);
 
   useEffect(() => {
     load();
@@ -55,9 +56,6 @@ export function useCandidates(batchId) {
         ),
       }));
 
-      // Demo decisions live in this tab only. Nothing is written.
-      if (demo) return;
-
       const { error } = await supabase
         .from('decisions')
         .upsert(
@@ -70,18 +68,38 @@ export function useCandidates(batchId) {
         throw error;
       }
     },
-    [demo, load],
+    [load],
   );
 
-  return { ...state, reload: load, decide };
+  // Change means back to undecided. Writing defer again looked like a dead
+  // button because the row was already deferred.
+  const clear = useCallback(
+    async ({ candidateId }) => {
+      setState((s) => ({
+        ...s,
+        rows: s.rows.map((r) => (r.id === candidateId ? { ...r, decision: null } : r)),
+      }));
+
+      const { error } = await supabase.from('decisions').delete().eq('candidate_id', candidateId);
+
+      if (error) {
+        await load();
+        throw error;
+      }
+    },
+    [load],
+  );
+
+  return { ...state, reload: load, decide, clear };
 }
 
+// undefined while resolving, null when there is genuinely no batch. Without the
+// distinction the empty state flashes on every load.
 export function useLatestBatch(tenantId) {
-  const demo = isDemo();
-  const [batch, setBatch] = useState(demo ? DEMO_BATCH : null);
+  const [batch, setBatch] = useState(undefined);
 
   useEffect(() => {
-    if (demo || !tenantId) return;
+    if (!tenantId) return;
     supabase
       .from('batches')
       .select('id, delivered_for, status, candidate_count, sources_used')
@@ -90,8 +108,8 @@ export function useLatestBatch(tenantId) {
       .order('delivered_for', { ascending: false })
       .limit(1)
       .maybeSingle()
-      .then(({ data }) => setBatch(data));
-  }, [tenantId, demo]);
+      .then(({ data }) => setBatch(data ?? null));
+  }, [tenantId]);
 
   return batch;
 }

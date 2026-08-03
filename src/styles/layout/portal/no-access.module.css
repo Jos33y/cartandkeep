@@ -14,7 +14,7 @@
 }
 
 .title { font-size: var(--t-lg); }
-.body { font-size: var(--t-sm); color: var(--c-ink-soft); }
+.body { font-size: var(--t-label); color: var(--c-ink-soft); }
 
 .button {
   min-height: 44px;
@@ -22,5 +22,5 @@
   padding: 0 var(--s-5);
   border: 1px solid var(--c-line-strong);
   border-radius: var(--r-md);
-  font-size: var(--t-sm);
+  font-size: var(--t-label);
 }

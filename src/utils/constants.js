@@ -18,6 +18,8 @@ export const PORTAL_ROUTES = {
   ORDERS: '/orders',
   NOTES: '/notes',
   ACTIVITY: '/activity',
+  COVERAGE: '/coverage',
+  METRICS: '/metrics',
   SETTINGS: '/settings',
 };
 
@@ -37,6 +39,7 @@ export const PORTAL_NAV_SECTIONS = [
       { route: PORTAL_ROUTES.OVERVIEW, label: 'Overview', icon: 'IconGrid' },
       { route: PORTAL_ROUTES.CANDIDATES, label: 'Candidates', icon: 'IconLayers' },
       { route: PORTAL_ROUTES.APPROVED, label: 'Approved', icon: 'IconCheck' },
+      { route: PORTAL_ROUTES.COVERAGE, label: 'Coverage', icon: 'IconMap' },
       { route: PORTAL_ROUTES.LISTINGS, label: 'Listings', icon: 'IconTag' },
     ],
   },
@@ -54,6 +57,7 @@ export const PORTAL_NAV_SECTIONS = [
     items: [
       { route: PORTAL_ROUTES.NOTES, label: 'Notes', icon: 'IconNote' },
       { route: PORTAL_ROUTES.ACTIVITY, label: 'Activity', icon: 'IconClock' },
+      { route: PORTAL_ROUTES.METRICS, label: 'Metrics', icon: 'IconPin' },
       { route: PORTAL_ROUTES.SETTINGS, label: 'Settings', icon: 'IconCog' },
     ],
   },

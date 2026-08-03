@@ -1,0 +1,112 @@
+analyse-terapeak.py
+2026-07-31 20:44
+files: raised-dog-bowl_2025-08.csv, raised-dog-bowl_2025-09.csv, raised-dog-bowl_2026-06.csv, raised-dog-bowl_2026-07.csv
+
+RAISED-DOG-BOWL, 4 WINDOWS ────────────────────────────────────────
+  2025-08   135 listings     645 units  £    8,077  avg £12.52
+  2025-09   127 listings     546 units  £    7,184  avg £13.16
+  2026-06   290 listings   1,184 units  £   13,466  avg £11.37
+  2026-07   353 listings   1,535 units  £   15,769  avg £10.27
+
+CATEGORY STRIP ────────────────────────────────────────────────────
+  window     avg   charged   free   sold-rate    sellers
+  2025-08  £ 12.06  £  2.51    95%     12.50%       268
+  2025-09  £ 12.25  £  2.72    97%     14.59%       251
+  2026-06  £ 11.29  £  1.82    94%     15.48%       223
+  2026-07  £ 10.28  £  2.61    97%     17.36%       242
+
+  charged postage excludes free-postage listings, so at 
+  90%+ free it describes a small minority and not the real cost.
+  sold-rate is eBay percentage of similar items that sold, which
+  is not the same metric as sell-through in the pipeline gates.
+
+HEADROOM AT CATEGORY AVERAGE ──────────────────────────────────────
+  before goods cost, postage absorbed by the seller
+  2025-08  £12.06  large_letter  £ 6.24 left
+  2025-08  £12.06  small_parcel  £ 5.44 left
+  2025-09  £12.25  large_letter  £ 6.40 left
+  2025-09  £12.25  small_parcel  £ 5.60 left
+  2026-06  £11.29  large_letter  £ 5.62 left
+  2026-06  £11.29  small_parcel  £ 4.82 left
+  2026-07  £10.28  large_letter  £ 4.80 left
+  2026-07  £10.28  small_parcel  £ 4.00 left
+
+WHERE THE SALES SIT, BY PRICE BAND ────────────────────────────────
+  head = headroom before goods cost at the band midpoint, small parcel
+  band            25-08    25-09    26-06    26-07     total   share    head
+  £0-4             21       16      116      176       329    8.4%  £ -2.73
+  £4-6            128      111       43       51       333    8.5%  £ -0.29
+  £6-8             45       36       93       88       262    6.7%  £  1.33
+  £8-10            45       15      330      459       849   21.7%  £  2.96
+  £10-12          122      123      143      337       725   18.5%  £  4.58
+  £12-15           77       78      296      269       720   18.4%  £  6.61
+  £15-20          128       53       98       94       373    9.5%  £  9.86
+  £20-30           67       88       46       47       248    6.3%  £ 15.95
+  £30+             12       26       19       14        71    1.8%  £ 27.32
+
+  Units at prices that can clear the £4 gate: 1,990 of 3,910 (50.9%)
+  Everything below that line loses money before goods cost.
+
+PATTERN ACROSS WINDOWS ────────────────────────────────────────────
+  evergreen     █░░░░░░░░░░░░░░░░░░░   5.0%     9 products     197 units
+  rising        ░░░░░░░░░░░░░░░░░░░░   1.8%    10 products      69 units
+  intermittent  ░░░░░░░░░░░░░░░░░░░░   2.1%    16 products      81 units
+  erratic       ██░░░░░░░░░░░░░░░░░░   9.6%    16 products     376 units
+  new           ████████████░░░░░░░░  60.3%   422 products   2,359 units
+  fading        ██░░░░░░░░░░░░░░░░░░  11.7%    22 products     459 units
+  gone          ██░░░░░░░░░░░░░░░░░░   9.4%   120 products     369 units
+
+  Absent from a window means outside the scraped top N,
+  which is not the same as zero sales.
+
+EVERGREEN, UNSCREENED, BY HEADROOM ────────────────────────────────
+  headroom is what is left before goods cost, small parcel band
+   head   price   units   25-08  25-09  26-06  26-07  title
+  £ 9.61  £ 17.19      5       1      2      1      1  Double Elevated Raised Dog Pet Feeder Bo
+  £ 5.71  £ 12.39     10       3      4      1      2  Elevated Dogs Bowl Large Size Height Adj
+  £ 5.07  £ 11.60     23       8      7      5      3  Large Dog Food Feeding Stand Station Sta
+  £ 5.02  £ 11.54     17       2      5      7      3  Clip On Water Bowl Cage Coop Cup Hook S 
+  £ 3.71  £  9.92     43      18      8      5     12  Double Diner Pet Feeding Station Elevate
+  £ 2.65  £  8.62      8       1      2      1      4  Pet Dog Cage Bowl Stainless Steel Hangin
+  £ 1.37  £  7.05     55      20     14     10     11  Double Cat Feeding Bowl Pet Bowls Stand 
+  £ 0.51  £  5.98      8       3      1      1      3  Dog Bowl Cat Bowl Rasied Double Pet Feed
+
+  Clearing the £4 gate: 4 of 8 evergreen products
+
+EVERGREEN BUT SCREENED OUT ────────────────────────────────────────
+     28  brand:dogit    Dogit Elevated Dog Bowl Blue Stand Feeding D
+
+LISTABLE, ANY ROUTE ───────────────────────────────────────────────
+  head >= £4.00 and one of: sold in every window, 15+ units in 2026-07, 3+ sellers
+   head   price   now   mom  sku  routes                title
+  £ 6.21  £ 13.00   127  12.7   20  selling+sourceable    Large Dog Food Feeding Stand Station S
+  £ 5.74  £ 12.42    48   1.7   47  selling+sourceable    Large Dog Food Feeding Stand Station S
+  £ 4.02  £ 10.31    39   6.5   47  selling+sourceable    Pet Food Feeding Stand Station Stainle
+  £ 4.31  £ 10.67    31   1.6    1  selling               Raised Double Dog Bowls Stainless Stee
+  £20.69  £ 30.84     6   1.0    3  sourceable            Luxury Dog Food Feeding Stand Station 
+  £ 4.33  £ 10.69    23   7.7    2  selling               Raised Pet Bowls Elevated Dog Cat Feed
+  £ 5.61  £ 12.26    14     -   20  sourceable            Large Dog Food Feeding Stand Station S
+  £ 9.49  £ 17.04     8   4.0   11  sourceable            Double Elevated Raised Dog Pet Feeder 
+  £15.09  £ 23.94     5   5.0    3  sourceable            2020 Luxury Dog Food Feeding Stand Sta
+  £ 8.62  £ 15.97     8     -   20  sourceable            Large Dog Food Feeding Stand Station S
+  £10.20  £ 17.92     5   1.7    4  sourceable            Pet Dog Double Bowls Food & Water Feed
+  £ 8.02  £ 15.24     6     -    3  sourceable            Double Elevated Dog Feeder Raised Stan
+  £ 6.25  £ 13.05     7   3.5    3  sourceable            Adjustable Large Double Bowl Dog Slow 
+  £ 5.33  £ 11.92     8   8.0   47  sourceable            Large Dog Food Feeding Stand Station S
+  £ 5.75  £ 12.44     7   2.3   47  sourceable            Large Dog Food Feeding Stand Station S
+  £19.12  £ 28.91     2   0.5    3  sourceable            Dog Raised Bowls Large Stand 2 x 4L Fo
+  £ 5.28  £ 11.86     7   0.6    3  sourceable            Elevated Dog Bowls Raised Feeder Stand
+  £14.98  £ 23.81     2     -    3  sourceable            Dog Raised Bowls Large Stand 2 x 2.5L 
+  £ 4.93  £ 11.43     6     -   20  sourceable            Large Dog Food Feeding Stand Station S
+  £ 4.89  £ 11.38     6   0.2   20  sourceable            Large Dog Food Feeding Stand Station S
+  £ 4.40  £ 10.78     6   3.0   47  sourceable            Cat Dog Food Feeding Stand Station Sta
+  £ 5.28  £ 11.86     4     -    4  sourceable            Pet Dog Double Bowls Food & Water Feed
+  £ 5.09  £ 11.62     4   1.3   20  sourceable            Large Dog Food Feeding Stand Station S
+  £ 9.41  £ 16.94     2   2.0    4  sourceable            Raised Adjustable Dog Feeding Stand Wi
+  £ 8.50  £ 15.82     2   2.0   20  sourceable            Large Dog Food Feeding Stand Station S
+
+OUTPUT ────────────────────────────────────────────────────────────
+  drops/merged\raised-dog-bowl_merged.csv   615 products across 4 windows
+  drops/merged\shortlist.csv   132 listable in total, 123 new from this run, 4 refreshed
+  records\terapeak_2026-07-31_2044.txt   run recorded
+
