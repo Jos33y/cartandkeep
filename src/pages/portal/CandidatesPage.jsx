@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CandidateRow } from '@components/ui/portal/CandidateRow';
 import { useCandidates, useLatestBatch } from '@hooks/useCandidates';
 import { useBoundaries } from '@hooks/useBoundaries';
+import { useSuppliers } from '@hooks/useSuppliers';
 import { loadTenant } from '@lib/tenant';
 import { matchBoundary } from '@utils/category';
 import { formatGbp } from '@utils/formatGbp';
@@ -33,7 +34,8 @@ export function CandidatesPage() {
 
   const batch = useLatestBatch(tenant?.id);
   const boundaries = useBoundaries(tenant?.id);
-  const { status, rows, decide, clear } = useCandidates(batch?.id);
+  const { suppliers, remember } = useSuppliers(tenant?.id);
+  const { status, rows, decide, clear, addNote, addSource } = useCandidates(batch?.id);
 
   const visible = useMemo(() => {
     if (filter === 'all') return rows;
@@ -53,6 +55,16 @@ export function CandidatesPage() {
       const key = label ?? 'Not known';
       if (!map.has(key)) map.set(key, { label: key, agreed, rows: [] });
       map.get(key).rows.push(r);
+    }
+
+    // Holding first inside a group. A slipping product is worth seeing, not
+    // worth ranking against one that is not slipping.
+    for (const g of map.values()) {
+      g.rows.sort((a, b) => {
+        const t = (r) => (r.tier === 'slipping' ? 1 : 0);
+        return t(a) - t(b) || (b.score ?? 0) - (a.score ?? 0);
+      });
+      g.slipping = g.rows.filter((r) => r.tier === 'slipping').length;
     }
 
     return [...map.values()].sort((a, b) => {
@@ -167,6 +179,7 @@ export function CandidatesPage() {
             <h2 className={styles.groupLabel}>{g.label}</h2>
             <p className={styles.groupCount}>
               <span data-num>{g.rows.length}</span> {g.rows.length === 1 ? 'product' : 'products'}
+              {g.slipping > 0 && <>, <span data-num>{g.slipping}</span> slipping</>}
               {!g.agreed && <span className={styles.outside}>outside the agreed categories</span>}
             </p>
           </header>
@@ -175,7 +188,13 @@ export function CandidatesPage() {
             {g.rows.map((c) => (
               <CandidateRow key={c.id} candidate={c}
                 onDecide={(payload) => decide({ candidateId: c.id, tenantId: tenant.id, ...payload })}
-                onClear={() => clear({ candidateId: c.id })} />
+                onClear={() => clear({ candidateId: c.id })}
+                onNote={(body) => addNote({ candidateId: c.id, tenantId: tenant.id, body })}
+                suppliers={suppliers}
+                onSource={async (fields) => {
+                  await addSource({ candidateId: c.id, tenantId: tenant.id, ...fields });
+                  await remember({ tenantId: tenant.id, name: fields.supplier, country: fields.ships_from });
+                }} />
             ))}
           </div>
         </section>

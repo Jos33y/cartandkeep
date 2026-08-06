@@ -1,0 +1,110 @@
+.wrap {
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--c-line-mid);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
+}
+
+.add {
+  min-height: 32px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-control);
+  border-radius: var(--r-full);
+  font-size: var(--t-caption);
+  font-weight: 500;
+  color: var(--c-ink-soft);
+}
+
+.add:hover { background: var(--c-sunk); }
+
+.none { font-size: var(--t-caption); color: var(--c-ink-faint); max-width: 62ch; }
+
+.source {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--c-line);
+}
+
+.sourceMain { min-width: 0; }
+
+.supplier { font-size: var(--t-label); font-weight: 500; }
+
+.supplier a { color: var(--c-action-text); text-decoration: underline; text-underline-offset: 3px; }
+
+.route {
+  margin-left: var(--s-2);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.pending {
+  margin-left: var(--s-2);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  color: var(--c-warning);
+}
+
+.detail { margin-top: 2px; font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.slow { color: var(--c-negative); }
+
+.money { text-align: right; white-space: nowrap; }
+
+.landed {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-body);
+  font-weight: 500;
+  color: var(--c-ink);
+}
+
+.net { font-size: var(--t-caption); color: var(--c-ink-soft); }
+
+.form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  padding: var(--s-3);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+}
+
+.input, .select {
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-md);
+  background: var(--c-base);
+  font-size: var(--t-label);
+}
+
+.wide { grid-column: 1 / -1; }
+
+.save {
+  grid-column: 1 / -1;
+  min-height: var(--tap);
+  border-radius: var(--r-md);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-label);
+  font-weight: 500;
+}
+
+.save:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.failed { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--c-negative); }

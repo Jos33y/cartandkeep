@@ -20,6 +20,8 @@ export const STATUS_PHASES = [
       { label: 'Portal sign in', state: 'done', date: '2026-07-27' },
       { label: 'Candidate review interface', state: 'done', date: '2026-08-03' },
       { label: 'Product images and eBay categories', state: 'done', date: '2026-08-03' },
+      { label: 'Notes on any product', state: 'done', date: '2026-08-05' },
+      { label: 'Supplier costs and margin', detail: 'add a supplier, see what is left', state: 'done', date: '2026-08-05' },
     ],
   },
   {
@@ -28,6 +30,8 @@ export const STATUS_PHASES = [
     items: [
       { label: 'Seller Hub research access', detail: 'Terapeak, research areas only', state: 'done', date: '2026-08-03' },
       { label: 'Research pipeline data sources', state: 'done', date: '2026-08-03' },
+      { label: 'What every figure means', detail: 'in the portal, under Metrics', state: 'done', date: '2026-08-05' },
+      { label: 'Research coverage published', detail: 'every keyword searched and what it found', state: 'done', date: '2026-08-05' },
       { label: 'First review session', state: 'done', date: '2026-07-30' },
       { label: 'First candidate batch delivered', due: 'Monday 10 August', state: 'active' },
     ],

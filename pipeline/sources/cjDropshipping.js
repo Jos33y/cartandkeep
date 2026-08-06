@@ -66,7 +66,7 @@ async function post(path, body) {
   return json.data;
 }
 
-async function token(apiKey) {
+export async function token(apiKey) {
   const cached = await readCached();
   if (cached && !cached.expired) return cached.accessToken;
 
@@ -140,6 +140,205 @@ export function normaliseProduct(p, { rate, shippingEstimate, marketplaceCountry
     { ...base, kind: 'supply', value: supplySignal({ inventory: p.warehouseInventoryNum, deliveryCycle: p.deliveryCycle }), raw },
     { ...base, kind: 'depth', value: saturationSignal(p.listedNum), raw },
   ];
+}
+
+// Per product rather than per term. Demand decided this list already, so this
+// asks whether one known product can be sourced, not what CJ happens to stock.
+// listV2 returns a product level code. Freight prices a variant, and the
+// variant also carries the weight and dimensions that decide her postage band,
+// which is the assumption sitting under every headroom figure we have.
+export async function productDetail({ access, pid }) {
+  const url = new URL(`${BASE}/product/query`);
+  url.searchParams.set('pid', pid);
+
+  const res = await paced(() => fetch(url, { headers: { 'CJ-Access-Token': access } }));
+  const json = await res.json();
+  if (json.pointsInfo) points = json.pointsInfo;
+  if (!json.result && !json.success) throw new Error(json.message ?? 'no product detail');
+
+  const d = json.data ?? {};
+  const variants = d.variants ?? [];
+
+  // Cheapest variant, because that is the one a price comparison should use and
+  // the one the listing headline usually quotes.
+  const variant = [...variants]
+    .filter((v) => Number(v.variantSellPrice) > 0)
+    .sort((a, b) => Number(a.variantSellPrice) - Number(b.variantSellPrice))[0] ?? variants[0] ?? null;
+
+  return {
+    // vid is what freight prices. The sku is a human readable code and passing
+    // it as a vid returns "Variant not found".
+    vid: variant?.vid ?? variant?.variantId ?? null,
+    sku: variant?.variantSku ?? d.productSku ?? null,
+    variants: variants.length,
+    weight_g: Number(variant?.variantWeight) || Number(d.productWeight) || null,
+    length_mm: Number(variant?.variantLength) || null,
+    width_mm: Number(variant?.variantWidth) || null,
+    height_mm: Number(variant?.variantHeight) || null,
+    priceUsd: Number(variant?.variantSellPrice) || null,
+  };
+}
+
+// Goods price is not landed cost. A £4.74 bowl rack quoted $22.47 delivered to
+// one address, so a flat shipping estimate understates by a multiple and every
+// margin built on it is optimistic in the flattering direction.
+export async function freightQuote({
+  access, vid, quantity = 1, destAreaCode = 'GB', config = {},
+}) {
+  if (!vid) throw new Error('freightQuote needs a variant id, not a sku');
+  const rate = Number(config.usdToGbp);
+  if (!Number.isFinite(rate)) throw new Error('cj_dropshipping: config.usdToGbp not set');
+
+  const endpoint = config.freightEndpoint ?? 'freightCalculate';
+
+  const res = await paced(() =>
+    fetch(`${BASE}/logistic/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'CJ-Access-Token': access },
+      // Proven against CJ's own documented sku: freightCalculate takes
+      // startCountryCode, endCountryCode and a products array keyed on vid.
+      // The reqDTOS shape in the example belongs to the other endpoint and
+      // returns an empty option list.
+      body: JSON.stringify({
+        startCountryCode: config.srcAreaCode ?? 'CN',
+        endCountryCode: destAreaCode,
+        products: [{ quantity, vid }],
+      }),
+    }),
+  );
+
+  const json = await res.json();
+  if (!json.result && !json.success) throw new Error(json.message ?? 'no freight response');
+
+  const raw = json.data ?? [];
+  const options = raw
+    .map((o) => ({
+      service: o.logisticName ?? o.option?.enName ?? null,
+      arrival: o.logisticAging ?? o.arrivalTime ?? null,
+      feeUsd: Number(o.logisticPrice ?? o.discountFee),
+    }))
+    .filter((o) => Number.isFinite(o.feeUsd) && o.feeUsd > 0)
+    .sort((a, b) => a.feeUsd - b.feeUsd);
+
+  // A silent null is indistinguishable from a call that was never made, and
+  // that ambiguity already cost one run.
+  if (!options.length) {
+    return {
+      empty: true,
+      returned: raw.length,
+      reason: raw.length
+        ? 'options returned with no usable fee'
+        : `no options from ${endpoint} for ${destAreaCode}${json.message ? `, said "${json.message}"` : ''}`,
+    };
+  }
+
+  const cheapest = options[0];
+  // Slowest acceptable arrival is the last number in "12-50".
+  const days = Number(String(cheapest.arrival ?? '').split('-').pop()) || null;
+
+  return {
+    service: cheapest.service,
+    fee: Math.round(cheapest.feeUsd * rate * 100) / 100,
+    feeUsd: cheapest.feeUsd,
+    days,
+    options: options.length,
+  };
+}
+
+// The third level category tree. Filtering by it is the only way to stop an
+// Elasticsearch best match returning human furniture for "dog bed".
+export async function categories(access) {
+  const res = await paced(() =>
+    fetch(`${BASE}/product/getCategory`, { headers: { 'CJ-Access-Token': access } }),
+  );
+  const json = await res.json();
+  if (!json.result && !json.success) throw new Error(json.message ?? 'no response');
+
+  const out = [];
+  for (const one of json.data ?? []) {
+    for (const two of one.categoryFirstList ?? []) {
+      for (const three of two.categorySecondList ?? []) {
+        out.push({
+          id: three.categoryId,
+          name: three.categoryName,
+          path: [one.categoryFirstName, two.categorySecondName, three.categoryName].join(' | '),
+        });
+      }
+    }
+  }
+  return out;
+}
+
+export async function searchByKeyword(keyword, { access, config, maxGoodsGbp, country, categoryIds }) {
+  const rate = Number(config.usdToGbp);
+  if (!Number.isFinite(rate)) throw new Error('cj_dropshipping: config.usdToGbp not set');
+
+  // countryCode filters to products holding inventory in that country, which on
+  // CJ is a small fraction of the catalogue. The caller decides, because the
+  // pipeline config sets GB for a different purpose.
+  const countryCode = country === undefined ? config.countryCode ?? null : country;
+
+  const url = new URL(`${BASE}/product/listV2`);
+  url.searchParams.set('keyWord', keyword);
+  if (countryCode) url.searchParams.set('countryCode', countryCode);
+  url.searchParams.set('page', '1');
+  url.searchParams.set('size', String(Math.min(config.size ?? 10, 100)));
+  url.searchParams.set('features', 'enable_category');
+
+  // keyWord is a best match search, so the words are ORed and the most listed
+  // product wins. A category is the only thing that keeps it on the subject.
+  for (const id of categoryIds ?? []) url.searchParams.append('lv3categoryList', id);
+
+  // Goods above headroom cannot produce a margin at any volume, so there is no
+  // reason to fetch them. It is also what stops a search for a dog bed
+  // returning three foot single beds for people.
+  if (Number.isFinite(maxGoodsGbp) && maxGoodsGbp > 0) {
+    url.searchParams.set('endSellPrice', (maxGoodsGbp / rate).toFixed(2));
+  }
+
+  // Same retry the term adapter does. Throwing on the first 429 turned a
+  // transient rate limit into a lost product.
+  const maxRetries = config.maxRetries ?? 3;
+  let json = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    const res = await paced(() => fetch(url, { headers: { 'CJ-Access-Token': access } }));
+    json = await res.json();
+    if (json.pointsInfo) points = json.pointsInfo;
+
+    if (res.status !== 429 && json.code !== 429) break;
+
+    if (classify429(json, json.pointsInfo) === 'points') {
+      throw new Error(`CJ points exhausted. ${json.message ?? ''}`);
+    }
+
+    if (attempt === maxRetries) throw new Error('CJ rate limited after retries');
+    await sleep(2000 * 2 ** attempt);
+  }
+
+  if (!json.result && !json.success) throw new Error(json.message ?? 'no response');
+
+  const products = json.data?.content?.flatMap((c) => c.productList ?? []) ?? [];
+  const shippingEstimate = Number(config.shippingEstimateGbp ?? 0);
+  const total = json.data?.totalRecords ?? null;
+
+  const mapped = products.map((p) => {
+    const pair = normaliseProduct(p, { rate, shippingEstimate, marketplaceCountry: countryCode });
+    if (!pair) return null;
+    const [supply] = pair;
+    return {
+      external_ref: supply.externalRef,
+      title: supply.title,
+      image_url: supply.imageUrl,
+      category: supply.category,
+      unit_cost: supply.landedCost,
+      raw: supply.raw,
+    };
+  }).filter(Boolean);
+
+  mapped.total = total;
+  mapped.query = url.search;
+  return mapped;
 }
 
 export async function fetchSignals({ config, credentials, query }) {

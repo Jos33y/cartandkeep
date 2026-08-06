@@ -25,7 +25,13 @@ export function useApproved(tenantId) {
         sold_30d, avg_sold_price, window_start, window_series,
         recommended_channels,
         batches ( delivered_for ),
-        decisions!inner ( action, decided_at, note )
+        decisions!inner ( action, decided_at, note ),
+        candidate_sources (
+          id, supplier, supplier_kind, fulfilment, status, url, note,
+          unit_cost, moq, price_at_moq, supplier_shipping,
+          inbound_freight_per_unit, duty_pct, landed_unit_cost,
+          ships_from, transit_days, confirmed, quoted_on
+        )
       `)
       .eq('tenant_id', tenantId)
       .eq('decisions.action', 'approve')
@@ -35,10 +41,13 @@ export function useApproved(tenantId) {
 
     setState({
       status: 'ready',
-      rows: data.map(({ decisions, batches, ...c }) => ({
+      rows: data.map(({ decisions, batches, candidate_sources: sources, ...c }) => ({
         ...c,
         decision: one(decisions),
         delivered_for: batches?.delivered_for ?? null,
+        sources: [...(sources ?? [])].sort(
+          (a, b) => Number(a.landed_unit_cost ?? 1e9) - Number(b.landed_unit_cost ?? 1e9),
+        ),
       })),
       error: null,
     });
@@ -46,5 +55,37 @@ export function useApproved(tenantId) {
 
   useEffect(() => { load(); }, [load]);
 
-  return { ...state, reload: load };
+  // She prices from this page, so a supplier has to be addable here rather than
+  // only on the candidate queue.
+  const addSource = useCallback(
+    async ({ candidateId, tenantId, ...fields }) => {
+      const { data, error } = await supabase
+        .from('candidate_sources')
+        .insert({ candidate_id: candidateId, tenant_id: tenantId, ...fields })
+        .select(`
+          id, supplier, supplier_kind, fulfilment, status, url, note,
+          unit_cost, moq, price_at_moq, supplier_shipping,
+          inbound_freight_per_unit, duty_pct, landed_unit_cost,
+          ships_from, transit_days, confirmed, quoted_on
+        `)
+        .single();
+
+      if (error) throw error;
+
+      setState((s) => ({
+        ...s,
+        rows: s.rows.map((r) => (r.id === candidateId
+          ? {
+            ...r,
+            sources: [...(r.sources ?? []), data].sort(
+              (a, b) => Number(a.landed_unit_cost ?? 1e9) - Number(b.landed_unit_cost ?? 1e9),
+            ),
+          }
+          : r)),
+      }));
+    },
+    [],
+  );
+
+  return { ...state, reload: load, addSource };
 }

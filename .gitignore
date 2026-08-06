@@ -14,5 +14,6 @@ docs/
 coverage/
 scripts/
 supabase/
+records/
 *.zip
 *.ps1

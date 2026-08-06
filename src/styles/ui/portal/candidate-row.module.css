@@ -1,9 +1,8 @@
 .row {
   --gutter: calc(72px + var(--s-4));
   position: relative;
-  padding: var(--s-3) var(--s-4) var(--s-3) var(--s-3);
+  padding: var(--s-3) var(--s-4);
   border-bottom: 1px solid var(--c-line);
-  border-radius: var(--r-md);
   transition: background var(--dur) var(--ease), opacity var(--dur-settle) var(--ease);
 }
 
@@ -13,9 +12,11 @@
 
 .aligned { padding-left: var(--gutter); }
 
-.approve { box-shadow: inset 3px 0 0 var(--c-positive); padding-left: var(--s-4); }
-.reject  { box-shadow: inset 3px 0 0 var(--c-negative); padding-left: var(--s-4); opacity: 0.5; }
-.defer   { box-shadow: inset 3px 0 0 var(--c-warning); padding-left: var(--s-4); }
+/* The decision marks the row, it does not move it. The padding override shifted
+   a decided row sideways against the undecided one above it. */
+.approve { box-shadow: inset 3px 0 0 var(--c-positive); }
+.reject  { box-shadow: inset 3px 0 0 var(--c-negative); opacity: 0.55; }
+.defer   { box-shadow: inset 3px 0 0 var(--c-warning); }
 
 /* One gutter, the width of the image, so the score, the bar, the detail and
    the actions all start where the title starts. */
@@ -161,6 +162,29 @@
 }
 
 .legendWrap p { margin-bottom: var(--s-3); }
+
+.notes {
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--c-line-mid);
+}
+
+.notes p:first-child { margin-bottom: var(--s-3); }
+
+.noteItem {
+  display: flex;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--c-line);
+  font-size: var(--t-label);
+  color: var(--c-ink);
+  line-height: var(--lh-snug);
+}
+
+.noteWhen { font-size: var(--t-caption); color: var(--c-ink-faint); white-space: nowrap; }
+
+.noteAdd { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
+.noteAdd .input { flex: 1; }
 
 .failed {
   margin-top: var(--s-3);

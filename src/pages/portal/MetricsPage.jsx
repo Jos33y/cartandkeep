@@ -4,7 +4,7 @@ const MONEY = [
   {
     term: 'Headroom',
     short: 'What is left of the sale price after the costs of selling, before paying for the product.',
-    body: 'It is the sale price less the eBay fee, the payment fee, promoted listings, postage and packaging. It is not profit. Profit is headroom less what the product costs to buy, and no supplier has quoted us yet, so that line reads not quoted. A product needs at least four pounds of headroom to reach this list at all.',
+    body: 'It is the sale price less the eBay fee, promoted listings, postage and packaging, each shown as its own line so they add up to the figure. It is not profit. Profit is headroom less what the product costs to buy, so until a supplier is priced the goods line reads not quoted. A product needs at least four pounds of headroom to reach this list at all.',
   },
   {
     term: 'Cost to sell',
@@ -13,8 +13,8 @@ const MONEY = [
   },
   {
     term: 'Goods, not quoted',
-    short: 'The product cost, which we do not have yet.',
-    body: 'Rather than estimate it and show a profit figure built on a guess, the line says what it is. It fills in once a supplier quotes.',
+    short: 'The product cost, until a supplier has been added.',
+    body: 'Rather than estimate it and show a profit figure built on a guess, the line says what it is. Add a supplier on the row and it fills in, and the net appears beside the headroom.',
   },
 ];
 
@@ -41,11 +41,44 @@ const DEMAND = [
   },
 ];
 
+const SOURCING = [
+  {
+    added: '2026-08-05',
+    term: 'A source',
+    short: 'Where a product would come from, and what it costs to get.',
+    body: 'One product can have several. Each one records who the supplier is, whether they post it to the buyer or you buy stock and post it yourself, the cost a unit, the minimum order, where it ships from and how long it takes. Nothing here is assumed. A source with no price yet says so rather than counting as free.',
+  },
+  {
+    added: '2026-08-05',
+    term: 'Landed cost',
+    short: 'What a unit really costs by the time it is ready to sell.',
+    body: 'Not the same as the price a supplier quotes. On a stock order it is the price at that quantity, plus any duty, plus the freight to get it to you, divided across the units. On a dropship order it is the goods plus what the supplier charges to post it. Comparing two suppliers on the quoted price alone compares two different things.',
+  },
+  {
+    added: '2026-08-05',
+    term: 'They post it, or you post it',
+    short: 'Who ships decides which costs are yours.',
+    body: 'If the supplier posts it to the buyer, the postage inside headroom is not yours to pay and comes back on, and their shipping charge goes on instead. If you buy stock and post it yourself, the postage stands and the freight to get the goods to you is added to the cost of each unit.',
+  },
+  {
+    added: '2026-08-05',
+    term: 'Net a unit',
+    short: 'Headroom less what the goods actually cost.',
+    body: 'This is the profit figure, and it only appears once a supplier has been priced. Until then the page shows headroom and says the goods are not quoted.',
+  },
+];
+
 const CAVEATS = [
   {
     term: 'Variations',
     short: 'How many size or colour options sit on the listing the figures came from.',
     body: 'On a listing with many variations the sold count covers all of them and the price is an average across whichever sold. A vet bed listing with two hundred variations spans a wide price range, so the money shown is a blend and not a per-size figure. Above ten variations the row says so.',
+  },
+  {
+    added: '2026-08-05',
+    term: 'Slipping',
+    short: 'Proven, still selling, but below its own average.',
+    body: 'A product that sold in every window we measured and is running under sixty per cent of its own usual rate. It is not a reject. It is still selling, and a product that dipped can come back, which is why it is here rather than hidden. It is not one to buy stock in today, and you may know why it dipped when we do not.',
   },
   {
     term: 'Bulky',
@@ -70,15 +103,43 @@ const SCORE = [
 const SECTIONS = [
   { title: 'The money', items: MONEY },
   { title: 'The demand', items: DEMAND },
+  { title: 'Where it comes from', items: SOURCING },
   { title: 'What weakens a figure', items: CAVEATS },
   { title: 'The score and the bar', items: SCORE },
 ];
 
+// Fourteen days, because she reads this page rarely and a marker that has gone
+// by the time she comes back is no marker at all.
+const FRESH_DAYS = 14;
+
+const isNew = (added) => {
+  if (!added) return false;
+  const days = (Date.now() - new Date(added).getTime()) / 86400000;
+  return days >= 0 && days <= FRESH_DAYS;
+};
+
+const updated = () => {
+  const dates = SECTIONS.flatMap((s) => s.items.map((i) => i.added)).filter(Boolean).sort();
+  return dates.length ? dates[dates.length - 1] : null;
+};
+
 export function MetricsPage() {
+  const last = updated();
+
   return (
     <div className={styles.page}>
       <header className={styles.head}>
-        <p className="micro">Metrics</p>
+        <p className="micro">
+          Metrics
+          {last && (
+            <span className={styles.updated}>
+              {' '}
+              updated {new Intl.DateTimeFormat('en-GB', {
+                timeZone: 'Europe/London', day: 'numeric', month: 'long',
+              }).format(new Date(last))}
+            </span>
+          )}
+        </p>
         <h1 className={styles.title}>What the numbers mean</h1>
         <p className={styles.lead}>
           Every figure in the portal comes from eBay sold transaction data or is
@@ -93,7 +154,10 @@ export function MetricsPage() {
           <dl className={styles.terms}>
             {section.items.map((item) => (
               <div key={item.term} className={styles.term}>
-                <dt className={styles.name}>{item.term}</dt>
+                <dt className={styles.name}>
+                  {item.term}
+                  {isNew(item.added) && <span className={styles.new}>new</span>}
+                </dt>
                 <dd className={styles.short}>{item.short}</dd>
                 <dd className={styles.body}>{item.body}</dd>
               </div>
@@ -111,6 +175,7 @@ export function MetricsPage() {
           <li>Anything that has fallen away against its own history drops out.</li>
           <li>Brand and compliance screens remove what we cannot list.</li>
           <li>What survives is scored, sorted and put in front of you.</li>
+          <li>You decide, and add a supplier when you have one.</li>
         </ol>
         <p className={styles.note}>
           Screens are word lists and they get things wrong in both directions, so

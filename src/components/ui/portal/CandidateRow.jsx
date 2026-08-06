@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { VerdictBar, VerdictLegend } from './VerdictBar';
 import { WindowSeries } from './WindowSeries';
 import { ImageLightbox } from './ImageLightbox';
+import { SourceList } from './SourceList';
 import { formatGbp } from '@utils/formatGbp';
 import { breadcrumb } from '@utils/category';
 import { REJECTION_REASONS } from '@utils/constants';
@@ -27,7 +28,7 @@ function windowName(candidate) {
   return MONTHS[Number(w.split('-')[1]) - 1] ?? null;
 }
 
-export function CandidateRow({ candidate, onDecide, onClear }) {
+export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, suppliers }) {
   const [open, setOpen] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState('');
@@ -35,6 +36,7 @@ export function CandidateRow({ candidate, onDecide, onClear }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(null);
   const [zoomed, setZoomed] = useState(false);
+  const [noteDraft, setNoteDraft] = useState('');
 
   const decision = candidate.decision;
   const m = candidate.margin ?? {};
@@ -103,6 +105,11 @@ export function CandidateRow({ candidate, onDecide, onClear }) {
             )}
             {candidate.classification && candidate.classification !== 'unknown' && (
               <> · {candidate.classification}</>
+            )}
+            {candidate.tier === 'slipping' && candidate.hold != null && (
+              <> · <span className={styles.flagInline}>
+                slipping, <span data-num>{Math.round(Number(candidate.hold) * 100)}%</span> of its own average
+              </span></>
             )}
             {candidate.bulky && <> · <span className={styles.flagInline}>bulky</span></>}
             {candidate.variation_count > 1 && (
@@ -211,11 +218,21 @@ export function CandidateRow({ candidate, onDecide, onClear }) {
               </>
             ) : (
               <>
-                <Line
-                  label="Cost to sell"
-                  value={m.cost_to_sell != null ? `- ${formatGbp(m.cost_to_sell)}` : 'not computed'}
-                  sub={`fees, postage, packaging, ${(m.headroom_band ?? 'small_parcel').replace(/_/g, ' ')}`}
-                />
+                {m.platform_fee != null ? (
+                  <>
+                    <Line label="eBay fee" value={`- ${formatGbp(m.platform_fee)}`} />
+                    {m.ads > 0 && <Line label="Promoted listings" value={`- ${formatGbp(m.ads)}`} />}
+                    <Line label="Postage" value={`- ${formatGbp(m.postage)}`}
+                      sub={(m.headroom_band ?? 'small_parcel').replace(/_/g, ' ')} />
+                    <Line label="Packaging" value={`- ${formatGbp(m.packaging)}`} />
+                  </>
+                ) : (
+                  <Line
+                    label="Cost to sell"
+                    value={m.cost_to_sell != null ? `- ${formatGbp(m.cost_to_sell)}` : 'not computed'}
+                    sub={`fees, postage, packaging, ${(m.headroom_band ?? 'small_parcel').replace(/_/g, ' ')}`}
+                  />
+                )}
                 <Line label="Headroom" value={headroom != null ? formatGbp(headroom) : 'no figure'} strong />
                 <Line label="Goods" value="not quoted" sub="awaiting supplier" />
               </>
@@ -234,6 +251,15 @@ export function CandidateRow({ candidate, onDecide, onClear }) {
             <p className="micro">What the bar is made of</p>
             <VerdictLegend breakdown={candidate.breakdown} />
           </div>
+
+          {candidate.tier === 'slipping' && (
+            <p className={styles.flag}>
+              This one sold in every window we measured and is still selling, but the
+              latest month is below its own average, so it is not one to buy stock in
+              today. It is here because a product that dipped can come back, and you
+              may know why this one dipped.
+            </p>
+          )}
 
           {candidate.variation_count >= BLENDED && (
             <p className={styles.flag}>
@@ -268,6 +294,46 @@ export function CandidateRow({ candidate, onDecide, onClear }) {
           )}
 
           {candidate.analyst_note && <p className={styles.note}>{candidate.analyst_note}</p>}
+
+          <SourceList candidate={candidate} onAdd={onSource} suppliers={suppliers} />
+
+          <div className={styles.notes}>
+            <p className="micro">Notes</p>
+
+            {(candidate.notes ?? []).map((n) => (
+              <p key={n.id} className={styles.noteItem}>
+                <span className={styles.noteWhen} data-num>
+                  {new Intl.DateTimeFormat('en-GB', {
+                    timeZone: 'Europe/London', day: 'numeric', month: 'short',
+                  }).format(new Date(n.created_at))}
+                </span>
+                {n.body}
+              </p>
+            ))}
+
+            <div className={styles.noteAdd}>
+              <input
+                className={styles.input}
+                aria-label={`Add a note about ${candidate.title}`}
+                placeholder="Supplier lead, a size question, something to check"
+                value={noteDraft}
+                onChange={(e) => setNoteDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && noteDraft.trim()) {
+                    e.preventDefault();
+                    run(async () => { await onNote(noteDraft); setNoteDraft(''); });
+                  }
+                }}
+              />
+              <button
+                className={styles.ghost}
+                disabled={!noteDraft.trim() || busy}
+                onClick={() => run(async () => { await onNote(noteDraft); setNoteDraft(''); })}
+              >
+                Add
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </article>

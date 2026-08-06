@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { EmptyState } from '@components/ui/portal/EmptyState';
 import { ImageLightbox } from '@components/ui/portal/ImageLightbox';
+import { SourceList } from '@components/ui/portal/SourceList';
 import { useApproved } from '@hooks/useApproved';
+import { useSuppliers } from '@hooks/useSuppliers';
 import { loadTenant } from '@lib/tenant';
 import { formatGbp } from '@utils/formatGbp';
 import { breadcrumb } from '@utils/category';
@@ -36,7 +38,8 @@ export function ApprovedPage() {
   const [tenant, setTenant] = useState(undefined);
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
-  const { status, rows } = useApproved(tenant?.id);
+  const { status, rows, addSource } = useApproved(tenant?.id);
+  const { suppliers, remember } = useSuppliers(tenant?.id);
 
   if (tenant === undefined || status === 'loading') {
     return <p className={styles.status} role="status" aria-live="polite">Loading</p>;
@@ -78,17 +81,41 @@ export function ApprovedPage() {
       </p>
 
       <div className={styles.list}>
-        {rows.map((r) => <Pack key={r.id} row={r} />)}
+        {rows.map((r) => (
+          <Pack
+            key={r.id}
+            row={r}
+            suppliers={suppliers}
+            onSource={async (fields) => {
+              await addSource({ candidateId: r.id, tenantId: tenant.id, ...fields });
+              await remember({ tenantId: tenant.id, name: fields.supplier, country: fields.ships_from });
+            }}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
-function Pack({ row }) {
+function Pack({ row, suppliers, onSource }) {
   const [copied, setCopied] = useState(false);
   const [zoomed, setZoomed] = useState(false);
   const m = row.margin ?? {};
   const month = windowName(row);
+
+  // Cheapest source that has actually been priced. A sourcing request with no
+  // answer is not a cost.
+  const best = (row.sources ?? []).find((s) => s.landed_unit_cost != null) ?? null;
+
+  // On a dropship order the supplier posts it, so the postage inside headroom
+  // is not hers to pay.
+  const net = best && row.headroom != null
+    ? Math.round((
+      Number(row.headroom)
+      + (best.fulfilment === 'dropship' ? Number(m.postage ?? 0) : 0)
+      - Number(best.landed_unit_cost)
+    ) * 100) / 100
+    : null;
 
   async function copyTitle() {
     try {
@@ -143,7 +170,20 @@ function Pack({ row }) {
         <Fig label="Cost to sell"
           value={m.cost_to_sell != null ? `- ${formatGbp(m.cost_to_sell)}` : 'not computed'}
           foot="fees, postage, packaging" />
-        <Fig label="Headroom" value={formatGbp(row.headroom)} strong foot="before goods, not yet quoted" />
+        <Fig
+          label="Headroom"
+          value={formatGbp(row.headroom)}
+          strong={net == null}
+          foot={best ? 'before goods' : 'before goods, not yet quoted'}
+        />
+        {best && (
+          <Fig
+            label="Net a unit"
+            value={formatGbp(net)}
+            strong
+            foot={`${best.supplier} at ${formatGbp(best.landed_unit_cost)} landed`}
+          />
+        )}
       </dl>
 
       <dl className={styles.details}>
@@ -168,6 +208,8 @@ function Pack({ row }) {
           the supplier before listing at this price.
         </p>
       )}
+
+      <SourceList candidate={row} onAdd={onSource} suppliers={suppliers} />
 
       {row.reference_url && (
         <p className={styles.reference}>

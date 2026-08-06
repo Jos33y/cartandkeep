@@ -9,8 +9,15 @@ function one(decisions) {
 }
 
 function flatten(row) {
-  const { decisions, ...candidate } = row;
-  return { ...candidate, decision: one(decisions) };
+  const { decisions, candidate_notes: notes, candidate_sources: sources, ...candidate } = row;
+  return {
+    ...candidate,
+    decision: one(decisions),
+    notes: [...(notes ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    sources: [...(sources ?? [])].sort(
+      (a, b) => Number(a.landed_unit_cost ?? 1e9) - Number(b.landed_unit_cost ?? 1e9),
+    ),
+  };
 }
 
 export function useCandidates(batchId) {
@@ -24,14 +31,21 @@ export function useCandidates(batchId) {
       .from('candidates')
       .select(`
         id, title, category, image_url, supplier_url, reference_url, external_ref,
-        classification, score, component_count, breakdown,
+        classification, tier, score, component_count, breakdown,
         ebay_category_id, ebay_category_path, variation_count,
         confidence, signal_count, signals, margin,
         headroom, hold, same_sku_sellers, bulky, routes, window_series,
         sold_30d, avg_sold_price, active_listings, sell_through, trend,
         seller_concentration, window_start, window_end,
         recommended_channels, recommended_volume, analyst_note,
-        decisions ( id, action, reason, note, decided_at )
+        decisions ( id, action, reason, note, decided_at ),
+        candidate_notes ( id, body, created_at ),
+        candidate_sources (
+          id, supplier, supplier_kind, fulfilment, status, url, note,
+          unit_cost, moq, price_at_moq, supplier_shipping,
+          inbound_freight_per_unit, duty_pct, landed_unit_cost,
+          ships_from, transit_days, confirmed, quoted_on
+        )
       `)
       .eq('batch_id', batchId)
       .order('score', { ascending: false, nullsFirst: false });
@@ -90,7 +104,63 @@ export function useCandidates(batchId) {
     [load],
   );
 
-  return { ...state, reload: load, decide, clear };
+  // A note is not a decision, so it does not touch the decision row and does
+  // not need one to exist.
+  const addNote = useCallback(
+    async ({ candidateId, tenantId, body }) => {
+      const text = String(body ?? '').trim();
+      if (!text) return;
+
+      const { data, error } = await supabase
+        .from('candidate_notes')
+        .insert({ candidate_id: candidateId, tenant_id: tenantId, body: text })
+        .select('id, body, created_at')
+        .single();
+
+      if (error) throw error;
+
+      setState((s) => ({
+        ...s,
+        rows: s.rows.map((r) => (r.id === candidateId
+          ? { ...r, notes: [data, ...(r.notes ?? [])] }
+          : r)),
+      }));
+    },
+    [],
+  );
+
+  // She enters her own suppliers. Ours is one row among hers, not the only one.
+  const addSource = useCallback(
+    async ({ candidateId, tenantId, ...fields }) => {
+      const { data, error } = await supabase
+        .from('candidate_sources')
+        .insert({ candidate_id: candidateId, tenant_id: tenantId, ...fields })
+        .select(`
+          id, supplier, supplier_kind, fulfilment, status, url, note,
+          unit_cost, moq, price_at_moq, supplier_shipping,
+          inbound_freight_per_unit, duty_pct, landed_unit_cost,
+          ships_from, transit_days, confirmed, quoted_on
+        `)
+        .single();
+
+      if (error) throw error;
+
+      setState((s) => ({
+        ...s,
+        rows: s.rows.map((r) => (r.id === candidateId
+          ? {
+            ...r,
+            sources: [...(r.sources ?? []), data].sort(
+              (a, b) => Number(a.landed_unit_cost ?? 1e9) - Number(b.landed_unit_cost ?? 1e9),
+            ),
+          }
+          : r)),
+      }));
+    },
+    [],
+  );
+
+  return { ...state, reload: load, decide, clear, addNote, addSource };
 }
 
 // undefined while resolving, null when there is genuinely no batch. Without the
