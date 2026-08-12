@@ -20,19 +20,27 @@ const MONEY = [
 
 const DEMAND = [
   {
+    added: '2026-08-12',
     term: 'Units sold',
     short: 'How many of that exact listing sold in the most recent month.',
-    body: 'Taken from eBay\u2019s own sold transaction data through Terapeak, not an estimate. Ten in the latest month is the minimum to appear here.',
+    body: 'Taken from eBay\u2019s own sold transaction data through Terapeak, not an estimate. There is no minimum to appear here. A product selling three a month is not worth buying stock in, but it is worth a listing if it can be sourced, and that is your call rather than ours.',
   },
   {
+    added: '2026-08-12',
     term: 'Holding',
     short: 'How the latest month compares with the product\u2019s own average.',
-    body: 'One means it is selling at its usual rate. Below zero point six means it has fallen away, and those are excluded. This is what keeps summer products off an August list.',
+    body: 'One means it is selling at its usual rate. Below zero point six means it has fallen away. This is what keeps summer products off an August list, and it is the test that separates a product worth holding stock in from one worth listing. It needs at least three months of history, so on a new search term it is blank rather than guessed.',
   },
   {
     term: 'Same product sellers',
     short: 'How many other sellers are listing a matching product.',
-    body: 'Fewer is better. It is measured on title matching, so on a listing with many variations it is a rough figure rather than an exact one.',
+    body: 'Measured on title matching, so on a listing with many variations it is a rough figure rather than an exact one. Fewer means less direct competition on a stock buy. More can mean the opposite on a dropship listing, because a product thirty sellers carry is one a supplier will actually have.',
+  },
+  {
+    added: '2026-08-12',
+    term: 'Competition, what is not here yet',
+    short: 'How many live listings compete for the same search.',
+    body: 'Same product sellers counts who else has this exact item. It does not count how deep the whole search is, and two hundred sales across four hundred listings is a different market from two hundred across twenty. That check reads eBay\u2019s live listings rather than its sold data and has not been run on this batch.',
   },
   {
     term: 'Evergreen, rising, new, fading',
@@ -89,14 +97,21 @@ const CAVEATS = [
 
 const SCORE = [
   {
-    term: 'The score',
-    short: 'A single number from the components below, weighted.',
-    body: 'It is a sort order, not a verdict. An eighty made of strong sales and thin margin is a different proposition from an eighty made of the reverse, which is what the bar underneath is for.',
+    added: '2026-08-12',
+    term: 'A month before goods',
+    short: 'Units sold last month multiplied by the headroom on each one.',
+    body: 'What the product would have been worth over a month at the rate it actually sold, before paying for the goods. Two numbers multiplied together, nothing weighted and nothing hidden, and the line underneath shows both so you can check it. It is what the list is sorted by.',
+  },
+  {
+    added: '2026-08-12',
+    term: 'The score, and why it is absent',
+    short: 'A weighted number, shown only where there is enough behind it.',
+    body: 'The score combines sell-through, margin, direction, competition and postage band into one figure for sorting. Most of those need either several months of history or a supplier price, so on a new search term there is not enough to build it from. Rather than show a number made of two components and call it a score, the row shows nothing and the money is used instead.',
   },
   {
     term: 'The bar',
     short: 'One segment per component. Width is how much it counts, fill is how it scored.',
-    body: 'A candidate measured on five things shows five segments. Where a component has no data it is left out rather than counted as zero, so the bar shows what the score was actually made of. Open a row to see the figures behind it.',
+    body: 'A candidate measured on five things shows five segments. Where a component has no data it is left out rather than counted as zero, so the bar shows what the score was actually made of. Where nothing has been measured yet there is no bar at all.',
   },
 ];
 
@@ -170,11 +185,13 @@ export function MetricsPage() {
         <h2 className={styles.sectionTitle}>How a product reaches this list</h2>
         <ol className={styles.steps}>
           <li>A search term is measured on eBay sold data across several months.</li>
-          <li>Anything below ten sales in the latest month drops out.</li>
+          <li>Brand and compliance screens remove what we cannot list, and what
+            they removed is kept on this page rather than dropped.</li>
           <li>Anything with less than four pounds of headroom drops out.</li>
-          <li>Anything that has fallen away against its own history drops out.</li>
-          <li>Brand and compliance screens remove what we cannot list.</li>
-          <li>What survives is scored, sorted and put in front of you.</li>
+          <li>What is left is the list you see. Selling at all is enough, because
+            a listing costs nothing to try.</li>
+          <li>Anything selling ten or more a month and holding against its own
+            history is marked as one worth buying stock in.</li>
           <li>You decide, and add a supplier when you have one.</li>
         </ol>
         <p className={styles.note}>

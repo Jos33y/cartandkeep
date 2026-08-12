@@ -106,6 +106,16 @@
   letter-spacing: 0.04em;
 }
 
+/* Said once, under the title, rather than on every group heading. A badge on
+   all seven groups is not a warning, it is wallpaper. */
+.outsideNote {
+  margin-top: var(--s-2);
+  max-width: 52ch;
+  font-size: var(--t-caption);
+  line-height: var(--lh-body);
+  color: var(--c-action-text);
+}
+
 .ledger { border-top: 1px solid var(--c-line); }
 
 .empty { padding: var(--s-8) 0; max-width: 46ch; }

@@ -48,6 +48,16 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
   const headroom = candidate.headroom ?? m.headroom ?? null;
   const month = windowName(candidate);
 
+  // A score needs components behind it. On a batch with one window there is no
+  // trend, no sell-through and no competition read, so the analysis writes none
+  // and the bar has nothing to draw.
+  const score = candidate.score ?? null;
+  const scored = Object.keys(candidate.breakdown ?? {}).length > 0;
+
+  // What it would be worth in a month at the going rate, before goods cost.
+  const worth = candidate.monthly_headroom
+    ?? (headroom != null && candidate.sold_30d != null ? headroom * candidate.sold_30d : null);
+
   // A failed write used to disappear, leaving the row looking decided until the
   // next reload put it back.
   async function run(fn) {
@@ -147,15 +157,30 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
           rows each carrying about a third of a row of content. */}
       <div className={`${styles.control} ${styles.aligned} ${rejecting ? styles.controlWrap : ''}`}>
         {/* The score next to the bar that explains it, rather than a numeral on
-            the far side of the row with nothing tying the two together. */}
-        <p className={styles.score}>
-          <span className={styles.scoreLabel}>Score</span>
-          <span className={styles.scoreValue} data-num>{candidate.score ?? candidate.confidence ?? 0}</span>
-        </p>
+            the far side of the row with nothing tying the two together.
+            Absent where nothing computed it: a null rendered as a zero reads as
+            a product that scored nothing, which is a worse claim than silence.
+            In its place the figure that does hold on this batch. */}
+        {score != null ? (
+          <p className={styles.score}>
+            <span className={styles.scoreLabel}>Score</span>
+            <span className={styles.scoreValue} data-num>{score}</span>
+          </p>
+        ) : worth != null ? (
+          <p className={styles.score}>
+            <span className={styles.scoreLabel}>A month before goods</span>
+            <span className={styles.scoreValue} data-num>{formatGbp(worth)}</span>
+            <span className={styles.scoreFoot}>
+              {candidate.sold_30d} sold at {formatGbp(headroom)}
+            </span>
+          </p>
+        ) : null}
 
-        <div className={styles.barSlot}>
-          <VerdictBar breakdown={candidate.breakdown} muted={Boolean(decision)} />
-        </div>
+        {scored && (
+          <div className={styles.barSlot}>
+            <VerdictBar breakdown={candidate.breakdown} muted={Boolean(decision)} />
+          </div>
+        )}
 
         <div className={`${styles.foot} ${decision ? styles.footSettled : ''}`}>
           {decision ? (
@@ -247,10 +272,12 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
             )}
           </dl>
 
-          <div className={styles.legendWrap}>
-            <p className="micro">What the bar is made of</p>
-            <VerdictLegend breakdown={candidate.breakdown} />
-          </div>
+          {scored && (
+            <div className={styles.legendWrap}>
+              <p className="micro">What the bar is made of</p>
+              <VerdictLegend breakdown={candidate.breakdown} />
+            </div>
+          )}
 
           {candidate.tier === 'slipping' && (
             <p className={styles.flag}>
@@ -272,8 +299,10 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
 
           {candidate.bulky && (
             <p className={styles.flag}>
-              Costed as a small parcel. This one is bulky, so the real postage band
-              will be worse once a supplier gives dimensions.
+              Costed as a small parcel at £3.65. This one is bulky, so the real
+              band is a medium parcel at £5.55 or a courier above that, and the
+              headroom above is a ceiling rather than a figure. Confirm the size
+              and weight with the supplier before pricing it.
             </p>
           )}
 

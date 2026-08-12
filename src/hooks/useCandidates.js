@@ -32,7 +32,8 @@ export function useCandidates(batchId) {
       .select(`
         id, title, category, image_url, supplier_url, reference_url, external_ref,
         classification, tier, score, component_count, breakdown,
-        ebay_category_id, ebay_category_path, variation_count,
+        ebay_category_id, ebay_category_path, cluster, variation_count,
+        monthly_headroom,
         confidence, signal_count, signals, margin,
         headroom, hold, same_sku_sellers, bulky, routes, window_series,
         sold_30d, avg_sold_price, active_listings, sell_through, trend,
@@ -48,7 +49,8 @@ export function useCandidates(batchId) {
         )
       `)
       .eq('batch_id', batchId)
-      .order('score', { ascending: false, nullsFirst: false });
+      .order('score', { ascending: false, nullsFirst: false })
+      .order('monthly_headroom', { ascending: false, nullsFirst: false });
 
     if (error) return setState({ status: 'error', rows: [], error });
     setState({ status: 'ready', rows: data.map(flatten), error: null });

@@ -16,6 +16,15 @@ const FILTERS = [
   { key: 'all', label: 'All' },
 ];
 
+// Units times headroom. What the product would be worth in a month at the
+// going rate, before goods cost. Computed at import, recomputed here only for
+// rows written before that column existed.
+const worthPerMonth = (r) => {
+  if (r.monthly_headroom != null) return r.monthly_headroom;
+  const head = r.headroom ?? r.margin?.headroom;
+  return head != null && r.sold_30d != null ? head * r.sold_30d : null;
+};
+
 // A defer is a decision to look again, not a review. Counting it as reviewed
 // tells her she is finished when there is a pile still waiting.
 const isSettled = (r) => r.decision?.action === 'approve' || r.decision?.action === 'reject';
@@ -45,32 +54,40 @@ export function CandidatesPage() {
     return rows.filter((r) => r.decision?.action === 'reject');
   }, [rows, filter]);
 
-  // Grouped, because a score of 72 on a cat bowl and 72 on a dog bed are built
-  // the same way and mean different things. Ranking compares within a group.
+  // Grouped by cluster, which is the eBay leaf the listing sits in. A whole
+  // batch under one top level heading is one list of 178, and she reviews a
+  // product type at a time. Falls back to the boundary label where a row was
+  // never enriched.
   const groups = useMemo(() => {
     const map = new Map();
 
     for (const r of visible) {
-      const { label, agreed } = matchBoundary(r.ebay_category_path, boundaries);
-      const key = label ?? 'Not known';
-      if (!map.has(key)) map.set(key, { label: key, agreed, rows: [] });
-      map.get(key).rows.push(r);
+      // The boundary label is only a fallback for a row enrichment has not
+      // reached. Whether a category was agreed at signing no longer changes the
+      // display: the categories move when one stops working, so a group is not
+      // owed a warning for being new.
+      const { label } = matchBoundary(r.ebay_category_path, boundaries);
+      const key = r.cluster || label || 'Not known';
+      if (!map.has(key)) map.set(key, { label: key, rows: [], worth: 0 });
+      const g = map.get(key);
+      g.rows.push(r);
+      g.worth += worthPerMonth(r) ?? 0;
     }
 
-    // Holding first inside a group. A slipping product is worth seeing, not
-    // worth ranking against one that is not slipping.
+    // Holding first inside a group, then by what the product is worth in a
+    // month. The score is null on a batch with no history behind it, so
+    // sorting on it puts every row in whatever order the query returned.
     for (const g of map.values()) {
       g.rows.sort((a, b) => {
-        const t = (r) => (r.tier === 'slipping' ? 1 : 0);
-        return t(a) - t(b) || (b.score ?? 0) - (a.score ?? 0);
+        const sinks = (r) => (r.tier === 'slipping' ? 1 : 0);
+        return sinks(a) - sinks(b)
+          || (worthPerMonth(b) ?? 0) - (worthPerMonth(a) ?? 0);
       });
       g.slipping = g.rows.filter((r) => r.tier === 'slipping').length;
     }
 
-    return [...map.values()].sort((a, b) => {
-      if (a.agreed !== b.agreed) return a.agreed ? -1 : 1;
-      return b.rows.length - a.rows.length;
-    });
+    // The cluster worth the most money first, not the one with most rows.
+    return [...map.values()].sort((a, b) => b.worth - a.worth || b.rows.length - a.rows.length);
   }, [visible, boundaries]);
 
   const counts = useMemo(() => ({
@@ -180,7 +197,6 @@ export function CandidatesPage() {
             <p className={styles.groupCount}>
               <span data-num>{g.rows.length}</span> {g.rows.length === 1 ? 'product' : 'products'}
               {g.slipping > 0 && <>, <span data-num>{g.slipping}</span> slipping</>}
-              {!g.agreed && <span className={styles.outside}>outside the agreed categories</span>}
             </p>
           </header>
 

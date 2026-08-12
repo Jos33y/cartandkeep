@@ -22,6 +22,8 @@ export const STATUS_PHASES = [
       { label: 'Product images and eBay categories', state: 'done', date: '2026-08-03' },
       { label: 'Notes on any product', state: 'done', date: '2026-08-05' },
       { label: 'Supplier costs and margin', detail: 'add a supplier, see what is left', state: 'done', date: '2026-08-05' },
+      { label: 'Products grouped by type', detail: 'reviewed a shelf at a time rather than one long list', state: 'done', date: '2026-08-12' },
+      { label: 'Decision history', detail: 'every approval and change kept on record', state: 'done', date: '2026-08-05' },
     ],
   },
   {
@@ -33,7 +35,10 @@ export const STATUS_PHASES = [
       { label: 'What every figure means', detail: 'in the portal, under Metrics', state: 'done', date: '2026-08-05' },
       { label: 'Research coverage published', detail: 'every keyword searched and what it found', state: 'done', date: '2026-08-05' },
       { label: 'First review session', state: 'done', date: '2026-07-30' },
-      { label: 'First candidate batch delivered', due: 'Monday 10 August', state: 'active' },
+      { label: 'First candidate batch delivered', state: 'done', date: '2026-08-10' },
+      { label: 'Twelve months of sales history per product', detail: 'seven monthly windows, direction and season', state: 'done', date: '2026-08-12' },
+      { label: 'Second candidate batch delivered', detail: '178 products', due: 'Monday 17 August', state: 'active' },
+      { label: 'Live competition check', detail: 'how many sellers compete for the same search', state: 'queued' },
     ],
   },
   {
