@@ -1,0 +1,90 @@
+/* Who else is selling this.
+
+   Matches the cost breakdown above it: label left, figure right, one hairline
+   under the row that matters. No second visual language in the same panel. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding-top: var(--s-4);
+}
+
+.ledger { display: flex; flex-direction: column; }
+
+.line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-2) 0;
+  font-size: var(--t-body);
+  color: var(--c-ink-soft);
+}
+
+.line dd { color: var(--c-ink); white-space: nowrap; }
+
+/* This product. The row the eye should land on, so it takes the rule above it
+   and full ink, the same way Headroom does in the breakdown. */
+.lineStrong {
+  border-top: 1px solid var(--c-line-mid);
+  color: var(--c-ink);
+  font-weight: 500;
+}
+
+.sub { color: var(--c-ink-faint); font-size: var(--t-caption); }
+
+/* Terracotta only where the price sits outside the field, which is the one
+   thing on this block that changes what she would do. */
+.flag { color: var(--c-action-text); }
+
+/* What the pricing gap is worth. The one line here that says do something
+   rather than here is some data, so it gets the display face and the rule.
+   Only drawn where the gap clears fifty pence: a figure of nine pence set at
+   this size is a joke at her expense. */
+.upside {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--c-line);
+}
+
+.upsideNum {
+  font-family: var(--font-mono);
+  font-size: var(--t-figure);
+  letter-spacing: -0.02em;
+  font-weight: 500;
+  color: var(--c-action-text);
+  white-space: nowrap;
+}
+
+.upsideText {
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+  line-height: var(--lh-body);
+}
+
+.note {
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+  line-height: var(--lh-body);
+  max-width: 64ch;
+}
+
+/* ── the one line version, in the row ──────────────────────────────── */
+
+.summary {
+  font-size: var(--t-micro);
+  letter-spacing: 0.01em;
+  color: var(--c-ink-soft);
+}
+
+.summaryNum { color: var(--c-ink); }
+
+.absent {
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+  letter-spacing: 0.01em;
+}

@@ -37,10 +37,22 @@ const DEMAND = [
     body: 'Measured on title matching, so on a listing with many variations it is a rough figure rather than an exact one. Fewer means less direct competition on a stock buy. More can mean the opposite on a dropship listing, because a product thirty sellers carry is one a supplier will actually have.',
   },
   {
-    added: '2026-08-12',
-    term: 'Competition, what is not here yet',
-    short: 'How many live listings compete for the same search.',
-    body: 'Same product sellers counts who else has this exact item. It does not count how deep the whole search is, and two hundred sales across four hundred listings is a different market from two hundred across twenty. That check reads eBay\u2019s live listings rather than its sold data and has not been run on this batch.',
+    added: '2026-08-13',
+    term: 'Live listings competing',
+    short: 'How many listings are up for sale right now against this product.',
+    body: 'Same product sellers counts who else has this exact item. This counts how deep the whole search is, which is a different question: two hundred sales across four hundred listings is a different market from two hundred across twenty. It reads eBay\u2019s live listings rather than its sold history, so it is what is on sale today rather than what sold last month. Under a hundred is thin, over two thousand is crowded.',
+  },
+  {
+    added: '2026-08-13',
+    term: 'Most of them sell at',
+    short: 'The price range the middle half of sellers sit in.',
+    body: 'Not the cheapest and not the dearest, because both of those are usually one listing rather than the market. The middle half is what a buyer comparing a page of results actually sees. A narrow range means sellers have converged and the only lever left is price. A wide one means there is room to sell on presentation.',
+  },
+  {
+    added: '2026-08-13',
+    term: 'Left on the table',
+    short: 'What pricing up to the market would be worth on a product selling below it.',
+    body: 'Where a product sells for less than the cheapest of the middle half, the difference is money nobody is collecting. It is shown after eBay fees and promoted listings, so it is what would actually reach headroom rather than the raw gap, and then multiplied by last month\u2019s units. It is an opportunity rather than a promise: pricing up may sell fewer.',
   },
   {
     term: 'Evergreen, rising, new, fading',

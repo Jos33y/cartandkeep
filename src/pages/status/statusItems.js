@@ -38,7 +38,7 @@ export const STATUS_PHASES = [
       { label: 'First candidate batch delivered', state: 'done', date: '2026-08-10' },
       { label: 'Twelve months of sales history per product', detail: 'seven monthly windows, direction and season', state: 'done', date: '2026-08-12' },
       { label: 'Second candidate batch delivered', detail: '178 products', due: 'Monday 17 August', state: 'active' },
-      { label: 'Live competition check', detail: 'how many sellers compete for the same search', state: 'queued' },
+      { label: 'Live competition check', detail: 'how many sellers compete, and at what price', state: 'done', date: '2026-08-13' },
     ],
   },
   {

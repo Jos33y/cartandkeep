@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { VerdictBar, VerdictLegend } from './VerdictBar';
+import { MarketSummary, MarketScale } from './MarketLine';
 import { WindowSeries } from './WindowSeries';
 import { ImageLightbox } from './ImageLightbox';
 import { SourceList } from './SourceList';
@@ -176,11 +177,11 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
           </p>
         ) : null}
 
-        {scored && (
-          <div className={styles.barSlot}>
-            <VerdictBar breakdown={candidate.breakdown} muted={Boolean(decision)} />
-          </div>
-        )}
+        <div className={styles.barSlot}>
+          {scored
+            ? <VerdictBar breakdown={candidate.breakdown} muted={Boolean(decision)} />
+            : <MarketSummary candidate={candidate} />}
+        </div>
 
         <div className={`${styles.foot} ${decision ? styles.footSettled : ''}`}>
           {decision ? (
@@ -305,6 +306,8 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
               and weight with the supplier before pricing it.
             </p>
           )}
+
+          <MarketScale candidate={candidate} />
 
           <WindowSeries series={candidate.window_series} />
 
