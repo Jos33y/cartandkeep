@@ -39,6 +39,18 @@
   transition: width var(--dur-settle) var(--ease);
 }
 
+/* The batch row sits above the decision filters and reads as a different
+   kind of choice, so it carries a rule beneath it rather than a second row
+   of identical chips. One step of separation, not a new component. */
+.batches {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  padding-bottom: var(--s-3);
+  margin-bottom: var(--s-3);
+  border-bottom: 1px solid var(--c-line);
+}
+
 .filters { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 
 .chip {

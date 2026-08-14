@@ -9,6 +9,7 @@ const one = (d) => (Array.isArray(d) ? d[0] ?? null : d ?? null);
 const EMPTY = {
   status: 'loading',
   batch: null,
+  batches: [],
   rows: [],
   counts: { total: 0, approved: 0, rejected: 0, deferred: 0, pending: 0 },
   netIfSold: 0,
@@ -26,24 +27,34 @@ export function useOverview(tenantId) {
     let live = true;
 
     (async () => {
-      const { data: batch } = await supabase
+      // Every live batch, not the newest one.
+      //
+      // Overview answers how much is outstanding in total. Taking the newest
+      // batch and stopping meant that the day a second category arrived, 50
+      // mobility candidates she was midway through stopped being counted
+      // anywhere, and the page read 41 while she had 91 to do. Retired batches
+      // are excluded here rather than at the call site, because a batch she
+      // has been told is withdrawn should not reappear in a total.
+      const { data: batchList } = await supabase
         .from('batches')
-        .select('id, delivered_for, status, candidate_count, sources_used')
+        .select('id, delivered_for, status, candidate_count, sources_used, category_label, term')
         .eq('tenant_id', tenantId)
         .eq('status', 'delivered')
-        .order('delivered_for', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .is('retired_at', null)
+        .order('delivered_for', { ascending: false });
+
+      const batches = batchList ?? [];
+      const batch = batches[0] ?? null;
 
       const [candidates, sources, listings, perf] = await Promise.all([
-        batch
+        batches.length
           ? supabase
               .from('candidates')
               .select(`
-                id, title, score, headroom, sold_30d, bulky, variation_count, margin,
+                id, batch_id, title, score, headroom, sold_30d, bulky, variation_count, margin,
                 decisions ( action, reason )
               `)
-              .eq('batch_id', batch.id)
+              .in('batch_id', batches.map((b) => b.id))
           : Promise.resolve({ data: [] }),
         supabase
           .from('tenant_sources')
@@ -100,9 +111,23 @@ export function useOverview(tenantId) {
         { units: 0, revenue: 0, net: 0 },
       );
 
+      // Per batch, so the total can be broken down without a second query and
+      // so the scatter can stay one chart per category. Mixing a £134 patient
+      // lift into a chart of £5 duvet covers sets the scale on the outlier and
+      // destroys it, which this project has already learnt once.
+      const byBatch = batches.map((b) => {
+        const own = rows.filter((r) => r.batch_id === b.id);
+        return {
+          ...b,
+          rows: own,
+          pending: own.filter((r) => !decisionOf(r)).length,
+        };
+      });
+
       setState({
         status: 'ready',
         batch: batch ?? null,
+        batches: byBatch,
         rows,
         counts,
         netIfSold,

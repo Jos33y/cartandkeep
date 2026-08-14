@@ -167,21 +167,34 @@ export function useCandidates(batchId) {
 
 // undefined while resolving, null when there is genuinely no batch. Without the
 // distinction the empty state flashes on every load.
-export function useLatestBatch(tenantId) {
-  const [batch, setBatch] = useState(undefined);
+// Every delivered batch, newest first. Retired ones are excluded here rather
+// than filtered at the call site, because a retired batch is one she has
+// already been told is withdrawn and showing it again undoes that.
+//
+// This replaces a query that took the newest batch and stopped. That was
+// correct while there was one category, and the moment a second landed it
+// hid the first: 201 mobility candidates she was midway through disappeared
+// behind a batch of duvet covers delivered a day later.
+export function useBatches(tenantId) {
+  const [batches, setBatches] = useState(undefined);
 
   useEffect(() => {
     if (!tenantId) return;
     supabase
       .from('batches')
-      .select('id, delivered_for, status, candidate_count, sources_used')
+      .select('id, delivered_for, status, candidate_count, sources_used, category_label, term')
       .eq('tenant_id', tenantId)
       .eq('status', 'delivered')
+      .is('retired_at', null)
       .order('delivered_for', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => setBatch(data ?? null));
+      .then(({ data }) => setBatches(data ?? []));
   }, [tenantId]);
 
-  return batch;
+  return batches;
+}
+
+export function useLatestBatch(tenantId) {
+  const batches = useBatches(tenantId);
+  if (batches === undefined) return undefined;
+  return batches[0] ?? null;
 }

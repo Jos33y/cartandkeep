@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CandidateRow } from '@components/ui/portal/CandidateRow';
-import { useCandidates, useLatestBatch } from '@hooks/useCandidates';
+import { useCandidates, useBatches } from '@hooks/useCandidates';
 import { useBoundaries } from '@hooks/useBoundaries';
 import { useSuppliers } from '@hooks/useSuppliers';
 import { loadTenant } from '@lib/tenant';
@@ -41,7 +41,13 @@ export function CandidatesPage() {
 
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
-  const batch = useLatestBatch(tenant?.id);
+  const batches = useBatches(tenant?.id);
+  // Newest by default, because that is the one she was sent. Choosing another
+  // is deliberate, so the choice lives in state and not in the URL.
+  const [batchId, setBatchId] = useState(null);
+  const batch = batches === undefined
+    ? undefined
+    : (batches.find((b) => b.id === batchId) ?? batches[0] ?? null);
   const boundaries = useBoundaries(tenant?.id);
   const { suppliers, remember } = useSuppliers(tenant?.id);
   const { status, rows, decide, clear, addNote, addSource } = useCandidates(batch?.id);
@@ -134,7 +140,7 @@ export function CandidatesPage() {
       <header className={styles.head}>
         <div className={styles.headline}>
           <p className="micro">{week ? `Week of ${week}` : 'Latest batch'}</p>
-          <h1 className={styles.title}>Candidates</h1>
+          <h1 className={styles.title}>{batch.category_label || 'Candidates'}</h1>
         </div>
 
         <dl className={styles.stats}>
@@ -153,6 +159,19 @@ export function CandidatesPage() {
         <div className={styles.trackFill}
           style={{ width: rows.length ? `${(reviewed / rows.length) * 100}%` : '0%' }} />
       </div>
+
+      {batches.length > 1 && (
+        <div className={styles.batches} role="group" aria-label="Choose a batch">
+          {batches.map((b) => (
+            <button key={b.id} aria-pressed={b.id === batch.id}
+              className={`${styles.chip} ${b.id === batch.id ? styles.chipOn : ''}`}
+              onClick={() => setBatchId(b.id)}>
+              {b.category_label || weekOf(b.delivered_for) || 'Batch'}
+              <span className={styles.chipCount} data-num>{b.candidate_count}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className={styles.filters} role="group" aria-label="Filter candidates">
         {FILTERS.map((f) => (

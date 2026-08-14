@@ -26,9 +26,16 @@ export function OverviewPage() {
   const hasBatch = Boolean(o.batch);
 
   // What is still on the table, which is the number that moves as she works.
-  const undecidedHeadroom = o.rows
+  //
+  // Headroom is per unit, so adding it across products totalled a set of
+  // ceilings that no one product could earn twice and none could earn at the
+  // same time. Forty one products at nine pounds each is not forty one times
+  // nine. Multiplied by units it becomes a month of trading at current rates,
+  // which is a figure she can act on, and it is the same arithmetic already
+  // shown on every candidate row as "a month before goods".
+  const undecidedMonthly = o.rows
     .filter((r) => !r.action && r.headroom != null)
-    .reduce((a, r) => a + r.headroom, 0);
+    .reduce((a, r) => a + r.headroom * Number(r.sold_30d ?? 0), 0);
 
   const decided = o.counts.approved + o.counts.rejected + o.counts.deferred;
   const pct = o.counts.total ? Math.round((decided / o.counts.total) * 100) : 0;
@@ -46,11 +53,29 @@ export function OverviewPage() {
         </h1>
         <p className={styles.sub}>
           {hasBatch ? (
-            <>Batch for {day(new Date(o.batch.delivered_for), { day: 'numeric', month: 'long' })}</>
+            o.batches.length > 1 ? (
+              <>Across {o.batches.length} batches</>
+            ) : (
+              <>Batch for {day(new Date(o.batch.delivered_for), { day: 'numeric', month: 'long' })}</>
+            )
           ) : (
             <>First batch lands {day(delivery, { weekday: 'long', day: 'numeric', month: 'long' })}</>
           )}
         </p>
+
+        {o.batches.length > 1 && (
+          <ul className={styles.batchBreak}>
+            {o.batches.map((b) => (
+              <li key={b.id} className={styles.batchLine}>
+                <span className={styles.num}>{b.pending}</span>
+                <span className={styles.batchName}>{b.category_label || 'Batch'}</span>
+                <span className={styles.batchDate}>
+                  {day(new Date(b.delivered_for), { day: 'numeric', month: 'long' })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </header>
 
       {hasBatch && (
@@ -83,7 +108,7 @@ export function OverviewPage() {
         <section className={styles.figures} aria-label="This week">
           <Figure label="To review" value={o.counts.pending}
             to={portalPath('/candidates')} cta="Open the queue" />
-          <Figure label="Headroom still to decide" value={formatGbp(undecidedHeadroom)} money />
+          <Figure label="A month before goods, undecided" value={formatGbp(undecidedMonthly)} money />
           {o.netIfSold > 0 && (
             <Figure label="Net if all sell once" value={formatGbp(o.netIfSold)} money />
           )}
@@ -100,12 +125,14 @@ export function OverviewPage() {
         </section>
       )}
 
-      {hasBatch && o.rows.length > 1 && (
-        <section className={styles.block}>
-          <h2 className={styles.blockLabel}>The shape of this batch</h2>
-          <BatchScatter rows={o.rows} />
+      {o.batches.filter((b) => b.rows.length > 1).map((b) => (
+        <section key={b.id} className={styles.block}>
+          <h2 className={styles.blockLabel}>
+            {o.batches.length > 1 ? b.category_label || 'The shape of this batch' : 'The shape of this batch'}
+          </h2>
+          <BatchScatter rows={b.rows} />
         </section>
-      )}
+      ))}
 
       {o.performance.units > 0 && (
         <section className={styles.block}>

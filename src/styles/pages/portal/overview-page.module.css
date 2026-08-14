@@ -177,3 +177,42 @@
 @media (prefers-reduced-motion: reduce) {
   .figureLink { transition: none; }
 }
+
+/* Append to src/styles/pages/portal/overview-page.module.css
+   ------------------------------------------------------------------
+   The batch breakdown under the headline. It exists only when there is
+   more than one live batch, so it must not look like a permanent piece
+   of furniture: no card, no border, no heading. A count, a name and a
+   date, set on the same baseline as the sub line above it. */
+
+.batchBreak {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin-top: var(--s-3);
+}
+
+.batchLine {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+}
+
+/* The count is the only figure on the line, so it is the only thing in
+   mono. Fixed width so two lines of different counts stay aligned. */
+.batchLine .num {
+  min-width: 2.5ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-ink);
+}
+
+.batchName { color: var(--c-ink); }
+
+.batchDate { color: var(--c-ink-faint); margin-left: auto; }
+
+@media (max-width: 480px) {
+  .batchDate { display: none; }
+}
