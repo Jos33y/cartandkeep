@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import {
   STATUS_ITEMS,
   STATE_LABEL,
@@ -7,7 +8,8 @@ import {
   completedByMonth,
   nextDated,
   lastUpdated,
-} from './statusItems';
+} from '@data/statusItems';
+import { StateIcon } from '@components/status/StateIcon';
 import styles from '@styles/pages/status/status-page.module.css';
 
 const NAV_THRESHOLD = 20;
@@ -36,33 +38,6 @@ function Mark({ className }) {
   );
 }
 
-function StateIcon({ state, className }) {
-  if (state === 'done') {
-    return (
-      <svg viewBox="0 0 18 18" className={className} aria-hidden="true" focusable="false">
-        <circle cx="9" cy="9" r="9" fill="var(--c-positive)" />
-        <path d="M5 9.2l2.7 2.7L13 6.6" fill="none" stroke="var(--c-base)" strokeWidth="1.8"
-          strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-
-  if (state === 'active') {
-    return (
-      <svg viewBox="0 0 18 18" className={className} aria-hidden="true" focusable="false">
-        <circle cx="9" cy="9" r="4" fill="var(--c-warning)" />
-        <circle cx="9" cy="9" r="7.5" fill="none" stroke="var(--c-warning)" strokeWidth="1.5" className={styles.pulse} />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 18 18" className={className} aria-hidden="true" focusable="false">
-      <circle cx="9" cy="9" r="7.5" fill="none" stroke="var(--c-control)" strokeWidth="1.5" strokeDasharray="2 3" />
-    </svg>
-  );
-}
-
 function Chevron({ open }) {
   return (
     <svg viewBox="0 0 16 16" className={`${styles.chev} ${open ? styles.chevOpen : ''}`} aria-hidden="true">
@@ -75,7 +50,7 @@ function Chevron({ open }) {
 function Row({ item, showPhase = false, showDate = false }) {
   return (
     <li className={styles.row}>
-      <StateIcon state={item.state} className={styles.icon} />
+      <StateIcon state={item.state} className={styles.icon} pulseClass={styles.pulse} />
       <span className={styles.rowMain}>
         <span className={styles.rowLabel}>{item.label}</span>
         {item.detail ? <span className={styles.rowDetail}>{item.detail}</span> : null}
@@ -86,7 +61,7 @@ function Row({ item, showPhase = false, showDate = false }) {
         {showDate && item.date ? (
           <span className={styles.rowDate}>{fmt(item.date, { day: '2-digit', month: 'short' })}</span>
         ) : (
-          <span className={`${styles.stateText} ${styles[item.state]}`}>{STATE_LABEL[item.state]}</span>
+          <span className={`${styles.stateText} ${styles[item.state] ?? ''}`.trim()}>{STATE_LABEL[item.state]}</span>
         )}
       </span>
     </li>
@@ -152,12 +127,14 @@ export function StatusPage() {
       <header className={styles.head}>
         <Mark className={styles.mark} />
         <span className={styles.wordmark}>Cart &amp; Keep</span>
+        <Link className={styles.headLink} to="/deliverables">Deliverables</Link>
         <a className={styles.signIn} href={portalUrl()}>Sign in</a>
       </header>
 
       <section className={styles.hero}>
         <p className={styles.verdict}>
-          <StateIcon state={running.length ? 'active' : 'queued'} className={styles.verdictIcon} />
+          <StateIcon state={running.length ? 'active' : 'queued'} className={styles.verdictIcon}
+            pulseClass={styles.pulse} />
           <span>{running.length ? 'Build in progress' : 'No work in progress'}</span>
         </p>
 
@@ -169,13 +146,13 @@ export function StatusPage() {
         ) : null}
 
         <div className={styles.line} role="progressbar" aria-valuemin={0} aria-valuemax={total}
-          aria-valuenow={done} aria-label="Milestones complete">
+          aria-valuenow={done} aria-label="Build milestones complete">
           <span className={styles.lineFill} style={{ width: `${pct}%` }} />
         </div>
 
         <p className={styles.meta}>
-          <span className={styles.metaNum}>{done}</span> of <span className={styles.metaNum}>{total}</span> milestones
-          complete{updated ? ` · updated ${fmt(updated, { day: 'numeric', month: 'long' })}` : ''}
+          <span className={styles.metaNum}>{done}</span> of <span className={styles.metaNum}>{total}</span> build
+          milestones complete{updated ? ` · updated ${fmt(updated, { day: 'numeric', month: 'long' })}` : ''}
         </p>
       </section>
 

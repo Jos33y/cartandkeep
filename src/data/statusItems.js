@@ -37,7 +37,8 @@ export const STATUS_PHASES = [
       { label: 'First review session', state: 'done', date: '2026-07-30' },
       { label: 'First candidate batch delivered', state: 'done', date: '2026-08-10' },
       { label: 'Twelve months of sales history per product', detail: 'seven monthly windows, direction and season', state: 'done', date: '2026-08-12' },
-      { label: 'Second candidate batch delivered', detail: '178 products', due: 'Monday 17 August', state: 'active' },
+      { label: 'Second candidate batch delivered', detail: '114 products across three categories',
+        state: 'done', date: '2026-08-16' },
       { label: 'Live competition check', detail: 'how many sellers compete, and at what price', state: 'done', date: '2026-08-13' },
     ],
   },
@@ -45,7 +46,7 @@ export const STATUS_PHASES = [
     key: 'store',
     label: 'Custom store',
     items: [
-      { label: 'Custom store live', state: 'queued' },
+      { label: 'Custom store live', due: 'By 22 August', state: 'active' },
       { label: 'Checkout integrated', state: 'queued' },
       { label: 'SEO foundation shipped', state: 'queued' },
       { label: 'Legal pages published', state: 'queued' },

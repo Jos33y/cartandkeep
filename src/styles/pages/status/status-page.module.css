@@ -17,11 +17,32 @@
 
 .wordmark { font-size: var(--t-body); font-weight: 560; letter-spacing: -0.02em; }
 
-.signIn {
+/* Quiet by comparison with Sign in. One of these is a door into the product
+   and the other is a document, and the header should not weigh them the same. */
+.headLink {
   display: inline-flex;
   align-items: center;
   min-height: 36px;
   margin-left: auto;
+  padding: 0 var(--s-2);
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-ink);
+  /* Underlined rather than left as plain text. Beside a pill it read as a
+     label and nobody would have clicked it, which for the one page she is
+     being sent to check is the whole failure. Same treatment as .footLink. */
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--c-line-mid);
+  transition: text-decoration-color var(--dur) var(--ease);
+}
+
+.headLink:hover { text-decoration-color: var(--c-ink); }
+
+.signIn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
   padding: 0 var(--s-4);
   border: 1px solid var(--c-control);
   border-radius: var(--r-full);
