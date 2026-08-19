@@ -5,37 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
     <title>Cart &amp; Keep</title>
-    <meta name="description" content="Cart &amp; Keep is a UK multi-category shop for beauty and pet accessories, curated and delivered from the United Kingdom." />
+    <meta name="description" content="A general store for the house. Eight departments, one basket, delivered from the UK. No account needed to buy." />
     <link rel="canonical" href="https://cartandkeep.com/" />
 
     <meta name="robots" content="index, follow, max-image-preview:large" />
-    <meta name="theme-color" content="#faf6ef" />
+    <meta name="theme-color" content="#FAF6EF" />
+    <meta name="color-scheme" content="light" />
     <meta name="format-detection" content="telephone=no" />
+
+    <!-- One build serves three hosts. Only the shop is a public site, so the
+         portal and the status page set noindex from React on mount, and the
+         manifest below is injected by host rather than linked statically. -->
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Cart &amp; Keep" />
     <meta property="og:title" content="Cart &amp; Keep" />
-    <meta property="og:description" content="A UK multi-category shop for beauty and pet accessories." />
+    <meta property="og:description" content="A general store for the house. Eight departments, one basket, delivered from the UK." />
     <meta property="og:url" content="https://cartandkeep.com/" />
-    <meta property="og:image" content="https://cartandkeep.com/assets/og-image.png" />
+    <meta property="og:image" content="https://cartandkeep.com/og-card-1200x630.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Cart &amp; Keep. Everything for the house. Nothing you have to hunt for." />
     <meta property="og:locale" content="en_GB" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Cart &amp; Keep" />
-    <meta name="twitter:description" content="A UK multi-category shop for beauty and pet accessories." />
-    <meta name="twitter:image" content="https://cartandkeep.com/assets/og-image.png" />
+    <meta name="twitter:description" content="A general store for the house. Eight departments, one basket, delivered from the UK." />
+    <meta name="twitter:image" content="https://cartandkeep.com/og-card-1200x630.png" />
 
-    <link rel="icon" href="/assets/favicon.ico" sizes="any" />
-    <link rel="icon" type="image/svg+xml" href="/assets/cnk-mark.svg" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png" />
-    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
-    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="icon" href="/icons/favicon-16.png" sizes="16x16" type="image/png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
+    <link rel="mask-icon" href="/icons/logomark-mono.svg" color="#2A2723" />
 
-    <!-- Organization and WebSite only. Product and BreadcrumbList get injected per
-         route once the catalogue is real, or they describe nothing. -->
+    <meta name="apple-mobile-web-app-title" content="Cart &amp; Keep" />
+    <meta name="application-name" content="Cart &amp; Keep" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+    <!-- No font links. Every face is self hosted through fontsource and
+         imported by the app chunk that needs it, so the shop does not pay for
+         the portal's faces and nothing is fetched from a third party. -->
+
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -45,7 +57,8 @@
             "@id": "https://cartandkeep.com/#organization",
             "name": "Cart & Keep",
             "url": "https://cartandkeep.com/",
-            "logo": "https://cartandkeep.com/assets/cnk-lockup.svg",
+            "logo": "https://cartandkeep.com/icons/logo-horizontal.svg",
+            "email": "support@cartandkeep.com",
             "areaServed": "GB"
           },
           {
@@ -55,13 +68,73 @@
             "name": "Cart & Keep",
             "publisher": { "@id": "https://cartandkeep.com/#organization" },
             "inLanguage": "en-GB"
+          },
+          {
+            "@type": "OnlineStore",
+            "@id": "https://cartandkeep.com/#store",
+            "name": "Cart & Keep",
+            "url": "https://cartandkeep.com/",
+            "parentOrganization": { "@id": "https://cartandkeep.com/#organization" },
+            "currenciesAccepted": "GBP",
+            "paymentAccepted": "Visa, Mastercard, American Express, Apple Pay",
+            "areaServed": { "@type": "Country", "name": "United Kingdom" }
           }
         ]
       }
     </script>
+
+    <!-- Product, BreadcrumbList and SearchAction are injected per route once
+         there is a catalogue and a search endpoint behind them. Declaring a
+         SearchAction for a route that does not exist is a lie Google follows. -->
+
+    <script>
+      // The manifest and the iOS launch images are attached here rather than in
+      // static markup, because portal. and status. are the same document. A
+      // static manifest link makes the review tool installable as "a general
+      // store", and iOS would preload nine launch images on every portal visit.
+      //
+      // Runs before render, so the links are in the DOM by the time an audit or
+      // an install prompt looks for them.
+      (function () {
+        var h = location.hostname;
+        var isStore = !/^(portal|status)\./.test(h);
+        if (!isStore) return;
+
+        var link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = '/manifest.webmanifest';
+        document.head.appendChild(link);
+
+        // Safari matches a launch image on exact device dimensions and shows a
+        // white screen when nothing matches, so the list is exhaustive.
+        [
+          [1290, 2796, 430, 932, 3],
+          [1179, 2556, 393, 852, 3],
+          [1284, 2778, 428, 926, 3],
+          [1170, 2532, 390, 844, 3],
+          [828, 1792, 414, 896, 2],
+          [750, 1334, 375, 667, 2],
+          [2048, 2732, 1024, 1366, 2],
+          [1668, 2388, 834, 1194, 2],
+          [1620, 2160, 810, 1080, 2]
+        ].forEach(function (s) {
+          var el = document.createElement('link');
+          el.rel = 'apple-touch-startup-image';
+          el.href = '/splash/apple-splash-' + s[0] + '-' + s[1] + '.png';
+          el.media =
+            '(device-width: ' + s[2] + 'px) and (device-height: ' + s[3] +
+            'px) and (-webkit-device-pixel-ratio: ' + s[4] + ') and (orientation: portrait)';
+          document.head.appendChild(el);
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      Cart &amp; Keep needs JavaScript to show the catalogue. Email
+      support@cartandkeep.com and we will take your order by hand.
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

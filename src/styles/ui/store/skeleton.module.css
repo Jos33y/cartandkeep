@@ -1,0 +1,96 @@
+/* The sweep is her palette, not the grey shimmer every template ships. Warm to
+   a lighter warm, one pass every 1.4s, at 100 degrees so it reads as light
+   crossing a surface rather than a bar sliding down a track.
+
+   Two colours, no white. A white band on a cream page is the tell. */
+
+.block {
+  display: block;
+  background:
+    linear-gradient(100deg,
+      var(--c-warm) 0%,
+      var(--c-warm) 38%,
+      #fbf8f2 50%,
+      var(--c-warm) 62%,
+      var(--c-warm) 100%);
+  background-size: 280% 100%;
+  border-radius: var(--r-control);
+  animation: sweep 1.4s linear infinite;
+}
+
+@keyframes sweep {
+  from { background-position: 180% 0; }
+  to   { background-position: -80% 0; }
+}
+
+/* Geometry copied from product-card.module.css. If that file changes, this one
+   changes with it, or the grid jumps at the moment products arrive, which is
+   the only thing this component exists to prevent. */
+.card {
+  display: flex;
+  flex-direction: column;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  overflow: hidden;
+}
+
+.shot { aspect-ratio: 1; width: 100%; border-radius: 0; }
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-top: 1px solid var(--c-line);
+}
+
+.leaf { width: 42%; height: 9px; }
+.line { width: 100%; height: 12px; }
+/* Short, because two full width bars read as a table rather than a title that
+   wrapped. */
+.lineShort { width: 64%; height: 12px; }
+.price { width: 34%; height: 17px; margin-top: var(--s-2); }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+@media (min-width: 620px) {
+  .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-4); }
+}
+
+@media (min-width: 900px) {
+  .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.nav {
+  display: flex;
+  gap: var(--s-2);
+  padding-bottom: var(--s-3);
+  margin-bottom: var(--s-5);
+  border-bottom: 1px solid var(--c-line);
+  overflow: hidden;
+}
+
+.chip { height: var(--tap); border-radius: var(--r-full); flex: none; }
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Motion off means the sweep stops, not that it speeds up. The blocks stay,
+   because the layout they hold is the point and the animation never was. */
+@media (prefers-reduced-motion: reduce) {
+  .block { animation: none; background: var(--c-warm); }
+}

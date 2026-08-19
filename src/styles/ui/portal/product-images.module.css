@@ -1,0 +1,82 @@
+.wrap { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: var(--s-2);
+}
+
+.item {
+  position: relative;
+  aspect-ratio: 1;
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--c-surface);
+}
+
+.image { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+/* Labelled rather than marked with a border, because "the one with the ring
+   round it" is not a thing anybody reads off a screen at a glance. */
+.primary {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  padding: 2px var(--s-2);
+  background: var(--c-brand-strong);
+  color: #fff;
+  font-size: var(--t-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-top-right-radius: var(--r-sm);
+}
+
+.make {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: var(--s-1) var(--s-2);
+  background: rgba(30, 28, 25, 0.82);
+  color: #fff;
+  font-size: var(--t-micro);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.item:hover .make,
+.make:focus-visible { opacity: 1; }
+
+/* Always visible on touch, where there is no hover to reveal it. */
+@media (hover: none) { .make { opacity: 1; } }
+
+.remove {
+  position: absolute;
+  top: var(--s-1);
+  right: var(--s-1);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(30, 28, 25, 0.82);
+  color: #fff;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.add {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px dashed var(--c-control);
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--c-ink-soft);
+  font-size: var(--t-caption);
+  padding: var(--s-2);
+}
+
+.add:hover:not(:disabled) { background: var(--c-sunk); }
+.add:disabled { opacity: 0.6; cursor: progress; }
+
+.hint { font-size: var(--t-caption); color: var(--c-ink-faint); line-height: var(--lh-snug); }
+.error { font-size: var(--t-caption); color: var(--c-negative); }
+
+@media (prefers-reduced-motion: reduce) { .make { transition: none; } }

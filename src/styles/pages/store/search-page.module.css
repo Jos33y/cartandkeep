@@ -1,0 +1,102 @@
+.page {
+  width: 100%;
+  max-width: var(--store-max);
+  margin: 0 auto;
+  padding: var(--s-5) var(--s-4) var(--s-8);
+}
+
+@media (min-width: 900px) { .page { padding: var(--s-6) var(--s-5) var(--s-8); } }
+
+.head { padding-bottom: var(--s-5); }
+.title { font-size: clamp(1.75rem, 4vw, 2.5rem); }
+
+.form {
+  margin-top: var(--s-4);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  max-width: 560px;
+  padding: 0 var(--s-2) 0 var(--s-4);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-full);
+  color: var(--c-faint);
+  transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease);
+}
+
+.form:focus-within { border-color: var(--c-brand); box-shadow: 0 0 0 4px var(--c-sage-wash); }
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 54px;
+  border: 0;
+  outline: 0;
+  background: none;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--c-ink);
+}
+
+.input::placeholder { color: var(--c-faint); }
+.input::-webkit-search-cancel-button { display: none; }
+
+.go {
+  height: 42px;
+  padding: 0 var(--s-5);
+  border-radius: var(--r-full);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-label);
+  font-weight: 500;
+}
+
+.terms { margin-top: var(--s-4); display: flex; gap: var(--s-2); flex-wrap: wrap; align-items: center; }
+
+.termsLabel {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--c-faint);
+}
+
+.term {
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-full);
+  padding: 8px 14px;
+}
+
+.term:hover { border-color: var(--c-brand); color: var(--c-ink); }
+
+.count { font-size: var(--t-caption); color: var(--c-faint); padding-bottom: var(--s-3); }
+
+.empty {
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  background: var(--c-surface);
+  padding: var(--s-6) var(--s-5);
+  max-width: 56ch;
+}
+
+.emptyLead { font-size: var(--t-lead); font-weight: 500; }
+.emptyBody { margin-top: var(--s-2); font-size: var(--t-body); line-height: 1.62; color: var(--c-ink-soft); }
+
+.emptyCta {
+  margin-top: var(--s-4);
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 var(--s-5);
+  border-radius: var(--r-control);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-label);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+@media (prefers-reduced-motion: reduce) { .form { transition: none; } }

@@ -1,8 +1,15 @@
+# Cart & Keep
+
 User-agent: *
 Allow: /
 
+# Nothing here is a page. Blocking them keeps the crawl budget on products and
+# keeps a basket out of somebody's search results.
 Disallow: /cart
 Disallow: /checkout
 Disallow: /order/
+Disallow: /orders
+Disallow: /saved
+Disallow: /search
 
 Sitemap: https://cartandkeep.com/sitemap.xml

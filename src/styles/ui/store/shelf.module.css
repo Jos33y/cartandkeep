@@ -1,0 +1,167 @@
+/* The panel holds still while the goods move past it. That is the whole idea,
+   and it is why the name does not scroll away with the rail. */
+
+.shelf {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--s-3);
+}
+
+@media (min-width: 900px) {
+  .shelf { grid-template-columns: 212px 1fr; gap: var(--s-4); align-items: stretch; }
+}
+
+.panel {
+  background: var(--c-warm);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  padding: var(--s-4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+
+@media (min-width: 900px) {
+  .panel {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: space-between;
+    padding: var(--s-5) var(--s-4);
+  }
+}
+
+.panelTop { min-width: 0; }
+
+.panelFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+/* Arrows only. Drag to scroll was the alternative and it fights text
+   selection, breaks the click through to a product, and has no keyboard. */
+.arrows { display: flex; gap: var(--s-1); }
+
+.arrow {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--c-line-mid);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  display: grid;
+  place-items: center;
+  transition: border-color 150ms var(--ease), opacity 150ms var(--ease);
+}
+
+.arrow:hover:not(:disabled) { border-color: var(--c-brand); }
+
+/* Disabled rather than hidden, so the pair does not jump position as the rail
+   reaches an end. */
+.arrow:disabled { opacity: 0.32; cursor: default; }
+
+.name { font-size: 1.25rem; line-height: 1.08; }
+@media (min-width: 900px) { .name { font-size: 1.4375rem; } }
+
+.meta { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--c-faint); }
+
+.go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-ink);
+  text-decoration: none;
+  border-bottom: 1.5px solid var(--c-brand);
+  padding-bottom: 2px;
+  align-self: flex-start;
+}
+
+.go svg { transition: transform 180ms var(--ease); }
+.go:hover svg { transform: translateX(3px); }
+
+/* The fades are the second affordance. A card disappearing under a soft edge
+   reads as more to come; a card cut off by a hard container edge reads as a
+   bug. Each side only appears when there is something under it. */
+.railWrap { position: relative; min-width: 0; }
+
+.railWrap::before,
+.railWrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: var(--s-2);
+  width: 44px;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 200ms var(--ease);
+}
+
+.railWrap::before {
+  left: 0;
+  background: linear-gradient(to right, var(--c-base), transparent);
+}
+
+.railWrap::after {
+  right: 0;
+  background: linear-gradient(to left, var(--c-base), transparent);
+}
+
+.railWrap[data-start]::before { opacity: 1; }
+.railWrap[data-end]::after { opacity: 1; }
+
+.rail {
+  list-style: none;
+  padding: 0 var(--s-4) var(--s-2) 0;
+  margin: 0;
+  display: flex;
+  gap: var(--s-3);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  /* Bleeds past the container on a phone so the next card is visibly cut off,
+     which is the only reliable way to say "this scrolls" without an arrow. */
+  margin-right: calc(var(--s-4) * -1);
+}
+
+.rail::-webkit-scrollbar { display: none; }
+
+@media (min-width: 900px) {
+  .rail { margin-right: 0; padding-right: 0; gap: var(--s-4); }
+}
+
+.cell { flex: 0 0 176px; scroll-snap-align: start; }
+@media (min-width: 620px) { .cell { flex-basis: 205px; } }
+
+.rest {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: var(--s-1);
+  height: 100%;
+  min-height: 260px;
+  padding: var(--s-4);
+  background: var(--c-sage-wash);
+  border: 1px dashed var(--c-brand-mid);
+  border-radius: var(--r-card);
+  color: var(--c-ink);
+  text-decoration: none;
+  transition: border-color 180ms var(--ease);
+}
+
+.rest:hover { border-color: var(--c-brand); }
+.restN { font-size: 1.75rem; color: var(--c-sage-deep); }
+.restLabel { font-size: var(--t-label); color: var(--c-ink-soft); line-height: 1.3; }
+.rest svg { margin-top: var(--s-2); color: var(--c-sage-deep); }
+
+@media (prefers-reduced-motion: reduce) {
+  .go svg, .rest, .arrow, .railWrap::before, .railWrap::after { transition: none; }
+}

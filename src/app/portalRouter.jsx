@@ -11,6 +11,9 @@ import { PORTAL_ROUTES } from '@utils/constants';
 // visited rarely, so they are split out of the first paint.
 const ApprovedPage = lazy(() => import('@pages/portal/ApprovedPage').then((m) => ({ default: m.ApprovedPage })));
 const ListingsPage = lazy(() => import('@pages/portal/ListingsPage').then((m) => ({ default: m.ListingsPage })));
+const ProductsPage = lazy(() => import('@pages/portal/ProductsPage').then((m) => ({ default: m.ProductsPage })));
+const InterestPage = lazy(() => import('@pages/portal/InterestPage').then((m) => ({ default: m.InterestPage })));
+const BeingFoundPage = lazy(() => import('@pages/portal/BeingFoundPage').then((m) => ({ default: m.BeingFoundPage })));
 const FinancePage = lazy(() => import('@pages/portal/FinancePage').then((m) => ({ default: m.FinancePage })));
 const OrdersPage = lazy(() => import('@pages/portal/OrdersPage').then((m) => ({ default: m.OrdersPage })));
 const ActivityPage = lazy(() => import('@pages/portal/ActivityPage').then((m) => ({ default: m.ActivityPage })));
@@ -31,6 +34,9 @@ export const portalRouter = createBrowserRouter([
       { path: 'candidates', element: <CandidatesPage /> },
       { path: 'approved', element: deferred(<ApprovedPage />) },
       { path: 'listings', element: deferred(<ListingsPage />) },
+      { path: 'products', element: deferred(<ProductsPage />) },
+      { path: 'interest', element: deferred(<InterestPage />) },
+      { path: 'being-found', element: deferred(<BeingFoundPage />) },
       { path: 'finance', element: deferred(<FinancePage />) },
       { path: 'orders', element: deferred(<OrdersPage />) },
       { path: 'notes', element: deferred(<NotesPage />) },

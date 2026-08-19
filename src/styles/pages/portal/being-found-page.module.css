@@ -1,0 +1,241 @@
+/* Same head, chips and hairlines as the other shop screens. The one new device
+   is the trend, and it is bars in the sunk colour with the figure beside them:
+   no axis, no gridlines, no library. Twelve numbers do not need a chart
+   engine, and a donut here would be Zik's signature. */
+
+.page { display: flex; flex-direction: column; gap: var(--s-6); }
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-6);
+  flex-wrap: wrap;
+  padding-bottom: var(--s-4);
+}
+
+.head p { margin-bottom: var(--s-2); }
+
+.title { font-size: 2rem; letter-spacing: -0.025em; font-weight: 560; }
+
+.stats { display: flex; gap: var(--s-6); flex-wrap: wrap; }
+.stat { display: flex; flex-direction: column; gap: var(--s-1); }
+.statValue { color: var(--c-ink); }
+.statFoot { font-size: var(--t-micro); color: var(--c-ink-faint); letter-spacing: 0.01em; }
+
+.section { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.caveat {
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+  line-height: var(--lh-snug);
+  max-width: 68ch;
+}
+
+.quiet {
+  font-size: var(--t-body);
+  color: var(--c-ink-soft);
+  line-height: var(--lh-body);
+  max-width: 62ch;
+}
+
+.prose {
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  max-width: 68ch;
+}
+
+.next {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  background: var(--c-brand-wash);
+  border-left: 2px solid var(--c-brand-strong);
+}
+
+/* --- the trend ---------------------------------------------------------------- */
+
+.trend {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-2);
+  list-style: none;
+  padding-top: var(--s-3);
+}
+
+.bar {
+  flex: 1;
+  min-width: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.barValue {
+  font-size: var(--t-caption);
+  color: var(--c-ink);
+  min-height: 1em;
+}
+
+.barTrack {
+  width: 100%;
+  height: 120px;
+  display: flex;
+  align-items: flex-end;
+  background: var(--c-sunk);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+
+.barFill {
+  width: 100%;
+  min-height: 2px;
+  background: var(--c-brand-strong);
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+}
+
+/* A month we could not see. An outline rather than a zero column, because
+   nobody came and we could not tell are different facts. */
+.barBlind {
+  width: 100%;
+  height: 100%;
+  border: 1px dashed var(--c-line-mid);
+  border-radius: var(--r-sm);
+  background: none;
+}
+
+.barMonth { font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+.barShown {
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+  min-height: 1em;
+  white-space: nowrap;
+}
+
+/* Shown and not clicked. A floor height solid bar rather than nothing, because
+   Google put the shop in front of people and that is the month before the
+   first click, not a dead month. */
+.barFillNone {
+  width: 100%;
+  height: 3px;
+  background: var(--c-line-mid);
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+}
+
+/* --- queries ------------------------------------------------------------------- */
+
+.terms { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-3); }
+
+.term {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4rem 7rem;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--c-line);
+  font-size: var(--t-body);
+}
+
+.termText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.termSub { font-size: var(--t-caption); color: var(--c-ink-faint); text-align: right; }
+
+/* --- the gaps -------------------------------------------------------------------- */
+
+.gaps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--s-4) var(--s-5);
+  padding: var(--s-2) 0;
+}
+
+.gap { display: flex; flex-direction: column; gap: var(--s-1); }
+.gapLabel { font-size: var(--t-label); color: var(--c-ink-soft); }
+
+.gapValue {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  font-size: var(--t-figure);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.gapOf { font-size: var(--t-caption); font-weight: 400; color: var(--c-ink-faint); }
+
+.toneGood { color: var(--c-positive); }
+.toneHard { color: var(--c-negative); }
+.toneSoft { color: var(--c-warning); }
+.toneQuiet { color: var(--c-ink-faint); }
+
+/* --- what is missing --------------------------------------------------------------- */
+
+.table { display: flex; flex-direction: column; margin-top: var(--s-3); }
+
+.headRow,
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 18rem);
+  gap: var(--s-4);
+  align-items: baseline;
+}
+
+.headRow {
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--c-line);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.row {
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--c-line);
+  font-size: var(--t-body);
+}
+
+.product { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.missing { color: var(--c-ink-soft); font-size: var(--t-caption); }
+
+/* --- states ------------------------------------------------------------------------- */
+
+.status { min-height: 1em; font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.empty { padding: var(--s-7) 0; max-width: 48ch; }
+.emptyTitle { font-size: var(--t-figure); letter-spacing: -0.02em; margin-bottom: var(--s-3); }
+.emptyBody { color: var(--c-ink-soft); line-height: var(--lh-body); }
+
+.retry {
+  margin-top: var(--s-4);
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-control);
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--c-ink-soft);
+  font-size: var(--t-label);
+}
+
+.retry:hover { background: var(--c-sunk); }
+
+@media (max-width: 640px) {
+  .title { font-size: 1.625rem; }
+  .stats { gap: var(--s-5); width: 100%; }
+  .barTrack { height: 84px; }
+  .headRow, .row { grid-template-columns: minmax(0, 1fr); gap: var(--s-1); }
+  .headRow > :nth-child(2) { display: none; }
+  .term { grid-template-columns: minmax(0, 1fr) 3rem 5rem; }
+}

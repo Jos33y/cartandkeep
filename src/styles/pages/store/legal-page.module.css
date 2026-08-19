@@ -1,0 +1,150 @@
+.page {
+  width: 100%;
+  max-width: var(--store-max);
+  margin: 0 auto;
+  padding: var(--s-5) var(--s-4) var(--s-8);
+}
+
+@media (min-width: 900px) { .page { padding: var(--s-5) var(--s-5) var(--s-8); } }
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding-bottom: var(--s-5);
+  font-size: var(--t-caption);
+  color: var(--c-faint);
+}
+
+.crumbs a { color: var(--c-ink-soft); }
+.crumbs a:hover { color: var(--c-ink); }
+.crumbs svg { color: var(--c-line-mid); }
+
+.body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); }
+
+@media (min-width: 900px) {
+  .body { grid-template-columns: minmax(0, 1fr) 220px; gap: var(--s-7); align-items: start; }
+}
+
+/* A measure, not a full width column. Terms read at 90 characters a line are
+   terms nobody reads. */
+.article { max-width: 68ch; }
+
+.title { font-size: clamp(1.75rem, 4vw, 2.5rem); }
+.reviewed { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--c-faint); }
+
+.h2 {
+  margin-top: var(--s-6);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--c-ink);
+}
+
+.p { margin-top: var(--s-3); font-size: var(--t-body); line-height: 1.68; color: var(--c-ink-soft); }
+
+.list {
+  margin-top: var(--s-3);
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.list li {
+  position: relative;
+  padding-left: var(--s-5);
+  font-size: var(--t-body);
+  line-height: 1.62;
+  color: var(--c-ink-soft);
+}
+
+.list li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 0.62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--c-brand);
+}
+
+.note {
+  margin-top: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--c-warm);
+  border-radius: var(--r-control);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--c-ink-soft);
+}
+
+/* Loud on purpose. These are decisions only she can make, and a placeholder
+   nobody can see is a placeholder that reaches a customer. */
+.confirm {
+  margin-top: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--c-gold-wash);
+  border: 1px solid var(--c-gold-line);
+  border-radius: var(--r-control);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #5c430f;
+}
+
+.confirmTag {
+  display: block;
+  margin-bottom: 3px;
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8a6412;
+}
+
+.aside {
+  position: sticky;
+  top: calc(var(--bar-h) + var(--s-4));
+  padding: var(--s-4);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+}
+
+.asideHead {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--c-faint);
+  margin-bottom: var(--s-3);
+}
+
+.asideList { list-style: none; display: flex; flex-direction: column; gap: var(--s-1); }
+
+.asideList a {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  text-decoration: none;
+}
+
+.asideList a:hover { color: var(--c-ink); }
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  margin-top: var(--s-4);
+  padding: 0 var(--s-5);
+  border-radius: var(--r-control);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-label);
+  font-weight: 500;
+  text-decoration: none;
+}

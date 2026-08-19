@@ -1,0 +1,52 @@
+.gallery { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
+
+.frame {
+  aspect-ratio: 1;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+
+/* contain here, not cover. On a card the crop is worth it for a tidy grid; on
+   the page someone is deciding whether to buy the thing and a cropped handle
+   or a cut off label is the wrong trade. */
+.image { width: 100%; height: 100%; object-fit: contain; padding: var(--s-4); }
+
+.empty { background: var(--c-warm); color: var(--c-faint); font-size: var(--t-body); }
+
+/* A twelve wide row scrolls rather than setting the column width. Without the
+   min-width the flex row reports its full content width as its minimum and
+   the grid track grows to match. */
+.thumbs {
+  min-width: 0;
+  list-style: none;
+  display: flex;
+  gap: var(--s-2);
+  padding: 0;
+  margin: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.thumbs::-webkit-scrollbar { display: none; }
+
+.thumb {
+  flex: none;
+  width: 66px;
+  height: 66px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-control);
+  overflow: hidden;
+  background: var(--c-surface);
+  padding: 4px;
+  transition: border-color 150ms var(--ease);
+}
+
+.thumb:hover { border-color: var(--c-line-mid); }
+.thumb[data-active] { border-color: var(--c-ink); }
+.thumb img { width: 100%; height: 100%; object-fit: contain; }
+
+@media (prefers-reduced-motion: reduce) { .thumb { transition: none; } }

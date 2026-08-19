@@ -9,11 +9,10 @@
   padding: var(--s-2) var(--s-4);
   background: var(--c-ink);
   color: var(--c-base);
-  border-radius: var(--r-md);
+  border-radius: var(--r-control);
   font-size: var(--t-label);
+  text-decoration: none;
   transform: translateY(-200%);
 }
 
-.skip:focus {
-  transform: translateY(0);
-}
+.skip:focus { transform: translateY(0); }

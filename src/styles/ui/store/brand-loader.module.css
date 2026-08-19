@@ -1,0 +1,55 @@
+.wrap {
+  min-height: 60dvh;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--s-4);
+}
+
+.mark { overflow: visible; }
+
+/* pathLength="1" normalises both paths to a length of one, so the dash is the
+   same duration on each and neither has to be measured. */
+.body,
+.handle {
+  fill: none;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw 1.5s var(--ease) infinite;
+}
+
+.body { stroke: var(--c-ink); }
+.handle { stroke: var(--c-brand); animation-delay: 0.12s; }
+
+/* The ampersand is a fill, so it arrives rather than draws. It waits for the
+   basket to be most of the way round, which is what makes the sequence read as
+   one movement instead of three things happening at once. */
+.amp {
+  fill: var(--c-ink);
+  transform-origin: 15px 19px;
+  animation: arrive 1.5s var(--ease) infinite;
+}
+
+@keyframes draw {
+  0%   { stroke-dashoffset: 1; }
+  45%  { stroke-dashoffset: 0; }
+  85%  { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+@keyframes arrive {
+  0%, 40% { opacity: 0; transform: scale(0.86); }
+  58%     { opacity: 1; transform: scale(1); }
+  85%     { opacity: 1; transform: scale(1); }
+  100%    { opacity: 0; transform: scale(1); }
+}
+
+.label {
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+}
+
+/* Motion off gets the finished mark, held. Not a faster loop. */
+@media (prefers-reduced-motion: reduce) {
+  .body, .handle, .amp { animation: none; stroke-dashoffset: 0; opacity: 1; transform: none; }
+}

@@ -1,0 +1,118 @@
+/*
+ * Store tokens.
+ *
+ * A separate file from tokens.css, and imported by StoreApp.jsx rather than by
+ * main.jsx, for the same reason the fonts are: the portal should not carry
+ * them and they should not be able to change anything the portal reads.
+ *
+ * Everything here is additive. Not one name collides with tokens.css, which
+ * was checked against the fifty six tokens already in it rather than assumed,
+ * so this file can be removed and the portal is untouched.
+ *
+ * Governed by docs/store-design-system.md and its second volume. Where those
+ * documents and tokens.css disagree, they are describing two different
+ * surfaces: the portal is a review instrument and this is a shop.
+ */
+
+:root {
+  /* --- Surfaces ---------------------------------------------------------
+     tokens.css has base, surface, sunk and raised. The store needs two more:
+     a warm step for shelf panels and image frames, and a near black for the
+     announcement bar, the footer and the wash over a category tile. */
+  --c-warm: #f4efe5;
+  --c-ink-deep: #1e1c19;
+
+  /* Sage as a filled surface rather than a hairline. 5E7359 clears 4.6:1
+     against white, so a category tile can carry a label. */
+  --c-sage-deep: #5e7359;
+  --c-sage-wash: #eef2ec;
+
+  /* A price reduction, and nothing else. It exists so a sale flag never has
+     to borrow terracotta, which means the buy action and has to keep meaning
+     only that. */
+  --c-gold: #b08430;
+  --c-gold-wash: #f6eedc;
+  --c-gold-line: #e4ce9c;
+
+  /* Metadata on a card: the leaf category, a review count, a strikethrough.
+     One step lighter than --c-ink-faint, which is the portal's quietest. */
+  --c-faint: #857d70;
+
+  /* --- Type -------------------------------------------------------------
+     A third family, and the only one the portal does not have. Fontsource
+     declares it as 'Archivo Variable' and exposes the width axis through
+     font-stretch, not font-variation-settings. Loaded by StoreApp.jsx from
+     @fontsource-variable/archivo/wdth.css, which carries both axes: weight
+     100 to 900 and width 62% to 125%.
+
+     The interface face is Inter here rather than Geist. Geist is the portal's
+     and there is no reason for a shopper to download it. */
+  --font-display: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
+  --font-store-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
+
+  /* Used once per screen, at the top, and never inside a card. Extended type
+     reads as shopfront lettering, which is the point, and it stops being that
+     the moment it is everywhere. */
+  --wide: 118%;
+  --wide-tight: 108%;
+
+  /* --- Radius -----------------------------------------------------------
+     Larger than the portal's. A 14px corner reads retail and a 6px corner
+     reads software. */
+  --r-card: 14px;
+  --r-control: 9px;
+
+  /* --- Store type scale -------------------------------------------------
+     Named separately from --t-* so a change here cannot move a portal row.
+     The hero and the section head are fluid because a general store's
+     headline has to hold from 375 to 1240 without a breakpoint. */
+  --ts-hero: clamp(2.5rem, 5.4vw, 4.15rem);
+  --ts-section: clamp(1.35rem, 2.4vw, 1.85rem);
+  --ts-price: 1.0625rem;
+  --ts-title: 0.875rem;
+  --ts-leaf: 0.71875rem;
+
+  /* --- Layout -----------------------------------------------------------
+     Wider than the portal's 1180. A ledger loses the eye past that width; a
+     four up product grid does not. */
+  --store-max: 1240px;
+}
+
+/*
+ * Display type.
+ *
+ * font-stretch rather than font-variation-settings, because that is how the
+ * fontsource face declares the axis. Writing it the other way renders at
+ * normal width and looks like nothing is wrong, which is the worst kind of
+ * mistake to ship.
+ */
+.wide,
+[data-wide] {
+  font-family: var(--font-display);
+  font-stretch: var(--wide);
+  font-weight: 620;
+  letter-spacing: -0.02em;
+  line-height: 1.04;
+}
+
+/*
+ * Prices.
+ *
+ * The sharpest reversal from the portal. There, numbers are the display face
+ * and mono is correct because the data is the content. In a shop a monospaced
+ * price reads as a database field, so prices are set in the display face at
+ * normal width, with tabular figures so a column of them still aligns.
+ *
+ * Mono survives in exactly two places on this surface: a product count beside
+ * a category name, and an order reference on a confirmation. Both are
+ * identifiers rather than merchandising.
+ */
+.price,
+[data-price] {
+  font-family: var(--font-display);
+  font-stretch: 100%;
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  letter-spacing: -0.01em;
+}

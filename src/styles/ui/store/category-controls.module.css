@@ -1,0 +1,90 @@
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-2) 0 var(--s-4);
+  margin-bottom: var(--s-1);
+  border-bottom: 1px solid var(--c-line);
+}
+
+@media (min-width: 900px) {
+  .controls { flex-direction: row; align-items: center; justify-content: space-between; gap: var(--s-5); }
+}
+
+/* Scrolls rather than wrapping, for the same reason the department rail does:
+   three lines of chips pushes the first product off a phone screen. */
+.leaves {
+  display: flex;
+  gap: var(--s-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  min-width: 0;
+}
+
+.leaves::-webkit-scrollbar { display: none; }
+
+.chip {
+  flex: none;
+  min-height: 38px;
+  padding: 0 var(--s-3);
+  white-space: nowrap;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-full);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  transition: border-color 150ms var(--ease), color 150ms var(--ease);
+}
+
+.chip:hover { border-color: var(--c-line-mid); color: var(--c-ink); }
+
+.chip[data-active] {
+  background: var(--c-ink);
+  border-color: var(--c-ink);
+  color: #fff;
+}
+
+.n { font-size: var(--t-micro); color: var(--c-faint); }
+.chip[data-active] .n { color: #bfb8ab; }
+
+.right { display: flex; align-items: center; gap: var(--s-4); flex: none; }
+.count { font-size: var(--t-caption); color: var(--c-faint); }
+
+.sort {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.sortLabel {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-faint);
+}
+
+/* Native select, restyled. A custom dropdown here would mean writing a
+   listbox, keyboard handling and a focus trap for four options, and the
+   native one is better on a phone anyway. */
+.sort select {
+  appearance: none;
+  min-height: 38px;
+  padding: 0 var(--s-6) 0 var(--s-3);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-control);
+  font: inherit;
+  font-size: var(--t-label);
+  color: var(--c-ink);
+  cursor: pointer;
+}
+
+.sort select:focus-visible { border-color: var(--c-brand); }
+.sort svg { position: absolute; right: var(--s-3); pointer-events: none; color: var(--c-ink-soft); }
+
+@media (prefers-reduced-motion: reduce) { .chip { transition: none; } }

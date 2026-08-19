@@ -1,0 +1,37 @@
+/* Set apart from her own copy on purpose. A quiet warm panel says these are
+   somebody else's words without making them look like a warning. */
+
+.section {
+  margin-top: var(--s-5);
+  padding: var(--s-4);
+  background: var(--c-warm);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+}
+
+.head {
+  font-size: var(--t-label);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-faint);
+  margin-bottom: var(--s-3);
+}
+
+.body {
+  font-size: 0.875rem;
+  line-height: 1.62;
+  color: var(--c-ink-soft);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.more {
+  margin-top: var(--s-2);
+  min-height: 36px;
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-action-text);
+}
+
+.note { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--c-faint); }

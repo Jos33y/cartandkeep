@@ -1,0 +1,35 @@
+/* Four states, four colours, and the difference between them is the point. A
+   shop where "in stock" and "only 2 left" look the same has wasted both. */
+
+.in, .low, .made, .gone {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--t-caption);
+  font-weight: 500;
+}
+
+.in::before, .low::before, .made::before, .gone::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.in { color: var(--c-sage-deep); }
+.in::before { background: var(--c-brand); }
+
+/* Gold, not red. Two left is good news for anyone who wants one. */
+.low { color: #8a6412; }
+.low::before { background: var(--c-gold); }
+
+.made { color: var(--c-ink-soft); }
+.made::before { background: var(--c-line-mid); }
+
+.gone { color: var(--c-faint); }
+.gone::before { background: var(--c-line-mid); }
+
+[data-size='large'] { font-size: 0.9375rem; }
+[data-size='small'] { font-size: var(--t-micro); gap: 5px; }
+[data-size='small']::before { width: 6px; height: 6px; }

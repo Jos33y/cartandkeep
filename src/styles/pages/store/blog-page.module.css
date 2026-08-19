@@ -1,0 +1,115 @@
+.page {
+  width: 100%;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: var(--s-5) var(--s-4) var(--s-8);
+}
+
+@media (min-width: 900px) { .page { padding: var(--s-5) var(--s-5) var(--s-8); } }
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding-bottom: var(--s-5);
+  font-size: var(--t-caption);
+  color: var(--c-faint);
+}
+
+.crumbs a { color: var(--c-ink-soft); }
+.crumbs a:hover { color: var(--c-ink); }
+.crumbs svg { color: var(--c-line-mid); }
+
+.head { padding-bottom: var(--s-6); }
+.title { font-size: clamp(2rem, 5vw, 3rem); }
+
+.blurb {
+  margin-top: var(--s-3);
+  font-size: 1.0625rem;
+  line-height: 1.62;
+  color: var(--c-ink-soft);
+  max-width: 52ch;
+}
+
+/* The first post is a lead card and the rest are a list. With one post that
+   reads as a featured piece rather than as a grid with a hole in it. */
+.lead {
+  background: var(--c-warm);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  transition: border-color 180ms var(--ease);
+}
+
+.lead:hover { border-color: var(--c-line-mid); }
+.leadLink { display: block; padding: var(--s-5); text-decoration: none; color: inherit; }
+
+@media (min-width: 900px) { .leadLink { padding: var(--s-6); } }
+
+.meta { font-size: var(--t-caption); color: var(--c-faint); }
+
+.leadTitle {
+  margin-top: var(--s-3);
+  font-size: clamp(1.375rem, 3vw, 1.875rem);
+  color: var(--c-ink);
+  max-width: 22ch;
+}
+
+.leadBlurb {
+  margin-top: var(--s-3);
+  font-size: var(--t-body);
+  line-height: 1.62;
+  color: var(--c-ink-soft);
+  max-width: 60ch;
+}
+
+.more {
+  margin-top: var(--s-4);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-action-text);
+}
+
+.more svg { transition: transform 180ms var(--ease); }
+.lead:hover .more svg { transform: translateX(3px); }
+
+.list { list-style: none; margin-top: var(--s-5); }
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-5);
+  padding: var(--s-4) 0;
+  border-bottom: 1px solid var(--c-line);
+  text-decoration: none;
+  color: inherit;
+}
+
+.rowMain { min-width: 0; }
+.rowTitle { display: block; font-size: 1.0625rem; font-weight: 500; color: var(--c-ink); }
+
+.rowBlurb {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--t-body);
+  line-height: 1.55;
+  color: var(--c-ink-soft);
+  max-width: 58ch;
+}
+
+.rowMeta { flex: none; font-size: var(--t-caption); color: var(--c-faint); }
+
+.empty {
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  background: var(--c-surface);
+  padding: var(--s-6) var(--s-5);
+}
+
+.emptyLead { font-size: var(--t-lead); font-weight: 500; }
+.emptyBody { margin-top: var(--s-2); font-size: var(--t-body); color: var(--c-ink-soft); }
+
+@media (prefers-reduced-motion: reduce) { .lead, .more svg { transition: none; } }

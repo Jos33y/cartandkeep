@@ -1,0 +1,83 @@
+/* A sunk rail with the active item raised. The same device as the portal
+   navigation, which is where the family resemblance between the two surfaces
+   belongs rather than in borrowing the verdict bar, which means nothing to a
+   buyer.
+
+   No focus rule. global.css owns that. */
+
+/* The rail cut the last department off mid-word with nothing to say it
+   scrolled. A hard edge reads as a bug; a chip disappearing under a fade reads
+   as more to come. Same device as the shelves, and it costs nothing because
+   the mask is painted, not measured. */
+.nav {
+  position: relative;
+  border-bottom: 1px solid var(--c-line);
+  margin-bottom: var(--s-5);
+}
+
+.nav::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: var(--s-3);
+  width: 52px;
+  pointer-events: none;
+  background: linear-gradient(to left, var(--c-base), transparent);
+}
+
+.list {
+  display: flex;
+  gap: var(--s-2);
+  list-style: none;
+  padding: 0 0 var(--s-3);
+  margin: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* Chips keep their width and the row scrolls. Wrapping to four lines on a
+     phone pushes the first product below the fold, which is the one thing the
+     top of a shop cannot do. */
+  flex-wrap: nowrap;
+}
+
+.list::-webkit-scrollbar { display: none; }
+
+.chip {
+  flex: none;
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  white-space: nowrap;
+  background: var(--c-sunk);
+  border: 1px solid transparent;
+  border-radius: var(--r-full);
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-ink-soft);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.chip:hover { color: var(--c-ink); }
+
+/* NavLink sets aria-current on the matching route, so the raised state is
+   driven by the URL rather than by a second copy of it in state. */
+.chip[aria-current] {
+  background: var(--c-raised);
+  border-color: var(--c-line-mid);
+  color: var(--c-ink);
+}
+
+.count {
+  font-size: var(--t-micro);
+  font-weight: 500;
+  color: var(--c-ink-faint);
+}
+
+.chip[aria-current] .count { color: var(--c-brand-strong); }
+
+@media (prefers-reduced-motion: reduce) {
+  .chip { transition: none; }
+}

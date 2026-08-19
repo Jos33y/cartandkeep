@@ -1,0 +1,206 @@
+/* A ledger again, wider than the others because seven figures have to line up
+   across it. Same head, same chips, same hairlines. Three review screens that
+   look like three products is what a portal cannot afford. */
+
+.page { display: flex; flex-direction: column; gap: var(--s-5); }
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-6);
+  flex-wrap: wrap;
+  padding-bottom: var(--s-4);
+}
+
+.head p { margin-bottom: var(--s-2); }
+
+.title { font-size: 2rem; letter-spacing: -0.025em; font-weight: 560; }
+
+.stats { display: flex; gap: var(--s-6); flex-wrap: wrap; }
+.stat { display: flex; flex-direction: column; gap: var(--s-1); }
+.statValue { color: var(--c-ink); }
+
+/* Said once, quietly, rather than as a disclaimer beside every figure. */
+.caveat {
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+  line-height: var(--lh-snug);
+  max-width: 68ch;
+}
+
+.section { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.filters { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+
+.chip {
+  min-height: 34px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-control);
+  border-radius: var(--r-full);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.chipCount { font-size: var(--t-micro); color: var(--c-ink-faint); }
+.chipOn { background: var(--c-ink); border-color: var(--c-ink); color: var(--c-base); }
+.chipOn .chipCount { color: var(--c-line-mid); }
+.chip:hover:not(.chipOn) { background: var(--c-sunk); }
+
+/* --- the table --------------------------------------------------------------- */
+
+.table { display: flex; flex-direction: column; }
+
+.headRow,
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(6, minmax(4.5rem, 5.5rem));
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.headRow {
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--c-line);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.row {
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--c-line);
+  transition: background var(--dur) var(--ease);
+}
+
+.row:hover { background: var(--c-raised); }
+
+.num { text-align: right; }
+
+.product { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
+
+.thumb {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  flex: none;
+}
+
+.thumbEmpty { background: var(--c-sunk); display: block; }
+
+.productText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.productTitle {
+  font-size: var(--t-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The verdict is the point of the row, so it is the only coloured thing in it
+   and it is a word rather than a shape. */
+.verdict {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.good { color: var(--c-positive); }
+.warn { color: var(--c-warning); }
+.bad { color: var(--c-negative); }
+.quiet { color: var(--c-ink-faint); }
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  font-size: var(--t-body);
+}
+
+.sub { font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+/* --- searches ------------------------------------------------------------------ */
+
+.terms { display: flex; flex-direction: column; }
+
+.term {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4rem 9rem;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--c-line);
+  font-size: var(--t-body);
+}
+
+.termText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.termCount { text-align: right; color: var(--c-ink-soft); }
+
+.quietText { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+/* --- states -------------------------------------------------------------------- */
+
+.status { min-height: 1em; font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.empty { padding: var(--s-7) 0; max-width: 48ch; }
+.emptyTitle { font-size: var(--t-figure); letter-spacing: -0.02em; margin-bottom: var(--s-3); }
+.emptyBody { color: var(--c-ink-soft); line-height: var(--lh-body); }
+
+.retry {
+  margin-top: var(--s-4);
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-control);
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--c-ink-soft);
+  font-size: var(--t-label);
+}
+
+.retry:hover { background: var(--c-sunk); }
+
+/* --- narrow ---------------------------------------------------------------------- */
+
+/* Saved, out and taken go first. Views, basket and sold are the three that
+   answer the question, and seven columns on a phone answers nothing. */
+@media (max-width: 900px) {
+  .headRow,
+  .row { grid-template-columns: minmax(0, 1fr) repeat(3, minmax(3.5rem, 4.5rem)); }
+  .headRow > :nth-child(3),
+  .headRow > :nth-child(5),
+  .headRow > :nth-child(7),
+  .row > :nth-child(3),
+  .row > :nth-child(5),
+  .row > :nth-child(7) { display: none; }
+  .term { grid-template-columns: minmax(0, 1fr) 3rem 7rem; }
+}
+
+@media (max-width: 560px) {
+  .title { font-size: 1.625rem; }
+  .stats { gap: var(--s-5); width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row, .chip { transition: none; }
+}

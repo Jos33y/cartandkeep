@@ -1,0 +1,45 @@
+/* Terracotta never appears in the mark. On this surface it means the buy
+   action, and a colour sitting in the logo cannot also mean one thing on a
+   page.
+
+   Tone is a prop rather than a stylesheet override reaching into the SVG,
+   because the outline and the solid variant colour different paths and an
+   override written for one is wrong for the other. */
+
+.body { stroke: var(--c-ink); }
+.handle { stroke: var(--c-brand); }
+.amp { fill: var(--c-ink); }
+
+.solidBody { fill: var(--c-ink); }
+.solidHandle { stroke: var(--c-sage-deep); }
+.ampKnockout { fill: var(--c-base); }
+
+[data-tone='light'] .body,
+[data-tone='light'].body { stroke: #ede7dc; }
+[data-tone='light'] .amp,
+[data-tone='light'].amp { fill: #ede7dc; }
+[data-tone='light'] .solidBody,
+[data-tone='light'].solidBody { fill: #ede7dc; }
+[data-tone='light'] .solidHandle,
+[data-tone='light'].solidHandle { stroke: var(--c-brand); }
+[data-tone='light'] .ampKnockout,
+[data-tone='light'].ampKnockout { fill: var(--c-ink-deep); }
+
+.lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.word {
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-weight: 640;
+  font-size: 1.1875rem;
+  letter-spacing: -0.025em;
+  color: var(--c-ink);
+  white-space: nowrap;
+}
+
+/* The ampersand in the name is sage so it rhymes with the one in the basket. */
+.wordAmp { color: var(--c-brand); }

@@ -1,0 +1,33 @@
+.bar { background: var(--c-ink-deep); color: #efe9de; }
+
+.inner {
+  max-width: var(--store-max);
+  margin: 0 auto;
+  padding: 0 var(--s-4);
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-4);
+  font-size: 0.8125rem;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+
+.inner::-webkit-scrollbar { display: none; }
+
+.voice { color: #cfc8bc; }
+
+.rule { width: 1px; height: 13px; background: #4a453e; flex: none; }
+
+/* The one thing up here that changes basket size, so it is the one thing that
+   gets weight. */
+.offer { font-weight: 500; color: #fff; }
+.offer [data-price] { color: #fff; }
+
+/* On a phone the voice line is the first thing to go. The threshold is the
+   part worth the space. */
+@media (max-width: 520px) {
+  .voice, .rule { display: none; }
+}

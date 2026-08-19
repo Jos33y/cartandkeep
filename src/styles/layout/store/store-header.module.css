@@ -1,15 +1,96 @@
+/* Sticky, translucent, and the hairline only appears once the page has moved.
+   A rule under a header sitting on its own page top is a line for no reason. */
+
 .header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background: color-mix(in srgb, var(--c-base) 86%, transparent);
+  backdrop-filter: saturate(140%) blur(12px);
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--dur) var(--ease);
+}
+
+/* Set by the shell on scroll. Kept as an attribute rather than a second class
+   so the rule reads as a state. */
+.header[data-stuck] { border-color: var(--c-line); }
+
+.inner {
+  max-width: var(--store-max);
+  margin: 0 auto;
+  padding: 0 var(--s-4);
+  height: 66px;
   display: flex;
   align-items: center;
   gap: var(--s-5);
-  height: var(--header-h);
-  padding: 0 var(--s-4);
-  max-width: var(--shell-max);
-  margin: 0 auto;
-  width: 100%;
-  border-bottom: 1px solid var(--c-line);
 }
 
-.mark { font-weight: 560; letter-spacing: -0.02em; }
-.nav { display: flex; gap: var(--s-4); font-size: var(--t-label); }
-.cart { margin-left: auto; font-size: var(--t-label); }
+.mark {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  min-height: var(--tap);
+}
+
+/* Hidden below 900. On a phone the departments live in the category rail on
+   the page itself, and five links plus three icons in a 66px bar is neither. */
+.nav { display: none; }
+
+@media (min-width: 900px) {
+  .nav { display: flex; align-items: center; gap: var(--s-4); }
+}
+
+.link {
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  text-decoration: none;
+  padding: var(--s-1) 0;
+  border-bottom: 1.5px solid transparent;
+  white-space: nowrap;
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.link:hover { color: var(--c-ink); }
+.link[aria-current] { color: var(--c-ink); border-bottom-color: var(--c-brand); }
+
+.tools {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.icon {
+  position: relative;
+  width: var(--tap);
+  height: var(--tap);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--c-ink);
+  text-decoration: none;
+  transition: background var(--dur) var(--ease);
+}
+
+.icon:hover { background: var(--c-warm); }
+
+/* Terracotta, because the basket is the one thing in the header on the path to
+   a purchase. */
+.pip {
+  position: absolute;
+  top: 5px;
+  right: 4px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: var(--r-full);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: 0.65625rem;
+  line-height: 17px;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header, .icon, .link { transition: none; }
+}

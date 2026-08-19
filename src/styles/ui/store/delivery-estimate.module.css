@@ -1,0 +1,19 @@
+.wrap {
+  margin-top: var(--s-4);
+  display: flex;
+  gap: var(--s-3);
+  align-items: flex-start;
+  padding: var(--s-3) var(--s-4);
+  background: var(--c-sage-wash);
+  border: 1px solid var(--c-brand-mid);
+  border-radius: var(--r-control);
+}
+
+.wrap svg { flex: none; margin-top: 2px; color: var(--c-sage-deep); }
+
+/* The date carries the weight, because it is the thing being decided on. */
+.date { display: block; font-size: 0.9375rem; font-weight: 500; color: #35452f; }
+.detail { display: block; margin-top: 2px; font-size: var(--t-caption); line-height: 1.5; color: #4d6047; }
+
+.wrap[data-compact] { margin-top: var(--s-3); padding: var(--s-2) var(--s-3); }
+.wrap[data-compact] .date { font-size: 0.875rem; }

@@ -1,0 +1,129 @@
+/* The same head, stats, chips and ledger as candidates and orders. Three
+   review screens that look like three products is what a portal cannot
+   afford. */
+
+.page { display: flex; flex-direction: column; gap: var(--s-4); }
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-6);
+  flex-wrap: wrap;
+  padding-bottom: var(--s-4);
+}
+
+.head p { margin-bottom: var(--s-2); }
+
+.title { font-size: 2rem; letter-spacing: -0.025em; font-weight: 560; }
+
+.headRight { display: flex; align-items: flex-end; gap: var(--s-6); flex-wrap: wrap; }
+
+.stats { display: flex; gap: var(--s-6); }
+
+.add {
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-control);
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--c-ink);
+  font-size: var(--t-label);
+  font-weight: 500;
+}
+
+.add:hover { background: var(--c-sunk); }
+.stat { display: flex; flex-direction: column; gap: var(--s-1); }
+.statValue { color: var(--c-ink); }
+
+.lead {
+  max-width: 62ch;
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  color: var(--c-ink-soft);
+}
+
+.filters { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+
+.chip {
+  min-height: 38px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-control);
+  border-radius: var(--r-full);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.chipCount { font-size: var(--t-micro); color: var(--c-ink-faint); letter-spacing: 0; }
+.chipOn .chipCount { color: var(--c-line-mid); }
+.chip:hover:not(.chipOn) { background: var(--c-sunk); }
+
+.chipOn { background: var(--c-ink); border-color: var(--c-ink); color: var(--c-base); }
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--c-raised);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-sm);
+}
+
+.all { display: flex; align-items: center; gap: var(--s-2); min-height: var(--tap); font-size: var(--t-label); cursor: pointer; }
+.all input { width: 17px; height: 17px; accent-color: var(--c-action-strong); }
+
+.chosen { font-size: var(--t-figure); font-weight: 500; letter-spacing: -0.02em; }
+.chosenLabel { font-size: var(--t-caption); color: var(--c-ink-soft); margin-right: auto; }
+
+.primary {
+  min-height: var(--tap);
+  padding: 0 var(--s-5);
+  border-radius: var(--r-sm);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-label);
+  font-weight: 500;
+}
+
+.primary:hover:not(:disabled) { filter: brightness(0.93); }
+.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.status { min-height: 1em; font-size: var(--t-caption); color: var(--c-ink-faint); }
+.error { font-size: var(--t-caption); color: var(--c-negative); }
+
+.ledger { border-top: 1px solid var(--c-line); }
+
+.empty { padding: var(--s-8) 0; max-width: 46ch; }
+.emptyTitle { font-size: var(--t-figure); letter-spacing: -0.02em; margin-bottom: var(--s-3); }
+.emptyBody { color: var(--c-ink-soft); line-height: var(--lh-body); }
+
+.retry {
+  margin-top: var(--s-4);
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-control);
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--c-ink-soft);
+  font-size: var(--t-label);
+}
+
+.retry:hover { background: var(--c-sunk); }
+
+@media (max-width: 640px) {
+  .head { align-items: flex-start; gap: var(--s-4); }
+  .stats { gap: var(--s-5); width: 100%; flex-wrap: wrap; }
+  .title { font-size: 1.625rem; }
+  .bar { flex-wrap: wrap; }
+  .primary { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) { .chip { transition: none; } }

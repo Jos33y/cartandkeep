@@ -6,6 +6,19 @@ export const STORE_ROUTES = {
   CHECKOUT: '/checkout',
   ORDER_CONFIRMATION: '/order/:reference',
   LEGAL: '/legal/:slug',
+  BLOG: '/blog',
+  BLOG_POST: '/blog/:slug',
+  SEARCH: '/search',
+  SAVED: '/saved',
+  // Home is a hero and shelves. This is the whole catalogue in one grid, and
+  // it is where "Keep shopping" and "Everything in the shop" belong.
+  SHOP: '/shop',
+  // For anyone who has lost the link in their confirmation email. The
+  // reference alone is not enough to open an order, so this asks for the
+  // email too.
+  ORDER_LOOKUP: '/orders',
+  ABOUT: '/about',
+  CONTACT: '/contact',
 };
 
 export const PORTAL_ROUTES = {
@@ -14,6 +27,9 @@ export const PORTAL_ROUTES = {
   CANDIDATES: '/candidates',
   APPROVED: '/approved',
   LISTINGS: '/listings',
+  PRODUCTS: '/products',
+  INTEREST: '/interest',
+  FOUND: '/being-found',
   FINANCE: '/finance',
   ORDERS: '/orders',
   NOTES: '/notes',
@@ -43,12 +59,31 @@ export const PORTAL_NAV_SECTIONS = [
       { route: PORTAL_ROUTES.LISTINGS, label: 'Listings', icon: 'IconTag' },
     ],
   },
+  /*
+   * The shop is its own thing, and it was not.
+   *
+   * This portal now holds two businesses: the research pipeline that feeds her
+   * eBay listings, and the shop we built her. Orders sat under Performance next
+   * to Finance, which is where a report goes rather than where a parcel goes,
+   * and putting Products under Review would have filed shop admin among
+   * pipeline review. Two groups keeps them legible to somebody who did not
+   * build it.
+   */
+  {
+    key: 'shop',
+    label: 'Your shop',
+    items: [
+      { route: PORTAL_ROUTES.PRODUCTS, label: 'Products', icon: 'IconShop' },
+      { route: PORTAL_ROUTES.ORDERS, label: 'Orders', icon: 'IconBox' },
+      { route: PORTAL_ROUTES.INTEREST, label: 'Interest', icon: 'IconEye' },
+      { route: PORTAL_ROUTES.FOUND, label: 'Being found', icon: 'IconSearch' },
+    ],
+  },
   {
     key: 'performance',
     label: 'Performance',
     items: [
       { route: PORTAL_ROUTES.FINANCE, label: 'Finance', icon: 'IconChart' },
-      { route: PORTAL_ROUTES.ORDERS, label: 'Orders', icon: 'IconBox' },
     ],
   },
   {
@@ -63,15 +98,45 @@ export const PORTAL_NAV_SECTIONS = [
   },
 ];
 
+// Superseded by LEGAL_COLUMN in @data/legal, which is derived from the pages
+// that actually exist. Kept until the portal and status app have been checked
+// for uses of it, because deleting an export on the strength of one grep is
+// how a build breaks somewhere nobody was looking.
 export const LEGAL_PAGES = ['terms', 'privacy', 'returns', 'delivery', 'cookies'];
 
 export const CHANNELS = ['ebay', 'tiktok', 'store'];
 
 // Mirrors the check constraint on decisions.reason. Drift fails the insert.
+// `margin_thin` is headroom being small, which is measured before goods cost.
+// `not_profitable` is what is left after a real supplier price goes in. They
+// are two different measurements and one code for both would lose the only
+// feedback the research pipeline gets.
 export const REJECTION_REASONS = [
+  { value: 'not_sourceable', label: 'Cannot source it' },
+  { value: 'not_profitable', label: 'Not profitable once sourced' },
   { value: 'too_much_competition', label: 'Too much competition' },
-  { value: 'wrong_category', label: 'Wrong category' },
   { value: 'margin_thin', label: 'Margin too thin' },
+  { value: 'wrong_category', label: 'Wrong category' },
   { value: 'previous_underperformer', label: 'Previous underperformer' },
   { value: 'other', label: 'Other' },
+];
+
+// Who carried the parcel. UK carriers, so this is locale rather than client
+// specific and it sits here beside the rejection reasons rather than inside the
+// row that renders it. It becomes tenant configuration on the day a client
+// ships from somewhere else, not before.
+//
+// Free text is deliberately not offered. "Royal Mail", "royal mail" and "RM"
+// in one column is a column nothing can ever be grouped by, and Other covers
+// the courier nobody has heard of.
+export const CARRIERS = [
+  'Royal Mail',
+  'Evri',
+  'DPD',
+  'Yodel',
+  'Parcelforce',
+  'InPost',
+  'DHL',
+  'UPS',
+  'Other',
 ];

@@ -95,6 +95,37 @@ const IconPin = (p) => (
   </svg>
 );
 
+// An awning over a counter. The set had no shop mark, and Products needed one
+// that is neither the tag Listings uses nor the box Orders uses, because two
+// nav entries wearing the same icon are two entries nobody can tell apart.
+const IconShop = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
+    strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M3.5 7.5 5 4h14l1.5 3.5" />
+    <path d="M3.5 7.5h17v2a2.5 2.5 0 0 1-4.25 1.77A2.5 2.5 0 0 1 12 9.5a2.5 2.5 0 0 1-4.25 1.77A2.5 2.5 0 0 1 3.5 9.5Z" />
+    <path d="M5 12v8h14v-8" />
+    <path d="M10 20v-4.5h4V20" />
+  </svg>
+);
+
+// Attention rather than surveillance. An eye is the honest mark for a screen
+// counting who looked at what, and the set had nothing close to it.
+const IconEye = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
+    strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+    <circle cx="12" cy="12" r="3.1" />
+  </svg>
+);
+
+const IconSearch = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
+    strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <circle cx="10.8" cy="10.8" r="6.3" />
+    <path d="M15.4 15.4 20 20" />
+  </svg>
+);
+
 const IconMap = (p) => (
   <svg {...base} {...p}>
     <path d="M2.75 5.4l4.75-2.15 5 2.15 4.75-2.15v11.5l-4.75 2.15-5-2.15-4.75 2.15z" />
@@ -115,6 +146,9 @@ export const ICONS = {
   IconNote,
   IconPin,
   IconMap,
+  IconShop,
+  IconEye,
+  IconSearch,
 };
 
 export function Icon({ name, ...rest }) {

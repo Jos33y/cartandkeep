@@ -1,0 +1,227 @@
+.page { display: flex; flex-direction: column; padding-bottom: var(--s-8); }
+
+.wrap {
+  width: 100%;
+  max-width: var(--store-max);
+  margin: 0 auto;
+  padding: 0 var(--s-4);
+}
+
+@media (min-width: 900px) { .wrap { padding: 0 var(--s-5); } }
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  padding: var(--s-5) 0;
+  font-size: var(--t-caption);
+  color: var(--c-faint);
+}
+
+.crumbs a { color: var(--c-ink-soft); }
+.crumbs a:hover { color: var(--c-ink); }
+.crumbs svg { color: var(--c-line-mid); }
+
+.top { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); }
+
+@media (min-width: 900px) {
+  /* minmax(0, 1fr), not 1fr. A bare 1fr has min-width auto, so the twelve
+     thumbnail row set the gallery column's minimum to its own content width
+     and squeezed the detail column to about 245px, which is what wrapped the
+     buy button onto two lines. */
+  .top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-7); align-items: start; }
+  /* The gallery stays while the detail column scrolls, because on a desktop
+     the description can run past the fold and a buyer should not lose sight of
+     what they are reading about. */
+  .top > :first-child { position: sticky; top: calc(var(--bar-h) + var(--s-4)); }
+}
+
+.detail { display: flex; flex-direction: column; min-width: 0; }
+
+.eyebrow {
+  font-size: var(--t-caption);
+  color: var(--c-faint);
+  margin-bottom: var(--s-2);
+}
+
+/* The brand is the first thing a buyer checks on a general store, because it
+   is the only signal of quality a catalogue this broad can offer. */
+.brand { font-weight: 600; color: var(--c-ink-soft); letter-spacing: 0.02em; }
+
+/* Interface face, not display. The product name is read, not looked at, and
+   extended type at this length is a headline pretending to be a title. */
+.title {
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.28;
+  letter-spacing: -0.015em;
+  color: var(--c-ink);
+}
+
+@media (min-width: 900px) { .title { font-size: 1.75rem; } }
+
+.stockRow { margin-top: var(--s-3); }
+
+.priceRow {
+  margin-top: var(--s-4);
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.price { font-size: 1.875rem; color: var(--c-ink); }
+.was { font-size: var(--t-body); color: var(--c-faint); text-decoration: line-through; }
+
+.saving {
+  font-size: var(--t-caption);
+  font-weight: 500;
+  color: #6b4f14;
+  background: var(--c-gold-wash);
+  border: 1px solid var(--c-gold-line);
+  border-radius: 5px;
+  padding: 3px 8px;
+}
+
+.buy {
+  margin-top: var(--s-5);
+  display: flex;
+  gap: var(--s-3);
+  align-items: stretch;
+  /* Wraps rather than crushing the button when the column is narrow. */
+  flex-wrap: wrap;
+}
+
+.qty {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-control);
+  background: var(--c-surface);
+  flex: none;
+}
+
+.qty button {
+  width: var(--tap);
+  height: 52px;
+  font-size: 1.125rem;
+  color: var(--c-ink);
+  display: grid;
+  place-items: center;
+}
+
+.qty button:disabled { color: var(--c-line-mid); cursor: default; }
+.qty span { min-width: 28px; text-align: center; font-size: 1rem; }
+
+.addBtn {
+  flex: 1 1 190px;
+  white-space: nowrap;
+  min-height: 52px;
+  padding: 0 var(--s-5);
+  border-radius: var(--r-control);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  transition: background 150ms var(--ease), transform 120ms var(--ease);
+}
+
+.addBtn:hover { background: #a94f34; }
+.addBtn:active { transform: scale(0.99); }
+.addBtn[data-added] { background: var(--c-sage-deep); }
+
+.promises {
+  margin-top: var(--s-5);
+  padding: var(--s-4) 0 0;
+  border-top: 1px solid var(--c-line);
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.promises li { display: flex; gap: var(--s-3); align-items: flex-start; }
+.promises svg { flex: none; margin-top: 2px; color: var(--c-sage-deep); }
+.promises span { font-size: 0.875rem; line-height: 1.55; color: var(--c-ink-soft); }
+.promises b { font-weight: 500; color: var(--c-ink); }
+
+.description { margin-top: var(--s-5); padding-top: var(--s-4); border-top: 1px solid var(--c-line); }
+.descHead { font-size: var(--t-label); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--c-faint); margin-bottom: var(--s-3); }
+.description p { font-size: var(--t-body); line-height: var(--lh-body); color: var(--c-ink-soft); }
+
+.relatedHead { padding: var(--s-8) 0 var(--s-4); }
+.relatedTitle { font-size: var(--ts-section); }
+
+/* Rendered always and moved by transform, so it slides in rather than
+   appearing. Off screen it is aria-hidden and its button is out of the tab
+   order, or a keyboard reaches a control nobody can see. */
+.sticky {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-sticky);
+  background: color-mix(in srgb, var(--c-base) 94%, transparent);
+  backdrop-filter: saturate(140%) blur(12px);
+  border-top: 1px solid var(--c-line);
+  transform: translateY(101%);
+  transition: transform 260ms var(--ease);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.sticky[data-shown] { transform: none; }
+
+.stickyInner {
+  max-width: var(--store-max);
+  margin: 0 auto;
+  padding: var(--s-3) var(--s-4);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.stickyName {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.875rem;
+  color: var(--c-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stickyPrice { font-size: 1.0625rem; flex: none; }
+.stickyInner .addBtn { flex: none; min-height: 46px; }
+
+/* On a phone the name is the least useful part: they are looking at it. */
+@media (max-width: 560px) {
+  .stickyName { display: none; }
+  .stickyInner .addBtn { flex: 1; }
+}
+
+.loading { min-height: 60dvh; }
+
+.gone { font-size: var(--ts-section); margin: var(--s-7) 0 var(--s-3); }
+.goneNote { font-size: var(--t-body); color: var(--c-ink-soft); }
+
+.goneBack {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  margin-top: var(--s-4);
+  padding: 0 var(--s-5);
+  border-radius: var(--r-control);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-label);
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .addBtn, .sticky { transition: none; }
+}

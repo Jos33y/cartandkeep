@@ -1,0 +1,56 @@
+.header { margin-bottom: var(--s-4); }
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  padding-bottom: var(--s-3);
+  font-size: var(--t-caption);
+  color: var(--c-faint);
+}
+
+.crumbs a { color: var(--c-ink-soft); }
+.crumbs a:hover { color: var(--c-ink); }
+.crumbs svg { color: var(--c-line-mid); }
+
+/* The same treatment as the tile that links here, widened. Arriving somewhere
+   that looks like the thing you clicked is most of what makes navigation feel
+   solid. */
+.banner {
+  position: relative;
+  border-radius: var(--r-card);
+  overflow: hidden;
+  background: var(--c-sage-deep);
+  min-height: 132px;
+  display: flex;
+  align-items: flex-end;
+  isolation: isolate;
+}
+
+@media (min-width: 900px) { .banner { min-height: 176px; } }
+
+.image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Lower than the tiles. A banner is three times the width, so the same
+     opacity reads as a photograph with words on it rather than as a heading. */
+  opacity: 0.42;
+}
+
+.banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(30, 28, 25, 0.86), rgba(30, 28, 25, 0.18) 74%);
+}
+
+.label { position: relative; z-index: 2; padding: var(--s-4) var(--s-5); color: #fff; }
+
+.title { font-size: clamp(1.5rem, 3.4vw, 2.25rem); line-height: 1.05; }
+.meta { margin-top: var(--s-2); font-size: 0.875rem; opacity: 0.9; }
+
+.note { margin-top: var(--s-3); font-size: var(--t-caption); color: var(--c-faint); }

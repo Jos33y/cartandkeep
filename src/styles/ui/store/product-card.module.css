@@ -1,0 +1,209 @@
+/* Geometry here is mirrored by skeleton.module.css. If this file changes and
+   that one does not, the grid jumps at the moment products land, which is the
+   one fault the skeleton exists to prevent. */
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 200ms var(--ease),
+    transform 220ms var(--ease);
+}
+
+.card:hover {
+  border-color: var(--c-line-mid);
+  transform: translateY(-3px);
+}
+
+/* The frame is a fixed square. Her photographs come from dozens of sellers at
+   whatever size they uploaded, and a grid that reflows as each one lands is
+   the single most feed-like thing a shop can do. */
+.frame {
+  position: relative;
+  aspect-ratio: 1;
+  background: var(--c-warm);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+
+/* cover, not contain, and no padding. The first version floated every
+   photograph in a white box like a scraped feed. */
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 500ms var(--ease);
+}
+
+.card:hover .image { transform: scale(1.045); }
+
+.noImage {
+  font-size: var(--t-caption);
+  color: var(--c-faint);
+}
+
+.flag {
+  position: absolute;
+  top: var(--s-2);
+  left: var(--s-2);
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: var(--c-sage-wash);
+  border: 1px solid var(--c-brand-mid);
+  color: #3f5139;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Gold, so a price reduction never borrows terracotta. Terracotta means the
+   buy action and has to keep meaning only that. */
+.flagSale {
+  background: var(--c-gold-wash);
+  border-color: var(--c-gold-line);
+  color: #6b4f14;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.6875rem;
+}
+
+/* A sale flag and a sample flag would sit on top of each other. Sample is
+   build scaffolding, so it gives way. */
+.flagSale ~ .flag { top: calc(var(--s-2) + 26px); }
+
+.tools {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  transition: opacity 180ms var(--ease), transform 180ms var(--ease);
+}
+
+.tool {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--c-ink-soft);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: color 150ms var(--ease);
+}
+
+.tool:hover { color: var(--c-action-text); }
+
+/* Saved. Terracotta, because it is the one state on a card that is the
+   shopper's own rather than the shop's. */
+.tool[data-on] { color: var(--c-action-text); }
+.tool[data-on] svg { fill: var(--c-action-text); }
+
+/* A saved item keeps its heart visible on hover devices, or the state
+   disappears the moment the pointer leaves and looks like it did not save. */
+
+
+.add {
+  position: absolute;
+  left: var(--s-2);
+  right: var(--s-2);
+  bottom: var(--s-2);
+  height: 38px;
+  border-radius: var(--r-control);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: 0.84375rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: opacity 200ms var(--ease), transform 200ms var(--ease), background 150ms;
+}
+
+.add:active { transform: scale(0.985); }
+.add[data-added] { background: var(--c-sage-deep); }
+
+/* Revealed on hover only where hover exists. On a touch screen there is no
+   hover, so both controls are always there: a button a phone can never reach
+   is a button that does not exist. */
+@media (hover: hover) and (pointer: fine) {
+  .tools, .add { opacity: 0; }
+  .tools { transform: translateY(-4px); }
+  .add { transform: translateY(6px); }
+  .card:hover .tools,
+  .card:hover .add,
+  .card:focus-within .tools,
+  .card:focus-within .add { opacity: 1; transform: none; }
+
+  /* A saved card keeps its tools visible, or the state vanishes the moment
+     the pointer leaves and it looks as though nothing was saved. */
+  .card:has(.tool[data-on]) .tools { opacity: 1; transform: none; }
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-3);
+  border-top: 1px solid var(--c-line);
+}
+
+/* Two lines, then clipped. These are supplier feed titles and some run past
+   eighty characters, so three lines is a paragraph and it buries the price. */
+.title {
+  font-size: var(--ts-title);
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--c-ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Below the title and quiet. All caps micro tracking is a data label, and it
+   was shouting on a shop. */
+.leaf {
+  font-size: var(--ts-leaf);
+  color: var(--c-faint);
+}
+
+.priceRow {
+  margin-top: var(--s-2);
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+
+/* The face and the tabular figures come from [data-price] in store-tokens.css.
+   Only the size lives here. */
+.price {
+  font-size: var(--ts-price);
+  color: var(--c-ink);
+}
+
+.was {
+  font-size: var(--t-caption);
+  font-weight: 400;
+  color: var(--c-faint);
+  text-decoration: line-through;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .image, .tools, .tool, .add { transition: none; }
+  .card:hover { transform: none; }
+  .card:hover .image { transform: none; }
+}

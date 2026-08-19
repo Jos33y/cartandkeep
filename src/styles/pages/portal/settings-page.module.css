@@ -1,6 +1,35 @@
-.page { display: flex; flex-direction: column; gap: var(--s-7); max-width: 640px; }
+/*
+ * Settings.
+ *
+ * The first version was a 640px column of identical boxes, which used none of
+ * the portal's own language. Three things changed and all three come from the
+ * design document rather than from taste.
+ *
+ * Sections are two columns: what this is on the left, what you change on the
+ * right. Same two anchor idea as the ledger rows, and it means the explanation
+ * stops competing with the controls for the same line.
+ *
+ * Numbers are set in the data face. That is the defining decision of this
+ * interface, and a settings screen full of money and counts in the interface
+ * font was quietly contradicting every other page.
+ *
+ * Depth is hairlines and one step of surface, no shadows. A rule between
+ * sections does more than a card would, and a card would be the thing to take
+ * off before shipping anyway.
+ */
 
-.head { display: flex; flex-direction: column; gap: var(--s-2); }
+.page {
+  display: flex;
+  flex-direction: column;
+  max-width: 1000px;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding-bottom: var(--s-6);
+}
 
 .eyebrow {
   font-size: var(--t-micro);
@@ -10,9 +39,34 @@
   color: var(--c-ink-faint);
 }
 
-.title { font-size: 2rem; font-weight: 560; letter-spacing: -0.035em; line-height: var(--lh-tight); }
+.title {
+  font-size: 2rem;
+  font-weight: 560;
+  letter-spacing: -0.035em;
+  line-height: var(--lh-tight);
+}
 
-.block { display: flex; flex-direction: column; gap: var(--s-4); }
+/* --- a section ------------------------------------------------------------- */
+
+.block {
+  display: grid;
+  grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+  gap: var(--s-7);
+  padding: var(--s-6) 0;
+  border-top: 1px solid var(--c-line);
+}
+
+/* Holds still while the fields scroll past it, for the same reason the shelf
+   panel on the shop does not move. Only worth it on a long section, and these
+   are long. */
+.aside {
+  position: sticky;
+  top: var(--s-5);
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
 
 .blockLabel {
   font-size: var(--t-micro);
@@ -20,70 +74,212 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--c-ink-faint);
-  padding-bottom: var(--s-2);
-  border-bottom: 1px solid var(--c-line);
 }
 
-.field { display: flex; flex-direction: column; }
+.blockNote {
+  font-size: var(--t-body);
+  line-height: var(--lh-snug);
+  color: var(--c-ink-soft);
+}
 
-.label {
-  font-size: var(--t-label);
-  font-weight: 500;
-  margin-bottom: var(--s-2);
+/* One line, one colour, no badge. A state that needs a shape around it is a
+   state nobody reads at a glance anyway. */
+.state {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.stateMissing { color: var(--c-warning); }
+.stateSaved { color: var(--c-positive); }
+.stateFailed { color: var(--c-negative); }
+
+.body { display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }
+
+/* Short fields sit side by side. Five numeric boxes stacked full width is a
+   form that looks like nobody looked at it. */
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--s-4) var(--s-5);
+}
+
+.wide { grid-column: 1 / -1; }
+
+.field { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; }
+
+.label { font-size: var(--t-label); font-weight: 500; color: var(--c-ink); }
+
+/*
+ * The border and the focus ring live on the wrapper, not the input.
+ *
+ * A unit or a currency mark belongs inside the field rather than in the label,
+ * because it is part of reading the value. That means the input has no border
+ * of its own and the wrapper carries the state, or the ring would draw around
+ * the text and leave the pound sign outside it.
+ */
+.control {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.control:hover { border-color: var(--c-control); }
+
+.control:focus-within {
+  border-color: var(--c-control);
+  box-shadow: 0 0 0 3px var(--c-brand-wash);
 }
 
 .input {
-  min-height: 48px;
-  padding: 0 var(--s-3);
-  border: 1px solid var(--c-line-mid);
-  border-radius: var(--r-sm);
-  background: var(--c-sunk);
-  font-size: var(--t-lead);
+  flex: 1;
+  min-width: 0;
+  min-height: calc(var(--tap) - 2px);
+  border: 0;
+  background: none;
   color: var(--c-ink);
+  font-family: var(--font-ui);
+  font-size: var(--t-body);
 }
 
-.input:focus {
-  outline: none;
-  border-color: var(--c-action-strong);
-  box-shadow: 0 0 0 3px var(--c-action-wash);
+.input::placeholder { color: var(--c-ink-faint); }
+
+/* The wrapper owns the focus state, so an outline inside it is two rings for
+   one field. */
+.input:focus,
+.input:focus-visible { outline: none; }
+
+.affix {
+  font-family: var(--font-data);
+  font-size: var(--t-body);
+  color: var(--c-ink-faint);
+  white-space: nowrap;
 }
 
-.actions { display: flex; align-items: center; gap: var(--s-3); }
+.hint {
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+  line-height: var(--lh-snug);
+  max-width: 52ch;
+}
 
-.primary {
+/* --- the rate card ---------------------------------------------------------- */
+
+/* Zones are a rate card, so they are a table rather than five labelled boxes.
+   Name left, figure right, which is the row anatomy every other screen uses. */
+.rates { display: flex; flex-direction: column; border-top: 1px solid var(--c-line); }
+
+.rate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 9rem;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--c-line);
+}
+
+.rateName { font-size: var(--t-body); }
+
+.rateOff {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 9rem;
+  align-items: baseline;
+  gap: var(--s-4);
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--c-line);
+}
+
+.rateOffValue {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+/* --- saving ----------------------------------------------------------------- */
+
+.save {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--c-line);
+}
+
+/*
+ * Quiet until there is something to save.
+ *
+ * Terracotta marks the action that moves you forward and it is rationed. Four
+ * filled buttons on one screen would mean it marks nothing, so a section's save
+ * is a plain control until that section is dirty, and only then does it become
+ * the thing to press. In practice one section is dirty at a time, so the rule
+ * holds without anybody having to think about it.
+ */
+.button {
   min-height: var(--tap);
   padding: 0 var(--s-4);
-  border-radius: var(--r-sm);
-  background: var(--c-action-strong);
-  color: #fff;
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--c-ink-faint);
   font-size: var(--t-label);
   font-weight: 500;
+  cursor: default;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease),
+              border-color var(--dur) var(--ease);
 }
 
-.primary:hover:not(:disabled) { filter: brightness(0.93); }
-.primary:disabled { opacity: 0.6; cursor: default; }
+.buttonReady {
+  border-color: var(--c-action-strong);
+  background: var(--c-action-strong);
+  color: #fff;
+  cursor: pointer;
+}
+
+.buttonReady:hover { filter: brightness(0.93); }
 
 .saved { font-size: var(--t-caption); color: var(--c-ink-faint); }
+.failed { font-size: var(--t-caption); color: var(--c-negative); }
 
-.rows { display: flex; flex-direction: column; }
+/* --- read only rows --------------------------------------------------------- */
+
+.rows { display: flex; flex-direction: column; border-top: 1px solid var(--c-line); }
 
 .row {
   display: grid;
   grid-template-columns: minmax(0, 11rem) 1fr;
   gap: var(--s-4);
   padding: var(--s-3) 0;
-  border-top: 1px solid var(--c-line);
+  border-bottom: 1px solid var(--c-line);
 }
 
 .rowLabel { font-size: var(--t-body); color: var(--c-ink-soft); }
 
-.rowValue { display: flex; flex-direction: column; gap: 2px; font-size: var(--t-body); min-width: 0; }
+.rowValue {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--t-body);
+  min-width: 0;
+}
 
 .mono { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
-
 .rowNote { font-size: var(--t-caption); color: var(--c-ink-faint); }
 
-.note { font-size: var(--t-body); color: var(--c-ink-soft); max-width: 56ch; line-height: var(--lh-snug); }
+.note {
+  font-size: var(--t-body);
+  color: var(--c-ink-soft);
+  max-width: 56ch;
+  line-height: var(--lh-snug);
+}
 
 .tags { list-style: none; display: flex; flex-wrap: wrap; gap: var(--s-2); }
 
@@ -95,6 +291,19 @@
   background: var(--c-sunk);
 }
 
+/* --- narrow ----------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .block { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); padding: var(--s-5) 0; }
+  .aside { position: static; }
+  .rate, .rateOff { grid-template-columns: minmax(0, 1fr) 7.5rem; }
+}
+
 @media (max-width: 560px) {
   .row { grid-template-columns: minmax(0, 1fr); gap: var(--s-1); }
+  .fields { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control, .button { transition: none; }
 }

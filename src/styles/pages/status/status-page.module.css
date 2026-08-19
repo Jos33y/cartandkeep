@@ -13,7 +13,11 @@
   border-bottom: 1px solid var(--c-line);
 }
 
-.mark { width: 28px; height: 28px; flex: none; }
+/* Size comes from the `size` prop on LogoMark, not from here. A width in CSS
+   overrides the width attribute, so a rule of 28px with a size of 32 would
+   have drawn the outline artwork at 28, which is the exact case the solid
+   variant exists to handle. */
+.mark { flex: none; }
 
 .wordmark { font-size: var(--t-body); font-weight: 560; letter-spacing: -0.02em; }
 

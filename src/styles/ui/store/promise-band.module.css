@@ -1,0 +1,60 @@
+.band { background: var(--c-sage-deep); color: #fff; }
+
+.inner {
+  max-width: var(--store-max);
+  margin: 0 auto;
+  padding: var(--s-7) var(--s-4);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--s-5);
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .inner { grid-template-columns: 1.4fr 1fr; gap: var(--s-7); padding: var(--s-8) var(--s-5); }
+}
+
+.eyebrow {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #c3d2bf;
+  margin-bottom: var(--s-3);
+}
+
+.title { font-size: var(--ts-section); line-height: 1.08; max-width: 18ch; }
+
+.body {
+  margin-top: var(--s-3);
+  font-size: 1rem;
+  line-height: 1.62;
+  color: #e3ebe1;
+  max-width: 48ch;
+}
+
+.action { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); }
+
+@media (min-width: 900px) { .action { align-items: flex-end; text-align: right; } }
+
+/* White rather than terracotta. On sage, terracotta is muddy and the buy
+   action must not appear anywhere it does not mean buy. */
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 52px;
+  padding: 0 var(--s-5);
+  border-radius: var(--r-control);
+  background: #fff;
+  color: var(--c-ink);
+  font-size: 1rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: transform 140ms var(--ease);
+}
+
+.cta:hover { transform: translateY(-2px); }
+.small { font-size: var(--t-caption); color: #bcccb8; }
+
+@media (prefers-reduced-motion: reduce) { .cta { transition: none; } .cta:hover { transform: none; } }

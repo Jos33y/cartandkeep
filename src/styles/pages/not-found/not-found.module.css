@@ -1,0 +1,129 @@
+.page {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--s-8) var(--s-4);
+}
+
+@media (min-width: 900px) { .page { padding: var(--s-8) var(--s-5); } }
+
+/* Quiet. A shopper who hit a dead end does not need the number in 96 point;
+   they need the way out underneath it. */
+.code {
+  font-family: var(--font-display);
+  font-stretch: var(--wide);
+  font-weight: 620;
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+  color: var(--c-faint);
+}
+
+.title { margin-top: var(--s-2); font-size: clamp(1.875rem, 4.4vw, 2.75rem); }
+
+.body {
+  margin-top: var(--s-4);
+  font-size: 1.0625rem;
+  line-height: 1.62;
+  color: var(--c-ink-soft);
+  max-width: 52ch;
+}
+
+.path {
+  font-family: var(--font-data);
+  font-size: 0.9em;
+  background: var(--c-warm);
+  padding: 2px 6px;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+
+.search {
+  margin-top: var(--s-6);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 0 var(--s-2) 0 var(--s-4);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-full);
+  color: var(--c-faint);
+  transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease);
+}
+
+.search:focus-within { border-color: var(--c-brand); box-shadow: 0 0 0 4px var(--c-sage-wash); }
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 54px;
+  border: 0;
+  outline: 0;
+  background: none;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--c-ink);
+}
+
+.input::placeholder { color: var(--c-faint); }
+.input::-webkit-search-cancel-button { display: none; }
+
+.go {
+  height: 42px;
+  padding: 0 var(--s-5);
+  border-radius: var(--r-full);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-label);
+  font-weight: 500;
+}
+
+.departments { margin-top: var(--s-6); }
+
+.departmentsHead {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--c-faint);
+}
+
+.departments ul {
+  margin-top: var(--s-3);
+  list-style: none;
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.departments a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 var(--s-4);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-full);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  text-decoration: none;
+  transition: border-color 150ms var(--ease), color 150ms var(--ease);
+}
+
+.departments a:hover { border-color: var(--c-brand); color: var(--c-ink); }
+
+.cta {
+  margin-top: var(--s-6);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 52px;
+  padding: 0 var(--s-5);
+  border-radius: var(--r-control);
+  background: var(--c-ink);
+  color: var(--c-base);
+  font-size: 1rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+@media (prefers-reduced-motion: reduce) { .search, .departments a { transition: none; } }

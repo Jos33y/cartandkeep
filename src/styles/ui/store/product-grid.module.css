@@ -1,0 +1,44 @@
+/* Two columns on a phone. One column of a seventy eight product catalogue is a
+   very long scroll, and she shops and reviews on a phone. */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Top, not stretch. A card is content height, so a short title must make a
+     shorter card rather than a card with a hole in it. */
+  align-items: start;
+  gap: var(--s-3);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.cell { display: flex; }
+.cell > * { width: 100%; }
+
+@media (min-width: 620px) {
+  .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-4); }
+}
+
+@media (min-width: 900px) {
+  .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* First grid of the session only, set by the component. Six tiles rise 8px,
+   40ms apart. The delay is capped at eight steps so the fortieth tile does not
+   wait one and a half seconds, and anything past the cap arrives together,
+   which is correct because it is below the fold anyway. */
+.grid[data-animate] .cell {
+  opacity: 0;
+  animation: rise 320ms var(--ease) forwards;
+  animation-delay: calc(min(var(--i, 0), 8) * 40ms);
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grid[data-animate] .cell { opacity: 1; animation: none; }
+}

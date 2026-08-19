@@ -1,7 +1,0 @@
-<svg viewBox="0 0 600 100" xmlns="http://www.w3.org/2000/svg" role="img">
-  <title>Cart and Keep logo reversed</title>
-  <desc>Cream square with charcoal C mark, paired with CART and KEEP wordmark in cream</desc>
-  <rect x="10" y="10" width="80" height="80" fill="#FAF6EF"/>
-  <text x="50" y="76" text-anchor="middle" font-family="DM Sans, sans-serif" font-weight="600" font-size="72" fill="#2A2723">C</text>
-  <text x="120" y="70" text-anchor="start" font-family="DM Sans, sans-serif" font-weight="600" font-size="52" letter-spacing="8" fill="#FAF6EF">CART <tspan fill="#7A9575">&amp;</tspan> KEEP</text>
-</svg>

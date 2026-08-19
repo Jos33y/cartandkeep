@@ -6,7 +6,14 @@ import { ProductPage } from '@pages/store/ProductPage';
 import { CartPage } from '@pages/store/CartPage';
 import { CheckoutPage } from '@pages/store/CheckoutPage';
 import { OrderConfirmationPage } from '@pages/store/OrderConfirmationPage';
+import { OrderLookupPage } from '@pages/store/OrderLookupPage';
+import { AboutPage } from '@pages/store/AboutPage';
+import { ContactPage } from '@pages/store/ContactPage';
 import { LegalPage } from '@pages/store/LegalPage';
+import { BlogPage } from '@pages/store/BlogPage';
+import { BlogPostPage } from '@pages/store/BlogPostPage';
+import { SearchPage } from '@pages/store/SearchPage';
+import { SavedPage } from '@pages/store/SavedPage';
 import { NotFoundPage } from '@pages/not-found/NotFoundPage';
 import { STORE_ROUTES } from '@utils/constants';
 
@@ -15,12 +22,25 @@ export const storeRouter = createBrowserRouter([
     element: <StoreShell />,
     children: [
       { path: STORE_ROUTES.HOME, element: <HomePage /> },
+      // Same page, whole catalogue. The sub-sections become departments.
+      { path: STORE_ROUTES.SHOP, element: <CategoryPage everything /> },
       { path: STORE_ROUTES.CATEGORY, element: <CategoryPage /> },
       { path: STORE_ROUTES.PRODUCT, element: <ProductPage /> },
       { path: STORE_ROUTES.CART, element: <CartPage /> },
       { path: STORE_ROUTES.CHECKOUT, element: <CheckoutPage /> },
+      { path: STORE_ROUTES.ORDER_LOOKUP, element: <OrderLookupPage /> },
       { path: STORE_ROUTES.ORDER_CONFIRMATION, element: <OrderConfirmationPage /> },
+      { path: STORE_ROUTES.ABOUT, element: <AboutPage /> },
+      { path: STORE_ROUTES.CONTACT, element: <ContactPage /> },
       { path: STORE_ROUTES.LEGAL, element: <LegalPage /> },
+      { path: STORE_ROUTES.BLOG, element: <BlogPage /> },
+      { path: STORE_ROUTES.BLOG_POST, element: <BlogPostPage /> },
+      // Both of these were linked from the header icons and neither existed,
+      // so every use of the magnifying glass landed on the not-found page.
+      { path: STORE_ROUTES.SEARCH, element: <SearchPage /> },
+      { path: STORE_ROUTES.SAVED, element: <SavedPage /> },
+      // The catch-all stays last. Everything above is an exact or parameter
+      // match, so order only matters here.
       { path: '*', element: <NotFoundPage /> },
     ],
   },

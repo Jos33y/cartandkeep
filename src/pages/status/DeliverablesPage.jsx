@@ -91,15 +91,26 @@ export function DeliverablesPage() {
           ))}
         </ul>
 
+        {/*
+          * Rewritten on 19 August, because it had stopped being true.
+          *
+          * The store being unbuilt used to be the whole explanation. It is
+          * built now, and what stands between these columns has changed shape:
+          * the domain pointing at it, and a handful of things only she can
+          * supply. Leaving the old sentence up would have been a page
+          * explaining a blockage that had moved.
+          */}
         <p className={styles.explain}>
-          The store is the spine of month one. <strong>{t.blockedByStore}</strong> of the{' '}
-          <strong>{t.total}</strong> committed items cannot be built until it exists, which is why
-          the counts read the way they do. It is the only thing standing between that column and
-          the first one.
+          The shop is built. What is left is the domain pointing at it and{' '}
+          <strong>{t.client}</strong> things only you can supply, from your trading name to the
+          product descriptions. <strong>{t.blockedByStore}</strong> of the{' '}
+          <strong>{t.total}</strong> committed items wait on the shop being publicly live, and
+          several of those then need real orders before they show you anything, which is time
+          passing rather than work outstanding.
         </p>
       </section>
 
-      {groupsFor(['month-one', 'seo']).map((group) => (
+      {groupsFor(['month-one', 'seo', 'analytics']).map((group) => (
         <Group key={group.key} group={group} />
       ))}
 

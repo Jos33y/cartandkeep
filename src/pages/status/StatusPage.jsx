@@ -9,6 +9,7 @@ import {
   nextDated,
   lastUpdated,
 } from '@data/statusItems';
+import { LogoMark } from '@components/ui/shared/Logo';
 import { StateIcon } from '@components/status/StateIcon';
 import styles from '@styles/pages/status/status-page.module.css';
 
@@ -26,16 +27,6 @@ function portalUrl() {
     return `${protocol}//${hostname.replace(/^status\./, 'portal.')}`;
   }
   return '/?portal';
-}
-
-function Mark({ className }) {
-  return (
-    <svg viewBox="0 0 512 512" className={className} role="img" aria-label="Cart and Keep">
-      <rect width="512" height="512" rx="72" fill="var(--c-ink)" />
-      <text x="256" y="378" textAnchor="middle" fill="var(--c-base)"
-        fontFamily="var(--font-ui)" fontWeight="500" fontSize="360" letterSpacing="-12">C</text>
-    </svg>
-  );
 }
 
 function Chevron({ open }) {
@@ -125,7 +116,11 @@ export function StatusPage() {
   return (
     <div className={styles.page}>
       <header className={styles.head}>
-        <Mark className={styles.mark} />
+        {/* The real mark, not the letter C placeholder that had been here
+            since July. Pure path data, so it needs no font and cannot flash a
+            fallback. 32px, because below that it switches to the solid variant
+            and this header has the room. */}
+        <LogoMark size={32} className={styles.mark} />
         <span className={styles.wordmark}>Cart &amp; Keep</span>
         <Link className={styles.headLink} to="/deliverables">Deliverables</Link>
         <a className={styles.signIn} href={portalUrl()}>Sign in</a>

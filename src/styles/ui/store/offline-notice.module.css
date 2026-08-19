@@ -1,0 +1,31 @@
+/* Warm, not red. Being on a train is not an error and colouring it like one
+   makes somebody think the shop is broken. */
+.notice {
+  margin: var(--s-5) 0;
+  padding: var(--s-5);
+  background: var(--c-warm);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-card);
+  max-width: 52ch;
+}
+
+.lead { font-size: var(--t-lead); font-weight: 500; color: var(--c-ink); }
+
+.body {
+  margin-top: var(--s-2);
+  font-size: var(--t-body);
+  line-height: 1.62;
+  color: var(--c-ink-soft);
+}
+
+.retry {
+  margin-top: var(--s-4);
+  min-height: 44px;
+  padding: 0 var(--s-5);
+  border-radius: var(--r-control);
+  border: 1px solid var(--c-line-mid);
+  background: var(--c-surface);
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-ink);
+}

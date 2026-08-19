@@ -1,0 +1,101 @@
+/* Deliberately the same furniture as the candidates page: same head, same
+   stats, same chips, same ledger. Two review screens that look like two
+   products is the thing a portal cannot afford. */
+
+.page { display: flex; flex-direction: column; gap: var(--s-4); }
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-6);
+  flex-wrap: wrap;
+  padding-bottom: var(--s-4);
+}
+
+.headline p { margin-bottom: var(--s-2); }
+
+.title {
+  font-size: 2rem;
+  letter-spacing: -0.025em;
+  font-weight: 560;
+}
+
+.stats { display: flex; gap: var(--s-6); }
+.stat { display: flex; flex-direction: column; gap: var(--s-1); }
+.statValue { color: var(--c-ink); }
+
+.statFoot {
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+  letter-spacing: 0.01em;
+}
+
+.filters { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+
+.chip {
+  min-height: 38px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-control);
+  border-radius: var(--r-full);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.chipCount {
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+  letter-spacing: 0;
+}
+
+.chipOn .chipCount { color: var(--c-line-mid); }
+
+.chip:hover:not(.chipOn) { background: var(--c-sunk); }
+
+.chipOn {
+  background: var(--c-ink);
+  border-color: var(--c-ink);
+  color: var(--c-base);
+}
+
+.status { min-height: 1em; font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.truncated {
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+  padding: var(--s-2) 0;
+  border-top: 1px solid var(--c-line);
+}
+
+.ledger { border-top: 1px solid var(--c-line); }
+
+.empty { padding: var(--s-8) 0; max-width: 46ch; }
+.emptyTitle { font-size: var(--t-figure); letter-spacing: -0.02em; margin: var(--s-3) 0 var(--s-3); }
+.emptyBody { color: var(--c-ink-soft); line-height: var(--lh-body); }
+
+.retry {
+  margin-top: var(--s-4);
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-control);
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--c-ink-soft);
+  font-size: var(--t-label);
+}
+
+.retry:hover { background: var(--c-sunk); }
+
+@media (max-width: 640px) {
+  .head { align-items: flex-start; gap: var(--s-4); }
+  .stats { gap: var(--s-5); width: 100%; flex-wrap: wrap; }
+  .title { font-size: 1.625rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip { transition: none; }
+}

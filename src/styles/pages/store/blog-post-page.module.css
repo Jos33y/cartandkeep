@@ -1,0 +1,160 @@
+.page {
+  width: 100%;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: var(--s-5) var(--s-4) var(--s-8);
+}
+
+@media (min-width: 900px) { .page { padding: var(--s-5) var(--s-5) var(--s-8); } }
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  padding-bottom: var(--s-5);
+  font-size: var(--t-caption);
+  color: var(--c-faint);
+}
+
+.crumbs a { color: var(--c-ink-soft); }
+.crumbs a:hover { color: var(--c-ink); }
+.crumbs svg { color: var(--c-line-mid); }
+.crumbs span { max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 68 characters. Prose set to the full width of a 940px column is prose
+   nobody finishes. */
+.article { max-width: 68ch; }
+
+.meta { font-size: var(--t-caption); color: var(--c-faint); }
+.title { margin-top: var(--s-2); font-size: clamp(1.875rem, 4.4vw, 2.75rem); }
+
+.lede {
+  margin-top: var(--s-4);
+  font-size: 1.125rem;
+  line-height: 1.6;
+  color: var(--c-ink-soft);
+}
+
+/* The markdown lands here as HTML, so every tag it can emit is styled rather
+   than left to the browser default. */
+.body {
+  margin-top: var(--s-6);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--c-line);
+  font-size: 1.0625rem;
+  line-height: 1.72;
+  color: var(--c-ink);
+  white-space: pre-line;
+}
+
+.body :global(h2) {
+  margin: var(--s-7) 0 var(--s-3);
+  font-family: var(--font-display);
+  font-stretch: var(--wide-tight);
+  font-weight: 620;
+  font-size: 1.4375rem;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+.body :global(h3) {
+  margin: var(--s-5) 0 var(--s-2);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.body :global(p) { margin: var(--s-4) 0; white-space: normal; }
+.body :global(strong) { font-weight: 600; }
+.body :global(em) { font-style: italic; }
+
+.body :global(a) {
+  color: var(--c-action-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.body :global(ul),
+.body :global(ol) { margin: var(--s-4) 0; padding-left: var(--s-5); white-space: normal; }
+.body :global(li) { margin: var(--s-2) 0; }
+.body :global(li)::marker { color: var(--c-brand); }
+
+.body :global(blockquote) {
+  margin: var(--s-5) 0;
+  padding: var(--s-3) var(--s-4);
+  background: var(--c-warm);
+  border-radius: var(--r-control);
+  color: var(--c-ink-soft);
+  white-space: normal;
+}
+
+.body :global(img) { margin: var(--s-5) 0; border-radius: var(--r-card); }
+.body :global(hr) { margin: var(--s-6) 0; border: 0; border-top: 1px solid var(--c-line); }
+
+.body :global(code) {
+  font-family: var(--font-data);
+  font-size: 0.9em;
+  background: var(--c-warm);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.after {
+  margin-top: var(--s-7);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--c-line);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  max-width: 68ch;
+}
+
+/* Every post ends at the shop. A piece about what a house runs out of that
+   does not offer the things it names is a piece that converts nobody. */
+.cta {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 52px;
+  padding: 0 var(--s-5);
+  border-radius: var(--r-control);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.related ul { list-style: none; margin-top: var(--s-2); }
+.relatedHead {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--c-faint);
+}
+
+.related a {
+  display: block;
+  padding: var(--s-2) 0;
+  font-size: var(--t-body);
+  color: var(--c-ink-soft);
+  text-decoration: none;
+}
+
+.related a:hover { color: var(--c-ink); }
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  margin-top: var(--s-4);
+  padding: 0 var(--s-5);
+  border-radius: var(--r-control);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-label);
+  font-weight: 500;
+  text-decoration: none;
+}
