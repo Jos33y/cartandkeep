@@ -27,7 +27,7 @@ export function ProductsPage() {
   const {
     status, rows, counts, reload, publish, unpublish, confirmReturns, saveHazard,
     saveDescription, saveDetails, saveImages, removeImage, create, saveStock,
-    saveRecord,
+    saveRecord, saveCost,
   } = useCatalogue(tenant?.id);
 
   const byCategory = useMemo(() => categoryCounts(rows), [rows]);
@@ -221,6 +221,8 @@ export function ProductsPage() {
             onSaveStock={saveStock}
             onSaveRecord={saveRecord}
             categories={categories}
+            fees={tenant?.fees}
+            onSaveCost={saveCost}
             tenantId={tenant?.id}
             onUnpublish={unpublish}
           />

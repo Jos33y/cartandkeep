@@ -16,6 +16,7 @@ const SELECT = `
   id, tenant_id, slug, title, price, image_url, images, status, is_sample, stock,
   category, category_path, brand, description, source_description,
   specifications, in_the_box,
+  landed_cost, postage_cost, cost_note, cost_updated_at,
   availability, returns_class, returns_note,
   hazard, safety_data_sheet_url, biocide_reg_no,
   derived_fields, source_kind
@@ -74,6 +75,47 @@ export function warnings(p) {
 export const isLive = (p) => p.status === 'live' && !p.is_sample;
 export const isReady = (p) => !isLive(p) && blockers(p).length === 0;
 export const isBlocked = (p) => !isLive(p) && blockers(p).length > 0;
+
+/*
+ * Margin, computed in the browser from the same rates the view uses.
+ *
+ * Duplicated deliberately rather than read from `store_product_margin`. The row
+ * has to show what a margin becomes as she types a cost, and a view cannot
+ * answer that until the value is saved. The view stays the source of truth for
+ * every screen that reports rather than edits, and the shape below is checked
+ * against it in the tests.
+ *
+ * eBay's percentage covers managed payments, so no separate payment fee is
+ * applied there. The store sells through Stripe, so the store rate is the
+ * Stripe rate.
+ */
+export function marginFor({ price, landedCost, postageCost, fees }) {
+  const p = Number(price);
+  const cost = landedCost === null || landedCost === undefined || landedCost === ''
+    ? null : Number(landedCost);
+
+  if (cost === null || !Number.isFinite(cost) || !(p > 0)) return null;
+
+  const post = Number(postageCost) || 0;
+  const rate = (key, pct, fixed) => ({
+    pct: Number(fees?.[key]?.pct ?? pct),
+    fixed: Number(fees?.[key]?.fixed ?? fixed),
+  });
+
+  const channels = {
+    store: rate('store', 0.015, 0.20),
+    ebay: rate('ebay', 0.128, 0.30),
+    tiktok: rate('tiktok', 0.065, 0),
+  };
+
+  const out = {};
+  for (const [name, r] of Object.entries(channels)) {
+    const fee = Math.round((p * r.pct + r.fixed) * 100) / 100;
+    const net = Math.round((p - fee - cost - post) * 100) / 100;
+    out[name] = { fee, net, pct: Math.round((net / p) * 1000) / 10 };
+  }
+  return out;
+}
 
 export function useCatalogue(tenantId) {
   const [state, setState] = useState({ status: 'loading', rows: [], error: null });
@@ -391,6 +433,43 @@ export function useCatalogue(tenantId) {
     await load();
   }, [load]);
 
+  /*
+   * What it costs her.
+   *
+   * The one number this platform has never held, and four month one
+   * commitments depend on it: margin per channel, net profit, category profit
+   * and loss, and the alert when something goes negative. None of them were
+   * unstarted so much as unstartable.
+   *
+   * Empty is null rather than zero, and every margin figure is null with it. A
+   * margin computed without a cost is not a cautious estimate, it is an
+   * invented number, and there is no version of this screen where showing one
+   * is better than showing nothing.
+   */
+  const saveCost = useCallback(async ({ id, landedCost, postageCost, note }) => {
+    const money = (v, what) => {
+      const s = String(v ?? '').trim();
+      if (s === '') return null;
+      const n = Number(s);
+      if (!Number.isFinite(n) || n < 0) throw new Error(`${what} has to be a number, or empty.`);
+      return Math.round(n * 100) / 100;
+    };
+
+    const landed = money(landedCost, 'Cost');
+
+    const { error } = await supabase.from('store_products').update({
+      landed_cost: landed,
+      postage_cost: money(postageCost, 'Postage'),
+      cost_note: note?.trim() || null,
+      // Stamped only when there is a figure. A date against an empty cost says
+      // somebody checked when nobody did.
+      cost_updated_at: landed === null ? null : new Date().toISOString(),
+    }).eq('id', id);
+
+    if (error) throw error;
+    await load();
+  }, [load]);
+
   const counts = useMemo(() => ({
     live: state.rows.filter(isLive).length,
     ready: state.rows.filter(isReady).length,
@@ -401,7 +480,7 @@ export function useCatalogue(tenantId) {
   return {
     ...state, counts, reload: load,
     publish, unpublish, confirmReturns, saveHazard, saveDescription,
-    saveDetails, saveImages, removeImage, create, saveStock, saveRecord,
+    saveDetails, saveImages, removeImage, create, saveStock, saveRecord, saveCost,
   };
 }
 

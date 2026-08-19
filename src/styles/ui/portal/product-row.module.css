@@ -191,6 +191,53 @@
 
 .hint { font-size: var(--t-caption); color: var(--c-ink-faint); line-height: var(--lh-snug); }
 
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--s-3); }
+
+/* The unit sits inside the field, so the border and the focus ring go on the
+   wrapper or the ring draws around the digits and leaves the pound outside. */
+.control {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-control);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+}
+
+.control:focus-within { border-color: var(--c-ink-faint); }
+
+.bare {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--c-ink);
+  font-size: var(--t-body);
+  min-height: calc(var(--tap) - 2px);
+}
+
+.bare:focus, .bare:focus-visible { outline: none; }
+.affix { color: var(--c-ink-faint); font-size: var(--t-body); }
+
+.margins { display: flex; flex-direction: column; border-top: 1px solid var(--c-line); }
+
+.margin {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5.5rem 4rem;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--c-line);
+  font-size: var(--t-body);
+}
+
+.marginName { color: var(--c-ink-soft); }
+.marginNet { text-align: right; font-weight: 500; }
+.marginPct { text-align: right; font-size: var(--t-caption); color: var(--c-ink-faint); }
+.marginBad { color: var(--c-negative); }
+
 .specs { display: flex; flex-direction: column; gap: var(--s-2); }
 
 .spec {

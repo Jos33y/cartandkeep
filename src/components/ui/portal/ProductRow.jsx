@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ProductImages } from '@components/ui/portal/ProductImages';
 import { formatGbp } from '@utils/formatGbp';
-import { blockers, warnings, isLive, CATEGORY_MIN } from '@hooks/useCatalogue';
+import { blockers, warnings, isLive, marginFor, CATEGORY_MIN } from '@hooks/useCatalogue';
 import styles from '@styles/ui/portal/product-row.module.css';
 
 const RETURNS = [
@@ -18,7 +18,7 @@ const top = (path) => String(path ?? '').split('|')[0]?.trim() || null;
 export function ProductRow({
   product, selected, onSelect, onConfirmReturns, onSaveHazard, onUnpublish,
   onSaveDescription, onSaveDetails, onSaveImages, onRemoveImage, onSaveStock,
-  onSaveRecord, tenantId, categories, categoryCount,
+  onSaveRecord, onSaveCost, tenantId, categories, categoryCount, fees,
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -31,6 +31,12 @@ export function ProductRow({
   const [title, setTitle] = useState(product.title ?? '');
   const [price, setPrice] = useState(String(product.price ?? ''));
   const [description, setDescription] = useState(product.description ?? '');
+  const [landedCost, setLandedCost] = useState(
+    product.landed_cost === null || product.landed_cost === undefined ? '' : String(product.landed_cost));
+  const [postageCost, setPostageCost] = useState(
+    product.postage_cost === null || product.postage_cost === undefined ? '' : String(product.postage_cost));
+  const [costNote, setCostNote] = useState(product.cost_note ?? '');
+
   const [categoryPath, setCategoryPath] = useState(product.category_path ?? '');
   const [brand, setBrand] = useState(product.brand ?? '');
   const [inTheBox, setInTheBox] = useState(product.in_the_box ?? '');
@@ -454,6 +460,91 @@ export function ProductRow({
           </section>
 
           <section className={styles.panel}>
+            <h4 className="micro">What it costs you</h4>
+
+            <div className={styles.pair}>
+              <label className={styles.field}>
+                <span className={styles.label}>Cost of one, landed</span>
+                <span className={styles.control}>
+                  <span className={styles.affix} aria-hidden="true">£</span>
+                  <input
+                    className={styles.bare}
+                    data-num
+                    inputMode="decimal"
+                    value={landedCost}
+                    onChange={(e) => setLandedCost(e.target.value)}
+                  />
+                </span>
+              </label>
+
+              <label className={styles.field}>
+                <span className={styles.label}>Postage you pay</span>
+                <span className={styles.control}>
+                  <span className={styles.affix} aria-hidden="true">£</span>
+                  <input
+                    className={styles.bare}
+                    data-num
+                    inputMode="decimal"
+                    value={postageCost}
+                    onChange={(e) => setPostageCost(e.target.value)}
+                  />
+                </span>
+              </label>
+            </div>
+
+            <p className={styles.hint}>
+              What one unit costs to reach you, including shipping and duty. Not the
+              supplier's list price, because a figure that leaves freight out flatters
+              every margin underneath it.
+            </p>
+
+            {/*
+              * Recomputed as she types, before saving.
+              *
+              * The point of this panel is the answer to "what if I paid nine
+              * pounds for it", and a figure that only appears after a save
+              * makes her save three times to find out.
+              */}
+            <Margin
+              price={product.price}
+              landedCost={landedCost}
+              postageCost={postageCost}
+              fees={fees}
+            />
+
+            <label className={styles.field}>
+              <span className={styles.label}>Where the price came from</span>
+              <input
+                className={styles.input}
+                value={costNote}
+                onChange={(e) => setCostNote(e.target.value)}
+                placeholder="Supplier and date, so it can be checked later"
+              />
+            </label>
+
+            {product.cost_updated_at && (
+              <p className={styles.hint}>
+                Recorded <span data-num>
+                  {new Date(product.cost_updated_at).toLocaleDateString('en-GB', {
+                    day: 'numeric', month: 'long', year: 'numeric',
+                  })}
+                </span>. A supplier price from August is not a supplier price in December.
+              </p>
+            )}
+
+            <button
+              type="button"
+              className={styles.primary}
+              disabled={busy}
+              onClick={() => run(() => onSaveCost({
+                id: product.id, landedCost, postageCost, note: costNote,
+              }))}
+            >
+              Save cost
+            </button>
+          </section>
+
+          <section className={styles.panel}>
             <h4 className="micro">How many</h4>
 
             <label className={styles.field}>
@@ -531,5 +622,48 @@ export function ProductRow({
         </div>
       )}
     </article>
+  );
+}
+
+/*
+ * What is left, per channel.
+ *
+ * Three rows rather than one, because the same product at the same price is a
+ * different business on each of them: eBay takes 12.8 per cent and the shop
+ * takes 1.5. Seeing those side by side is the argument for the shop, and it is
+ * an argument made with her own numbers rather than with a claim.
+ *
+ * Nothing at all when the cost is unknown, rather than dashes in a table. An
+ * empty table invites somebody to read a zero into it.
+ */
+function Margin({ price, landedCost, postageCost, fees }) {
+  const m = marginFor({ price, landedCost, postageCost, fees });
+
+  if (!m) {
+    return (
+      <p className={styles.hint}>
+        Put a cost in and this shows what is left after fees on each channel.
+      </p>
+    );
+  }
+
+  const rows = [
+    ['Your shop', m.store],
+    ['eBay', m.ebay],
+    ['TikTok Shop', m.tiktok],
+  ];
+
+  return (
+    <dl className={styles.margins}>
+      {rows.map(([label, v]) => (
+        <div key={label} className={styles.margin}>
+          <dt className={styles.marginName}>{label}</dt>
+          <dd className={`${styles.marginNet} ${v.net <= 0 ? styles.marginBad : ''}`} data-num>
+            {formatGbp(v.net)}
+          </dd>
+          <dd className={styles.marginPct} data-num>{v.pct}%</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
