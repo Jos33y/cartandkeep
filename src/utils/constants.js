@@ -24,6 +24,10 @@ export const STORE_ROUTES = {
 export const PORTAL_ROUTES = {
   LOGIN: '/login',
   OVERVIEW: '/',
+  // The shop's own front door. Overview stays where it is: this portal holds
+  // two businesses and moving one of them's front door to make room for the
+  // other is a change nobody asked for.
+  SHOP: '/shop',
   CANDIDATES: '/candidates',
   APPROVED: '/approved',
   LISTINGS: '/listings',
@@ -73,6 +77,7 @@ export const PORTAL_NAV_SECTIONS = [
     key: 'shop',
     label: 'Your shop',
     items: [
+      { route: PORTAL_ROUTES.SHOP, label: 'Dashboard', icon: 'IconGauge' },
       { route: PORTAL_ROUTES.PRODUCTS, label: 'Products', icon: 'IconShop' },
       { route: PORTAL_ROUTES.ORDERS, label: 'Orders', icon: 'IconBox' },
       { route: PORTAL_ROUTES.INTEREST, label: 'Interest', icon: 'IconEye' },

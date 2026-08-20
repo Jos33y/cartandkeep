@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { useBasket } from '@context/BasketContext';
 import { useSaved } from '@hooks/useSaved';
 import { StockSignal, isBuyable } from '@components/ui/store/StockSignal';
+import { anyBuyable } from '@hooks/useStoreProducts';
 import { imageAt, leafOf } from '@utils/categories';
 import { formatGbp } from '@utils/formatGbp';
 import { STORE_ROUTES } from '@utils/constants';
@@ -39,14 +40,36 @@ export function ProductCard({ product, index = 0, onQuickView }) {
   const image = imageAt(product.image_url, 500);
   const image2x = imageAt(product.image_url, 800);
   const leaf = leafOf(product.category_path) ?? product.category;
-  const saving = product.compare_at != null
+  const hasVariants = product.variants?.length > 0;
+  const buyable = anyBuyable(product);
+
+  // A compare at price needs one per variant to mean anything, so it is not
+  // shown on a product that has them until it does.
+  const saving = !hasVariants && product.compare_at != null
     ? Number(product.compare_at) - Number(product.price)
     : null;
 
+  // The cheapest, prefixed. A card showing £24.99 for a bed sheet whose only
+  // stocked size is the £29.99 one has misled somebody before they reached the
+  // page, and "from" is the whole difference between a range and a price.
+  const from = hasVariants && product.priceFrom !== product.priceTo;
+  const shown = hasVariants ? product.priceFrom : Number(product.price);
+
   function onAdd(event) {
+    /*
+     * A product with variants is not added from a grid tile.
+     *
+     * Picking a size from a card means a card that has to be right about which
+     * size, which price and how many of that size are left, in a tile the width
+     * of a thumbnail. The whole card is already a link to the product page, so
+     * this lets the click through rather than swallowing it: pressing "Choose a
+     * size" opens the page, which is what the words promise.
+     */
+    if (hasVariants) return;
+
     event.preventDefault();
     event.stopPropagation();
-    if (!isBuyable(product)) return;
+    if (!buyable) return;
     add(product, 1);
     setAdded(true);
     // Long enough to read, short enough that a second add still feels
@@ -111,13 +134,15 @@ export function ProductCard({ product, index = 0, onQuickView }) {
           type="button"
           className={styles.add}
           onClick={onAdd}
-          disabled={!isBuyable(product)}
+          disabled={!buyable}
           data-added={added || undefined}
           aria-label={`Add ${product.title} to basket`}
         >
           {added ? <BasketIcon size={15} /> : <PlusIcon size={15} />}
           <span aria-live="polite">
-            {!isBuyable(product) ? 'Out of stock' : added ? 'Added' : 'Add to basket'}
+            {!buyable ? 'Out of stock'
+              : hasVariants ? 'Choose a size'
+                : added ? 'Added' : 'Add to basket'}
           </span>
         </button>
       </div>
@@ -131,7 +156,8 @@ export function ProductCard({ product, index = 0, onQuickView }) {
           ) : null}
 
         <p className={styles.priceRow}>
-          <span className={styles.price} data-price>{formatGbp(product.price)}</span>
+          {from && <span className={styles.from}>from</span>}
+          <span className={styles.price} data-price>{formatGbp(shown)}</span>
           {saving > 0 && (
             <span className={styles.was} data-price>{formatGbp(product.compare_at)}</span>
           )}

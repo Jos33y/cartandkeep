@@ -1,0 +1,66 @@
+/* The variant chooser.
+   ------------------------------------------------------------------------
+   Buttons in a row rather than a select. A select hides the options behind a
+   tap and hides the sold out ones entirely, and the two things a shopper wants
+   to know here are what is available and what is not.
+
+   Terracotta marks the chosen one and nothing else on this control, because
+   the accent belongs to the action that moves a buyer forward and choosing is
+   the step before adding. */
+
+.block { display: flex; flex-direction: column; gap: var(--s-2); margin: var(--s-4) 0; }
+
+.label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  font-size: var(--t-label);
+  font-weight: 500;
+}
+
+.hint { font-size: var(--t-caption); font-weight: 400; color: var(--c-ink-faint); }
+
+.options { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  /* Every control on the shop is at least 44px, because she reviews and her
+     customers buy from a phone. */
+  min-height: var(--tap);
+  min-width: 4.5rem;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:hover:not(:disabled) { border-color: var(--c-control); }
+
+.option[data-chosen] {
+  border-color: var(--c-action-strong);
+  /* Two pixels of the accent rather than a fill, so the chosen option reads as
+     chosen without competing with the Add button underneath it. */
+  box-shadow: inset 0 0 0 1px var(--c-action-strong);
+}
+
+/* Sold out stays on screen and stays unpressable. Hiding it makes a shop look
+   like it never stocked the size somebody came for. */
+.option[data-gone] {
+  cursor: not-allowed;
+  color: var(--c-ink-faint);
+  background: var(--c-sunk);
+  border-style: dashed;
+}
+
+.optionLabel { font-size: var(--t-body); font-weight: 500; }
+.optionPrice { font-size: var(--t-caption); color: var(--c-ink-soft); }
+.optionGone { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.option[data-gone] .optionLabel { text-decoration: line-through; font-weight: 400; }
+
+.low { font-size: var(--t-caption); color: var(--c-action-text); }

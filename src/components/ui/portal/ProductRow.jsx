@@ -1,13 +1,33 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ProductImages } from '@components/ui/portal/ProductImages';
+import { DescriptionPanel } from '@components/ui/portal/product/DescriptionPanel';
+import { ChecksPanel } from '@components/ui/portal/product/ChecksPanel';
+import { VariantsPanel } from '@components/ui/portal/product/VariantsPanel';
 import { formatGbp } from '@utils/formatGbp';
-import { blockers, warnings, isLive, marginFor, CATEGORY_MIN } from '@hooks/useCatalogue';
+import { visibleSpecs, hiddenSpecs } from '@utils/specs';
+import { blockers, warnings, isLive, marginFor, checksFor, CATEGORY_MIN } from '@hooks/useCatalogue';
 import styles from '@styles/ui/portal/product-row.module.css';
 
+/*
+ * Written for somebody holding the product, not for somebody who knows the
+ * regulations.
+ *
+ * The legal names for these are the returns class and the cancellation right,
+ * and neither phrase appears below, because the person confirming it needs to
+ * recognise the goods rather than the statute. The first version named the
+ * grounds instead of the goods, so "on health or hygiene grounds" told her why
+ * the law says it without telling her which of her products it covers.
+ *
+ * Standard is written at 30 days, not 14. Fourteen is the statutory period and
+ * TERMS in src/data/legal.js extends it to thirty as a term of sale, which the
+ * product page, the basket, the checkout and the returns page have all been
+ * saying since they were built. This screen and the confirmation email were the
+ * two places still saying fourteen.
+ */
 const RETURNS = [
-  { value: 'standard', label: 'Standard', hint: '14 day right, extended to 30 as a goodwill term' },
-  { value: 'sealed', label: 'Sealed only', hint: 'Returnable while sealed, on health or hygiene grounds' },
-  { value: 'none', label: 'No return', hint: 'Consumable or perishable. Statutory rights unaffected' },
+  { value: 'standard', label: 'Standard', hint: 'Most things. They can send it back within 30 days for any reason' },
+  { value: 'sealed', label: 'Sealed only', hint: 'Send back within 30 days, but only while the seal is unbroken. Hygiene and personal care' },
+  { value: 'none', label: 'No return', hint: 'Food, drink, and anything that goes off. Faulty goods can still be returned' },
 ];
 
 const thumb = (url) => (url ? url.replace(/\/s-l\d+\./, '/s-l225.') : null);
@@ -18,19 +38,33 @@ const top = (path) => String(path ?? '').split('|')[0]?.trim() || null;
 export function ProductRow({
   product, selected, onSelect, onConfirmReturns, onSaveHazard, onUnpublish,
   onSaveDescription, onSaveDetails, onSaveImages, onRemoveImage, onSaveStock,
-  onSaveRecord, onSaveCost, tenantId, categories, categoryCount, fees,
+  onSaveRecord, onSaveCost, onDraft, onDiscardDraft, onAcknowledgeChecks,
+  onAddVariant, onSaveVariant, onRemoveVariant,
+  tenantId, categories, categoryCount, fees,
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(null);
 
-  const guessed = product.derived_fields?.returns_class;
-  const [returnsClass, setReturnsClass] = useState(guessed ?? product.returns_class ?? 'standard');
+  /*
+   * `derived_fields.returns_class` is a flag, not a value.
+   *
+   * `enrich-store.js` writes the guess into the real column and leaves `true`
+   * here to mean nobody has confirmed it. This read it as the guess itself, so
+   * the label rendered empty, and the radio state initialised to the boolean,
+   * which left every choice unchecked and let Confirm returns write `true` into
+   * a column with a check constraint on it.
+   *
+   * 27 of the 78 carry the flag: 16 no return and 11 sealed. The 51 standard
+   * rows are unflagged and were never blocked.
+   */
+  const unconfirmed = Boolean(product.derived_fields?.returns_class);
+  const guessed = product.returns_class ?? 'standard';
+  const [returnsClass, setReturnsClass] = useState(guessed);
   const [note, setNote] = useState(product.returns_note ?? '');
 
   const [title, setTitle] = useState(product.title ?? '');
   const [price, setPrice] = useState(String(product.price ?? ''));
-  const [description, setDescription] = useState(product.description ?? '');
   const [landedCost, setLandedCost] = useState(
     product.landed_cost === null || product.landed_cost === undefined ? '' : String(product.landed_cost));
   const [postageCost, setPostageCost] = useState(
@@ -46,8 +80,22 @@ export function ProductRow({
    * are stored as. An object cannot hold a half typed key, and editing one in
    * place means every keystroke either loses a row or reorders the lot.
    */
-  const [specs, setSpecs] = useState(() => Object.entries(product.specifications ?? {})
-    .map(([key, value]) => ({ key, value: String(value ?? '') })));
+  /*
+   * The specifications she can actually act on.
+   *
+   * Her catalogue carries her own eBay policy ids on every row, and a
+   * "Returns Po 264890281011" three lines under a real returns policy is the
+   * field on this screen most likely to be misread. No limit on length here,
+   * unlike the shop: she should see the long ones and decide herself.
+   *
+   * The hidden ones are held rather than dropped. This state is what Save
+   * writes back, so filtering the display alone would delete them from her
+   * record the first time she pressed it.
+   */
+  const [specs, setSpecs] = useState(() => visibleSpecs(product.specifications, { max: 0 })
+    .map(([key, value]) => ({ key, value })));
+
+  const keptSpecs = useMemo(() => hiddenSpecs(product.specifications), [product.specifications]);
 
   const [stock, setStock] = useState(product.stock === null || product.stock === undefined
     ? '' : String(product.stock));
@@ -58,19 +106,88 @@ export function ProductRow({
   const [sds, setSds] = useState(product.safety_data_sheet_url ?? '');
   const [biocide, setBiocide] = useState(product.biocide_reg_no ?? '');
 
+  // The live draft, for the panels that take a suggestion from it. Read once
+  // here rather than reached for through derived_fields in four places.
+  const suggested = product.derived_fields?.draft ?? null;
+
+  const checks = checksFor(product);
   const stops = blockers(product);
   const notes = warnings(product);
   const live = isLive(product);
 
+  /*
+   * Every save on this row goes through here, and until now none of them said
+   * anything when they worked.
+   *
+   * The only signal was the button greying out, which it also does when there
+   * is nothing to save, so "saved" and "nothing to save" looked identical. On a
+   * screen whose whole job is confirming things, that is the wrong pair to
+   * leave ambiguous.
+   *
+   * A flag rather than a message, so each panel can say it in its own words and
+   * an action keeps its name through the flow. Cleared after a few seconds
+   * because a permanent "Saved" is furniture, and cleared at the start of the
+   * next save so two in a row both report.
+   */
+  const [saved, setSaved] = useState(false);
+
   async function run(fn) {
     setBusy(true);
     setFailed(null);
-    try { await fn(); } catch (e) { setFailed(e?.message ?? 'Not saved. Try again.'); }
-    finally { setBusy(false); }
+    setSaved(false);
+    try {
+      await fn();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 4000);
+    } catch (e) {
+      setFailed(e?.message ?? 'Not saved. Try again.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   const state = live ? 'stateLive' : stops.length ? 'stateBlocked' : 'stateReady';
   const thin = top(product.category_path) && categoryCount > 0 && categoryCount < CATEGORY_MIN;
+
+  /*
+   * The state panel, placed by what the row is for.
+   *
+   * A live row and a draft row are different jobs. On a draft, what matters is
+   * what is blocking it. On a live product the only questions are what state it
+   * is in and how to pull it, and both are here, which is why it moves to the
+   * top rather than sitting under eight panels that do not apply.
+   */
+  const onShop = (
+          <section className={styles.panel}>
+            <h4 className="micro">On the shop</h4>
+            <dl className={styles.facts}>
+              <div><dt>Status</dt><dd>{live ? 'Live' : 'Draft'}</dd></div>
+              <div><dt>Brand</dt><dd>{product.brand ?? 'Not set'}</dd></div>
+              <div>
+                <dt>Details</dt>
+                <dd data-num>{Object.keys(product.specifications ?? {}).length}</dd>
+              </div>
+              <div><dt>Photographs</dt><dd data-num>{(product.images ?? []).length}</dd></div>
+              <div>
+                <dt>Stock</dt>
+                <dd data-num>
+                  {product.stock === null || product.stock === undefined ? 'Untracked' : product.stock}
+                </dd>
+              </div>
+            </dl>
+
+            {live && (
+              <button
+                type="button"
+                className={styles.ghost}
+                disabled={busy}
+                onClick={() => run(() => onUnpublish([product.id]))}
+              >
+                Take back to draft
+              </button>
+            )}
+          </section>
+  );
 
   return (
     <article className={`${styles.row} ${styles[state]} ${open ? styles.rowOpen : ''}`}>
@@ -78,10 +195,12 @@ export function ProductRow({
         {/* Outside the expander, because a tick that also opens a panel is a
             tick nobody trusts on a phone. */}
         <label className={styles.pick}>
+          {/* Live rows tick too. The bar decides what each half of a mixed
+              selection can do, which is a better place for that judgement than
+              a disabled control that never says why. */}
           <input
             type="checkbox"
             checked={selected}
-            disabled={live}
             onChange={(e) => onSelect(product.id, e.target.checked)}
           />
           <span className="visually-hidden">Select {product.title}</span>
@@ -132,18 +251,65 @@ export function ProductRow({
             </p>
           )}
 
+          {live && onShop}
+
+          {/* First on the row when it exists, because it is why the row is
+              blocked and that should not need scrolling for. */}
+          {checks && (
+            <ChecksPanel
+              product={product}
+              checks={checks}
+              busy={busy}
+              run={run}
+              onAcknowledge={onAcknowledgeChecks}
+            />
+          )}
+
           <section className={styles.panel}>
             <h4 className="micro">Returns</h4>
 
-            {guessed ? (
+            {unconfirmed ? (
               <p className={styles.guessed}>
-                A script read the title and guessed <strong>{RETURNS.find((r) => r.value === guessed)?.label}</strong>.
-                Nobody has confirmed it, so this cannot go live until you do.
+                Nobody has set the returns policy for this yet. A script read the title and
+                suggested <strong>{RETURNS.find((r) => r.value === guessed)?.label}</strong>.
+                Check that is right and confirm it. This is what the customer&apos;s
+                confirmation email tells them about sending it back.
               </p>
             ) : (
               <p className={styles.settled}>
-                Set to {RETURNS.find((r) => r.value === product.returns_class)?.label ?? product.returns_class}.
+                Returns policy: {RETURNS.find((r) => r.value === product.returns_class)?.label ?? product.returns_class}.
+                Change it below if that is wrong.
               </p>
+            )}
+
+            {/*
+              * The second opinion, and it is worth more than the first.
+              *
+              * The script read the title. This read the title, the full
+              * specifications, the supplier text and the photograph, which is
+              * how it can tell a jar of moisturiser from a saucepan in a sealed
+              * box. It selects the radio and saves nothing, same as everywhere
+              * else on this row: she still presses Confirm returns.
+              *
+              * Hidden once the radio already matches, so a suggestion she has
+              * taken does not sit there asking again.
+              */}
+            {suggested && suggested.returns_class !== returnsClass && (
+              <div className={styles.draft}>
+                <p className="micro">The draft suggests</p>
+                <p className={styles.draftBody}>
+                  <strong>{RETURNS.find((r) => r.value === suggested.returns_class)?.label}</strong>
+                  {suggested.returns_reason ? `. ${suggested.returns_reason}` : ''}
+                </p>
+                <button
+                  type="button"
+                  className={styles.ghost}
+                  disabled={busy}
+                  onClick={() => setReturnsClass(suggested.returns_class)}
+                >
+                  Select that
+                </button>
+              </div>
             )}
 
             <div className={styles.choices}>
@@ -182,9 +348,19 @@ export function ProductRow({
           {product.derived_fields?.hazard_suspect && (
             <section className={styles.panel}>
               <h4 className="micro">Hazard</h4>
+              {/*
+                * Named as the thing in her hand rather than as the regulation.
+                *
+                * This read "a classified mixture under GB CLP" and "label
+                * elements", which are the correct terms and are two phrases
+                * nobody reads off a bottle. What the law wants is the warning
+                * from the label repeated in the online offer, so that is what
+                * it asks for.
+                */}
               <p className={styles.guessed}>
-                The title suggests a classified mixture under GB CLP. An online offer for one
-                carries its label elements near the price. Read the bottle, or say it is not one.
+                This looks like a cleaning chemical. If the bottle has a warning label on
+                it, the shop has to show the same warning next to the price. Pick the
+                bottle up and copy across what is printed on it.
               </p>
 
               <label className={styles.check}>
@@ -193,13 +369,14 @@ export function ProductRow({
                   checked={notHazardous}
                   onChange={(e) => setNotHazardous(e.target.checked)}
                 />
-                <span>Not a classified mixture. I have checked the label.</span>
+                <span>No warning label on this bottle. I have checked.</span>
               </label>
 
               {!notHazardous && (
                 <>
                   <label className={styles.field}>
                     <span className={styles.label}>Signal word</span>
+                    <span className={styles.hint}>The word in bold on the label</span>
                     <select className={styles.input} value={signal} onChange={(e) => setSignal(e.target.value)}>
                       <option value="">Choose one</option>
                       <option value="Warning">Warning</option>
@@ -208,7 +385,10 @@ export function ProductRow({
                   </label>
 
                   <label className={styles.field}>
-                    <span className={styles.label}>Hazard statements, one per line</span>
+                    <span className={styles.label}>Warnings, one per line</span>
+                    <span className={styles.hint}>
+                      Each one starts with H, like H315 Causes skin irritation
+                    </span>
                     <textarea
                       className={styles.textarea}
                       rows={4}
@@ -219,15 +399,22 @@ export function ProductRow({
                   </label>
 
                   <label className={styles.field}>
-                    <span className={styles.label}>Safety data sheet link, optional</span>
+                    <span className={styles.label}>Safety data sheet link</span>
+                    <span className={styles.hint}>Optional, if the supplier gave you one</span>
                     <input className={styles.input} type="url" value={sds}
                       onChange={(e) => setSds(e.target.value)} placeholder="https://" />
                   </label>
 
                   {/* Jeyes Fluid and the wasp killer are biocidal products and
-                      carry an HSE registration number on the label. */}
+                      carry an HSE registration number on the label. Required
+                      rather than optional on those, so the hint says so plainly
+                      instead of hedging it into a preference. */}
                   <label className={styles.field}>
-                    <span className={styles.label}>HSE registration number, if it is a biocide</span>
+                    <span className={styles.label}>HSE number</span>
+                    <span className={styles.hint}>
+                      On pest killers and disinfectants only. Required there, and printed
+                      on the label
+                    </span>
                     <input className={styles.input} value={biocide}
                       onChange={(e) => setBiocide(e.target.value)} />
                   </label>
@@ -309,46 +496,30 @@ export function ProductRow({
             </button>
           </section>
 
-          <section className={styles.panel}>
-            <h4 className="micro">Description</h4>
+          {/* After Title and price, because a variant is a price and a count
+              and that is where both already live. */}
+          <VariantsPanel
+            product={product}
+            busy={busy}
+            run={run}
+            onAdd={onAddVariant}
+            onSave={onSaveVariant}
+            onRemove={onRemoveVariant}
+          />
 
-            {/*
-              * Hers, above the supplier's. A description written from a feed
-              * title is the feed title with more words, which is why this is
-              * the one field on this screen nothing tries to guess for her.
-              */}
-            <label className={styles.field}>
-              <span className={styles.label}>
-                What would you tell somebody in a shop who picked this up
-              </span>
-              <textarea
-                className={styles.textarea}
-                rows={6}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Two or three sentences. What it is, who it suits, anything the photograph does not show."
-              />
-            </label>
-
-            <div className={styles.split}>
-              <button
-                type="button"
-                className={styles.primary}
-                disabled={busy || description === (product.description ?? '')}
-                onClick={() => run(() => onSaveDescription({ id: product.id, description }))}
-              >
-                Save description
-              </button>
-              <span className={styles.count} data-num>{description.trim().length}</span>
-            </div>
-
-            {product.source_description && (
-              <details className={styles.supplier}>
-                <summary>What the supplier wrote</summary>
-                <p>{product.source_description}</p>
-              </details>
-            )}
-          </section>
+          <DescriptionPanel
+            product={product}
+            busy={busy}
+            run={run}
+            onSave={onSaveDescription}
+            onDraft={onDraft}
+            onDiscardDraft={onDiscardDraft}
+            saved={saved}
+            /* Fills the box in the panel above rather than saving. The title
+               is a separate decision from the description and it keeps its own
+               Save, so nothing is committed by accepting a suggestion. */
+            onUseTitle={setTitle}
+          />
 
           <section className={styles.panel}>
             <h4 className="micro">Where it sits</h4>
@@ -447,12 +618,37 @@ export function ProductRow({
               />
             </label>
 
+            {/* Only when the source actually said. The model returns an empty
+                string rather than counting things in the photograph, so an
+                absent suggestion here means nobody knows, which is a better
+                answer than a list somebody invented. */}
+            {suggested?.in_the_box && suggested.in_the_box !== inTheBox && (
+              <div className={styles.draft}>
+                <p className="micro">The draft suggests</p>
+                <p className={styles.draftBody}>{suggested.in_the_box}</p>
+                <button
+                  type="button"
+                  className={styles.ghost}
+                  disabled={busy}
+                  onClick={() => setInTheBox(suggested.in_the_box)}
+                >
+                  Use this
+                </button>
+              </div>
+            )}
+
             <button
               type="button"
               className={styles.primary}
               disabled={busy}
               onClick={() => run(() => onSaveRecord({
-                id: product.id, specifications: specs, inTheBox,
+                id: product.id,
+                specifications: specs,
+                // The rows hidden from this editor, handed back so the hook can
+                // write them alongside hers. Filtering the display alone would
+                // delete them from her record the first time she pressed Save.
+                keepSpecs: keptSpecs,
+                inTheBox,
               }))}
             >
               Save details
@@ -588,35 +784,11 @@ export function ProductRow({
             </button>
           </section>
 
-          <section className={styles.panel}>
-            <h4 className="micro">On the shop</h4>
-            <dl className={styles.facts}>
-              <div><dt>Status</dt><dd>{live ? 'Live' : 'Draft'}</dd></div>
-              <div><dt>Brand</dt><dd>{product.brand ?? 'Not set'}</dd></div>
-              <div>
-                <dt>Details</dt>
-                <dd data-num>{Object.keys(product.specifications ?? {}).length}</dd>
-              </div>
-              <div><dt>Photographs</dt><dd data-num>{(product.images ?? []).length}</dd></div>
-              <div>
-                <dt>Stock</dt>
-                <dd data-num>
-                  {product.stock === null || product.stock === undefined ? 'Untracked' : product.stock}
-                </dd>
-              </div>
-            </dl>
-
-            {live && (
-              <button
-                type="button"
-                className={styles.ghost}
-                disabled={busy}
-                onClick={() => run(() => onUnpublish([product.id]))}
-              >
-                Take back to draft
-              </button>
-            )}
-          </section>
+          {/* On a draft row this sits last, because the questions it answers
+              are the least urgent ones. On a live row it is rendered first
+              instead, above the fold, since it is the only panel a live
+              product actually needs. */}
+          {!live && onShop}
 
           {failed && <p className={styles.error} role="alert">{failed}</p>}
         </div>

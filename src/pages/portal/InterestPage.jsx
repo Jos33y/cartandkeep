@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useInterest, verdict, ENOUGH } from '@hooks/useInterest';
+import { useInterest, verdict, ENOUGH, CERTAIN } from '@hooks/useInterest';
 import { loadTenant } from '@lib/tenant';
 import { formatGbp } from '@utils/formatGbp';
 import styles from '@styles/pages/portal/interest-page.module.css';
@@ -21,6 +21,23 @@ const FILTERS = [
   { key: 'all', label: 'Every product' },
 ];
 
+/*
+ * Plain names for what the classifier calls a source.
+ *
+ * `referral` is the one worth spelling out. Somebody linked to the shop from a
+ * page of their own, which is the single best thing that can happen to it and
+ * is worth reading as that rather than as a category name.
+ */
+const SOURCE = {
+  google: 'Google',
+  tiktok: 'TikTok',
+  social: 'Instagram and other social',
+  search: 'Other search engines',
+  email: 'Email',
+  referral: 'Somebody linked to you',
+  direct: 'Typed the address in',
+};
+
 const thumb = (url) => (url ? url.replace(/\/s-l\d+\./, '/s-l225.') : null);
 const pct = (n) => (n === null || n === undefined ? null : `${Number(n).toFixed(1)}%`);
 
@@ -31,7 +48,7 @@ export function InterestPage() {
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
   const {
-    status, products, searches, totals, failing, missed, reload,
+    status, products, searches, totals, failing, missed, sources, reload,
   } = useInterest(tenant?.id);
 
   const rows = useMemo(
@@ -82,16 +99,73 @@ export function InterestPage() {
         so a reload counts twice. Search engines are counted too. Last {totals.days || 0} days.
       </p>
 
-      {quiet ? (
-        <div className={styles.empty}>
-          <h2 className={styles.emptyTitle}>Nobody has been yet</h2>
-          <p className={styles.emptyBody}>
-            This fills the hour the shop is public, long before anything sells. Views,
-            saves and what people searched for all arrive first.
-          </p>
-        </div>
-      ) : (
-        <>
+      {/*
+        * Zero is the screen, not a state to hide the screen behind.
+        *
+        * This used to replace everything with a paragraph saying it fills up
+        * later, which told her nothing she could act on. Four zeros and one
+        * line about what moves them is the more useful version: nobody has been
+        * is a finding, and the fix is on the shop front rather than here.
+        */}
+      {quiet && (
+        <p className={styles.nothing}>
+          Nothing yet, and nothing arrives on its own. Visits start when the shop is
+          public and somebody has a reason to look: the address in your TikTok bio,
+          Google finding you, a link you send to somebody.
+        </p>
+      )}
+
+      <>
+          <section className={styles.section}>
+            <div className={styles.sectionHead}>
+              <h2 className="micro">Where people came from</h2>
+            </div>
+
+            {sources.length === 0 ? (
+              <p className={styles.quiet}>
+                <span data-num>0</span> visits from anywhere. Put{' '}
+                <span data-num>cartandkeep.com/?utm_source=tiktok</span> in your TikTok bio and
+                this is where those visits will show up.
+              </p>
+            ) : (
+              <>
+                <div className={styles.table} role="table">
+                  <div className={styles.headRow} role="row">
+                    <span role="columnheader">Source</span>
+                    <span role="columnheader" className={styles.num}>Visits</span>
+                    <span role="columnheader" className={styles.num}>Baskets</span>
+                    <span role="columnheader" className={styles.num}>Orders</span>
+                    <span role="columnheader" className={styles.num}>Taken</span>
+                  </div>
+
+                  {sources.map((s) => (
+                    <div key={s.source} className={styles.sourceRow} role="row">
+                      <span className={styles.sourceName}>{SOURCE[s.source] ?? s.source}</span>
+                      <Cell value={s.visits} />
+                      <Cell value={s.baskets} sub={s.basketRate === null ? null : `${s.basketRate}%`} />
+                      <Cell value={s.orders} sub={s.buyRate === null ? null : `${s.buyRate}%`} />
+                      <Cell value={formatGbp(s.revenue)} />
+                    </div>
+                  ))}
+                </div>
+
+                {/*
+                  * Said because the fix is on her side and costs nothing.
+                  *
+                  * TikTok's browser strips the referrer, so a visit from the
+                  * bio link lands in "typed the address in" unless the link
+                  * carries a tag. Telling her the exact link to use is worth
+                  * more than any amount of explaining why the number is wrong.
+                  */}
+                <p className={styles.caveat}>
+                  TikTok hides where its visitors came from unless the link says so. Use{' '}
+                  <span data-num>cartandkeep.com/?utm_source=tiktok</span> in your bio and those
+                  visits stop counting as somebody typing the address in.
+                </p>
+              </>
+            )}
+          </section>
+
           <section className={styles.section}>
             <div className={styles.sectionHead}>
               <h2 className="micro">Products</h2>
@@ -115,16 +189,17 @@ export function InterestPage() {
 
             {filter === 'worth' && (
               <p className={styles.caveat}>
-                Seen at least <span data-num>{ENOUGH}</span> times and never bought. Below that
-                a verdict would be a guess: if a product were converting normally, no sale in
-                twenty views happens more than a third of the time.
+                Everything that has been looked at and not bought, most looked at first. The
+                wording hardens as the evidence does: past <span data-num>{ENOUGH}</span> views
+                a product that nobody wants is unlikely to be bad luck, and past{' '}
+                <span data-num>{CERTAIN}</span> it is not luck at all.
               </p>
             )}
 
             {rows.length === 0 ? (
               <p className={styles.quiet}>
                 {filter === 'worth'
-                  ? 'Nothing has had enough attention to judge yet.'
+                  ? 'Nothing has been looked at and left. Either nobody has been, or everything that was looked at sold.'
                   : 'No products.'}
               </p>
             ) : (
@@ -178,7 +253,10 @@ export function InterestPage() {
               * does not use for something already on the shelf.
               */}
             {searches.length === 0 ? (
-              <p className={styles.quiet}>Nobody has used the search box yet.</p>
+              <p className={styles.quiet}>
+                <span data-num>0</span> searches. When people start using the box, the words
+                they type and find nothing for are the best list of what to stock next.
+              </p>
             ) : (
               <>
                 {missed.length > 0 && (
@@ -202,8 +280,7 @@ export function InterestPage() {
               </>
             )}
           </section>
-        </>
-      )}
+      </>
     </div>
   );
 }

@@ -69,12 +69,26 @@
   top: 0;
   z-index: 2;
   display: flex;
+  /* Wraps so an error can take a second line rather than crushing the
+     buttons on a phone. */
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--s-3);
   padding: var(--s-3) var(--s-4);
   background: var(--c-raised);
   border: 1px solid var(--c-line);
   border-radius: var(--r-sm);
+}
+
+/* The refusal, in the bar that raised it.
+   Takes the whole second line rather than squeezing in beside the buttons,
+   because it names products and a truncated list of what is wrong is worse
+   than none. The bar wraps to accommodate it. */
+.barError {
+  flex-basis: 100%;
+  font-size: var(--t-caption);
+  line-height: var(--lh-snug);
+  color: var(--c-negative);
 }
 
 .all { display: flex; align-items: center; gap: var(--s-2); min-height: var(--tap); font-size: var(--t-label); cursor: pointer; }
@@ -95,6 +109,26 @@
 
 .primary:hover:not(:disabled) { filter: brightness(0.93); }
 .primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* The quieter sibling of .primary.
+   Terracotta appears at most twice per screen and it marks the action that
+   moves things forward, which on this screen is Take live. Asking for a draft
+   is a step towards that rather than the thing itself, so it takes a border
+   and the ink colour. Same height, because it sits in the same bar and a row
+   of buttons at two heights reads as a mistake. */
+.ghost {
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--c-ink);
+  font-size: var(--t-label);
+  font-weight: 500;
+}
+
+.ghost:hover:not(:disabled) { background: var(--c-sunk); }
+.ghost:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .status { min-height: 1em; font-size: var(--t-caption); color: var(--c-ink-faint); }
 .error { font-size: var(--t-caption); color: var(--c-negative); }

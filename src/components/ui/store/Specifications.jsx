@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ChevronDownIcon } from '@components/ui/store/icons';
+import { visibleSpecs } from '@utils/specs';
 import styles from '@styles/ui/store/specifications.module.css';
 
 /*
@@ -13,23 +14,21 @@ import styles from '@styles/ui/store/specifications.module.css';
  * except that a handful of keys are administrative rather than descriptive and
  * are dropped. Nobody buying a saucepan needs the eBay Product ID.
  */
-const HIDE = new Set([
-  'brand', 'mpn', 'ean', 'upc', 'gtin', 'isbn', 'custom bundle', 'modified item',
-  'country/region of manufacture', 'california prop 65 warning', 'unit quantity',
-  'unit type', 'non-domestic product', 'manufacturer part number', 'item height',
-  'item width', 'item length', 'item weight', 'ebay product id (epid)',
-]);
-
 const CUTOFF = 6;
 
 export function Specifications({ specifications }) {
   const [open, setOpen] = useState(false);
 
-  const rows = Object.entries(specifications ?? {})
-    .filter(([k, v]) => k && v && !HIDE.has(k.trim().toLowerCase()))
-    // A value that is the whole product title is a seller filling a required
-    // field, not a specification.
-    .filter(([, v]) => String(v).length < 120);
+  /*
+   * One list, shared with the portal.
+   *
+   * The blocklist and the mark stripping used to live in this file and again in
+   * the draft function, which is how the portal ended up showing her the eBay
+   * policy ids after the shop had stopped showing them to customers. The 120
+   * character limit is the shop's own: a value that long is a seller filling a
+   * required field with the whole product title.
+   */
+  const rows = visibleSpecs(specifications, { max: 120 });
 
   if (rows.length === 0) return null;
 

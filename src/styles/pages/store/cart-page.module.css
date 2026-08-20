@@ -67,6 +67,12 @@
 }
 
 .lineTitle:hover { color: var(--c-action-text); }
+/* The size, on its own line between the title and the unit price.
+   Not appended to the title, because her feed titles run past seventy
+   characters and the title above is clamped to two lines, so ", King" would be
+   the thing the clamp cut off. */
+.variant { margin-top: 2px; font-size: var(--t-caption); color: var(--c-ink-soft); }
+
 .unit { margin-top: 3px; font-size: var(--t-caption); color: var(--c-faint); }
 
 .lineFoot { margin-top: var(--s-3); display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }

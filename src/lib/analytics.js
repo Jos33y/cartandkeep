@@ -31,6 +31,41 @@ let tenantId = null;
 export const setAnalyticsTenant = (id) => { tenantId = id; };
 
 /*
+ * The campaign tag from the link she shared, read once on arrival.
+ *
+ * The referrer below covers most of it and misses the one channel she already
+ * has an audience on. TikTok's in-app browser strips the referrer, so a visit
+ * from the bio link is indistinguishable from somebody typing the address in.
+ * A tag on that link is the only reliable signal, which makes this the piece
+ * that decides whether TikTok is ever measurable at all.
+ *
+ * Held in a module variable for the same reason the session id is: nothing goes
+ * on the visitor's device, so it lives as long as the tab and dies on reload.
+ * That means it is captured now rather than when the first event fires, because
+ * a client-side navigation rewrites the address bar and the tag would be gone.
+ *
+ * Truncated, because a query string is somebody else's input and an unbounded
+ * one has no business reaching a database column.
+ */
+const CAMPAIGN = (() => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const q = new URLSearchParams(window.location.search);
+    const take = (k) => {
+      const v = q.get(k);
+      return v ? v.trim().slice(0, 80) : null;
+    };
+    return {
+      utm_source: take('utm_source'),
+      utm_medium: take('utm_medium'),
+      utm_campaign: take('utm_campaign'),
+    };
+  } catch {
+    return {};
+  }
+})();
+
+/*
  * A referrer with the host and path and nothing else.
  *
  * Query strings on inbound links routinely carry an email address, a click id
@@ -85,6 +120,7 @@ export function track(event, { productId = null, path = null, meta = {} } = {}) 
     path: path ?? window.location.pathname,
     meta,
     referrer: safeReferrer(),
+    ...CAMPAIGN,
   });
 
   // A basket added to and then a tab closed is the event most worth having, so

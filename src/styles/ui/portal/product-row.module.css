@@ -191,6 +191,66 @@
 
 .hint { font-size: var(--t-caption); color: var(--c-ink-faint); line-height: var(--lh-snug); }
 
+/* Sizes and options.
+   ------------------------------------------------------------------------
+   A ledger, not cards. The same shape as every other list on this screen, so
+   three sizes read as three rows of one product rather than three products. */
+
+.variants { border-top: 1px solid var(--c-line); }
+
+.variant {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  min-height: var(--tap);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--c-line);
+}
+
+.variantLabel { flex: 1; font-size: var(--t-body); font-weight: 500; }
+
+/* Fixed, so prices and counts stack in columns rather than shifting with the
+   length of the name beside them. */
+.variantPrice { flex: 0 0 4.5rem; text-align: right; font-size: var(--t-body); }
+.variantStock { flex: 0 0 5rem; text-align: right; font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+/* A price that comes from the product rather than from this row. Marked rather
+   than repeated, so it is visible that changing the product price changes this
+   one too. */
+.inherited { color: var(--c-ink-faint); font-weight: 400; }
+
+.variantGone {
+  font-size: var(--t-caption);
+  color: var(--c-action-text);
+  white-space: nowrap;
+}
+
+.variant[data-gone] .variantLabel { color: var(--c-ink-faint); font-weight: 400; }
+
+/* The add row.
+   ------------------------------------------------------------------------
+   A grid, not a wrapping flex row. As flex the button wrapped up beside How
+   many and sat between Price and it, because Name and Price filled the first
+   line on their own in a 400px column. A grid puts the button in a named
+   column, so it cannot be reflowed into the middle of the fields no matter how
+   narrow the panel gets.
+
+   Name takes the whole first row because her labels are "Super king" and
+   "2 pack of 30", not "S". Price, count and the button share the second. */
+.variantAdd {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: var(--s-2);
+  align-items: end;
+  margin-top: var(--s-3);
+}
+
+.variantAdd .field:first-child { grid-column: 1 / -1; }
+
+/* Aligned to the boxes beside it rather than to the row, so it sits on the
+   input baseline instead of floating above the labels. */
+.variantAdd .primary { min-height: var(--tap); }
+
 .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--s-3); }
 
 /* The unit sits inside the field, so the border and the focus ring go on the
@@ -285,4 +345,52 @@
 
 @media (prefers-reduced-motion: reduce) {
   .row, .caret { transition: none; }
+}
+
+/* The draft, and the flags above it.
+   ------------------------------------------------------------------------
+   Sunk rather than raised, because a draft is not a fact about the product
+   yet. It sits below her own box and reads as something waiting rather than
+   something recorded. */
+
+.draft {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+  padding: var(--s-3);
+  background: var(--c-sunk);
+  border-radius: var(--r-sm);
+}
+
+.draftBody {
+  font-size: var(--t-body);
+  line-height: var(--lh-snug);
+  color: var(--c-ink);
+}
+
+/* Terracotta as text, not as a fill.
+   The restraint rule allows one action colour per screen and this is not an
+   action. It is the one part of a draft that has to be read before the prose
+   underneath it, so it takes the accent as text and nothing else does. */
+.flags {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  font-size: var(--t-caption);
+  line-height: var(--lh-snug);
+  color: var(--c-action-text);
+}
+
+.flags li {
+  padding-left: var(--s-3);
+  border-left: 2px solid var(--c-action-text);
+}
+
+.draftTitle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--c-line);
 }

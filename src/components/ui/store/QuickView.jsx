@@ -4,6 +4,7 @@ import { Gallery } from '@components/ui/store/Gallery';
 import { DeliveryEstimate } from '@components/ui/store/DeliveryEstimate';
 import { ProductTerms } from '@components/ui/store/ProductTerms';
 import { StockSignal, isBuyable } from '@components/ui/store/StockSignal';
+import { anyBuyable } from '@hooks/useStoreProducts';
 import { ArrowRightIcon, BasketIcon, CloseIcon, PlusIcon } from '@components/ui/store/icons';
 import { useBasket } from '@context/BasketContext';
 import { trackQuickView } from '@lib/analytics';
@@ -79,11 +80,31 @@ export function QuickView({ product, onClose }) {
     ? product.images
     : [product.image_url].filter(Boolean);
 
-  const price = Number(product.price);
-  const saving = product.compare_at != null ? Number(product.compare_at) - price : 0;
+  const hasVariants = product.variants?.length > 0;
+  const buyable = anyBuyable(product);
+
+  // The cheapest when there are variants, because quick view deliberately does
+  // not carry a chooser and a single figure on a range is a figure that is
+  // wrong for at least one size.
+  const from = hasVariants && product.priceFrom !== product.priceTo;
+  const price = hasVariants ? product.priceFrom : Number(product.price);
+  const saving = !hasVariants && product.compare_at != null
+    ? Number(product.compare_at) - price : 0;
   const leaf = leafOf(product.category_path) ?? product.category;
 
   function onAdd() {
+    /*
+     * No chooser here on purpose.
+     *
+     * Quick view is a peek from a grid, and a size chooser inside a modal
+     * inside a grid is three levels of decision in a panel somebody opened to
+     * avoid navigating. A product with variants sends her to the page, which
+     * has the room for it.
+     */
+    // Handled by the button becoming a link instead, so this is unreachable.
+    // Left as a guard rather than removed, because `onAdd` is also wired to the
+    // Enter key on the quantity control.
+    if (hasVariants) return;
     add(product, qty);
     setAdded(true);
     setTimeout(() => setAdded(false), 1600);
@@ -115,6 +136,7 @@ export function QuickView({ product, onClose }) {
             <div className={styles.stockRow}><StockSignal product={product} /></div>
 
             <p className={styles.priceRow}>
+              {from && <span className={styles.from}>from</span>}
               <span className={styles.price} data-price>{formatGbp(price)}</span>
               {saving > 0 && (
                 <>
@@ -130,18 +152,34 @@ export function QuickView({ product, onClose }) {
                 <span data-price aria-label={`Quantity ${qty}`}>{qty}</span>
                 <button type="button" onClick={() => setQty((n) => Math.min(20, n + 1))} aria-label="One more">+</button>
               </div>
-              <button
-                type="button"
-                className={styles.addBtn}
-                onClick={onAdd}
-                data-added={added || undefined}
-                disabled={!isBuyable(product)}
-              >
-                {added ? <BasketIcon size={17} /> : <PlusIcon size={17} />}
-                <span aria-live="polite">
-                  {!isBuyable(product) ? 'Out of stock' : added ? 'Added to basket' : 'Add to basket'}
-                </span>
-              </button>
+              {hasVariants ? (
+                /* A link, not a dead button. It said "Choose a size" and did
+                   nothing when pressed, which is worse than a disabled control
+                   because it looks like it should work. */
+                <Link
+                  className={styles.addBtn}
+                  to={STORE_ROUTES.PRODUCT.replace(':slug', product.slug)}
+                  onClick={onClose}
+                >
+                  <PlusIcon size={18} />
+                  <span>Choose a size</span>
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.addBtn}
+                  onClick={onAdd}
+                  data-added={added || undefined}
+                  disabled={!buyable}
+                >
+                  {added ? <BasketIcon size={17} /> : <PlusIcon size={17} />}
+                  <span aria-live="polite">
+                    {!buyable ? 'Out of stock'
+                      : hasVariants ? 'Choose a size'
+                        : added ? 'Added to basket' : 'Add to basket'}
+                  </span>
+                </button>
+              )}
             </div>
 
             <DeliveryEstimate product={product} compact />

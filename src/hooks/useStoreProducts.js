@@ -17,6 +17,54 @@ import { supabase } from '@lib/supabase';
  */
 const SHOW_DRAFTS = import.meta.env.VITE_STORE_SHOW_DRAFTS === 'true';
 
+/*
+ * A product, with its variants sorted and its price range worked out once.
+ *
+ * Done here so a card, a quick view and a product page cannot disagree about
+ * what "from £24.99" means. A product with no variants comes back with an empty
+ * array and a range of its own price, so every consumer reads the same shape
+ * whether or not the product has any.
+ */
+function withVariants(row) {
+  const { store_variants: raw, ...product } = row;
+
+  const variants = [...(raw ?? [])].sort((a, b) => {
+    // Nulls last. A variant she has not ordered goes after the ones she has,
+    // rather than first, which is what a plain numeric sort would do.
+    const ap = a.position ?? Number.MAX_SAFE_INTEGER;
+    const bp = b.position ?? Number.MAX_SAFE_INTEGER;
+    return ap === bp ? String(a.label).localeCompare(String(b.label)) : ap - bp;
+  });
+
+  // Null price on a variant means the product price applies, so the range is
+  // computed after that fallback rather than over the raw column.
+  const prices = variants.length
+    ? variants.map((v) => Number(v.price ?? product.price))
+    : [Number(product.price)];
+
+  return {
+    ...product,
+    variants,
+    priceFrom: Math.min(...prices),
+    priceTo: Math.max(...prices),
+  };
+}
+
+/*
+ * Whether a variant can be bought, and whether the product can be.
+ *
+ * A product with variants is buyable when any one of them is, because the
+ * chooser will refuse the rest. Without that, a bed sheet with one size gone
+ * would read as out of stock entirely.
+ */
+export const variantBuyable = (v) =>
+  v.availability !== 'out_of_stock' && v.availability !== 'discontinued';
+
+export const anyBuyable = (product) => (product.variants?.length
+  ? product.variants.some(variantBuyable)
+  : (product.availability ?? 'in_stock') !== 'out_of_stock'
+    && (product.availability ?? 'in_stock') !== 'discontinued');
+
 export function useStoreProducts(tenantId, { includeDrafts = SHOW_DRAFTS } = {}) {
   const [state, setState] = useState({ status: 'loading', rows: [], error: null });
 
@@ -38,6 +86,18 @@ export function useStoreProducts(tenantId, { includeDrafts = SHOW_DRAFTS } = {})
     let live = true;
 
     (async () => {
+      /*
+       * Variants come with the product rather than as a second query.
+       *
+       * The grid needs them to show "from" on a card and the product page needs
+       * them to render a chooser. Two reads would mean a page that paints one
+       * price and then reflows into a range, which reads as a shop that changed
+       * its mind.
+       *
+       * The embed is written on one line because the select is a string
+       * PostgREST parses, and a block comment inside it is sent to the server
+       * as part of the query. That cost a parse error the first time.
+       */
       let query = supabase
         .from('store_products')
         // Written out rather than select('*') so adding a column to the table
@@ -55,7 +115,8 @@ export function useStoreProducts(tenantId, { includeDrafts = SHOW_DRAFTS } = {})
           in_the_box, gtin, availability, stock, dispatch_days,
           returns_class, returns_note,
           hazard, safety_data_sheet_url, energy_class, energy_label_url,
-          compare_at_from, sale_ends
+          compare_at_from, sale_ends,
+          store_variants ( id, label, price, stock, availability, sku, gtin, image_url, position )
         `)
         .eq('tenant_id', tenantId);
 
@@ -70,7 +131,7 @@ export function useStoreProducts(tenantId, { includeDrafts = SHOW_DRAFTS } = {})
 
       if (!live) return;
       if (error) return setState({ status: 'error', rows: [], error });
-      setState({ status: 'ready', rows: data ?? [], error: null });
+      setState({ status: 'ready', rows: (data ?? []).map(withVariants), error: null });
     })();
 
     return () => { live = false; };

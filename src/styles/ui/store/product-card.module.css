@@ -188,6 +188,12 @@
   gap: var(--s-2);
 }
 
+/* The prefix on a price that is a range.
+   Not a number, so it stays in the interface face rather than borrowing the
+   display one, and it needs no spacing of its own: .priceRow is already a
+   baseline flex row with a gap. */
+.from { font-size: var(--t-caption); font-weight: 400; color: var(--c-faint); }
+
 /* The face and the tabular figures come from [data-price] in store-tokens.css.
    Only the size lives here. */
 .price {

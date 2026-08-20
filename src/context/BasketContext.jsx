@@ -16,8 +16,26 @@ import { trackAdd, trackRemove } from '@lib/analytics';
  * bad connection.
  */
 
-const KEY = 'ck.basket.v1';
+/*
+ * v2, because the line shape changed.
+ *
+ * A v1 line has no `key` and no variant, so a basket saved before variants
+ * existed would merge a size 5 and a size 6 into one line of two the first time
+ * somebody added both. Bumping the key drops those baskets rather than silently
+ * mis-reading them, which is the safer of the two failures: an empty basket is
+ * visible and a wrong one is not.
+ */
+const KEY = 'ck.basket.v2';
 const BasketContext = createContext(null);
+
+/*
+ * What makes a line a line.
+ *
+ * Two sizes of one bed sheet are two lines, not one of two. This used to match
+ * on `product.id` alone, so the second size would have folded into the first
+ * and the buyer would have received two of whichever went in first.
+ */
+const lineKey = (productId, variantId) => (variantId ? `${productId}:${variantId}` : productId);
 
 function read() {
   if (typeof window === 'undefined') return [];
@@ -27,7 +45,10 @@ function read() {
     // Anything could be in storage: an older shape, a hand edit, a half
     // written value from a killed tab. Only rows that still make sense survive.
     return Array.isArray(parsed)
-      ? parsed.filter((l) => l && typeof l.id === 'string' && Number.isFinite(l.qty) && l.qty > 0)
+      ? parsed.filter((l) => l
+        && typeof l.id === 'string'
+        && typeof l.key === 'string'
+        && Number.isFinite(l.qty) && l.qty > 0)
       : [];
   } catch {
     return [];
@@ -65,41 +86,62 @@ export function BasketProvider({ children }) {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  const add = useCallback((product, qty = 1) => {
-    // Here rather than at every call site. There are five buttons that add to
-    // a basket and one of them would eventually be missed.
+  /*
+   * `variant` is the chosen row, or null for a product that has none.
+   *
+   * Its price and photograph win where it has them, and fall back to the
+   * product's where it does not. A variant that costs the same as its product
+   * carries a null price on purpose, so changing the product price changes all
+   * of them rather than all but the ones somebody typed twice.
+   */
+  const add = useCallback((product, qty = 1, variant = null) => {
+    const key = lineKey(product.id, variant?.id);
+
+    // Here rather than at every call site. There are five buttons that add to a
+    // basket and one of them would eventually be missed.
     trackAdd(product, qty);
-    setLastAdded({ id: product.id, title: product.title, qty, at: Date.now() });
+    setLastAdded({
+      id: product.id,
+      title: variant ? `${product.title}, ${variant.label}` : product.title,
+      qty,
+      at: Date.now(),
+    });
+
     setLines((current) => {
-      const found = current.find((l) => l.id === product.id);
+      const found = current.find((l) => l.key === key);
       if (found) {
-        return current.map((l) => (l.id === product.id ? { ...l, qty: l.qty + qty } : l));
+        return current.map((l) => (l.key === key ? { ...l, qty: l.qty + qty } : l));
       }
       // A snapshot, not a reference. If she changes a price or takes a product
       // down, the basket keeps what was shown when it went in, and checkout
       // reconciles against the live row rather than the header guessing.
       return [...current, {
+        key,
         id: product.id,
+        variantId: variant?.id ?? null,
+        variantLabel: variant?.label ?? null,
         slug: product.slug,
         title: product.title,
-        price: Number(product.price),
-        image_url: product.image_url ?? null,
+        price: Number(variant?.price ?? product.price),
+        image_url: variant?.image_url ?? product.image_url ?? null,
         qty,
       }];
     });
   }, []);
 
-  const setQty = useCallback((id, qty) => {
+  // Keyed by the line rather than the product, or changing the quantity of one
+  // size would change it on every size of the same thing.
+  const setQty = useCallback((key, qty) => {
     setLines((current) =>
       qty <= 0
-        ? current.filter((l) => l.id !== id)
-        : current.map((l) => (l.id === id ? { ...l, qty } : l)));
+        ? current.filter((l) => l.key !== key)
+        : current.map((l) => (l.key === key ? { ...l, qty } : l)));
   }, []);
 
-  const remove = useCallback((id) => setLines((current) => {
-    const line = current.find((l) => l.id === id);
+  const remove = useCallback((key) => setLines((current) => {
+    const line = current.find((l) => l.key === key);
     if (line) trackRemove(line);
-    return current.filter((l) => l.id !== id);
+    return current.filter((l) => l.key !== key);
   }), []);
   const clear = useCallback(() => setLines([]), []);
 

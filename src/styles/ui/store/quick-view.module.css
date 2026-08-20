@@ -69,6 +69,10 @@
 .stockRow { margin-top: var(--s-3); }
 
 .priceRow { margin-top: var(--s-3); display: flex; align-items: baseline; gap: var(--s-3); flex-wrap: wrap; }
+/* The prefix on a price that is a range. Quick view carries no chooser, so on
+   a product with variants this is always shown rather than sometimes. */
+.from { font-size: var(--t-caption); font-weight: 400; color: var(--c-faint); }
+
 .price { font-size: 1.625rem; }
 .was { font-size: var(--t-body); color: var(--c-faint); text-decoration: line-through; }
 

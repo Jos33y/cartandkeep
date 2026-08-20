@@ -4,6 +4,8 @@ import { Gallery } from '@components/ui/store/Gallery';
 import { DeliveryEstimate } from '@components/ui/store/DeliveryEstimate';
 import { ProductTerms } from '@components/ui/store/ProductTerms';
 import { StockSignal, isBuyable } from '@components/ui/store/StockSignal';
+import { VariantChoice } from '@components/ui/store/VariantChoice';
+import { anyBuyable } from '@hooks/useStoreProducts';
 import { Specifications } from '@components/ui/store/Specifications';
 import { SupplierText } from '@components/ui/store/SupplierText';
 import { Shelf } from '@components/ui/store/Shelf';
@@ -38,10 +40,33 @@ export function ProductPage() {
 
   const [added, setAdded] = useState(false);
   const [qty, setQty] = useState(1);
+
+  /*
+   * The chosen variant, cleared when the product changes.
+   *
+   * Without the reset, walking from a bed sheet to a duvet cover through a
+   * related products link keeps the previous product's variant selected, and
+   * the Add button then adds a size that belongs to something else. The router
+   * reuses this component across those two routes, so nothing else unmounts it.
+   */
+  const [chosen, setChosen] = useState(null);
   const buyRef = useRef(null);
   const [stuck, setStuck] = useState(false);
 
   const product = useMemo(() => rows.find((p) => p.slug === slug), [rows, slug]);
+
+  /*
+   * Cleared when the product changes.
+   *
+   * Walking from a bed sheet to a duvet cover through a related products link
+   * reuses this component, so without the reset the previous product's variant
+   * stays selected and the Add button adds a size belonging to something else.
+   *
+   * Declared after `product` rather than beside the other state, because a
+   * dependency on `product?.id` above the line that defines it is a temporal
+   * dead zone crash on every product page rather than a subtle bug.
+   */
+  useEffect(() => { setChosen(null); }, [product?.id]);
 
   // The sticky bar appears when the real button leaves the viewport, not on a
   // scroll distance. Tied to the button, it is never on screen at the same
@@ -99,13 +124,32 @@ export function ProductPage() {
     ? product.images
     : [product.image_url].filter(Boolean);
 
-  const price = Number(product.price);
-  const saving = product.compare_at != null ? Number(product.compare_at) - price : 0;
+  /*
+   * The chosen variant's price, or the product's when there is none.
+   *
+   * A product with variants shows the cheapest until one is picked, prefixed
+   * with "from", because a shop that shows £24.99 and charges £29.99 at the
+   * basket has misled somebody even if every figure was true at the time.
+   */
+  const hasVariants = product.variants?.length > 0;
+  const price = Number(chosen?.price ?? (hasVariants ? product.priceFrom : product.price));
+  const showFrom = hasVariants && !chosen && product.priceFrom !== product.priceTo;
+
+  // A compare at price on a product with variants would need one per variant to
+  // mean anything, so it is not shown on those until it does.
+  const saving = !hasVariants && product.compare_at != null
+    ? Number(product.compare_at) - price : 0;
+
+  const buyable = anyBuyable(product);
+  const ready = hasVariants ? Boolean(chosen) : buyable;
   const department = topOf(product.category_path);
   const leaf = leafOf(product.category_path) ?? product.category;
 
   function onAdd() {
-    add(product, qty);
+    // Refused rather than defaulted. Picking a size for somebody is how a shop
+    // posts the wrong one.
+    if (hasVariants && !chosen) return;
+    add(product, qty, chosen);
     setAdded(true);
     setTimeout(() => setAdded(false), 1600);
   }
@@ -142,6 +186,7 @@ export function ProductPage() {
             </div>
 
             <p className={styles.priceRow}>
+              {showFrom && <span className={styles.from}>from</span>}
               <span className={styles.price} data-price>{formatGbp(price)}</span>
               {saving > 0 && (
                 <>
@@ -150,6 +195,8 @@ export function ProductPage() {
                 </>
               )}
             </p>
+
+            <VariantChoice product={product} chosen={chosen} onChoose={setChosen} />
 
             {/* The date sits above the button, not below it. It is an input to
                 the decision, and everything below the button is read after
@@ -177,11 +224,13 @@ export function ProductPage() {
                 className={styles.addBtn}
                 onClick={onAdd}
                 data-added={added || undefined}
-                disabled={!isBuyable(product)}
+                disabled={!ready}
               >
                 {added ? <BasketIcon size={18} /> : <PlusIcon size={18} />}
                 <span aria-live="polite">
-                  {!isBuyable(product) ? 'Out of stock' : added ? 'Added to basket' : 'Add to basket'}
+                  {!buyable ? 'Out of stock'
+                    : hasVariants && !chosen ? 'Choose one first'
+                      : added ? 'Added to basket' : 'Add to basket'}
                 </span>
               </button>
             </div>
@@ -228,7 +277,9 @@ export function ProductPage() {
             tabIndex={stuck ? 0 : -1}
             disabled={!isBuyable(product)}
           >
-            {!isBuyable(product) ? 'Out of stock' : added ? 'Added' : 'Add to basket'}
+            {!buyable ? 'Out of stock'
+              : hasVariants && !chosen ? 'Choose one first'
+                : added ? 'Added' : 'Add to basket'}
           </button>
         </div>
       </div>

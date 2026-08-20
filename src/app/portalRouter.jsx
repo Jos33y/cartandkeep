@@ -11,6 +11,7 @@ import { PORTAL_ROUTES } from '@utils/constants';
 // visited rarely, so they are split out of the first paint.
 const ApprovedPage = lazy(() => import('@pages/portal/ApprovedPage').then((m) => ({ default: m.ApprovedPage })));
 const ListingsPage = lazy(() => import('@pages/portal/ListingsPage').then((m) => ({ default: m.ListingsPage })));
+const ShopPage = lazy(() => import('@pages/portal/ShopPage').then((m) => ({ default: m.ShopPage })));
 const ProductsPage = lazy(() => import('@pages/portal/ProductsPage').then((m) => ({ default: m.ProductsPage })));
 const InterestPage = lazy(() => import('@pages/portal/InterestPage').then((m) => ({ default: m.InterestPage })));
 const BeingFoundPage = lazy(() => import('@pages/portal/BeingFoundPage').then((m) => ({ default: m.BeingFoundPage })));
@@ -34,6 +35,7 @@ export const portalRouter = createBrowserRouter([
       { path: 'candidates', element: <CandidatesPage /> },
       { path: 'approved', element: deferred(<ApprovedPage />) },
       { path: 'listings', element: deferred(<ListingsPage />) },
+      { path: 'shop', element: deferred(<ShopPage />) },
       { path: 'products', element: deferred(<ProductsPage />) },
       { path: 'interest', element: deferred(<InterestPage />) },
       { path: 'being-found', element: deferred(<BeingFoundPage />) },

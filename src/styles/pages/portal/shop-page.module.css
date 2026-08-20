@@ -1,0 +1,289 @@
+/* The shop dashboard.
+   ------------------------------------------------------------------------
+   Two columns, because one column of full width rows on a wide screen puts
+   eight hundred pixels of nothing after every line. The work is the left rail
+   since it is the job; state and money are a narrower right column.
+
+   Panels are tinted rather than white on white. Her palette carries a sage
+   wash, a terracotta wash and a warm sand that were not being used anywhere,
+   which is why the first version read grey. */
+
+.page { display: flex; flex-direction: column; gap: var(--s-5); max-width: 1180px; }
+
+/* --- header -------------------------------------------------------------- */
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-6);
+  padding-bottom: var(--s-4);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.eyebrow {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.hero { display: flex; align-items: baseline; gap: var(--s-3); margin-top: var(--s-2); }
+
+/* The one number top left, which is where the eye lands first and so is where
+   the thing she most needs belongs. */
+.heroNum { font-size: var(--t-display); letter-spacing: -0.04em; line-height: 1; font-weight: 500; }
+.heroWords { font-size: var(--t-lead); color: var(--c-ink-soft); }
+
+.bar { display: flex; gap: 2px; height: 5px; width: min(290px, 100%); margin-top: var(--s-3); }
+.segLive { background: var(--c-brand-strong); }
+.segReady { background: var(--c-line-mid); }
+.segBlocked { background: var(--c-action-strong); }
+
+.takings { text-align: right; flex-shrink: 0; }
+.takingsNum { font-size: 1.875rem; letter-spacing: -0.035em; line-height: 1; margin-top: var(--s-1); font-weight: 500; }
+
+.compare {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: var(--s-2);
+  font-size: var(--t-caption);
+}
+.up { color: var(--c-positive); }
+.down { color: var(--c-action-text); }
+.compareBase { color: var(--c-ink-faint); }
+
+/* --- the live strip ------------------------------------------------------ */
+
+.strip { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.tiles { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+.tile {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-sm);
+  object-fit: cover;
+  background: var(--c-sunk);
+  border: 1px solid var(--c-line);
+  display: block;
+}
+
+.tileEmpty { background: var(--c-sunk); }
+
+/* The count of what could join them, and the way to do it. An empty run of
+   tiles is still an invitation rather than a gap. */
+.tileMore {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-sm);
+  border: 1px dashed var(--c-line-mid);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+  background: var(--c-sunk);
+}
+.tileMoreWord { font-size: 0.625rem; color: var(--c-ink-faint); }
+
+/* --- body ---------------------------------------------------------------- */
+
+.body { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: var(--s-5); }
+
+@media (max-width: 900px) {
+  .body { grid-template-columns: minmax(0, 1fr); }
+  .head { flex-direction: column; gap: var(--s-4); }
+  .takings { text-align: left; }
+  .compare { align-items: flex-start; }
+}
+
+.panelHead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
+.panelNote { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.work { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.jobs {
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-raised);
+  overflow: hidden;
+}
+
+/* --- a row of work ------------------------------------------------------- */
+
+.job {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-bottom: 1px solid var(--c-line);
+  /* The rail carries severity. Three distinct treatments rather than three
+     shades of one, because an alert list where everything looks the same is an
+     alert list that stops being read. */
+  border-left: 3px solid transparent;
+}
+
+.job:last-child { border-bottom: 0; }
+
+.railBlock { border-left-color: var(--c-action-strong); }
+.railWork { border-left-color: var(--c-line-mid); }
+.railQuiet { border-left-color: var(--c-line); color: var(--c-ink-soft); }
+
+/* Fixed width, so the numbers stack in a column and the words start at the
+   same place on every row. A ledger whose left edge wanders is one the eye has
+   to re-find on every line. */
+.count {
+  flex: 0 0 1.75rem;
+  text-align: right;
+  font-size: var(--t-figure);
+  letter-spacing: -0.02em;
+  font-weight: 500;
+}
+
+/* Overlapped, so three tiles cost the width of two. The basis is fixed at the
+   width three overlapped tiles occupy, so a row with none keeps the column and
+   every label on the screen starts at the same x. */
+.thumbs { display: flex; flex: 0 0 62px; }
+.thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  object-fit: cover;
+  background: var(--c-sunk);
+  border: 2px solid var(--c-raised);
+  display: block;
+}
+.thumbs .thumb + .thumb { margin-left: -10px; }
+
+.jobText { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.jobLabel { font-size: var(--t-lead); font-weight: 500; letter-spacing: -0.01em; }
+.jobImpact {
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+  line-height: var(--lh-snug);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clear { font-size: var(--t-body); color: var(--c-ink-soft); padding: var(--s-4) 0; }
+
+/* --- buttons ------------------------------------------------------------- */
+
+.ghost,
+.primary {
+  min-height: 32px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-sm);
+  font-size: var(--t-label);
+  font-weight: 500;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ghost { border: 1px solid var(--c-line-mid); background: transparent; color: var(--c-ink); }
+.ghost:hover { background: var(--c-sunk); }
+
+/* The one accent on the page. It marks the only row that can be cleared from
+   here rather than navigated to. */
+.primary { border: 1px solid var(--c-action-strong); background: var(--c-action-strong); color: #fff; }
+.primary:hover { filter: brightness(0.93); }
+
+.tiny {
+  font-size: var(--t-caption);
+  padding: 2px var(--s-2);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  color: var(--c-ink-soft);
+}
+.tiny:hover { background: var(--c-surface); }
+
+/* --- side panels --------------------------------------------------------- */
+
+/* Stretches to the ledger beside it, so the page does not end in a large empty
+   rectangle under the last panel. The last panel takes the slack rather than
+   the gap growing, because evenly spaced panels floating in a tall column read
+   as a layout that failed. */
+.side { display: flex; flex-direction: column; gap: var(--s-4); align-self: stretch; }
+
+.panelFill { flex: 1; }
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--c-line);
+}
+
+.panelBrand { background: var(--c-brand-wash); border-color: var(--c-brand-mid); }
+.panelSand { background: var(--c-sunk); border-color: var(--c-line); }
+.panelAlert { background: var(--c-action-wash); border-color: var(--c-action-strong); }
+
+/* --- the funnel ---------------------------------------------------------- */
+
+.step { display: flex; flex-direction: column; gap: 2px; }
+.stepRow { display: flex; align-items: center; gap: var(--s-2); }
+.stepLabel { flex: 0 0 3.25rem; font-size: var(--t-caption); color: var(--c-ink-soft); }
+
+/* Every bar is measured against the top of the funnel, so they are comparable
+   to each other rather than each filling its own row. */
+.stepBar { height: 16px; border-radius: 2px; background: var(--c-brand-strong); }
+.stepBarBuy { height: 16px; border-radius: 2px; background: var(--c-action-strong); }
+.stepCount { margin-left: auto; font-size: var(--t-caption); font-weight: 500; }
+
+.drop { margin-left: 3.75rem; font-size: 0.625rem; color: var(--c-ink-faint); }
+
+/* The signal that sits beside the funnel rather than inside it. */
+.aside {
+  margin-top: var(--s-2);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--c-brand-mid);
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+}
+/* The basket drop is the one worth noticing: they wanted it enough to put it
+   in and then took it out again. */
+.dropLoud { margin-left: 3.75rem; font-size: 0.625rem; color: var(--c-action-text); }
+
+/* --- channels ------------------------------------------------------------ */
+
+.channels { display: flex; flex-direction: column; align-self: flex-start; width: 100%; }
+.channel {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--c-line);
+}
+.channel:last-child { border-bottom: 0; }
+.channelName { flex: 1; font-size: var(--t-body); }
+.channelQuiet { flex: 1; font-size: var(--t-body); color: var(--c-ink-soft); }
+.channelValue { font-size: var(--t-body); font-weight: 500; }
+
+/* --- the alert ----------------------------------------------------------- */
+
+.alertHead {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-body);
+  font-weight: 500;
+  color: var(--c-action-text);
+}
+.alertIcon { width: 17px; height: 17px; flex-shrink: 0; }
+.alertBody { font-size: var(--t-caption); color: var(--c-action-text); line-height: var(--lh-snug); }
+.panelAlert .ghost { align-self: flex-start; border-color: var(--c-action-strong); color: var(--c-action-text); }
+
+/* --- failure ------------------------------------------------------------- */
+
+.emptyTitle { font-size: var(--t-figure); letter-spacing: -0.02em; margin-bottom: var(--s-3); }
+.emptyBody { color: var(--c-ink-soft); line-height: var(--lh-body); max-width: 46ch; }

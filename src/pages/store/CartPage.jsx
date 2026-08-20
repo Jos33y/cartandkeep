@@ -64,8 +64,16 @@ export function CartPage() {
         <ul className={styles.lines}>
           {lines.map((line) => {
             const image = imageAt(line.image_url, 300);
+            /*
+             * The variant is part of the name everywhere, including in the
+             * labels a screen reader announces. "Remove Bed Sheet" on a basket
+             * holding two sizes of it does not say which one goes.
+             */
+            const name = line.variantLabel ? `${line.title}, ${line.variantLabel}` : line.title;
             return (
-              <li className={styles.line} key={line.id}>
+              // Keyed on the line, not the product. Two sizes of one thing are
+              // two rows, and a duplicate React key would make them share state.
+              <li className={styles.line} key={line.key}>
                 <Link className={styles.thumb} to={STORE_ROUTES.PRODUCT.replace(':slug', line.slug)}>
                   {image
                     ? <img src={image} alt="" loading="lazy" />
@@ -76,23 +84,29 @@ export function CartPage() {
                   <Link className={styles.lineTitle} to={STORE_ROUTES.PRODUCT.replace(':slug', line.slug)}>
                     {line.title}
                   </Link>
+                  {/* Under the title rather than joined to it, so a long feed
+                      title does not push the size onto a line of its own where
+                      it reads as a separate product. */}
+                  {line.variantLabel && (
+                    <p className={styles.variant}>{line.variantLabel}</p>
+                  )}
                   <p className={styles.unit} data-price>{formatGbp(line.price)} each</p>
 
                   <div className={styles.lineFoot}>
                     <div className={styles.qty}>
                       <button
                         type="button"
-                        onClick={() => setQty(line.id, line.qty - 1)}
-                        aria-label={line.qty === 1 ? `Remove ${line.title}` : `One fewer ${line.title}`}
+                        onClick={() => setQty(line.key, line.qty - 1)}
+                        aria-label={line.qty === 1 ? `Remove ${name}` : `One fewer ${name}`}
                       >
                         <MinusIcon size={15} />
                       </button>
                       <span data-price aria-live="polite">{line.qty}</span>
                       <button
                         type="button"
-                        onClick={() => setQty(line.id, Math.min(MAX_QTY, line.qty + 1))}
+                        onClick={() => setQty(line.key, Math.min(MAX_QTY, line.qty + 1))}
                         disabled={line.qty >= MAX_QTY}
-                        aria-label={`One more ${line.title}`}
+                        aria-label={`One more ${name}`}
                       >
                         <PlusIcon size={15} />
                       </button>
@@ -101,8 +115,8 @@ export function CartPage() {
                     <button
                       type="button"
                       className={styles.remove}
-                      onClick={() => remove(line.id)}
-                      aria-label={`Remove ${line.title} from your basket`}
+                      onClick={() => remove(line.key)}
+                      aria-label={`Remove ${name} from your basket`}
                     >
                       <CloseIcon size={15} /> Remove
                     </button>

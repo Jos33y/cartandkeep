@@ -29,6 +29,14 @@
   max-width: 68ch;
 }
 
+/* Said above the zeros rather than instead of them. */
+.nothing {
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  color: var(--c-ink-soft);
+  max-width: 62ch;
+}
+
 .section { display: flex; flex-direction: column; gap: var(--s-3); }
 
 .sectionHead {
@@ -92,6 +100,21 @@
 .row:hover { background: var(--c-raised); }
 
 .num { text-align: right; }
+
+/* Five columns rather than the seven a product row needs, so the source table
+   reuses the head row and sets its own grid. */
+.sourceRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(4, minmax(4.5rem, 5.5rem));
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--c-line);
+  transition: background var(--dur) var(--ease);
+}
+
+.sourceRow:hover { background: var(--c-raised); }
+.sourceName { font-size: var(--t-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .product { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
 
@@ -187,6 +210,8 @@
 @media (max-width: 900px) {
   .headRow,
   .row { grid-template-columns: minmax(0, 1fr) repeat(3, minmax(3.5rem, 4.5rem)); }
+  .sourceRow { grid-template-columns: minmax(0, 1fr) repeat(3, minmax(3.5rem, 4.5rem)); }
+  .sourceRow > :nth-child(5) { display: none; }
   .headRow > :nth-child(3),
   .headRow > :nth-child(5),
   .headRow > :nth-child(7),
@@ -202,5 +227,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .row, .chip { transition: none; }
+  .row, .sourceRow, .chip { transition: none; }
 }

@@ -126,6 +126,18 @@ const IconSearch = (p) => (
   </svg>
 );
 
+// A gauge, for the shop's own dashboard. Reusing IconGrid would have put the
+// same mark on Overview and on Dashboard, which the IconShop comment above
+// already warns against and which I did anyway. A dial reads as a state of
+// affairs rather than as a set of things, which is what that screen is.
+const IconGauge = (p) => (
+  <svg {...base} {...p}>
+    <path d="M3.25 15.25a8.5 8.5 0 1 1 13.5 0" />
+    <path d="M10 11.25l3.75-3.75" />
+    <circle cx="10" cy="12" r="1.25" />
+  </svg>
+);
+
 const IconMap = (p) => (
   <svg {...base} {...p}>
     <path d="M2.75 5.4l4.75-2.15 5 2.15 4.75-2.15v11.5l-4.75 2.15-5-2.15-4.75 2.15z" />
@@ -135,6 +147,7 @@ const IconMap = (p) => (
 
 export const ICONS = {
   IconGrid,
+  IconGauge,
   IconLayers,
   IconCheck,
   IconTag,

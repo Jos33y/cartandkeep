@@ -1,0 +1,128 @@
+/* Same hairlines and surfaces as every other panel. No card, no shadow: a rule
+   and a step of surface does the work and a card would be the thing to take off
+   before shipping. */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-5);
+  background: var(--c-raised);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  max-width: 46rem;
+}
+
+.body { font-size: var(--t-body); color: var(--c-ink-soft); line-height: var(--lh-snug); max-width: 60ch; }
+
+.pick { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+
+.chip {
+  min-height: 36px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-control);
+  border-radius: var(--r-full);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+}
+
+.chipOn { background: var(--c-ink); border-color: var(--c-ink); color: var(--c-base); }
+.chip:hover:not(.chipOn) { background: var(--c-sunk); }
+
+.where { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.choose {
+  align-self: flex-start;
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border: 1px dashed var(--c-control);
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--c-ink);
+  font-size: var(--t-label);
+  font-weight: 500;
+}
+
+.choose:hover:not(:disabled) { background: var(--c-sunk); }
+.choose:disabled { opacity: 0.6; cursor: progress; }
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--c-line);
+}
+
+.previewTitle { font-size: var(--t-lead); font-weight: 500; letter-spacing: -0.01em; }
+
+.figures { display: flex; gap: var(--s-6); flex-wrap: wrap; }
+.figure { display: flex; flex-direction: column; gap: var(--s-1); }
+.bad { color: var(--c-negative); }
+
+.range { font-size: var(--t-caption); color: var(--c-ink-soft); }
+
+/* Warning rather than error. Nothing has gone wrong, and something needs
+   deciding before it does. */
+.warn {
+  padding: var(--s-3);
+  background: var(--c-brand-wash);
+  border-left: 2px solid var(--c-warning);
+  font-size: var(--t-body);
+  line-height: var(--lh-snug);
+}
+
+.note { font-size: var(--t-caption); color: var(--c-ink-soft); }
+
+.lines { display: flex; flex-direction: column; border-top: 1px solid var(--c-line); }
+
+.line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3rem 5rem 5.5rem;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--c-line);
+  font-size: var(--t-caption);
+}
+
+.lineTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lineQty { text-align: right; color: var(--c-ink-faint); }
+.ok { color: var(--c-positive); }
+.miss { color: var(--c-ink-faint); }
+
+.actions { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+
+.primary {
+  min-height: var(--tap);
+  padding: 0 var(--s-5);
+  border-radius: var(--r-sm);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-label);
+  font-weight: 500;
+}
+
+.primary:hover:not(:disabled) { filter: brightness(0.93); }
+.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ghost {
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-control);
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--c-ink-soft);
+  font-size: var(--t-label);
+}
+
+.ghost:hover:not(:disabled) { background: var(--c-sunk); }
+
+.failed { font-size: var(--t-caption); color: var(--c-negative); line-height: var(--lh-snug); }
+.done { font-size: var(--t-caption); color: var(--c-positive); line-height: var(--lh-snug); }
+
+@media (max-width: 560px) {
+  .line { grid-template-columns: minmax(0, 1fr) 2.5rem 4.5rem; }
+  .line > :nth-child(4) { display: none; }
+  .figures { gap: var(--s-5); }
+}
