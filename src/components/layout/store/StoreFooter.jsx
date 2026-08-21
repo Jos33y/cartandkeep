@@ -4,6 +4,7 @@ import { LogoMark } from '@components/ui/shared/Logo';
 import { InstagramIcon, MailIcon, TiktokIcon } from '@components/ui/store/icons';
 import { LEGAL_COLUMN } from '@data/legal';
 import { STORE_ROUTES } from '@utils/constants';
+import { Subscribe } from '@components/ui/store/Subscribe';
 import styles from '@styles/layout/store/store-footer.module.css';
 
 // From @data/legal rather than @utils/constants, so a slug with no page behind
@@ -81,6 +82,17 @@ export function StoreFooter() {
               A general store for the house, run from the UK. Eight departments,
               one basket, and no account needed to buy anything.
             </p>
+            {/*
+              * The mailing list, here and nowhere else on the shop.
+              *
+              * In the footer rather than in a band, because the band is the
+              * request and that is the one thing this shop can do that a
+              * marketplace cannot. A newsletter is what every shop has, so it
+              * gets the place where a newsletter belongs: below everything, in
+              * the way of nothing.
+              */}
+            <Subscribe source="footer" tone="dark" />
+
             <div className={styles.social}>
               <a href="https://instagram.com/cartandkeep" className={styles.socialLink} aria-label="Instagram">
                 <InstagramIcon size={17} />

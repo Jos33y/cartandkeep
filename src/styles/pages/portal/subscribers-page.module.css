@@ -1,0 +1,120 @@
+/* The mailing list.
+   ------------------------------------------------------------------------
+   A list and an export. Nothing here sends, which is deliberate: sending is a
+   job for a tool that handles bounces and complaints, and a homemade one puts
+   the shop's own domain reputation at risk to save a subscription. */
+
+.page { display: flex; flex-direction: column; gap: var(--s-5); max-width: 1180px; }
+
+.head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-4); }
+
+.eyebrow {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 560;
+  letter-spacing: -0.035em;
+  line-height: var(--lh-tight);
+  margin-top: var(--s-2);
+}
+
+.sub { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--c-ink-soft); max-width: 46ch; }
+
+.filters { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-full);
+  background: transparent;
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  cursor: pointer;
+}
+
+.filter:hover { background: var(--c-sunk); }
+.filter[data-on] { background: var(--c-ink); border-color: var(--c-ink); color: var(--c-base); }
+.filterCount { font-size: var(--t-caption); opacity: 0.7; }
+
+.ghost {
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  background: transparent;
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-ink);
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ghost:hover { background: var(--c-sunk); }
+
+/* --- one address --------------------------------------------------------- */
+
+.list { border-top: 1px solid var(--c-line); }
+
+.person {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+  min-height: var(--tap);
+  padding: var(--s-3) var(--s-2);
+  border-bottom: 1px solid var(--c-line);
+}
+
+/* Faded rather than hidden. The record of an unsubscribe is the evidence the
+   opt out worked, so it stays legible. */
+.person[data-off] { color: var(--c-ink-faint); }
+
+.who { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 12rem; }
+.email { font-size: var(--t-body); }
+.name { font-size: var(--t-caption); color: var(--c-ink-faint); }
+.meta { font-size: var(--t-caption); color: var(--c-ink-faint); white-space: nowrap; }
+
+.bare {
+  border: 0;
+  background: transparent;
+  font-size: var(--t-caption);
+  color: var(--c-action-text);
+  cursor: pointer;
+  padding: var(--s-1);
+  min-height: 32px;
+}
+
+.bare:hover:not(:disabled) { text-decoration: underline; }
+.bare:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.left { font-size: var(--t-caption); color: var(--c-ink-faint); white-space: nowrap; }
+
+.aside {
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+  line-height: var(--lh-snug);
+  max-width: 62ch;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--c-line);
+}
+
+.empty { font-size: var(--t-body); color: var(--c-ink-soft); line-height: var(--lh-body); max-width: 62ch; }
+.error { font-size: var(--t-caption); color: var(--c-negative); }
+.emptyTitle { font-size: var(--t-figure); letter-spacing: -0.02em; margin-bottom: var(--s-3); }
+.emptyBody { color: var(--c-ink-soft); line-height: var(--lh-body); max-width: 46ch; }
+
+@media (max-width: 640px) {
+  .head { flex-direction: column; }
+  .title { font-size: 1.625rem; }
+}

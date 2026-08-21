@@ -1,0 +1,173 @@
+/* Customers.
+   ------------------------------------------------------------------------
+   A ledger, and rows expand in place. No navigation and no modal, so a scroll
+   position survives opening somebody and closing them again, which matters
+   when she is working down a list looking for one person. */
+
+.page { display: flex; flex-direction: column; gap: var(--s-5); max-width: 1180px; }
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-5);
+}
+
+.eyebrow {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 560;
+  letter-spacing: -0.035em;
+  line-height: var(--lh-tight);
+  margin-top: var(--s-2);
+}
+
+/* Two counts, not a percentage. One returning customer out of three is 33 per
+   cent and reads as a trend that three orders cannot support. */
+.split { display: flex; gap: var(--s-5); flex-shrink: 0; text-align: right; }
+.splitNum { font-size: var(--t-figure); letter-spacing: -0.02em; font-weight: 500; margin-top: var(--s-1); }
+
+/* --- controls ------------------------------------------------------------ */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.filters { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+.filter {
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-full);
+  background: transparent;
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  cursor: pointer;
+}
+
+.filter:hover { background: var(--c-sunk); }
+.filter[data-on] { background: var(--c-ink); border-color: var(--c-ink); color: var(--c-base); }
+
+.search { flex: 1 1 16rem; max-width: 22rem; }
+
+.searchInput {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  font: inherit;
+  font-size: var(--t-body);
+}
+
+/* --- a person ------------------------------------------------------------ */
+
+.list { border-top: 1px solid var(--c-line); }
+
+.person { border-bottom: 1px solid var(--c-line); }
+.person[data-open] { background: var(--c-raised); }
+
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--s-3) var(--s-2);
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover { background: var(--c-sunk); }
+
+.who { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.name { font-size: var(--t-lead); font-weight: 500; letter-spacing: -0.01em; }
+.email { font-size: var(--t-caption); color: var(--c-ink-faint); overflow: hidden; text-overflow: ellipsis; }
+
+/* Terracotta, and the only place it appears on this screen. Something of
+   theirs is sitting unpacked, which is the one thing on a customer row that
+   needs doing rather than knowing. */
+.waiting {
+  font-size: var(--t-caption);
+  color: var(--c-action-text);
+  white-space: nowrap;
+}
+
+.count { font-size: var(--t-caption); color: var(--c-ink-faint); white-space: nowrap; }
+
+/* Fixed and right aligned, so the money stacks in a column and the eye can run
+   down it without re-finding the edge on every row. */
+.spent { flex: 0 0 5rem; text-align: right; font-size: var(--t-body); font-weight: 500; }
+
+/* --- expanded ------------------------------------------------------------ */
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: 0 var(--s-2) var(--s-4);
+}
+
+.facts { display: flex; flex-wrap: wrap; gap: var(--s-5); }
+.facts dt { font-size: var(--t-caption); color: var(--c-ink-faint); }
+.facts dd { font-size: var(--t-body); margin-top: 1px; }
+
+.address {
+  font-size: var(--t-body);
+  font-style: normal;
+  color: var(--c-ink-soft);
+  padding: var(--s-2) var(--s-3);
+  background: var(--c-sunk);
+  border-radius: var(--r-sm);
+  /* Selectable in one go, because the reason she is looking at it is to put it
+     on a label. */
+  user-select: all;
+}
+
+.history { display: flex; flex-direction: column; border-top: 1px solid var(--c-line); }
+
+.order {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--c-line);
+  font-size: var(--t-caption);
+}
+
+.order:last-child { border-bottom: 0; }
+
+.ref { color: var(--c-action-text); white-space: nowrap; }
+.orderWhen { color: var(--c-ink-faint); white-space: nowrap; }
+.orderWhat { flex: 1; min-width: 8rem; color: var(--c-ink-soft); }
+.orderTotal { font-weight: 500; }
+.notSent { color: var(--c-action-text); white-space: nowrap; }
+
+/* --- empty --------------------------------------------------------------- */
+
+.empty { font-size: var(--t-body); color: var(--c-ink-soft); line-height: var(--lh-body); max-width: 58ch; }
+.emptyTitle { font-size: var(--t-figure); letter-spacing: -0.02em; margin-bottom: var(--s-3); }
+.emptyBody { color: var(--c-ink-soft); line-height: var(--lh-body); max-width: 46ch; }
+
+@media (max-width: 640px) {
+  .head { flex-direction: column; }
+  .split { text-align: left; }
+  .title { font-size: 1.625rem; }
+  .spent { flex-basis: 4.5rem; }
+}

@@ -19,7 +19,7 @@ const SELECT = `
   landed_cost, postage_cost, cost_note, cost_updated_at,
   availability, returns_class, returns_note,
   hazard, safety_data_sheet_url, biocide_reg_no,
-  derived_fields, source_kind,
+  derived_fields, source_kind, archived_at, archived_reason,
   store_variants ( id, label, price, stock, availability, sku, gtin, image_url, position )
 `;
 
@@ -175,8 +175,18 @@ export function warnings(p) {
 }
 
 export const isLive = (p) => p.status === 'live' && !p.is_sample;
-export const isReady = (p) => !isLive(p) && blockers(p).length === 0;
-export const isBlocked = (p) => !isLive(p) && blockers(p).length > 0;
+
+/*
+ * Archived is finished business, not work in progress.
+ *
+ * A draft is something she is still working on and belongs in her queue. An
+ * archived product was on sale and is not coming back, so it should not appear
+ * in Ready or Blocked at all: a list of things to fix that includes things she
+ * has deliberately stopped stocking is a list that grows and never empties.
+ */
+export const isArchived = (p) => p.status === 'archived';
+export const isReady = (p) => !isLive(p) && !isArchived(p) && blockers(p).length === 0;
+export const isBlocked = (p) => !isLive(p) && !isArchived(p) && blockers(p).length > 0;
 
 /*
  * Margin, computed in the browser from the same rates the view uses.
@@ -805,11 +815,52 @@ export function useCatalogue(tenantId) {
     return count ? 'discontinued' : 'deleted';
   }, [load]);
 
+  /*
+   * Out of the shop for good.
+   *
+   * A status rather than a delete. `order_items` copies the title and the price
+   * so an invoice survives an edit, but an order still points at the product
+   * row, and a shop that stopped stocking something still has to say what it
+   * was when somebody asks about an order from March.
+   *
+   * The reason is stored because "the supplier stopped making it" and "it never
+   * sold" are different facts, and the second one is research she paid for.
+   */
+  const archive = useCallback(async ({ id, reason }) => {
+    const { error } = await supabase.from('store_products').update({
+      status: 'archived',
+      archived_at: new Date().toISOString(),
+      archived_reason: String(reason ?? '').trim() || null,
+    }).eq('id', id);
+
+    if (error) throw error;
+    await load();
+  }, [load]);
+
+  /*
+   * Back into the queue, not back on sale.
+   *
+   * It returns as a draft and goes through the release guard again, because
+   * whatever was true of it when it was archived may not be now: a price, a
+   * returns class or a hazard field could all have changed underneath it.
+   */
+  const unarchive = useCallback(async ({ id }) => {
+    const { error } = await supabase.from('store_products').update({
+      status: 'draft',
+      archived_at: null,
+      archived_reason: null,
+    }).eq('id', id);
+
+    if (error) throw error;
+    await load();
+  }, [load]);
+
   const counts = useMemo(() => ({
     live: state.rows.filter(isLive).length,
     ready: state.rows.filter(isReady).length,
     blocked: state.rows.filter(isBlocked).length,
     all: state.rows.length,
+    archived: state.rows.filter(isArchived).length,
   }), [state.rows]);
 
   return {
@@ -818,6 +869,7 @@ export function useCatalogue(tenantId) {
     saveDetails, saveImages, removeImage, create, saveStock, saveRecord, saveCost,
     draftCopy, draftMany, discardDraft, acknowledgeChecks,
     addVariant, saveVariant, removeVariant,
+    archive, unarchive,
   };
 }
 

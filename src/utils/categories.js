@@ -4,7 +4,12 @@
  * This is the only copy. `scripts/enrich-store.js` imports it too, so the
  * grouping the terminal prints is the grouping the shop renders and the two
  * cannot disagree.
+ *
+ * Her names are applied here rather than at each call site, for the same
+ * reason: a department heading, a breadcrumb and a nav item that each resolve
+ * a name separately are three chances to call one shelf two things.
  */
+import { displayName, isHidden, slugFor } from '@utils/categoryNames';
 
 // The top of an eBay category path. eBay has about thirty of these, so a
 // generalist catalogue lands in eight to fifteen groups rather than in forty
@@ -42,7 +47,7 @@ export function categorySlug(name) {
  * every group is small the result is a single group, which is the honest
  * answer that there is no useful grouping here yet.
  */
-export function groupCategories(products, { min = 3, label = 'Everything else' } = {}) {
+export function groupCategories(products, { min = 3, label = 'Everything else', names = [] } = {}) {
   const buckets = new Map();
   for (const product of products) {
     const key = topOf(product.category_path) ?? label;
@@ -52,16 +57,82 @@ export function groupCategories(products, { min = 3, label = 'Everything else' }
 
   const groups = [];
   const tail = [];
-  for (const [name, items] of buckets) {
-    if (name !== label && items.length >= min) groups.push({ name, items });
+  for (const [path, items] of buckets) {
+    if (path !== label && items.length >= min) groups.push({ path, items });
     else tail.push(...items);
   }
 
-  groups.sort((a, b) => b.items.length - a.items.length || a.name.localeCompare(b.name));
-  if (tail.length) groups.push({ name: label, items: tail });
+  const mapped = groups.map((group) => ({
+    ...group,
+    // Hers where she has given one, eBay's where she has not.
+    name: displayName(group.path, names),
 
-  return groups.map((group) => ({ ...group, slug: categorySlug(group.name) }));
+    /*
+     * The address stays derived from eBay's name unless she has set one.
+     *
+     * Deriving it from her name instead would mean renaming a department
+     * silently moves a URL somebody has shared and Google has indexed, which
+     * turns a copy edit into a broken link. Moving an address is a deliberate
+     * second act, which is why `slug` on her row is optional and null by
+     * default.
+     */
+    slug: slugFor(group.path, names, categorySlug(group.path)),
+
+    /*
+     * Off the navigation, not gone.
+     *
+     * The flag travels with the group rather than the group being dropped
+     * here, so a category route still resolves for somebody holding the link.
+     * Hidden means she has taken it out of the nav, not that the products
+     * stopped existing.
+     */
+    hidden: isHidden(group.path, names),
+  }));
+
+  /*
+   * One comparator, not two sorts.
+   *
+   * The first version called sortByPosition and then sorted again, which
+   * throws the first ordering away: a comparator returning 0 does not preserve
+   * a previous sort across a fresh one.
+   *
+   * Her order wins where she has given one. Everything else falls back to what
+   * the shop did before, which is biggest department first, then alphabetical
+   * by the name a customer actually reads rather than by eBay's.
+   */
+  const positionOf = (path) => {
+    const hit = names.find((n) => n.path === path);
+    return hit?.position ?? null;
+  };
+
+  const ordered = [...mapped].sort((a, b) => {
+    const pa = positionOf(a.path);
+    const pb = positionOf(b.path);
+
+    if (pa !== null && pb !== null && pa !== pb) return pa - pb;
+    if (pa !== null && pb === null) return -1;
+    if (pa === null && pb !== null) return 1;
+
+    return b.items.length - a.items.length || a.name.localeCompare(b.name);
+  });
+
+  if (tail.length) {
+    ordered.push({
+      path: label,
+      name: label,
+      items: tail,
+      slug: categorySlug(label),
+      hidden: false,
+    });
+  }
+
+  return ordered;
 }
+
+// What belongs in the navigation, which is not the same as what exists. Called
+// where a nav is rendered rather than inside the grouping, so a category page
+// can still be reached by a link she has given somebody.
+export const visibleGroups = (groups) => groups.filter((g) => !g.hidden);
 
 /*
  * Shelves that are not departments.

@@ -12,6 +12,11 @@ import { PORTAL_ROUTES } from '@utils/constants';
 const ApprovedPage = lazy(() => import('@pages/portal/ApprovedPage').then((m) => ({ default: m.ApprovedPage })));
 const ListingsPage = lazy(() => import('@pages/portal/ListingsPage').then((m) => ({ default: m.ListingsPage })));
 const ShopPage = lazy(() => import('@pages/portal/ShopPage').then((m) => ({ default: m.ShopPage })));
+const ReviewsPage = lazy(() => import('@pages/portal/ReviewsPage').then((m) => ({ default: m.ReviewsPage })));
+const CustomersPage = lazy(() => import('@pages/portal/CustomersPage').then((m) => ({ default: m.CustomersPage })));
+const RequestsPage = lazy(() => import('@pages/portal/RequestsPage').then((m) => ({ default: m.RequestsPage })));
+const SubscribersPage = lazy(() => import('@pages/portal/SubscribersPage').then((m) => ({ default: m.SubscribersPage })));
+const CategoriesPage = lazy(() => import('@pages/portal/CategoriesPage').then((m) => ({ default: m.CategoriesPage })));
 const ProductsPage = lazy(() => import('@pages/portal/ProductsPage').then((m) => ({ default: m.ProductsPage })));
 const InterestPage = lazy(() => import('@pages/portal/InterestPage').then((m) => ({ default: m.InterestPage })));
 const BeingFoundPage = lazy(() => import('@pages/portal/BeingFoundPage').then((m) => ({ default: m.BeingFoundPage })));
@@ -37,6 +42,11 @@ export const portalRouter = createBrowserRouter([
       { path: 'listings', element: deferred(<ListingsPage />) },
       { path: 'shop', element: deferred(<ShopPage />) },
       { path: 'products', element: deferred(<ProductsPage />) },
+      { path: 'sections', element: deferred(<CategoriesPage />) },
+      { path: 'reviews', element: deferred(<ReviewsPage />) },
+      { path: 'customers', element: deferred(<CustomersPage />) },
+      { path: 'requests', element: deferred(<RequestsPage />) },
+      { path: 'subscribers', element: deferred(<SubscribersPage />) },
       { path: 'interest', element: deferred(<InterestPage />) },
       { path: 'being-found', element: deferred(<BeingFoundPage />) },
       { path: 'finance', element: deferred(<FinancePage />) },

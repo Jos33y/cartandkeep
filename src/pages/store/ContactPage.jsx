@@ -38,12 +38,19 @@ const REASONS = [
     link: { to: '/legal/returns', label: 'Read the returns policy' },
   },
   {
+    /*
+     * The one reason on this page that is not an email.
+     *
+     * Its own copy calls this the most useful message the shop gets, and it
+     * was routed through a mail client with a three line template she then had
+     * to read out of unstructured prose. There is a page for it now, so the
+     * card sends people there and the mailto is gone.
+     */
     key: 'stock',
     Icon: MailIcon,
     title: 'Asking us to stock something',
-    body: 'The most useful email we get. Say what it is and where you usually buy it and we will price it up.',
-    subject: 'Can you stock this?',
-    template: 'What I am after:\n\nWhere I usually buy it:\n\nRough budget:\n\n',
+    body: 'The most useful thing you can tell us. Say what it is and what you pay for it now.',
+    to: STORE_ROUTES.REQUEST,
     link: null,
   },
 ];
@@ -103,14 +110,24 @@ export function ContactPage() {
       </div>
 
       <ul className={styles.reasons}>
-        {REASONS.map(({ key, Icon, title, body, subject, template, link }) => (
+        {REASONS.map(({ key, Icon, title, body, subject, template, to, link }) => (
           <li key={key} className={styles.reason}>
             <span className={styles.badge} aria-hidden="true"><Icon size={19} /></span>
             <div className={styles.reasonBody}>
               <h2 className={styles.reasonTitle}>{title}</h2>
               <p className={styles.reasonText}>{body}</p>
               <div className={styles.reasonActions}>
-                <a className={styles.write} href={mailto(subject, template)}>Write about this</a>
+                {/* A page where the reason names one, an email where it does
+                    not. Order and returns questions genuinely belong in her
+                    inbox, because they are a conversation about one parcel.
+                    A stock request is not a conversation, it is a record. */}
+                {to
+                  ? (
+                    <Link className={styles.write} to={`${to}?from=${encodeURIComponent('contact')}`}>
+                      Ask us for it
+                    </Link>
+                  )
+                  : <a className={styles.write} href={mailto(subject, template)}>Write about this</a>}
                 {link && <Link className={styles.secondary} to={link.to}>{link.label}</Link>}
               </div>
             </div>

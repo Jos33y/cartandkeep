@@ -1,0 +1,176 @@
+/* What people asked her to stock.
+   ------------------------------------------------------------------------
+   A ledger. Every row carries the two facts that turn a wish into something
+   she can price, on the row rather than behind an expand, because without
+   them she has to open a supplier tab to find out whether it is worth
+   looking at all. */
+
+.page { display: flex; flex-direction: column; gap: var(--s-5); max-width: 1180px; }
+
+.head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-4); }
+
+.eyebrow {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 560;
+  letter-spacing: -0.035em;
+  line-height: var(--lh-tight);
+  margin-top: var(--s-2);
+}
+
+/* --- asked more than once ------------------------------------------------
+   Above the list, because it is the only thing on this page that is a
+   decision rather than a record. Sage, which carries structure on this
+   platform, rather than the accent, which marks an action. */
+
+.demand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  background: var(--c-brand-wash);
+  border: 1px solid var(--c-brand-mid);
+  border-radius: var(--r-md);
+}
+
+.demandList { display: flex; flex-direction: column; }
+
+.demandRow {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--c-brand-mid);
+}
+
+.demandRow:last-child { border-bottom: 0; }
+
+.asks { flex: 0 0 1.5rem; text-align: right; font-size: var(--t-body); font-weight: 500; }
+.demandWanted { flex: 1; min-width: 10rem; font-size: var(--t-body); }
+.demandPays { font-size: var(--t-caption); color: var(--c-ink-soft); white-space: nowrap; }
+.demandOpen { font-size: var(--t-caption); color: var(--c-action-text); white-space: nowrap; }
+
+/* --- filters ------------------------------------------------------------- */
+
+.filters { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-full);
+  background: transparent;
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  cursor: pointer;
+}
+
+.filter:hover { background: var(--c-sunk); }
+.filter[data-on] { background: var(--c-ink); border-color: var(--c-ink); color: var(--c-base); }
+.filterCount { font-size: var(--t-caption); opacity: 0.7; }
+
+/* --- one request --------------------------------------------------------- */
+
+.list { display: flex; flex-direction: column; }
+
+.request {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-3);
+  border-bottom: 1px solid var(--c-line);
+  border-left: 3px solid transparent;
+}
+
+.request[data-status='new'] { border-left-color: var(--c-action-strong); background: var(--c-raised); }
+.request[data-status='looking'] { border-left-color: var(--c-line-mid); }
+.request[data-status='sourced'] { border-left-color: var(--c-brand-strong); }
+.request[data-status='declined'] { border-left-color: var(--c-line); color: var(--c-ink-soft); }
+
+.wanted { font-size: var(--t-lead); font-weight: 500; letter-spacing: -0.01em; }
+
+.facts { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-3); font-size: var(--t-caption); }
+.pays { color: var(--c-ink); font-weight: 500; }
+.where { color: var(--c-ink-soft); }
+.meta { color: var(--c-ink-faint); }
+
+.who { font-size: var(--t-caption); }
+.who a { color: var(--c-action-text); }
+
+/* --- the four states ----------------------------------------------------- */
+
+.actions { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-1); }
+
+/* All four always visible, so setting one is a single tap rather than a menu.
+   Ink for the current one, because choosing a state is not the action this
+   screen exists for. */
+.state {
+  min-height: 32px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-full);
+  background: transparent;
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  cursor: pointer;
+}
+
+.state:hover:not(:disabled) { background: var(--c-sunk); }
+.state[data-on] { background: var(--c-ink); border-color: var(--c-ink); color: var(--c-base); }
+.state:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* --- her note ------------------------------------------------------------ */
+
+.noteBox { display: flex; align-items: flex-end; gap: var(--s-2); flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: var(--s-1); flex: 1 1 16rem; }
+.label { font-size: var(--t-label); font-weight: 500; }
+
+.input {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  font: inherit;
+  font-size: var(--t-body);
+}
+
+.ghost {
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  background: transparent;
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-ink);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ghost:hover:not(:disabled) { background: var(--c-sunk); }
+.ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* --- empty and failure --------------------------------------------------- */
+
+.empty { font-size: var(--t-body); color: var(--c-ink-soft); line-height: var(--lh-body); max-width: 62ch; }
+.error { font-size: var(--t-caption); color: var(--c-negative); }
+.emptyTitle { font-size: var(--t-figure); letter-spacing: -0.02em; margin-bottom: var(--s-3); }
+.emptyBody { color: var(--c-ink-soft); line-height: var(--lh-body); max-width: 46ch; }
+
+@media (max-width: 640px) {
+  .head { flex-direction: column; }
+  .title { font-size: 1.625rem; }
+}

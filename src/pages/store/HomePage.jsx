@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router';
 import { StoreHero } from '@components/ui/store/StoreHero';
 import { TrustStrip } from '@components/ui/store/TrustStrip';
 import { CategoryTiles } from '@components/ui/store/CategoryTiles';
@@ -10,8 +11,10 @@ import { PromiseBand } from '@components/ui/store/PromiseBand';
 import { QuickView } from '@components/ui/store/QuickView';
 import { useStoreProducts } from '@hooks/useStoreProducts';
 import { useTenant } from '@hooks/useTenant';
-import { groupCategories, leafOf, priceGroups } from '@utils/categories';
+import { groupCategories, leafOf, priceGroups, visibleGroups } from '@utils/categories';
+import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/pages/store/home-page.module.css';
+import { useCategoryNames } from '@hooks/useCategoryNamesStore';
 
 /*
  * The shop front. There is no separate catalogue route, so home is the
@@ -39,7 +42,11 @@ export function HomePage() {
   const [query, setQuery] = useState('');
   const [peek, setPeek] = useState(null);
 
-  const groups = useMemo(() => groupCategories(rows), [rows]);
+  // Her names, so the departments on this page and the ones in the header
+  // read the same. Empty until they load, which renders exactly what the
+  // shop rendered before this existed.
+  const names = useCategoryNames();
+  const groups = useMemo(() => visibleGroups(groupCategories(rows, { names })), [rows, names]);
 
 
   // Price bands are real routes, defined once in @utils/categories so the
@@ -149,9 +156,17 @@ export function HomePage() {
             <div className={styles.empty}>
               <p className={styles.emptyLead}>Nothing matches that yet.</p>
               <p className={styles.emptyBody}>
-                Try a shorter word, or browse a department below. If we should
-                stock it, tell us at support@cartandkeep.com and we will look.
+                Try a shorter word, or browse a department below.
               </p>
+              {/* The query goes with them, so the request form arrives with
+                  the box filled in rather than asking for the same words a
+                  second time. */}
+              <Link
+                className={styles.emptyCta}
+                to={`${STORE_ROUTES.REQUEST}?for=${encodeURIComponent(query.trim())}&from=${encodeURIComponent('home search')}`}
+              >
+                Ask us to stock it
+              </Link>
             </div>
           )}
         </div>

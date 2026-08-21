@@ -11,6 +11,7 @@ import { useTenant } from '@hooks/useTenant';
 import { STORE_ROUTES } from '@utils/constants';
 import { allGroups, findGroup, leafOf, topOf } from '@utils/categories';
 import styles from '@styles/pages/store/category-page.module.css';
+import { useCategoryNames } from '@hooks/useCategoryNamesStore';
 
 /*
  * One department.
@@ -40,7 +41,15 @@ export function CategoryPage({ everything = false }) {
 
   // Departments and price bands, so /c/under-20 resolves the same way
   // /c/pet-supplies does.
-  const groups = useMemo(() => allGroups(rows), [rows]);
+  const names = useCategoryNames();
+  /*
+   * Not filtered by hidden.
+   *
+   * This resolves a route, and hidden means off the navigation rather than
+   * deleted. Somebody holding a link to a department she has taken out of
+   * the nav should still reach it rather than get a not found.
+   */
+  const groups = useMemo(() => allGroups(rows, { names }), [rows, names]);
   const group = useMemo(() => {
     if (everything) {
       return rows.length ? { name: 'Everything in the shop', slug: 'shop', items: rows } : null;

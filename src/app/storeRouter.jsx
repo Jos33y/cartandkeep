@@ -7,6 +7,9 @@ import { CartPage } from '@pages/store/CartPage';
 import { CheckoutPage } from '@pages/store/CheckoutPage';
 import { OrderConfirmationPage } from '@pages/store/OrderConfirmationPage';
 import { OrderLookupPage } from '@pages/store/OrderLookupPage';
+import { ReviewPage } from '@pages/store/ReviewPage';
+import { UnsubscribePage } from '@pages/store/UnsubscribePage';
+import { RequestPage } from '@pages/store/RequestPage';
 import { AboutPage } from '@pages/store/AboutPage';
 import { ContactPage } from '@pages/store/ContactPage';
 import { LegalPage } from '@pages/store/LegalPage';
@@ -29,6 +32,10 @@ export const storeRouter = createBrowserRouter([
       { path: STORE_ROUTES.CART, element: <CartPage /> },
       { path: STORE_ROUTES.CHECKOUT, element: <CheckoutPage /> },
       { path: STORE_ROUTES.ORDER_LOOKUP, element: <OrderLookupPage /> },
+      // Reached only by the token link in the dispatch email.
+      { path: STORE_ROUTES.REVIEW, element: <ReviewPage /> },
+      { path: STORE_ROUTES.UNSUBSCRIBE, element: <UnsubscribePage /> },
+      { path: STORE_ROUTES.REQUEST, element: <RequestPage /> },
       { path: STORE_ROUTES.ORDER_CONFIRMATION, element: <OrderConfirmationPage /> },
       { path: STORE_ROUTES.ABOUT, element: <AboutPage /> },
       { path: STORE_ROUTES.CONTACT, element: <ContactPage /> },

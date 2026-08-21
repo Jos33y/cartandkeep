@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router';
 import { NewProduct } from '@components/ui/portal/NewProduct';
 import { ProductRow } from '@components/ui/portal/ProductRow';
 import {
-  useCatalogue, categoryCounts, isLive, isReady, isBlocked,
+  useCatalogue, categoryCounts, isLive, isReady, isBlocked, isArchived,
 } from '@hooks/useCatalogue';
 import { loadTenant } from '@lib/tenant';
 import styles from '@styles/pages/portal/products-page.module.css';
@@ -13,6 +13,9 @@ const FILTERS = [
   { key: 'blocked', label: 'Blocked' },
   { key: 'live', label: 'Live' },
   { key: 'all', label: 'All' },
+  // Last, and only when there is something in it. A chip reading zero
+  // forever on a shop that has never archived anything is furniture.
+  { key: 'archived', label: 'Archived' },
 ];
 
 export function ProductsPage() {
@@ -49,6 +52,9 @@ export function ProductsPage() {
     saveDescription, saveDetails, saveImages, removeImage, create, saveStock,
     saveRecord, saveCost, draftCopy, draftMany, discardDraft, acknowledgeChecks,
     addVariant, saveVariant, removeVariant,
+    // Renamed on the way in, because `archive` alone reads like a noun at the
+    // call site and this page already has a filter called archived.
+    archive: archiveProduct, unarchive: unarchiveProduct,
   } = useCatalogue(tenant?.id);
 
   const byCategory = useMemo(() => categoryCounts(rows), [rows]);
@@ -86,6 +92,7 @@ export function ProductsPage() {
   const visible = useMemo(() => {
     if (filter === 'all') return rows;
     if (filter === 'live') return rows.filter(isLive);
+    if (filter === 'archived') return rows.filter(isArchived);
     if (filter === 'blocked') return rows.filter(isBlocked);
     return rows.filter(isReady);
   }, [rows, filter]);
@@ -387,6 +394,8 @@ export function ProductsPage() {
             onAddVariant={addVariant}
             onSaveVariant={saveVariant}
             onRemoveVariant={removeVariant}
+            onArchive={archiveProduct}
+            onUnarchive={unarchiveProduct}
           />
         ))}
       </div>

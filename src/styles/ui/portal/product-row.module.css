@@ -191,6 +191,43 @@
 
 .hint { font-size: var(--t-caption); color: var(--c-ink-faint); line-height: var(--lh-snug); }
 
+/* Archiving.
+   ------------------------------------------------------------------------
+   Behind a summary, because taking a product out of the shop for good is not
+   something to do by mistake and it is not something she does often. One
+   deliberate open before the button exists at all. */
+
+.archiveBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--c-line);
+  font-size: var(--t-caption);
+}
+
+.archiveBox summary {
+  cursor: pointer;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  color: var(--c-ink-soft);
+}
+
+.archiveBox summary:hover { color: var(--c-ink); }
+
+.archived {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  padding: var(--s-3);
+  background: var(--c-sunk);
+  border-radius: var(--r-sm);
+}
+
 /* Sizes and options.
    ------------------------------------------------------------------------
    A ledger, not cards. The same shape as every other list on this screen, so

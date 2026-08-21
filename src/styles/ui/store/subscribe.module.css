@@ -1,0 +1,98 @@
+/* The sign up box.
+   ------------------------------------------------------------------------
+   Sits in the footer, so it competes with nothing and interrupts nobody. No
+   overlay, no delayed pop up, no scroll trigger. A shop that blocks the page
+   to ask for an address is a shop somebody leaves. */
+
+/* One component, two grounds.
+   ------------------------------------------------------------------------
+   The colours are local variables with light page defaults, and `data-tone`
+   swaps them. A second dark copy of this component would be two files that
+   drift; reaching into it from the footer stylesheet would be the footer
+   knowing about the internals of something it only renders.
+
+   Every dark value is taken from store-footer.module.css rather than picked,
+   so the box sits in the palette the footer already uses instead of arriving
+   with its own. */
+.block {
+  --sub-field: var(--c-surface);
+  --sub-border: var(--c-line-mid);
+  --sub-text: var(--c-ink);
+  --sub-quiet: var(--c-faint);
+  --sub-button: var(--c-ink);
+  --sub-button-text: var(--c-base);
+  --sub-focus: var(--c-ink);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  max-width: 26rem;
+  margin-top: var(--s-4);
+}
+
+.block[data-tone='dark'] {
+  /* Transparent rather than a dark fill. On a near black footer the only
+     white rectangle on the page is a newsletter box, which is the last thing
+     that should be the brightest thing there. */
+  --sub-field: transparent;
+  --sub-border: #3a3630;
+  /* The footer's own brightest text. Typed input should read at least as
+     clearly as a link, and #fff is what this footer uses for the thing being
+     read rather than skimmed. */
+  --sub-text: #fff;
+  --sub-quiet: #8b8375;
+  --sub-button: #fff;
+  --sub-button-text: var(--c-ink-deep);
+  --sub-focus: #cfc8bc;
+}
+
+.label { font-size: var(--t-body); font-weight: 500; }
+
+.row { display: flex; gap: var(--s-2); }
+
+.input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--sub-border);
+  border-radius: var(--r-control);
+  background: var(--sub-field);
+  font: inherit;
+  font-size: var(--t-body);
+  color: var(--sub-text);
+}
+
+/* Placeholders inherit colour from the input on some browsers and not others,
+   so it is set rather than left to chance. */
+.input::placeholder { color: var(--sub-quiet); opacity: 1; }
+
+.input:focus-visible { outline: 2px solid var(--sub-focus); outline-offset: 1px; }
+
+.button {
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border: 0;
+  border-radius: var(--r-control);
+  background: var(--sub-button);
+  color: var(--sub-button-text);
+  font: inherit;
+  font-size: var(--t-body);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) { opacity: 0.88; }
+.button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Ink rather than terracotta. The accent belongs to buying, and a shop whose
+   newsletter button shouts as loudly as Add to basket has its priorities the
+   wrong way round. */
+
+/* Small, and not hidden. It is the thing being agreed to, so it is on the page
+   rather than behind a link somebody has to go and find. */
+.wording { font-size: var(--t-caption); color: var(--sub-quiet); line-height: var(--lh-snug); }
+
+.done { font-size: var(--t-body); line-height: var(--lh-body); color: var(--sub-quiet); }
+.error { font-size: var(--t-caption); color: var(--c-negative); }

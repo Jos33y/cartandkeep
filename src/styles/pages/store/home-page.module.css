@@ -49,5 +49,23 @@
   max-width: 52ch;
 }
 
+/* The way out of an empty search.
+   Bordered rather than filled: it is the useful thing to do next, and it is
+   not a purchase, so it does not take the accent that means buy. */
+.emptyCta {
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  margin-top: var(--s-3);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-control);
+  font-size: var(--t-body);
+  font-weight: 500;
+  color: var(--c-ink);
+}
+
+.emptyCta:hover { background: var(--c-sunk); }
+
 .notice { font-size: var(--t-body); color: var(--c-ink-soft); padding-bottom: var(--s-7); }
 .noticeDetail { font-family: var(--font-data); font-size: var(--t-caption); color: var(--c-faint); }

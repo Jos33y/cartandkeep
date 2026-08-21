@@ -1,0 +1,28 @@
+/* Leaving the list.
+   ------------------------------------------------------------------------
+   A narrow column with one sentence in it. Nothing to click except back to the
+   shop, and no offer to stay. */
+
+.page {
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: var(--s-8) var(--s-4);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+.title { font-size: var(--ts-title); font-weight: 500; letter-spacing: -0.02em; }
+.body { font-size: var(--t-body); line-height: var(--lh-body); color: var(--c-ink-soft); }
+
+.back {
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  margin-top: var(--s-2);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-control);
+  font-size: var(--t-body);
+}

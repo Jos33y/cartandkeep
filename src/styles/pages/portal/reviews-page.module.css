@@ -1,0 +1,199 @@
+/* Reviews, from her side.
+   ------------------------------------------------------------------------
+   A ledger of decisions, not a card grid. One review, one row, and the row
+   carries everything needed to decide without opening anything: the stars, the
+   words, the product it is about, and the two buttons. */
+
+.page { display: flex; flex-direction: column; gap: var(--s-5); max-width: 1180px; }
+
+.pageHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-5);
+}
+
+.eyebrow {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 560;
+  letter-spacing: -0.035em;
+  line-height: var(--lh-tight);
+  margin-top: var(--s-2);
+}
+
+.showing { text-align: right; flex-shrink: 0; }
+.showingNum { font-size: var(--t-figure); letter-spacing: -0.02em; font-weight: 500; margin-top: var(--s-1); }
+.showingNote { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+/* --- filters ------------------------------------------------------------- */
+
+.filters { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-full);
+  background: transparent;
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  cursor: pointer;
+}
+
+.filter:hover { background: var(--c-sunk); }
+
+/* Ink rather than terracotta. The accent marks the action that publishes, and
+   choosing which list to look at is not that. */
+.filter[data-on] { background: var(--c-ink); border-color: var(--c-ink); color: var(--c-base); }
+
+.filterCount { font-size: var(--t-caption); opacity: 0.7; }
+
+/* --- a review ------------------------------------------------------------ */
+
+.list { display: flex; flex-direction: column; }
+
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-3);
+  border-bottom: 1px solid var(--c-line);
+  /* The rail says which of the three states it is in without a badge, and the
+     badge says it in words for anybody who cannot see the rail. */
+  border-left: 3px solid transparent;
+}
+
+.review[data-status='pending'] { border-left-color: var(--c-action-strong); background: var(--c-raised); }
+.review[data-status='hidden'] { border-left-color: var(--c-line); color: var(--c-ink-soft); }
+.review[data-status='approved'] { border-left-color: var(--c-brand-strong); }
+
+.head { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--s-2) var(--s-3); }
+.author { font-size: var(--t-body); font-weight: 500; }
+.date { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.state {
+  margin-left: auto;
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+}
+
+/* --- stars --------------------------------------------------------------- */
+
+/* No halves here, unlike the shop. A single review is always a whole number,
+   and the only fraction in this screen is the average in the header. */
+.stars { display: inline-flex; gap: 1px; line-height: 1; }
+.star { color: var(--c-line-mid); font-size: var(--t-body); }
+.star[data-on] { color: var(--c-warning); }
+
+/* --- what it is about ---------------------------------------------------- */
+
+.product {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  background: var(--c-sunk);
+  border-radius: var(--r-sm);
+  font-size: var(--t-caption);
+}
+
+.thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--c-surface);
+}
+
+.productTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--c-ink-soft);
+}
+
+.variant { color: var(--c-ink-faint); }
+.variant::before { content: ' · '; }
+
+.ref { color: var(--c-ink-faint); white-space: nowrap; }
+
+.reviewTitle { font-size: var(--t-lead); font-weight: 500; }
+.body { font-size: var(--t-body); line-height: var(--lh-body); }
+
+/* --- actions ------------------------------------------------------------- */
+
+.actions { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-1); }
+
+.ghost,
+.primary {
+  min-height: 34px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-sm);
+  font-size: var(--t-label);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ghost { border: 1px solid var(--c-line-mid); background: transparent; color: var(--c-ink); }
+.ghost:hover:not(:disabled) { background: var(--c-sunk); }
+.ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* The one accent. Publishing somebody's words on her shop is the decision this
+   screen exists for, and hiding is the absence of it rather than its opposite. */
+.primary { border: 1px solid var(--c-action-strong); background: var(--c-action-strong); color: #fff; }
+.primary:hover:not(:disabled) { filter: brightness(0.93); }
+.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* --- reply --------------------------------------------------------------- */
+
+.replyBox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+  padding: var(--s-3);
+  background: var(--c-brand-wash);
+  border-radius: var(--r-sm);
+}
+
+.field { display: flex; flex-direction: column; gap: var(--s-1); width: 100%; }
+.label { font-size: var(--t-label); font-weight: 500; }
+
+.textarea {
+  width: 100%;
+  padding: var(--s-2);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  font: inherit;
+  font-size: var(--t-body);
+  resize: vertical;
+}
+
+/* --- empty and failure --------------------------------------------------- */
+
+.empty { font-size: var(--t-body); color: var(--c-ink-soft); line-height: var(--lh-body); max-width: 58ch; }
+.error { font-size: var(--t-caption); color: var(--c-negative); }
+.emptyTitle { font-size: var(--t-figure); letter-spacing: -0.02em; margin-bottom: var(--s-3); }
+.emptyBody { color: var(--c-ink-soft); line-height: var(--lh-body); max-width: 46ch; }
+
+@media (max-width: 640px) {
+  .pageHead { flex-direction: column; }
+  .showing { text-align: left; }
+  .title { font-size: 1.625rem; }
+}

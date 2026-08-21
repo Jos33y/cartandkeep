@@ -138,6 +138,54 @@ const IconGauge = (p) => (
   </svg>
 );
 
+// Reviews. The set had nothing close, and the alternative was reusing IconCheck
+// from Approved, which would have put the same mark on two nav entries in two
+// different sections. The comment above IconShop warns against exactly that.
+const IconStar = (p) => (
+  <svg {...base} {...p}>
+    <path d="M10 2.75l2.2 4.65 5 .75-3.6 3.6.85 5.05L10 14.4l-4.45 2.4.85-5.05-3.6-3.6 5-.75z" />
+  </svg>
+);
+
+// Customers. Two figures rather than one, because a single head reads as an
+// account or a profile and this screen is a list of other people.
+const IconPeople = (p) => (
+  <svg {...base} {...p}>
+    <circle cx="7.75" cy="7" r="2.75" />
+    <path d="M2.75 16.5c0-2.35 2.24-4.25 5-4.25s5 1.9 5 4.25" />
+    <path d="M13.25 4.6a2.75 2.75 0 0 1 0 5.3" />
+    <path d="M14.5 12.55c1.66.5 2.75 1.78 2.75 3.35" />
+  </svg>
+);
+
+// Requests. A speech mark rather than an envelope, because an envelope is
+// already what Interest and the footer both use for mail, and a request is
+// somebody saying something rather than sending something.
+const IconAsk = (p) => (
+  <svg {...base} {...p}>
+    <path d="M3.25 4.5h13.5v9h-8.4l-3.6 3v-3H3.25z" />
+    <path d="M7.25 9h5.5" />
+  </svg>
+);
+
+// The mailing list. An envelope with a line through the middle, which is the
+// one mail mark not already spoken for in this set.
+const IconEnvelope = (p) => (
+  <svg {...base} {...p}>
+    <rect x="2.75" y="4.75" width="14.5" height="10.5" rx="1.25" />
+    <path d="M3.25 5.75L10 10.75l6.75-5" />
+  </svg>
+);
+
+// Sections. Shelves rather than a folder, because a folder is a computer's
+// idea of a category and this shop's are departments in a building.
+const IconShelves = (p) => (
+  <svg {...base} {...p}>
+    <path d="M3.25 3.25v13.5M16.75 3.25v13.5" />
+    <path d="M3.25 7.75h13.5M3.25 12.25h13.5" />
+  </svg>
+);
+
 const IconMap = (p) => (
   <svg {...base} {...p}>
     <path d="M2.75 5.4l4.75-2.15 5 2.15 4.75-2.15v11.5l-4.75 2.15-5-2.15-4.75 2.15z" />
@@ -148,6 +196,11 @@ const IconMap = (p) => (
 export const ICONS = {
   IconGrid,
   IconGauge,
+  IconStar,
+  IconPeople,
+  IconAsk,
+  IconEnvelope,
+  IconShelves,
   IconLayers,
   IconCheck,
   IconTag,

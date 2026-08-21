@@ -60,6 +60,13 @@ export const STATUS_PHASES = [
       { label: 'Stock counting', detail: 'leave it empty for anything you can reorder, or put a number in and it counts down as orders are paid', state: 'done', date: '2026-08-19' },
       { label: 'A check before anything goes public', detail: 'nothing goes on sale missing a photograph, a price, a returns rule or the hazard details a chemical needs', state: 'done', date: '2026-08-19' },
       { label: 'Shop settings you control', detail: 'your trading details, delivery rates, postcode surcharges and the wording on the front page', state: 'done', date: '2026-08-19' },
+      { label: 'What each product costs you', detail: 'what you paid landed, and what postage costs you to send it. Everything you make is worked out from these two.', state: 'done', date: '2026-08-20' },
+      { label: 'Sizes and options', detail: 'one product in several sizes, colours or pack sizes, each with its own price and its own count. A shopper picks one before the basket will take it.', state: 'done', date: '2026-08-21' },
+      { label: 'Product descriptions drafted for you', detail: 'reads the photograph as well as the record, writes a description and a shorter title, and tells you where the supplier data contradicts itself. Nothing is published until you have read it.', state: 'done', date: '2026-08-21' },
+      { label: 'A product cannot go live carrying a contradiction', detail: 'where the record disagrees with the photograph, the product is held until you have read why', state: 'done', date: '2026-08-21' },
+      { label: 'Your own words for every department', detail: 'the sections came from eBay, so they read like a marketplace. Rename any of them, reorder them, or take one off the menu. Nothing else moves and Google still sees the original.', state: 'done', date: '2026-08-21' },
+      { label: 'Ask us to stock it', detail: 'a page rather than an email, so a request arrives with what they want, what they pay for it now and where they buy it. Anything asked for twice is grouped so you can see it.', state: 'done', date: '2026-08-21' },
+      { label: 'Mailing list', detail: 'a box in the footer, an unsubscribe link that works without signing in to anything, and the list exportable to a spreadsheet whenever you want it', state: 'done', date: '2026-08-21' },
       { label: 'Custom store live', due: 'By 22 August', detail: 'cartandkeep.com. The shop is built; this is the domain pointing at it and the products going live.', state: 'active' },
       { label: 'Products approved and on sale', detail: '78 loaded and held as drafts until you have seen them', state: 'queued' },
     ],
@@ -70,12 +77,15 @@ export const STATUS_PHASES = [
     items: [
       { label: 'Orders visible in the portal', detail: 'what was bought, where it goes, and the address ready to copy onto a label', state: 'done', date: '2026-08-19' },
       { label: 'Dispatch and tracking from the portal', detail: 'mark a parcel gone, record who took it and the tracking number', state: 'done', date: '2026-08-19' },
-      // Written and waiting on the sending service being switched on, so it is
-      // in progress rather than complete. Nothing has been sent to anybody yet
-      // and the page should not say otherwise.
-      { label: 'Order emails', detail: 'a confirmation to the customer, an alert to you, and a second to them when it ships. You can see on each order exactly what they were sent.', state: 'active' },
+      { label: 'Order emails', detail: 'a confirmation to the customer, an alert to you, and a second to them when it ships. You can see on each order exactly what they were sent, and send one again if it did not arrive.', state: 'done', date: '2026-08-20' },
       { label: 'What sells and what does not', detail: 'what gets looked at, saved, put in a basket and taken back out, per product', state: 'done', date: '2026-08-19' },
       { label: 'What people searched for and did not find', detail: 'every one is either something to stock or a word the shop does not use for something it already sells', state: 'done', date: '2026-08-19' },
+      { label: 'Where people came from', detail: 'Google, TikTok, a link somebody shared, or typing the address in, with how many of each went on to buy', state: 'done', date: '2026-08-20' },
+      { label: 'Your own dashboard', detail: 'what needs you, in the order it matters, with what has been taken today beside it. Every line goes straight to the screen that clears it.', state: 'done', date: '2026-08-21' },
+      { label: 'Reviews', detail: 'only from people who actually bought the thing, asked for a week after the parcel goes out, and nothing appears on the shop until you have read it', state: 'done', date: '2026-08-21' },
+      { label: 'Customers', detail: 'everybody who has bought something, what they spent, what they ordered and whether anything of theirs is still waiting to go out. Nobody to add: it fills itself.', state: 'done', date: '2026-08-21' },
+      { label: 'Taking a product out of the shop', detail: 'archive it and it comes off the shop and out of your lists. Old orders are untouched, and anyone holding a link still sees a page rather than a dead end.', state: 'done', date: '2026-08-21' },
+      { label: 'Told when something is nearly out', detail: 'an email when anything you have put a count against drops to three or fewer, once per item until it is restocked', state: 'done', date: '2026-08-21' },
     ],
   },
   {
@@ -84,7 +94,11 @@ export const STATUS_PHASES = [
     items: [
       { label: 'Monthly search report', detail: 'clicks, how often Google showed the shop, and what changed, kept month by month so the line is visible', state: 'active' },
       { label: 'Google Shopping feed', detail: 'free listings. Built and waiting on product descriptions, which Google requires before it will list anything.', state: 'active' },
-      { label: 'Financial dashboard live', state: 'queued' },
+      { label: 'What you make on every channel', detail: 'the same product side by side on your shop, eBay and TikTok Shop, after every fee, postage, packaging and what it cost you', state: 'done', date: '2026-08-20' },
+      { label: 'Your eBay and TikTok Shop sales in one place', detail: 'brought in from the reports both of them already give you, so every figure covers all three channels rather than only the shop', state: 'done', date: '2026-08-20' },
+      // Built, and it has nothing to show until something sells. Complete
+      // would be a screen of zeros calling itself finished.
+      { label: 'Financial dashboard live', detail: 'revenue, fees, promoted listings, postage, packaging, returns and cost of goods, per product and per channel. It fills as sales come in.', state: 'active' },
     ],
   },
 ];

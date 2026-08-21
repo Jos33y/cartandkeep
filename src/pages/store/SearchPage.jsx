@@ -114,10 +114,23 @@ export function SearchPage() {
             <p className={styles.emptyLead}>Nothing matches &ldquo;{query}&rdquo;.</p>
             <p className={styles.emptyBody}>
               Try a shorter word, or browse a department. If we should stock it,
-              write to support@cartandkeep.com and we will look into it. That is
-              how a fair amount of what is here got here.
+              ask and we will look into it. That is how a fair amount of what is
+              here got here.
             </p>
-            <Link className={styles.emptyCta} to={STORE_ROUTES.HOME}>See everything in the shop</Link>
+            {/*
+              * The best moment on the shop to ask for a request.
+              *
+              * Somebody has searched for a thing, been told it is not here, and
+              * already typed the words. `for` carries the query into the form,
+              * so the box arrives filled in rather than asking them to type it
+              * a second time.
+              */}
+            <Link
+              className={styles.emptyCta}
+              to={`${STORE_ROUTES.REQUEST}?for=${encodeURIComponent(query)}&from=${encodeURIComponent('search')}`}
+            >
+              Ask us to stock it
+            </Link>
           </div>
         )
       )}

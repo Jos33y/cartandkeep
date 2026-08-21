@@ -1,0 +1,158 @@
+/* The words on her shop front.
+   ------------------------------------------------------------------------
+   Departments with shelves nested inside them, because that is how she thinks
+   about the shop. A flat list of thirty paths with pipes in them is the eBay
+   taxonomy wearing a portal screen. */
+
+.page { display: flex; flex-direction: column; gap: var(--s-5); max-width: 1180px; }
+
+.head { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.eyebrow {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 560;
+  letter-spacing: -0.035em;
+  line-height: var(--lh-tight);
+}
+
+.sub { font-size: var(--t-body); color: var(--c-ink-soft); line-height: var(--lh-body); max-width: 62ch; }
+
+/* --- a section ----------------------------------------------------------- */
+
+.list { border-top: 1px solid var(--c-line); }
+
+.department { border-bottom: 1px solid var(--c-line); }
+
+/* Faded, not removed. A section off the navigation is still a section she has
+   products in, and hiding it from this screen too is how it gets forgotten. */
+.department[data-hidden] > .row,
+.shelf[data-hidden] > .row { opacity: 0.55; }
+
+.row { display: flex; align-items: baseline; gap: var(--s-3); padding: var(--s-2) var(--s-2) var(--s-2) 0; }
+
+.opener {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--tap);
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  padding: 0 var(--s-2);
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.opener:hover { background: var(--c-sunk); }
+
+.shownName { font-size: var(--t-lead); font-weight: 500; letter-spacing: -0.01em; }
+
+/* Whether a name is hers or eBay's. Without it she cannot tell which sections
+   she has already been through, which on thirty of them is the difference
+   between a job and a hunt. */
+.yours { font-size: var(--t-caption); color: var(--c-brand-strong); }
+.theirs {
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count { font-size: var(--t-caption); color: var(--c-ink-faint); white-space: nowrap; }
+
+.bare {
+  border: 0;
+  background: transparent;
+  font-size: var(--t-caption);
+  color: var(--c-action-text);
+  cursor: pointer;
+  padding: var(--s-1);
+  min-height: 32px;
+  white-space: nowrap;
+}
+
+.bare:hover:not(:disabled) { text-decoration: underline; }
+.bare:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* --- shelves ------------------------------------------------------------- */
+
+/* Indented and railed, so a shelf reads as inside a department rather than as
+   another department with a smaller name. */
+.shelves { margin-left: var(--s-4); border-left: 2px solid var(--c-line); }
+.shelf { border-bottom: 0; }
+.shelf .shownName { font-size: var(--t-body); font-weight: 400; }
+
+/* --- the editor ---------------------------------------------------------- */
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-2) var(--s-4);
+  max-width: 44rem;
+}
+
+/* The eBay path, shown because she should be able to see what she is renaming
+   rather than trusting that the right row opened. */
+.path {
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+  word-break: break-word;
+}
+
+.pair { display: grid; grid-template-columns: 2fr 1fr; gap: var(--s-3); }
+
+@media (max-width: 560px) {
+  .pair { grid-template-columns: 1fr; }
+}
+
+.field { display: flex; flex-direction: column; gap: var(--s-1); }
+.label { font-size: var(--t-label); font-weight: 500; }
+.hint { font-size: var(--t-caption); color: var(--c-ink-faint); line-height: var(--lh-snug); }
+
+.input {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  font: inherit;
+  font-size: var(--t-body);
+}
+
+.primary {
+  align-self: flex-start;
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-action-strong);
+  border-radius: var(--r-sm);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-label);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.primary:hover:not(:disabled) { filter: brightness(0.93); }
+.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.empty { font-size: var(--t-body); color: var(--c-ink-soft); line-height: var(--lh-body); max-width: 62ch; }
+.error { font-size: var(--t-caption); color: var(--c-negative); }
+.emptyTitle { font-size: var(--t-figure); letter-spacing: -0.02em; margin-bottom: var(--s-3); }
+.emptyBody { color: var(--c-ink-soft); line-height: var(--lh-body); max-width: 46ch; }
+
+@media (max-width: 640px) {
+  .title { font-size: 1.625rem; }
+  .count { display: none; }
+}

@@ -13,6 +13,16 @@ export const STORE_ROUTES = {
   // Home is a hero and shelves. This is the whole catalogue in one grid, and
   // it is where "Keep shopping" and "Everything in the shop" belong.
   SHOP: '/shop',
+  // What the band on the home page has promised since the shop was built. It
+  // went to a mail client, which is where a request goes to die.
+  REQUEST: '/request',
+  // Reached from the link on every marketing email. Runs on load rather than
+  // asking somebody to confirm a decision they have already made.
+  UNSUBSCRIBE: '/unsubscribe',
+  // Reached only by the link in the dispatch email, and never linked to from
+  // anywhere in the shop. That is what makes a rating on a product page a fact
+  // rather than a decoration.
+  REVIEW: '/review/:reference',
   // For anyone who has lost the link in their confirmation email. The
   // reference alone is not enough to open an order, so this asks for the
   // email too.
@@ -28,6 +38,11 @@ export const PORTAL_ROUTES = {
   // two businesses and moving one of them's front door to make room for the
   // other is a change nobody asked for.
   SHOP: '/shop',
+  REVIEWS: '/reviews',
+  CUSTOMERS: '/customers',
+  REQUESTS: '/requests',
+  SUBSCRIBERS: '/subscribers',
+  CATEGORIES: '/sections',
   CANDIDATES: '/candidates',
   APPROVED: '/approved',
   LISTINGS: '/listings',
@@ -79,7 +94,12 @@ export const PORTAL_NAV_SECTIONS = [
     items: [
       { route: PORTAL_ROUTES.SHOP, label: 'Dashboard', icon: 'IconGauge' },
       { route: PORTAL_ROUTES.PRODUCTS, label: 'Products', icon: 'IconShop' },
+      { route: PORTAL_ROUTES.CATEGORIES, label: 'Sections', icon: 'IconShelves' },
       { route: PORTAL_ROUTES.ORDERS, label: 'Orders', icon: 'IconBox' },
+      { route: PORTAL_ROUTES.REVIEWS, label: 'Reviews', icon: 'IconStar' },
+      { route: PORTAL_ROUTES.CUSTOMERS, label: 'Customers', icon: 'IconPeople' },
+      { route: PORTAL_ROUTES.REQUESTS, label: 'Requests', icon: 'IconAsk' },
+      { route: PORTAL_ROUTES.SUBSCRIBERS, label: 'Mailing list', icon: 'IconEnvelope' },
       { route: PORTAL_ROUTES.INTEREST, label: 'Interest', icon: 'IconEye' },
       { route: PORTAL_ROUTES.FOUND, label: 'Being found', icon: 'IconSearch' },
     ],

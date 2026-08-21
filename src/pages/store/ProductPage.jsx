@@ -5,6 +5,7 @@ import { DeliveryEstimate } from '@components/ui/store/DeliveryEstimate';
 import { ProductTerms } from '@components/ui/store/ProductTerms';
 import { StockSignal, isBuyable } from '@components/ui/store/StockSignal';
 import { VariantChoice } from '@components/ui/store/VariantChoice';
+import { Reviews } from '@components/ui/store/Reviews';
 import { anyBuyable } from '@hooks/useStoreProducts';
 import { Specifications } from '@components/ui/store/Specifications';
 import { SupplierText } from '@components/ui/store/SupplierText';
@@ -19,6 +20,7 @@ import { formatGbp } from '@utils/formatGbp';
 import { STORE_ROUTES } from '@utils/constants';
 import { categorySlug, groupCategories, leafOf, topOf } from '@utils/categories';
 import styles from '@styles/pages/store/product-page.module.css';
+import { useCategoryNames } from '@hooks/useCategoryNamesStore';
 
 /*
  * One product.
@@ -92,15 +94,19 @@ export function ProductPage() {
     trackProductView(product);
   }, [product?.id]);
 
+  // Declared before the memo that reads it, and in the dependency list, or the
+  // related shelf keeps eBay's name for the department after the names arrive.
+  const names = useCategoryNames();
+
   const related = useMemo(() => {
     if (!product) return null;
-    const groups = groupCategories(rows);
+    const groups = groupCategories(rows, { names });
     const name = topOf(product.category_path);
     const group = groups.find((g) => g.slug === categorySlug(name ?? ''));
     if (!group) return null;
     const items = group.items.filter((p) => p.id !== product.id);
     return items.length ? { ...group, items } : null;
-  }, [rows, product]);
+  }, [rows, product, names]);
 
   if (status === 'loading') {
     return <div className={styles.page}><div className={styles.wrap}><div className={styles.loading} /></div></div>;
@@ -252,6 +258,14 @@ export function ProductPage() {
             <Specifications specifications={product.specifications} />
           </div>
         </div>
+      </div>
+
+      {/* After the details, before the related products.
+          Somebody reading this far has already decided they are interested and
+          is now looking for a reason not to buy. The related shelf is where
+          they leave, so the reviews go above it. */}
+      <div className={styles.wrap}>
+        <Reviews product={product} />
       </div>
 
       {related && (

@@ -73,3 +73,42 @@ function applyPalette(palette) {
     root.style.setProperty(`--c-${name}`, value);
   }
 }
+
+/*
+ * Her names for the eBay category paths.
+ *
+ * Cached like the tenant, because they are a handful of rows that change
+ * rarely and every page rendering a navigation needs them. Loading them per
+ * page would mean the header and the page under it can briefly disagree about
+ * what a department is called while a second request is in flight, which is
+ * the one thing a shop front must never do.
+ *
+ * 0064 grants select on this table to anon, so there is one path rather than
+ * the two `loadTenant` needs: these are the words on the shop front, not
+ * anything about the business behind it.
+ */
+let cachedNames = null;
+
+export async function loadCategoryNames() {
+  if (cachedNames) return cachedNames;
+
+  const { data, error } = await supabase
+    .from('store_category_names')
+    .select('path, name, slug, blurb, position, hidden');
+
+  /*
+   * An empty list on failure, not a throw.
+   *
+   * Every consumer falls back to the eBay name when a path is not in here, so
+   * a failed read is a shop that reads exactly as it did before this feature
+   * existed. Failing the page instead would mean a broken table takes down a
+   * navigation over a cosmetic feature.
+   */
+  if (error) {
+    console.warn('[store] could not load category names', error);
+    return [];
+  }
+
+  cachedNames = data ?? [];
+  return cachedNames;
+}

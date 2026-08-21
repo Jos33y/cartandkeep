@@ -3,6 +3,8 @@ import { Link, NavLink } from 'react-router';
 import { Logo } from '@components/ui/shared/Logo';
 import { BasketIcon, HeartIcon, SearchIcon } from '@components/ui/store/icons';
 import { useBasket } from '@context/BasketContext';
+import { useCategoryNames } from '@hooks/useCategoryNamesStore';
+import { isHidden, resolveName } from '@utils/categoryNames';
 import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/layout/store/store-header.module.css';
 
@@ -24,14 +26,29 @@ import styles from '@styles/layout/store/store-header.module.css';
  * No account link, and there will not be one. Checkout is guest only and the
  * fastest way to lose an order is to put a password between somebody and it.
  */
+/*
+ * The path is here so her name can be looked up, and the short label stays as
+ * the default.
+ *
+ * "Home & DIY" is a hand shortened version of "Home, Furniture & DIY", written
+ * because a header that scrolls is a header nobody reads. It is a better
+ * default than eBay's full string, so a department she has not renamed keeps
+ * the short one and only a name she has actually chosen replaces it.
+ *
+ * Still hardcoded, still no catalogue query. The names are a handful of cached
+ * rows rather than a read of every product.
+ */
 const DEPARTMENTS = [
-  ['Home & DIY', '/c/home-furniture-and-diy'],
-  ['Health & beauty', '/c/health-and-beauty'],
-  ['Pet', '/c/pet-supplies'],
-  ['Under \u00a320', '/c/under-20'],
+  ['Home & DIY', '/c/home-furniture-and-diy', 'Home, Furniture & DIY'],
+  ['Health & beauty', '/c/health-and-beauty', 'Health & Beauty'],
+  ['Pet', '/c/pet-supplies', 'Pet Supplies'],
+  // A price band rather than a department, so there is no path and nothing to
+  // rename. Hers already.
+  ['Under \u00a320', '/c/under-20', null],
 ];
 export function StoreHeader() {
   const { count } = useBasket();
+  const names = useCategoryNames();
   const [stuck, setStuck] = useState(false);
 
   // The hairline appears once the page has moved. A rule under a header
@@ -51,9 +68,16 @@ export function StoreHeader() {
         </Link>
 
         <nav className={styles.nav} aria-label="Departments">
-          {DEPARTMENTS.map(([label, to]) => (
-            <NavLink key={to} to={to} className={styles.link}>{label}</NavLink>
-          ))}
+          {DEPARTMENTS
+            // A department she has taken off the navigation comes off here
+            // too, or the one place a customer is guaranteed to see it is the
+            // one place she cannot remove it from.
+            .filter(([, , path]) => !path || !isHidden(path, names))
+            .map(([label, to, path]) => (
+              <NavLink key={to} to={to} className={styles.link}>
+                {(path && resolveName(path, names)?.name) || label}
+              </NavLink>
+            ))}
           <NavLink to={STORE_ROUTES.HOME} end className={styles.link}>All departments</NavLink>
         </nav>
 

@@ -16,7 +16,7 @@
 
 export const SCOPE_VERSION = '1.3';
 export const SCOPE_DATE = '2026-07-22';
-export const LAST_REVIEWED = '2026-08-19';
+export const LAST_REVIEWED = '2026-08-21';
 export const MONTH_ONE_DUE = '2026-08-22';
 
 export const DELIVERABLE_GROUPS = [
@@ -48,9 +48,8 @@ export const DELIVERABLE_GROUPS = [
         // folded into the item above.
         label: 'Financial dashboard in the portal',
         detail:
-          'Revenue, platform fees, expenses and net profit per product per channel. Revenue and fees follow the first sales. Net profit needs what each product costs you, which nothing has recorded yet.',
-        state: 'queued',
-        blocking: 'store',
+          'Revenue, platform fees, promoted listings, postage, packaging, returns provision and cost of goods, per product and per channel. Built. It fills as sales come in, and your eBay and TikTok Shop sales come in from their own reports so the figures cover all three.',
+        state: 'active',
       },
       {
         label: 'Custom store live',
@@ -192,33 +191,55 @@ export const DELIVERABLE_GROUPS = [
       { label: 'Revenue', detail: 'Follows the first order.', state: 'queued', blocking: 'store' },
       {
         label: 'Traffic sources',
-        detail: 'Google, TikTok, direct, email, referral. Not built yet.',
-        state: 'queued',
+        detail:
+          'Google, TikTok, a link somebody shared, email, or typing the address in, with how many of each went on to put something in a basket and buy.',
+        state: 'done',
+        date: '2026-08-20',
       },
       {
         label: 'Returning against new customers',
         detail:
-          'By email address on the order, since the shop stores nothing on anybody device. Follows the first orders.',
-        state: 'queued',
-        blocking: 'store',
+          'By email address on the order, since the shop stores nothing on anybody\u2019s device. Both counts are on the Customers screen, with everything each person has bought behind their row. The figures stay at zero until the first orders.',
+        state: 'done',
+        date: '2026-08-21',
       },
-      { label: 'Revenue by channel', state: 'queued', blocking: 'store' },
+      {
+        label: 'Revenue by channel',
+        detail:
+          'Your shop, eBay and TikTok Shop in the same figures. The other two come in from the reports both platforms already give you, so this does not wait on the shop selling anything.',
+        state: 'done',
+        date: '2026-08-20',
+      },
       {
         label: 'Cost tracking',
-        detail: 'Platform fees, delivery, packaging and ongoing expenses.',
-        state: 'queued',
+        detail:
+          'What each product cost you landed, what postage costs you, packaging per parcel, a returns provision and promoted listings. Platform fees come off the real figure where the export gives one and off the rate where it does not.',
+        state: 'done',
+        date: '2026-08-20',
       },
       {
         label: 'Margin per product per channel',
         detail:
-          'Needs what each product costs you landed. Nothing records that yet, so this is honestly not startable rather than merely unstarted.',
+          'The same product side by side on all three. On a pan set at £117 that is £46 on your own shop against £28 on eBay, after every fee, postage, packaging and what it cost you.',
+        state: 'done',
+        date: '2026-08-20',
+      },
+      {
+        label: 'Net profit per product per channel',
+        detail:
+          'Per month, per product, per channel. Shown over the products with a cost recorded, and it says how many that covers rather than quietly leaving the rest out.',
+        state: 'done',
+        date: '2026-08-20',
+      },
+      {
+        label: 'Category level profit and loss',
+        detail: 'The same figures grouped by department. Not built.',
         state: 'queued',
       },
-      { label: 'Net profit per product per channel', state: 'queued' },
-      { label: 'Category level profit and loss', state: 'queued' },
       {
         label: 'Alerts when a product or category goes negative margin',
-        detail: 'Follows cost tracking, since there is nothing to compare a price against without it.',
+        detail:
+          'Follows cost tracking, since there is nothing to compare a price against without it. The machinery that sends a scheduled alert is built and running: low stock uses it already.',
         state: 'queued',
       },
     ],
@@ -283,6 +304,62 @@ export const DELIVERABLE_GROUPS = [
         date: '2026-08-19',
       },
       {
+        label: 'Sizes and options on a product',
+        detail:
+          'One product in several sizes, colours or pack sizes, each with its own price and its own count, and a shopper picks one before the basket will take it. Not in the scope, and the alternative was three separate listings of the same thing.',
+        state: 'done',
+        date: '2026-08-21',
+      },
+      {
+        label: 'Product descriptions drafted for you',
+        detail:
+          'Reads the photograph as well as the record, writes a description and a shorter title, and tells you where the supplier data disagrees with itself. It has already caught a sticker pack listed as foam and a load rating given two different ways on a bed rail. Nothing is published until you have read it.',
+        state: 'done',
+        date: '2026-08-21',
+      },
+      {
+        label: 'Reviews, from people who actually bought it',
+        detail:
+          'There is no way to write one except from the link in your dispatch email, asked for a week after the parcel goes out, and nothing appears on the shop until you have read it. That is what lets the rating on a product page be a fact rather than a decoration.',
+        state: 'done',
+        date: '2026-08-21',
+      },
+      {
+        label: 'Your own dashboard',
+        detail:
+          'What needs you, in the order it matters, with what has been taken today beside it. Every line goes straight to the screen that clears it.',
+        state: 'done',
+        date: '2026-08-21',
+      },
+      {
+        label: 'Your own words for every department',
+        detail:
+          'The sections came from the eBay categories your products were listed under, so they read like a marketplace rather than a shop. Rename any of them, reorder them, or take one off the menu. The products do not move and Google still sees the original, so nothing you have already been indexed for breaks.',
+        state: 'done',
+        date: '2026-08-21',
+      },
+      {
+        label: 'Ask us to stock it',
+        detail:
+          'The offer on your home page used to open an email. It is a page now, so a request arrives with what they want, what they pay for it now and where they buy it, and anything asked for more than once is grouped with an average of what people say they pay. That is demand you did not have to research.',
+        state: 'done',
+        date: '2026-08-21',
+      },
+      {
+        label: 'Customers',
+        detail:
+          'Everybody who has bought something, what they spent, what they ordered and whether anything of theirs is still waiting to go out. Searchable by name, postcode or order reference, which is what you need when somebody writes in. Nobody to add: it fills itself.',
+        state: 'done',
+        date: '2026-08-21',
+      },
+      {
+        label: 'Mailing list, and taking things off sale',
+        detail:
+          'A box in the footer with a working unsubscribe, and the list exportable to a spreadsheet whenever you want it. Plus archiving: a product comes off the shop and out of your lists without touching the orders that already have it on them.',
+        state: 'done',
+        date: '2026-08-21',
+      },
+      {
         label: 'Supplier sourcing',
         detail:
           'A UK trade supplier for mobility aids contacted, awaiting response. One factory confirmed on a percussion massager with a minimum order of one unit, pending compliance documents.',
@@ -316,15 +393,18 @@ export const DELIVERABLE_GROUPS = [
         state: 'client',
       },
       {
-        label: 'Confirm the returns rule on eleven products',
+        // Eleven was the sealed count. Sixteen more are things that cannot come
+        // back at all, and the portal reports twenty five waiting. A number she
+        // can check against her own screen and find wrong is worse than none.
+        label: 'Confirm the returns rule on twenty five products',
         detail:
-          'Under Products. Bath sets, pads and anything that comes sealed cannot carry the same fourteen day return as a saucepan, and the wording is a contract term, so it is yours to agree rather than ours to write.',
+          'Under Products. Bath sets, pads, food and anything that comes sealed cannot carry the same return as a saucepan, and the wording is a contract term, so it is yours to agree rather than ours to write. There is a suggestion on each one with the reason for it.',
         state: 'client',
       },
       {
-        label: 'Read the label on seven chemicals',
+        label: 'Read the label on eight chemicals',
         detail:
-          'Under Products. Carpet cleaner, Jeyes Fluid, drain unblocker, weed killer, wasp killer, super glue and the kintsugi kit. An online offer for a classified mixture has to carry its hazard wording, and only the bottle knows what that is.',
+          'Under Products. Carpet cleaner, Jeyes Fluid, drain unblocker, weed killer, wasp killer, super glue and the rest. An online offer for a classified mixture has to carry its hazard wording, and only the bottle knows what that is.',
         state: 'client',
       },
       {

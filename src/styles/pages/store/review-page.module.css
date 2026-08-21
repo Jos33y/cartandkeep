@@ -1,0 +1,146 @@
+/* Writing a review.
+   ------------------------------------------------------------------------
+   A narrow column, because this is a form somebody opens on a phone from an
+   email and fills in once. No shelves, no related products, nothing to click
+   away to. */
+
+.page {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: var(--s-7) var(--s-4) var(--s-8);
+}
+
+.head { display: flex; flex-direction: column; gap: var(--s-2); margin-bottom: var(--s-6); }
+
+.title { font-size: var(--ts-title); font-weight: 500; letter-spacing: -0.02em; }
+.body { font-size: var(--t-body); line-height: var(--lh-body); color: var(--c-ink-soft); }
+.ref { font-size: var(--t-caption); color: var(--c-faint); }
+
+/* --- one product --------------------------------------------------------- */
+
+.items { display: flex; flex-direction: column; gap: var(--s-6); }
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--c-line);
+}
+
+.items > .item:first-child { padding-top: 0; border-top: 0; }
+
+.product { display: flex; align-items: center; gap: var(--s-3); }
+
+.thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--r-control);
+  object-fit: cover;
+  background: var(--c-sunk);
+  flex-shrink: 0;
+}
+
+.productTitle { font-size: var(--t-body); font-weight: 500; line-height: var(--lh-snug); }
+.variant { color: var(--c-faint); font-weight: 400; }
+.variant::before { content: ' · '; }
+
+.already { font-size: var(--t-caption); color: var(--c-ink-soft); line-height: var(--lh-snug); }
+
+/* --- the stars ----------------------------------------------------------- */
+
+.picker { display: flex; align-items: center; gap: var(--s-3); }
+
+.stars { display: flex; gap: var(--s-1); }
+
+/* Each star is its own button, because a hover strip does nothing on a phone
+   and this link is opened on a phone. 44px so it can be tapped by a thumb. */
+.star {
+  min-width: var(--tap);
+  min-height: var(--tap);
+  border: 0;
+  background: transparent;
+  color: var(--c-line-mid);
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.star[data-on] { color: var(--c-gold-line); }
+
+/* Holds its height whether or not a word is in it, so choosing a rating does
+   not shift the rest of the form under the thumb that just tapped it. */
+.pickerLabel {
+  min-height: 1.2em;
+  font-size: var(--t-body);
+  color: var(--c-ink-soft);
+}
+
+/* --- fields -------------------------------------------------------------- */
+
+.field { display: flex; flex-direction: column; gap: var(--s-1); }
+.label { font-size: var(--t-label); font-weight: 500; }
+.hint { font-size: var(--t-caption); color: var(--c-faint); }
+
+.input,
+.textarea {
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-control);
+  background: var(--c-surface);
+  font: inherit;
+  font-size: var(--t-body);
+  color: var(--c-ink);
+}
+
+.textarea { resize: vertical; line-height: var(--lh-body); }
+
+.input:focus-visible,
+.textarea:focus-visible { outline: 2px solid var(--c-ink); outline-offset: 1px; }
+
+/* --- the button ---------------------------------------------------------- */
+
+.submit {
+  min-height: 48px;
+  border-radius: var(--r-control);
+  border: 0;
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-body);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.submit:hover:not(:disabled) { filter: brightness(0.93); }
+.submit:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.error { font-size: var(--t-caption); color: var(--c-negative); }
+
+/* --- after ---------------------------------------------------------------- */
+
+.thanks {
+  padding: var(--s-4);
+  background: var(--c-sage-wash);
+  border-radius: var(--r-control);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+}
+
+/* --- a link that does not work -------------------------------------------- */
+
+.failed { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); }
+
+.back {
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-control);
+  font-size: var(--t-body);
+}
+
+.loading { height: 12rem; background: var(--c-sunk); border-radius: var(--r-control); }

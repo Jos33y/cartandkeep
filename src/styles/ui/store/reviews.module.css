@@ -1,0 +1,104 @@
+/* Reviews on the product page.
+   ------------------------------------------------------------------------
+   Under the description and the details, because somebody reading this has
+   already decided they are interested and is now looking for a reason not to
+   buy. Above the related products, because that is where they leave. */
+
+.section {
+  margin-top: var(--s-7);
+  padding-top: var(--s-6);
+  border-top: 1px solid var(--c-line);
+}
+
+.head {
+  font-size: var(--ts-section);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin-bottom: var(--s-4);
+}
+
+/* --- the average --------------------------------------------------------- */
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin-bottom: var(--s-5);
+}
+
+.average { display: flex; align-items: center; gap: var(--s-3); }
+
+/* The figure carries the display face and the tabular figures from
+   [data-price], the same as every other number on the shop. */
+.averageNum { font-size: 1.75rem; letter-spacing: -0.02em; }
+
+.count { font-size: var(--t-caption); color: var(--c-faint); }
+
+/* --- stars --------------------------------------------------------------- */
+
+.stars { display: inline-flex; gap: 1px; line-height: 1; }
+
+/* Empty by default, so an unfilled star is a shape rather than an absence.
+   A row of four stars where there should be five reads as a rendering fault. */
+.star { color: var(--c-line-mid); font-size: 1.0625rem; }
+
+.star[data-fill='full'] { color: var(--c-gold-line); }
+
+/* Half filled with a gradient rather than a second overlaid glyph, because two
+   stacked characters drift apart at different font sizes and this has to sit
+   both beside a 1.75rem average and inside a review row. */
+.star[data-fill='half'] {
+  background: linear-gradient(90deg, var(--c-gold-line) 50%, var(--c-line-mid) 50%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* --- the list ------------------------------------------------------------ */
+
+.list { display: flex; flex-direction: column; }
+
+.review {
+  padding: var(--s-4) 0;
+  border-top: 1px solid var(--c-line);
+}
+
+.reviewHead {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-2);
+}
+
+.author { font-size: var(--t-body); font-weight: 500; }
+.date { font-size: var(--t-caption); color: var(--c-faint); }
+
+.reviewTitle { font-size: var(--t-body); font-weight: 500; margin-bottom: var(--s-1); }
+.body { font-size: var(--t-body); line-height: var(--lh-body); color: var(--c-ink); }
+
+/* --- her reply ----------------------------------------------------------- */
+
+/* Sunk and indented, so it reads as an answer to the review above rather than
+   as a second review. Sage carries structure on this platform, and a reply is
+   structure rather than an action. */
+.reply {
+  margin-top: var(--s-3);
+  margin-left: var(--s-4);
+  padding: var(--s-3);
+  background: var(--c-sage-wash);
+  border-radius: var(--r-control);
+}
+
+.replyWho {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-sage-deep);
+  margin-bottom: var(--s-1);
+}
+
+@media (max-width: 640px) {
+  .reply { margin-left: 0; }
+}

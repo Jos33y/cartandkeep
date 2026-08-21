@@ -5,7 +5,7 @@ import { ChecksPanel } from '@components/ui/portal/product/ChecksPanel';
 import { VariantsPanel } from '@components/ui/portal/product/VariantsPanel';
 import { formatGbp } from '@utils/formatGbp';
 import { visibleSpecs, hiddenSpecs } from '@utils/specs';
-import { blockers, warnings, isLive, marginFor, checksFor, CATEGORY_MIN } from '@hooks/useCatalogue';
+import { blockers, warnings, isLive, isArchived, marginFor, checksFor, CATEGORY_MIN } from '@hooks/useCatalogue';
 import styles from '@styles/ui/portal/product-row.module.css';
 
 /*
@@ -39,7 +39,7 @@ export function ProductRow({
   product, selected, onSelect, onConfirmReturns, onSaveHazard, onUnpublish,
   onSaveDescription, onSaveDetails, onSaveImages, onRemoveImage, onSaveStock,
   onSaveRecord, onSaveCost, onDraft, onDiscardDraft, onAcknowledgeChecks,
-  onAddVariant, onSaveVariant, onRemoveVariant,
+  onAddVariant, onSaveVariant, onRemoveVariant, onArchive, onUnarchive,
   tenantId, categories, categoryCount, fees,
 }) {
   const [open, setOpen] = useState(false);
@@ -157,6 +157,9 @@ export function ProductRow({
    * is in and how to pull it, and both are here, which is why it moves to the
    * top rather than sitting under eight panels that do not apply.
    */
+  const archived = isArchived(product);
+  const [reason, setReason] = useState('');
+
   const onShop = (
           <section className={styles.panel}>
             <h4 className="micro">On the shop</h4>
@@ -185,6 +188,60 @@ export function ProductRow({
               >
                 Take back to draft
               </button>
+            )}
+
+            {/*
+              * Out for good, or back into the queue.
+              *
+              * Not a delete, because an order still points at this row and a
+              * shop that stopped stocking something has to be able to say what
+              * it was when somebody asks about an order from March.
+              *
+              * The reason is asked for because "the supplier stopped making it"
+              * and "it never sold" are different facts, and the second one is
+              * research she paid for. Optional, so it never blocks the action.
+              */}
+            {archived ? (
+              <div className={styles.archived}>
+                <p className={styles.settled}>
+                  Out of the shop{product.archived_reason ? `. ${product.archived_reason}` : '.'}
+                  {' '}Old orders still show it.
+                </p>
+                <button
+                  type="button"
+                  className={styles.ghost}
+                  disabled={busy}
+                  onClick={() => run(() => onUnarchive({ id: product.id }))}
+                >
+                  Put it back in the queue
+                </button>
+              </div>
+            ) : (
+              <details className={styles.archiveBox}>
+                <summary>Take it out of the shop for good</summary>
+                <label className={styles.field}>
+                  <span className={styles.label}>Why, for your own records</span>
+                  <input
+                    className={styles.input}
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Supplier stopped making it"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className={styles.ghost}
+                  disabled={busy}
+                  onClick={() => run(() => onArchive({ id: product.id, reason }))}
+                >
+                  Archive it
+                </button>
+                <p className={styles.hint}>
+                  It comes off the shop and out of your lists. The page keeps
+                  working for anyone holding a link, and old orders are
+                  untouched. You can put it back.
+                </p>
+              </details>
             )}
           </section>
   );
