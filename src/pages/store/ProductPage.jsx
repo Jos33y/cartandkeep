@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router';
 import { Gallery } from '@components/ui/store/Gallery';
 import { DeliveryEstimate } from '@components/ui/store/DeliveryEstimate';
 import { ProductTerms } from '@components/ui/store/ProductTerms';
+import { AskPanel } from '@components/ui/store/AskPanel';
 import { StockSignal, isBuyable } from '@components/ui/store/StockSignal';
 import { VariantChoice } from '@components/ui/store/VariantChoice';
 import { Reviews } from '@components/ui/store/Reviews';
@@ -242,6 +243,11 @@ export function ProductPage() {
             </div>
 
             <ProductTerms product={product} />
+
+            {/* Last in the column and the quietest thing in it. Somebody who
+                has decided scrolls past without registering it. Somebody who
+                is stuck is looking for exactly this. */}
+            <AskPanel product={product} />
 
             {/* Her words first and the supplier's second, never mixed. A
                 description she has written replaces the supplier block

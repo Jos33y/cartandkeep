@@ -13,6 +13,8 @@ const ApprovedPage = lazy(() => import('@pages/portal/ApprovedPage').then((m) =>
 const ListingsPage = lazy(() => import('@pages/portal/ListingsPage').then((m) => ({ default: m.ListingsPage })));
 const ShopPage = lazy(() => import('@pages/portal/ShopPage').then((m) => ({ default: m.ShopPage })));
 const ReviewsPage = lazy(() => import('@pages/portal/ReviewsPage').then((m) => ({ default: m.ReviewsPage })));
+const MessagesPage = lazy(() => import('@pages/portal/MessagesPage').then((m) => ({ default: m.MessagesPage })));
+const SlipPage = lazy(() => import('@pages/portal/SlipPage').then((m) => ({ default: m.SlipPage })));
 const CustomersPage = lazy(() => import('@pages/portal/CustomersPage').then((m) => ({ default: m.CustomersPage })));
 const RequestsPage = lazy(() => import('@pages/portal/RequestsPage').then((m) => ({ default: m.RequestsPage })));
 const SubscribersPage = lazy(() => import('@pages/portal/SubscribersPage').then((m) => ({ default: m.SubscribersPage })));
@@ -51,6 +53,8 @@ export const portalRouter = createBrowserRouter([
       { path: 'being-found', element: deferred(<BeingFoundPage />) },
       { path: 'finance', element: deferred(<FinancePage />) },
       { path: 'orders', element: deferred(<OrdersPage />) },
+      { path: 'messages', element: deferred(<MessagesPage />) },
+      { path: 'orders/:reference/slip', element: deferred(<SlipPage />) },
       { path: 'notes', element: deferred(<NotesPage />) },
       { path: 'coverage', element: deferred(<CoveragePage />) },
       { path: 'metrics', element: deferred(<MetricsPage />) },

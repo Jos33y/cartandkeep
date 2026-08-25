@@ -35,6 +35,10 @@ async function call(fn, body) {
 
 export const startCheckout = (payload) => call('checkout', payload);
 
+// The function refuses this the moment a Stripe key exists.
+export const simulatePayment = ({ reference, token, outcome }) =>
+  call('checkout', { action: 'simulate', reference, token, outcome });
+
 /*
  * Two ways in. The confirmation link carries a token, and somebody who has
  * lost it can use the email they ordered with instead. The function decides

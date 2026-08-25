@@ -1,0 +1,150 @@
+/* The receipt.
+   ------------------------------------------------------------------------
+   A till roll rather than a web page. Monospace throughout, dashed rules, a
+   torn bottom edge, and the whole thing at a fixed narrow measure so it reads
+   as a printed object at any window width.
+
+   Colour appears in exactly two places, the payment stamp and the one word
+   naming where the order has got to, and nowhere else. Everything else is ink
+   on white, because a decorated receipt stops reading as a record. */
+
+.receipt {
+  width: 100%;
+  max-width: 22rem;
+  margin: 0 auto;
+  padding: var(--s-5) var(--s-4) var(--s-6);
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(42 39 35 / 14%);
+  font-family: var(--font-data);
+  font-size: 0.78rem;
+  line-height: 1.65;
+  color: var(--c-ink);
+
+  /* The torn edge. A zigzag rather than a rounded scallop, because a till roll
+     tears against a serrated blade and a soft edge reads as a sticker. */
+  clip-path: polygon(
+    0 0, 100% 0, 100% calc(100% - 5px),
+    96% 100%, 92% calc(100% - 5px), 88% 100%, 84% calc(100% - 5px),
+    80% 100%, 76% calc(100% - 5px), 72% 100%, 68% calc(100% - 5px),
+    64% 100%, 60% calc(100% - 5px), 56% 100%, 52% calc(100% - 5px),
+    48% 100%, 44% calc(100% - 5px), 40% 100%, 36% calc(100% - 5px),
+    32% 100%, 28% calc(100% - 5px), 24% 100%, 20% calc(100% - 5px),
+    16% 100%, 12% calc(100% - 5px), 8% 100%, 4% calc(100% - 5px), 0 100%
+  );
+
+  /* Fed once, on arrival. Nothing moves afterwards, because this is a page
+     people come back to and a flourish that was charming on the first visit is
+     irritating on the fourth. */
+  animation: feed 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes feed {
+  from { clip-path: inset(0 0 100% 0); transform: translateY(-8px); }
+  to   { transform: translateY(0); }
+}
+
+.head { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--s-1); }
+.site { color: var(--c-faint); }
+
+.slipLabel {
+  margin-top: var(--s-1);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* Dashed, because a printed rule on a till roll is a row of dots and a hairline
+   reads as a table border. */
+.rule { border-top: 1px dashed var(--c-line-mid); margin: var(--s-3) 0; }
+
+.meta { display: flex; flex-direction: column; }
+.meta > div { display: flex; justify-content: space-between; gap: var(--s-3); }
+.meta dt { text-transform: uppercase; letter-spacing: 0.06em; }
+.meta dd { text-align: right; }
+
+.mono { font-variant-numeric: tabular-nums; }
+
+.lines { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+/* One line per thing bought, title above figures rather than beside them. Her
+   feed titles run past seventy characters and a two column line would either
+   truncate them or wrap into the price. */
+.line { display: flex; flex-direction: column; }
+
+.lineTitle { line-height: 1.4; }
+.variant { color: var(--c-ink-soft); }
+
+.lineFigures { display: flex; justify-content: space-between; gap: var(--s-3); color: var(--c-ink-soft); }
+
+.totals { display: flex; flex-direction: column; }
+.totals > div { display: flex; justify-content: space-between; gap: var(--s-3); }
+.totals dt { text-transform: uppercase; letter-spacing: 0.06em; }
+
+.grand { margin-top: var(--s-1); font-size: 0.9rem; font-weight: 600; }
+.refund { margin-top: var(--s-1); }
+
+/* --- the two coloured things --------------------------------------------- */
+
+.stampWrap { display: flex; justify-content: center; margin: var(--s-4) 0 var(--s-3); }
+
+/* Rotated half a degree, because a stamp put on by hand is never square, and
+   the tilt is what stops it reading as a badge. */
+.stamp {
+  border: 2px solid currentColor;
+  padding: 4px var(--s-3);
+  letter-spacing: 0.2em;
+  font-weight: 600;
+  transform: rotate(-0.6deg);
+}
+
+.stamp[data-tone='paid']      { color: var(--c-positive); }
+.stamp[data-tone='pending']   { color: var(--c-warning); }
+.stamp[data-tone='refunded']  { color: var(--c-negative); }
+.stamp[data-tone='cancelled'] { color: var(--c-faint); border-color: var(--c-line-mid); }
+
+.state { font-weight: 600; }
+.state[data-tone='sent']     { color: var(--c-sage-deep); }
+.state[data-tone='refunded'] { color: var(--c-negative); }
+.state[data-tone='pending']  { color: var(--c-warning); }
+.state[data-tone='quiet']    { color: var(--c-faint); }
+.state[data-tone='ink']      { color: var(--c-ink); }
+
+/* --- the rest ------------------------------------------------------------- */
+
+.address { font-style: normal; }
+.addressHead { text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: var(--s-1); }
+
+.note { line-height: 1.5; }
+.noteHead { text-transform: uppercase; letter-spacing: 0.06em; }
+
+.terms { display: flex; flex-direction: column; gap: var(--s-2); color: var(--c-ink-soft); line-height: 1.5; }
+
+.foot { text-align: center; margin-top: var(--s-4); color: var(--c-faint); letter-spacing: 0.4em; }
+
+@media (prefers-reduced-motion: reduce) {
+  .receipt { animation: none; }
+}
+
+/* --- printing ------------------------------------------------------------- */
+
+@media print {
+  .receipt {
+    max-width: none;
+    box-shadow: none;
+    animation: none;
+    /* Square, because a torn edge is a screen conceit and a printer would
+       render it as a white notch. */
+    clip-path: none;
+    padding: 0;
+    font-size: 10.5pt;
+  }
+
+  /* Kept rather than dropped. A receipt that prints its status in grey on a
+     colour printer has thrown away the one thing it was carrying. */
+  .stamp,
+  .state {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .rule { border-top-color: #000; }
+}

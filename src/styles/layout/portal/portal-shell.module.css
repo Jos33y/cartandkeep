@@ -80,6 +80,32 @@
 
 .icon { width: 18px; height: 18px; flex: none; color: var(--c-ink-faint); }
 
+/* The one count in the rail.
+   Wash and ink rather than a solid terracotta fill, because terracotta on this
+   platform marks an action and a count is a state. It is the only thing in the
+   navigation that is not a label, which is enough to make it read. */
+.badge {
+  margin-left: auto;
+  flex: none;
+  min-width: 20px;
+  padding: 1px var(--s-2);
+  border-radius: var(--r-full);
+  background: var(--c-action-wash);
+  color: var(--c-action-text);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  text-align: center;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .link:hover { color: var(--c-ink); background: var(--c-line); }
 .link:hover .icon { color: var(--c-ink-soft); }
 

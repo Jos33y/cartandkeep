@@ -96,6 +96,15 @@ export const TiktokIcon = (p) => (
   <Icon {...p}><path d="M14 4v10.6a3.6 3.6 0 1 1-3-3.55" /><path d="M14 6.2A5 5 0 0 0 19 9.4" /></Icon>
 );
 
+// Asking about a product. Two boxes rather than one, because a conversation is
+// two people taking turns and a single speech box already reads as a notice.
+export const MessageIcon = (p) => (
+  <Icon {...p}>
+    <path d="M3 4h11v7H8l-3.5 3v-3H3z" />
+    <path d="M9 14h6.5l3.5 3v-3H21V7h-3" />
+  </Icon>
+);
+
 export const MailIcon = (p) => (
   <Icon {...p}><rect x="3" y="5.5" width="18" height="13" rx="2.5" /><path d="M4 7.5l8 5.5 8-5.5" /></Icon>
 );

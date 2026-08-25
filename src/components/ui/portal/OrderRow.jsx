@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
+import { PORTAL_ROUTES, portalPath } from '@utils/constants';
 import { formatGbp } from '@utils/formatGbp';
 import { CARRIERS } from '@utils/constants';
 import { isToSend } from '@hooks/useOrders';
@@ -296,6 +298,14 @@ export function OrderRow({ order, onSave, onResend }) {
                 </label>
 
                 <div className={styles.actions}>
+                  {/* Opened rather than printed from here. Printing from
+                      inside a list prints the list. */}
+                  <Link
+                    className={styles.ghost}
+                    to={portalPath(PORTAL_ROUTES.SLIP.replace(':reference', order.reference))}
+                  >
+                    Packing slip
+                  </Link>
                   <button
                     type="button"
                     className={styles.primary}

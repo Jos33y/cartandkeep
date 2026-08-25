@@ -1,0 +1,88 @@
+/* The page the receipt sits on.
+   ------------------------------------------------------------------------
+   Almost nothing. The receipt carries its own sheet, so this is the table it
+   is lying on, and everything here disappears when it prints. */
+
+.page {
+  max-width: 30rem;
+  margin: 0 auto;
+  padding: var(--s-6) var(--s-4) var(--s-8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.status { font-size: var(--t-body); color: var(--c-ink-soft); }
+.title { font-size: var(--ts-title); font-weight: 500; letter-spacing: -0.02em; align-self: flex-start; }
+.body { font-size: var(--t-body); line-height: var(--lh-body); color: var(--c-ink-soft); align-self: flex-start; }
+
+.controls { display: flex; gap: var(--s-2); width: 100%; max-width: 22rem; }
+
+.primary {
+  flex: 1;
+  min-height: var(--tap);
+  border: 0;
+  border-radius: var(--r-control);
+  background: var(--c-action-strong);
+  color: #fff;
+  font: inherit;
+  font-size: var(--t-body);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.primary:hover { filter: brightness(0.93); }
+
+.ghost {
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-control);
+  font-size: var(--t-body);
+  text-decoration: none;
+  color: var(--c-ink);
+}
+
+.keep {
+  max-width: 22rem;
+  font-size: var(--t-caption);
+  line-height: var(--lh-snug);
+  color: var(--c-faint);
+  text-align: center;
+}
+
+/* Everything that is not the paper comes off, including the shop around it.
+   Hiding the page's own controls was never enough: the announcement bar, the
+   header, the footer and the mini basket all belong to the shell and printed
+   with it, and the sticky header landed on top of the returns block.
+
+   Scoped with :has, so the rule only exists in a document that is rendering
+   this page. A bare `body *` rule from a module sheet is global once bundled
+   and would take the packing slip and every other printable page with it. */
+@media print {
+  :global(body):has(.page) :global(*) { visibility: hidden; }
+
+  /* The body prefix is repeated on purpose. `body:has(.page) *` is a more
+     specific selector than `.page`, so without it the hide rule wins over the
+     show rule and the whole sheet prints blank. */
+  :global(body):has(.page) .page,
+  :global(body):has(.page) .page * { visibility: visible; }
+
+  /* Pulled to the page origin, or it prints where the shell had left it, which
+     is a third of the way down behind a header that is no longer there. */
+  :global(body):has(.page) .page {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 0;
+    max-width: none;
+    display: block;
+  }
+
+  .controls,
+  .keep { display: none; }
+}

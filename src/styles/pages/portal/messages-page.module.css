@@ -1,0 +1,312 @@
+/* Conversations, from her side.
+   ------------------------------------------------------------------------
+   A ledger, not an inbox with two panes. One row per conversation, the row
+   carrying what it is about, and the answer written in place. The same shape
+   as Reviews, because these are the same job: one screen, one decision. */
+
+.page { display: flex; flex-direction: column; gap: var(--s-5); max-width: 1180px; }
+
+.pageHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-5);
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 560;
+  letter-spacing: -0.035em;
+  line-height: var(--lh-tight);
+  margin-top: var(--s-2);
+}
+
+.measure { text-align: right; flex-shrink: 0; }
+.measureNum { font-size: var(--t-figure); letter-spacing: -0.02em; font-weight: 500; margin-top: var(--s-1); }
+.measureNote { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.status { font-size: var(--t-body); color: var(--c-ink-soft); }
+
+/* --- filters ------------------------------------------------------------- */
+
+.filters { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-full);
+  background: transparent;
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  cursor: pointer;
+}
+
+.filter:hover { background: var(--c-sunk); }
+
+/* Ink rather than terracotta. The accent marks the reply, and choosing which
+   list to look at is not that. */
+.filter[data-on] { background: var(--c-ink); border-color: var(--c-ink); color: var(--c-base); }
+
+.filterCount { font-size: var(--t-caption); opacity: 0.7; }
+
+.truncated { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+/* --- a conversation ------------------------------------------------------ */
+
+.list { display: flex; flex-direction: column; }
+
+.thread {
+  border-bottom: 1px solid var(--c-line);
+  /* The rail says whether it needs her without a badge, and the words beside
+     the date say it for anybody who cannot see the rail. */
+  border-left: 3px solid transparent;
+}
+
+.thread[data-awaiting] { border-left-color: var(--c-action-strong); background: var(--c-raised); }
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-3);
+  cursor: pointer;
+}
+
+.head:hover { background: var(--c-sunk); }
+.head:focus-visible { outline: 2px solid var(--c-ink); outline-offset: -2px; }
+
+.thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--c-sunk);
+}
+
+.headMain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--s-1); }
+
+.about {
+  font-size: var(--t-body);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.said {
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.you { color: var(--c-ink-faint); }
+
+.headMeta {
+  flex-shrink: 0;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.who { font-size: var(--t-caption); color: var(--c-ink-soft); }
+.when { font-size: var(--t-caption); color: var(--c-ink-faint); white-space: nowrap; }
+.waiting { font-size: var(--t-caption); color: var(--c-action-text); }
+.closed { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+/* --- the conversation itself --------------------------------------------- */
+
+.panel {
+  padding: 0 var(--s-3) var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.loading { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.messages { display: flex; flex-direction: column; gap: var(--s-3); }
+
+/* Ruled correspondence rather than bubbles. Two colours and a rule say who
+   spoke, and the shop is the one on the tinted ground. */
+.message {
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--c-sunk);
+}
+
+.message[data-sender='shop'] { background: var(--c-brand-wash); }
+
+.byline {
+  display: flex;
+  gap: var(--s-2);
+  align-items: baseline;
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+  margin-bottom: var(--s-1);
+}
+
+.stamp { margin-left: auto; white-space: nowrap; }
+
+/* Their line breaks kept, because a question written as three paragraphs is
+   three paragraphs and collapsing it loses what they were separating. */
+.body {
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  white-space: pre-wrap;
+}
+
+.unsent { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--c-negative); }
+
+/* --- the basket she is being asked about ---------------------------------- */
+
+/* A ruled list, not thumbnails. It is a record of what was being decided on
+   rather than a shelf, and pictures would invite acting on something that is
+   deliberately frozen. */
+.basket {
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  padding: var(--s-3);
+}
+
+.basketLines { display: flex; flex-direction: column; }
+
+.basketLine {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2rem auto;
+  gap: var(--s-3);
+  align-items: baseline;
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--c-line);
+}
+
+.basketLines > .basketLine:last-child { border-bottom: 0; }
+
+.basketTitle { font-size: var(--t-body); min-width: 0; }
+.basketVariant { color: var(--c-ink-faint); }
+.basketVariant::before { content: ' · '; }
+
+.basketQty { font-size: var(--t-caption); color: var(--c-ink-faint); text-align: right; }
+.basketPrice { font-size: var(--t-body); white-space: nowrap; }
+
+.basketNote { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+/* --- replying ------------------------------------------------------------ */
+
+.replyBox { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.field { display: flex; flex-direction: column; gap: var(--s-1); }
+.label { font-size: var(--t-label); font-weight: 500; }
+
+.textarea {
+  width: 100%;
+  padding: var(--s-2);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  font: inherit;
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  resize: vertical;
+}
+
+.textarea:focus-visible { outline: 2px solid var(--c-ink); outline-offset: 1px; }
+
+.actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+.ghost,
+.primary {
+  min-height: 34px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-sm);
+  font-size: var(--t-label);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ghost { border: 1px solid var(--c-line-mid); background: transparent; color: var(--c-ink); }
+.ghost:hover:not(:disabled) { background: var(--c-sunk); }
+.ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* The one accent on this screen. Answering somebody is what it exists for. */
+.primary { border: 1px solid var(--c-action-strong); background: var(--c-action-strong); color: #fff; }
+.primary:hover:not(:disabled) { filter: brightness(0.93); }
+.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* --- a price --------------------------------------------------------------- */
+
+/* Sage, not terracotta. A standing offer is a fact about the conversation, and
+   the accent on this screen belongs to the reply. */
+.offer {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--c-brand-wash);
+}
+
+.offerPrice { font-size: var(--t-figure); font-weight: 500; letter-spacing: -0.02em; }
+.offerNote { font-size: var(--t-caption); color: var(--c-ink-soft); flex: 1; min-width: 12ch; }
+
+.quote {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-sm);
+  background: var(--c-sunk);
+}
+
+.quoteField { display: flex; flex-direction: column; gap: var(--s-1); }
+
+.input {
+  min-height: 38px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  font: inherit;
+  font-size: var(--t-body);
+  color: var(--c-ink);
+}
+
+.input:focus-visible { outline: 2px solid var(--c-ink); outline-offset: 1px; }
+
+/* Full width under the fields whatever the column count resolves to. */
+.quoteNote {
+  grid-column: 1 / -1;
+  font-size: var(--t-caption);
+  line-height: var(--lh-snug);
+  color: var(--c-ink-faint);
+}
+
+/* --- empty and failure --------------------------------------------------- */
+
+.none { font-size: var(--t-body); color: var(--c-ink-soft); line-height: var(--lh-body); max-width: 58ch; }
+.error { font-size: var(--t-caption); color: var(--c-negative); }
+.empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); }
+.emptyTitle { font-size: var(--t-figure); letter-spacing: -0.02em; }
+.emptyBody { color: var(--c-ink-soft); line-height: var(--lh-body); max-width: 46ch; }
+
+@media (max-width: 640px) {
+  .pageHead { flex-direction: column; }
+  .measure { text-align: left; }
+  .title { font-size: 1.625rem; }
+
+  /* The date and the name go under the message rather than beside it, or the
+     preview loses half its width to a timestamp at 375. */
+  .head { flex-wrap: wrap; }
+  .headMeta { flex-direction: row; align-items: baseline; gap: var(--s-3); text-align: left; width: 100%; }
+}

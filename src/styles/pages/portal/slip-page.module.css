@@ -1,0 +1,66 @@
+/* The packing slip, printed from the portal.
+   ------------------------------------------------------------------------
+   Its own screen rather than a hidden block inside the orders list, because
+   printing from inside a list prints the list, and every approach that hides
+   the rest of the page relies on a global rule that then applies to every
+   other page in the build. */
+
+.page { display: flex; flex-direction: column; gap: var(--s-4); max-width: 30rem; }
+
+.head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-4); }
+.title { font-size: var(--t-figure); font-weight: 500; letter-spacing: -0.02em; }
+.status { font-size: var(--t-body); color: var(--c-ink-soft); }
+
+.controls { display: flex; gap: var(--s-2); }
+
+.primary {
+  min-height: 34px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-action-strong);
+  border-radius: var(--r-sm);
+  background: var(--c-action-strong);
+  color: #fff;
+  font: inherit;
+  font-size: var(--t-label);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ghost {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  font-size: var(--t-label);
+  color: var(--c-ink);
+  text-decoration: none;
+}
+
+.paper { display: flex; justify-content: flex-start; }
+
+/* The portal rail, the top bar and the account block are all outside this page
+   and printed with it. Same scoping as the receipt: :has means the rule only
+   exists in a document rendering this page, so it cannot reach anything else in
+   the bundle. */
+@media print {
+  :global(body):has(.page) :global(*) { visibility: hidden; }
+
+  /* Repeated prefix, or the hide rule outranks this one and the sheet prints
+     blank. */
+  :global(body):has(.page) .page,
+  :global(body):has(.page) .page * { visibility: visible; }
+
+  :global(body):has(.page) .page {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    max-width: none;
+    gap: 0;
+  }
+
+  .head,
+  .controls { display: none; }
+}

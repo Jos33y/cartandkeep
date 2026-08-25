@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { PORTAL_NAV_SECTIONS, portalPath } from '@utils/constants';
 import { Icon } from '@components/ui/icons';
+import { ScrollToTop } from '@components/layout/shared/ScrollToTop';
 import { useAccount } from '@hooks/useAccount';
+import { useAwaitingCount } from '@hooks/useThreads';
+import { loadTenant } from '@lib/tenant';
 import { supabase } from '@lib/supabase';
 import { useNoIndex } from '@hooks/useNoIndex';
 import styles from '@styles/layout/portal/portal-shell.module.css';
@@ -25,6 +28,21 @@ export function PortalShell({ children }) {
   const account = useAccount();
   useNoIndex();
 
+  /*
+   * What is waiting, carried on every screen.
+   *
+   * A conversation nobody answers is worse than no conversation, so the count
+   * has to be visible from wherever she is rather than found by opening the
+   * screen it lives on. One head request against the partial index in 0067,
+   * not two hundred rows nobody is looking at.
+   *
+   * `loadTenant` is cached after the first call, so this costs no round trip
+   * on any screen that has already read it, which is all of them.
+   */
+  const [tenantId, setTenantId] = useState(null);
+  useEffect(() => { loadTenant().then((t) => setTenantId(t?.id ?? null)); }, []);
+  const badges = { awaiting: useAwaitingCount(tenantId) };
+
   // A scrim with no keyboard dismissal leaves a keyboard user stuck behind it.
   useEffect(() => {
     if (!drawerOpen) return;
@@ -43,6 +61,11 @@ export function PortalShell({ children }) {
   return (
     <div className={styles.shell}>
       <a href="#portal-main" className={styles.skip}>Skip to content</a>
+
+      {/* The storefront has mounted this since it was built and the portal
+          never did, so scrolling to the foot of Products and opening Orders
+          landed at the foot of Orders. */}
+      <ScrollToTop />
 
       <aside className={`${styles.sidebar} ${drawerOpen ? styles.open : ''}`} id="portal-sidebar" aria-label="Portal">
         <div className={styles.brand}>
@@ -65,6 +88,16 @@ export function PortalShell({ children }) {
                 >
                   <Icon name={item.icon} className={styles.icon} />
                   <span>{item.label}</span>
+
+                  {/* Absent at zero rather than showing one. A nought beside
+                      Messages every day is furniture, and furniture is what
+                      the count stops being read as the moment it appears. */}
+                  {item.badge && badges[item.badge] > 0 && (
+                    <span className={styles.badge} data-num>
+                      {badges[item.badge]}
+                      <span className={styles.srOnly}> waiting on you</span>
+                    </span>
+                  )}
                 </NavLink>
               ))}
             </div>

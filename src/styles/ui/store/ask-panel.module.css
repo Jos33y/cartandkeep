@@ -1,0 +1,127 @@
+/* Asking before buying.
+   ------------------------------------------------------------------------
+   The quietest block in the decision column and the last one in it. Outlined
+   rather than terracotta, because Add to basket is the action that moves a
+   buyer forward and a second accent beside it is how an accent stops meaning
+   anything. */
+
+.panel {
+  margin-top: var(--s-5);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--c-line);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.title { font-size: var(--t-body); font-weight: 500; color: var(--c-ink); }
+
+.body {
+  font-size: var(--t-caption);
+  line-height: var(--lh-snug);
+  color: var(--c-faint);
+}
+
+.opener {
+  margin-top: var(--s-2);
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-control);
+  background: transparent;
+  font: inherit;
+  font-size: var(--t-body);
+  font-weight: 500;
+  color: var(--c-ink);
+  cursor: pointer;
+}
+
+.opener:hover { background: var(--c-warm); }
+.opener:focus-visible { outline: 2px solid var(--c-ink); outline-offset: 1px; }
+
+/* --- the form ------------------------------------------------------------ */
+
+.form { margin-top: var(--s-2); display: flex; flex-direction: column; gap: var(--s-3); }
+
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+
+@media (max-width: 520px) {
+  .pair { grid-template-columns: 1fr; }
+}
+
+.field { display: flex; flex-direction: column; gap: var(--s-1); }
+.label { font-size: var(--t-label); font-weight: 500; }
+
+.input,
+.textarea {
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-control);
+  background: var(--c-surface);
+  font: inherit;
+  font-size: var(--t-body);
+  color: var(--c-ink);
+}
+
+.textarea { resize: vertical; line-height: var(--lh-body); }
+
+.input:focus-visible,
+.textarea:focus-visible { outline: 2px solid var(--c-ink); outline-offset: 1px; }
+
+/* Off screen rather than display none, which is the one thing some form
+   fillers check for. */
+.trap {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+/* Terracotta only once the panel is open, when it is the only action in the
+   block rather than a rival to the buy button. */
+.send {
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--r-control);
+  background: var(--c-action-strong);
+  color: #fff;
+  font: inherit;
+  font-size: var(--t-body);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.send:hover:not(:disabled) { filter: brightness(0.93); }
+.send:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.error { font-size: var(--t-caption); color: var(--c-negative); }
+.small { font-size: var(--t-caption); color: var(--c-faint); line-height: var(--lh-snug); }
+
+/* --- asked --------------------------------------------------------------- */
+
+.doneTitle { font-size: var(--t-body); font-weight: 500; }
+
+.doneBody {
+  font-size: var(--t-caption);
+  line-height: var(--lh-body);
+  color: var(--c-ink-soft);
+}
+
+.doneLink {
+  align-self: flex-start;
+  margin-top: var(--s-2);
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-control);
+  font-size: var(--t-body);
+}

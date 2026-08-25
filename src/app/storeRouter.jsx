@@ -8,6 +8,9 @@ import { CheckoutPage } from '@pages/store/CheckoutPage';
 import { OrderConfirmationPage } from '@pages/store/OrderConfirmationPage';
 import { OrderLookupPage } from '@pages/store/OrderLookupPage';
 import { ReviewPage } from '@pages/store/ReviewPage';
+import { ThreadPage } from '@pages/store/ThreadPage';
+import { PaySimulatorPage } from '@pages/store/PaySimulatorPage';
+import { ReceiptPage } from '@pages/store/ReceiptPage';
 import { UnsubscribePage } from '@pages/store/UnsubscribePage';
 import { RequestPage } from '@pages/store/RequestPage';
 import { AboutPage } from '@pages/store/AboutPage';
@@ -34,6 +37,12 @@ export const storeRouter = createBrowserRouter([
       { path: STORE_ROUTES.ORDER_LOOKUP, element: <OrderLookupPage /> },
       // Reached only by the token link in the dispatch email.
       { path: STORE_ROUTES.REVIEW, element: <ReviewPage /> },
+      // Reached only by the token in the email sent when the question was
+      // asked. Order conversations are not here: they render on the order
+      // page, which the customer already holds a link to.
+      { path: STORE_ROUTES.THREAD, element: <ThreadPage /> },
+      { path: STORE_ROUTES.PAY_SIMULATOR, element: <PaySimulatorPage /> },
+      { path: STORE_ROUTES.RECEIPT, element: <ReceiptPage /> },
       { path: STORE_ROUTES.UNSUBSCRIBE, element: <UnsubscribePage /> },
       { path: STORE_ROUTES.REQUEST, element: <RequestPage /> },
       { path: STORE_ROUTES.ORDER_CONFIRMATION, element: <OrderConfirmationPage /> },

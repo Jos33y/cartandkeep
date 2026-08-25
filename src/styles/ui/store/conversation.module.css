@@ -1,0 +1,228 @@
+/* One conversation.
+   ------------------------------------------------------------------------
+   Correspondence rather than chat. Ruled entries with a name and a time, the
+   shop on the sage ground. No bubbles, no tails, no typing dots: all three
+   promise presence, and this shop answers properly instead of sitting at a
+   screen. */
+
+.conversation { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.heading {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-faint);
+}
+
+/* --- what it is about ---------------------------------------------------- */
+
+.subject {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-control);
+  background: var(--c-surface);
+}
+
+.thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--c-warm);
+}
+
+.subjectMain { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.subjectTitle {
+  font-size: var(--t-body);
+  font-weight: 500;
+  color: var(--c-ink);
+  line-height: var(--lh-snug);
+}
+
+.subjectPrice { font-size: var(--t-body); color: var(--c-ink); }
+
+/* --- the basket it is about ---------------------------------------------- */
+
+/* A ruled list rather than thumbnails. It is a record of what was being
+   decided on, not a shelf to shop from, and pictures would invite editing
+   something that is deliberately frozen. */
+.basket {
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-control);
+  background: var(--c-surface);
+  padding: var(--s-3);
+}
+
+.basketLines { list-style: none; padding: 0; margin: 0; }
+
+.basketLine {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2rem auto;
+  gap: var(--s-3);
+  align-items: baseline;
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--c-line);
+}
+
+.basketLines > .basketLine:last-child { border-bottom: 0; }
+
+.basketTitle { font-size: var(--t-body); color: var(--c-ink); min-width: 0; }
+.basketVariant { color: var(--c-faint); }
+.basketVariant::before { content: ' · '; }
+
+.basketQty { font-size: var(--t-caption); color: var(--c-faint); text-align: right; }
+.basketPrice { font-size: var(--t-body); color: var(--c-ink); white-space: nowrap; }
+
+.basketNote {
+  margin-top: var(--s-2);
+  font-size: var(--t-caption);
+  line-height: var(--lh-snug);
+  color: var(--c-faint);
+}
+
+/* --- the messages -------------------------------------------------------- */
+
+.messages { display: flex; flex-direction: column; list-style: none; padding: 0; margin: 0; }
+
+.message { padding: var(--s-3) 0; border-top: 1px solid var(--c-line); }
+
+.message[data-sender='shop'] {
+  padding: var(--s-3);
+  background: var(--c-sage-wash);
+  border-top: 0;
+  border-radius: var(--r-sm);
+}
+
+.byline {
+  display: flex;
+  gap: var(--s-2);
+  align-items: baseline;
+  font-size: var(--t-caption);
+  color: var(--c-faint);
+  margin-bottom: var(--s-1);
+}
+
+.message[data-sender='shop'] .byline { color: var(--c-sage-deep); }
+
+.stamp { margin-left: auto; white-space: nowrap; }
+
+/* Their line breaks kept. Somebody who wrote three short paragraphs meant
+   three, and collapsing them loses what they were separating. */
+.body {
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  color: var(--c-ink);
+  white-space: pre-wrap;
+}
+
+/* --- a price standing ----------------------------------------------------- */
+
+/* Sage rather than terracotta for the block, terracotta only on the control,
+   so the accent stays on the one thing that moves a buyer forward. */
+.offer {
+  padding: var(--s-4);
+  border-radius: var(--r-control);
+  background: var(--c-sage-wash);
+  border: 1px solid var(--c-brand-mid);
+}
+
+.offerPrice { font-size: 1.375rem; font-weight: 500; color: var(--c-ink); }
+
+.offerNote {
+  margin-top: var(--s-1);
+  font-size: var(--t-caption);
+  line-height: var(--lh-snug);
+  color: var(--c-ink-soft);
+}
+
+.take {
+  margin-top: var(--s-3);
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-control);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-body);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+/* --- writing ------------------------------------------------------------- */
+
+.opener {
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  color: var(--c-ink-soft);
+}
+
+.field { display: flex; flex-direction: column; gap: var(--s-1); }
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.textarea {
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-control);
+  background: var(--c-surface);
+  font: inherit;
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  color: var(--c-ink);
+  resize: vertical;
+}
+
+.textarea:focus-visible { outline: 2px solid var(--c-ink); outline-offset: 1px; }
+
+.send {
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--r-control);
+  background: var(--c-action-strong);
+  color: #fff;
+  font: inherit;
+  font-size: var(--t-body);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.send:hover:not(:disabled) { filter: brightness(0.93); }
+.send:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.closed { font-size: var(--t-body); line-height: var(--lh-body); color: var(--c-ink-soft); }
+.error { font-size: var(--t-caption); color: var(--c-negative); }
+.small { font-size: var(--t-caption); color: var(--c-faint); line-height: var(--lh-snug); }
+
+/* --- a link that does not work ------------------------------------------- */
+
+.loading { height: 10rem; background: var(--c-warm); border-radius: var(--r-control); }
+
+.failed { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); }
+.failedTitle { font-size: var(--ts-title); font-weight: 500; letter-spacing: -0.02em; }
+.failedBody { font-size: var(--t-body); line-height: var(--lh-body); color: var(--c-ink-soft); }
+
+.back {
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-control);
+  font-size: var(--t-body);
+}

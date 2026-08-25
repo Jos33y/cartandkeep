@@ -181,8 +181,27 @@
 .quiet { font-size: var(--t-body); color: var(--c-faint); padding: var(--s-7) 0; }
 .keep { margin-top: var(--s-4); font-size: var(--t-caption); color: var(--c-faint); max-width: 56ch; }
 
+.actions { margin-top: var(--s-5); display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: center; }
+
+/* Outlined, because the receipt is worth finding and is not the thing that
+   moves anybody forward. Two solid controls side by side and neither is the
+   primary one. */
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 52px;
+  padding: 0 var(--s-5);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-control);
+  color: var(--c-ink);
+  font-size: 1rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.secondary:hover { background: var(--c-warm); }
+
 .cta {
-  margin-top: var(--s-5);
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);

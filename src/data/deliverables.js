@@ -16,7 +16,7 @@
 
 export const SCOPE_VERSION = '1.3';
 export const SCOPE_DATE = '2026-07-22';
-export const LAST_REVIEWED = '2026-08-21';
+export const LAST_REVIEWED = '2026-08-25';
 export const MONTH_ONE_DUE = '2026-08-22';
 
 export const DELIVERABLE_GROUPS = [
@@ -53,7 +53,8 @@ export const DELIVERABLE_GROUPS = [
       },
       {
         label: 'Custom store live',
-        detail: 'cartandkeep.com, guest checkout ready. Everything below waits on this.',
+        detail:
+          'cartandkeep.com, guest checkout ready. The full path has been tested end to end: an order placed, paid, confirmed by email, stock taken off and a receipt issued. Everything below waits on this.',
         state: 'active',
       },
       {

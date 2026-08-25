@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
 import { ArrowRightIcon, CloseIcon, LockIcon, MinusIcon, PlusIcon, ReturnIcon, VanIcon } from '@components/ui/store/icons';
 import { useBasket } from '@context/BasketContext';
+import { AskPanel } from '@components/ui/store/AskPanel';
 import { imageAt } from '@utils/categories';
 import { formatGbp } from '@utils/formatGbp';
 import { STORE_ROUTES } from '@utils/constants';
@@ -171,6 +172,16 @@ export function CartPage() {
             <li><VanIcon size={17} /><span>Free UK delivery over {formatGbp(FREE_OVER)}</span></li>
           </ul>
         </aside>
+      </div>
+
+      {/* After the total, not beside it.
+          A question about a basket is asked once somebody has seen what it
+          comes to, and on a phone the summary stacks under the lines anyway,
+          so anything above it arrives before the number that prompts the
+          question. Full width rather than in the sticky column, which already
+          carries the one action on this page. */}
+      <div className={styles.ask}>
+        <AskPanel basket={lines} />
       </div>
     </section>
   );

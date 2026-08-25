@@ -23,6 +23,11 @@ export const STORE_ROUTES = {
   // anywhere in the shop. That is what makes a rating on a product page a fact
   // rather than a decoration.
   REVIEW: '/review/:reference',
+  // Order conversations live on the order page instead, so nobody holds two tokens.
+  THREAD: '/thread/:id',
+  // The function behind this refuses once a Stripe key exists.
+  PAY_SIMULATOR: '/pay/simulate',
+  RECEIPT: '/receipt/:reference',
   // For anyone who has lost the link in their confirmation email. The
   // reference alone is not enough to open an order, so this asks for the
   // email too.
@@ -51,6 +56,8 @@ export const PORTAL_ROUTES = {
   FOUND: '/being-found',
   FINANCE: '/finance',
   ORDERS: '/orders',
+  MESSAGES: '/messages',
+  SLIP: '/orders/:reference/slip',
   NOTES: '/notes',
   ACTIVITY: '/activity',
   COVERAGE: '/coverage',
@@ -96,6 +103,7 @@ export const PORTAL_NAV_SECTIONS = [
       { route: PORTAL_ROUTES.PRODUCTS, label: 'Products', icon: 'IconShop' },
       { route: PORTAL_ROUTES.CATEGORIES, label: 'Sections', icon: 'IconShelves' },
       { route: PORTAL_ROUTES.ORDERS, label: 'Orders', icon: 'IconBox' },
+      { route: PORTAL_ROUTES.MESSAGES, label: 'Messages', icon: 'IconSpeech', badge: 'awaiting' },
       { route: PORTAL_ROUTES.REVIEWS, label: 'Reviews', icon: 'IconStar' },
       { route: PORTAL_ROUTES.CUSTOMERS, label: 'Customers', icon: 'IconPeople' },
       { route: PORTAL_ROUTES.REQUESTS, label: 'Requests', icon: 'IconAsk' },

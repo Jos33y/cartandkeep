@@ -5,6 +5,7 @@ import { ArrowRightIcon, MailIcon, ReturnIcon, VanIcon } from '@components/ui/st
 import { useBasket } from '@context/BasketContext';
 import { trackPurchase } from '@lib/analytics';
 import { fetchOrder } from '@lib/checkout';
+import { Conversation } from '@components/ui/store/Conversation';
 import { imageAt } from '@utils/categories';
 import { formatGbp } from '@utils/formatGbp';
 import { STORE_ROUTES } from '@utils/constants';
@@ -255,14 +256,39 @@ export function OrderConfirmationPage() {
         )}
       </div>
 
+      {/* Asking about this order, in the place they already come back to.
+          No separate link and no second token: the one in this page's own
+          address is what opens the conversation, which is the whole of the
+          one secret rule. Only once the order is real, because a page that
+          has not found a payment is not a page to start a conversation on. */}
+      {paid && (
+        <Conversation
+          lookup={{ reference: order.reference, token }}
+          heading="Ask about this order"
+          opener="Something not right, or a question about when it arrives? Write it here and it reaches the shop directly. A person reads every one of these."
+        />
+      )}
+
       <p className={styles.keep}>
         Keep this page. The link works for as long as the order does, and the
         reference is what we need if you write to us about it.
       </p>
 
-      <Link className={styles.cta} to={STORE_ROUTES.HOME}>
-        Back to the shop <ArrowRightIcon size={16} />
-      </Link>
+      <div className={styles.actions}>
+        <Link className={styles.cta} to={STORE_ROUTES.HOME}>
+          Back to the shop <ArrowRightIcon size={16} />
+        </Link>
+
+        {/* A control rather than a link in the caption above, where it was
+            faint grey inside faint grey and rendering invisibly. The receipt
+            takes the same token, so it is nothing new to keep. */}
+        <Link
+          className={styles.secondary}
+          to={`/receipt/${order.reference}?token=${encodeURIComponent(token)}`}
+        >
+          See or print the receipt
+        </Link>
+      </div>
     </section>
   );
 }

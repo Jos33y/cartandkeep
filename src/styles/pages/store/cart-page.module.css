@@ -209,6 +209,11 @@
 .reassure svg { flex: none; color: var(--c-sage-deep); }
 .reassure span { font-size: var(--t-caption); color: var(--c-ink-soft); }
 
+/* The ask, after the summary.
+   A narrow column so it does not read as a second panel competing with the
+   one carrying Checkout. */
+.ask { margin-top: var(--s-6); max-width: 34rem; }
+
 .empty {
   border: 1px solid var(--c-line);
   border-radius: var(--r-card);

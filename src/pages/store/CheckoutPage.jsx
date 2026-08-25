@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
 import { ArrowRightIcon, LockIcon, ReturnIcon, ShieldIcon } from '@components/ui/store/icons';
 import { useBasket } from '@context/BasketContext';
@@ -7,6 +7,7 @@ import { sessionId, trackBeginCheckout } from '@lib/analytics';
 import { ZONE_LABELS, checkPostcode, normalisePostcode } from '@lib/postcode';
 import { deliveryFor } from '@lib/storeConfig';
 import { startCheckout } from '@lib/checkout';
+import { readOffer } from '@lib/threads';
 import { imageAt } from '@utils/categories';
 import { formatGbp } from '@utils/formatGbp';
 import { STORE_ROUTES } from '@utils/constants';
@@ -33,19 +34,109 @@ const FIELDS = {
   postcode: 'Postcode',
 };
 
+// The details survive going back to the basket.
+//
+// Everything here is state, so leaving the page unmounts it and somebody who
+// went back to add one more thing retypes an address. Local storage only, the
+// same as the basket: no account, no server, their own device, and cleared as
+// soon as the order is placed.
+//
+// The note is not kept. It is about one order, and a message meant for last
+// week's parcel reappearing on this one is worse than retyping it.
+//
+// Never cleared. A declined card returns them here and the address has to still
+// be there, and the shop has no accounts, so this is the only thing that makes a
+// second order quicker than a first.
+const FORM_KEY = 'ck.checkout.v1';
+
+const EMPTY = {
+  name: '', email: '', phone: '', line1: '', line2: '', city: '', postcode: '', note: '',
+};
+
+function readForm() {
+  if (typeof window === 'undefined') return EMPTY;
+  try {
+    const raw = window.localStorage.getItem(FORM_KEY);
+    const saved = raw ? JSON.parse(raw) : null;
+    // Only the keys this form has. Anything else in there is an older shape or
+    // a hand edit, and merging it blind puts unknown fields into the payload.
+    return saved && typeof saved === 'object'
+      ? { ...EMPTY, ...Object.fromEntries(Object.keys(EMPTY).map((k) => [k, String(saved[k] ?? '')])), note: '' }
+      : EMPTY;
+  } catch {
+    return EMPTY;
+  }
+}
+
 export function CheckoutPage() {
-  const { lines, subtotal, count } = useBasket();
+  const { lines: basketLines, subtotal: basketSubtotal, count: basketCount } = useBasket();
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({
-    name: '', email: '', phone: '', line1: '', line2: '', city: '', postcode: '', note: '',
-  });
+  /*
+   * Two ways to arrive here.
+   *
+   * The basket, or a price she agreed in a conversation. An agreed price is an
+   * offer id and the token of the conversation it was given in, both in the
+   * address, because the link came out of an email and has to survive being
+   * forwarded to the device somebody actually pays on.
+   *
+   * The basket is left alone in that case. Somebody who took a price on three
+   * things should not come back later to find their basket rearranged by it.
+   */
+  const [params] = useSearchParams();
+  const offerId = params.get('offer');
+  const offerToken = params.get('token') ?? '';
+
+  const [offer, setOffer] = useState(offerId ? undefined : null);
+
+  useEffect(() => {
+    if (!offerId) return;
+    readOffer(offerId, offerToken)
+      .then((data) => setOffer(data.offer))
+      .catch((e) => setOffer({ error: e.message }));
+  }, [offerId, offerToken]);
+
+  const onOffer = Boolean(offer && !offer.error);
+
+  /*
+   * What is being bought, and what it comes to.
+   *
+   * On an offer both come off the agreement rather than off the basket. The
+   * figure below is still only what the page shows: the checkout function
+   * reads the same record again and prices from it, so nothing here can name a
+   * total.
+   */
+  const lines = onOffer
+    ? offer.lines.map((l) => ({
+      id: l.product_id,
+      variantId: l.variant_id,
+      title: l.variant_label ? `${l.title}, ${l.variant_label}` : l.title,
+      image_url: l.image_url,
+      qty: l.qty,
+      price: l.price,
+    }))
+    : basketLines;
+
+  const subtotal = onOffer ? Number(offer.price) : basketSubtotal;
+  const count = onOffer ? lines.reduce((n, l) => n + l.qty, 0) : basketCount;
+
+  const [form, setForm] = useState(readForm);
   const [errors, setErrors] = useState({});
   const [failure, setFailure] = useState(null);
   const [busy, setBusy] = useState(false);
   const [zone, setZone] = useState('mainland');
   const [checking, setChecking] = useState(false);
   const [postcodeNote, setPostcodeNote] = useState(null);
+
+  useEffect(() => {
+    try {
+      const { note, ...keep } = form;
+      window.localStorage.setItem(FORM_KEY, JSON.stringify(keep));
+    } catch {
+      // Private mode or a full quota. Failing to remember an address must never
+      // stop somebody entering one.
+    }
+  }, [form]);
 
   // Recomputed from the zone, so the figure in the summary is the figure the
   // checkout function will charge. They read the same tenant row.
@@ -146,7 +237,21 @@ export function CheckoutPage() {
         // lets a purchase be attributed to the visit that produced it without
         // a cookie and without a consent banner.
         sessionId: sessionId(),
-        items: lines.map((l) => ({ id: l.id, qty: l.qty })),
+        /*
+         * The variant travels with the line.
+         *
+         * This sent the product id alone, which merged two sizes of one thing
+         * into a single line of the summed quantity, charged the product price
+         * rather than the variant's, and left order_items.variant_id null so
+         * the stock came off the product instead of the size. The checkout
+         * function has handled variants correctly since 0058 and was never
+         * being told about them.
+         */
+        items: lines.map((l) => ({ id: l.id, variantId: l.variantId ?? null, qty: l.qty })),
+        // Read back out of the offer record on the other side. Sent so the
+        // function knows which agreement to price against, never as a figure.
+        offerId: onOffer ? offer.id : null,
+        token: onOffer ? offerToken : null,
         contact: {
           zone,
           name: form.name.trim(),
@@ -169,6 +274,30 @@ export function CheckoutPage() {
       setFailure(err.message);
       setBusy(false);
     }
+  }
+
+  // Fetching the agreement. Nothing is rendered against a basket that is about
+  // to be replaced by it.
+  if (offer === undefined) {
+    return (
+      <section className={styles.page}>
+        <Head title="Checkout" description="Checkout." path="/checkout" noindex />
+        <p className={styles.emptyBody} role="status">Reading the price you were given</p>
+      </section>
+    );
+  }
+
+  if (offer?.error) {
+    return (
+      <section className={styles.page}>
+        <Head title="Checkout" description="Checkout." path="/checkout" noindex />
+        <div className={styles.empty}>
+          <h1 className={`${styles.emptyTitle} wide`}>That price has gone</h1>
+          <p className={styles.emptyBody}>{offer.error}</p>
+          <Link className={styles.emptyCta} to={STORE_ROUTES.HOME}>Back to the shop</Link>
+        </div>
+      </section>
+    );
   }
 
   if (lines.length === 0) {
@@ -207,7 +336,7 @@ export function CheckoutPage() {
 
       <header className={styles.head}>
         <h1 className={`${styles.title} wide`}>Checkout</h1>
-        <Link className={styles.backToCart} to={STORE_ROUTES.CART}>Back to basket</Link>
+        {!onOffer && <Link className={styles.backToCart} to={STORE_ROUTES.CART}>Back to basket</Link>}
       </header>
 
       <div className={styles.body}>
@@ -281,9 +410,20 @@ export function CheckoutPage() {
         <aside className={styles.summary}>
           <h2 className={styles.summaryHead}>{count} {count === 1 ? 'item' : 'items'}</h2>
 
+          {/* Said once, plainly, and with no second figure beside it. The
+              lines below are what she agreed a price for, and the total is
+              that price. Nothing here compares it to anything. */}
+          {onOffer && (
+            <p className={styles.agreed}>
+              This is the price you were given in your conversation with the shop.
+            </p>
+          )}
+
           <ul className={styles.lines}>
+            {/* Keyed on the line rather than the product, or two sizes of one
+                thing collide. */}
             {lines.map((line) => (
-              <li key={line.id}>
+              <li key={line.variantId ? `${line.id}:${line.variantId}` : line.id}>
                 <span className={styles.thumb}>
                   {line.image_url
                     ? <img src={imageAt(line.image_url, 300)} alt="" loading="lazy" />
@@ -297,7 +437,10 @@ export function CheckoutPage() {
           </ul>
 
           <dl className={styles.figures}>
-            <div><dt>Subtotal</dt><dd data-price>{formatGbp(subtotal)}</dd></div>
+            <div>
+              <dt>{onOffer ? 'Agreed price' : 'Subtotal'}</dt>
+              <dd data-price>{formatGbp(subtotal)}</dd>
+            </div>
             <div>
               <dt>Delivery{quote.surcharge > 0 && <span className={styles.zoneTag}>{ZONE_LABELS[zone]}</span>}</dt>
               <dd data-price>{delivery === 0 ? 'Free' : formatGbp(delivery)}</dd>

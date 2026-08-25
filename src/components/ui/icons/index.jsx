@@ -186,6 +186,18 @@ const IconShelves = (p) => (
   </svg>
 );
 
+// Messages. Two bubbles rather than one, because IconAsk is already a single
+// speech box on Requests, and a request is somebody saying something while a
+// conversation is two people taking turns. The comment above IconShop warns
+// against two nav entries wearing the same mark and this is the closest pair
+// in the set.
+const IconSpeech = (p) => (
+  <svg {...base} {...p}>
+    <path d="M2.75 3.25h9v5H6.25l-2.4 2.2v-2.2H2.75z" />
+    <path d="M7.75 8.25h9.5v6h-6.1l-2.6 2.4v-2.4H7.75z" />
+  </svg>
+);
+
 const IconMap = (p) => (
   <svg {...base} {...p}>
     <path d="M2.75 5.4l4.75-2.15 5 2.15 4.75-2.15v11.5l-4.75 2.15-5-2.15-4.75 2.15z" />
@@ -215,6 +227,7 @@ export const ICONS = {
   IconShop,
   IconEye,
   IconSearch,
+  IconSpeech,
 };
 
 export function Icon({ name, ...rest }) {
