@@ -36,6 +36,7 @@ export function useCandidates(batchId) {
         monthly_headroom,
         confidence, signal_count, signals, margin,
         headroom, hold, same_sku_sellers, bulky, routes, window_series,
+        entry,
         sold_30d, avg_sold_price, active_listings, sell_through, trend,
         seller_concentration, competition, window_start, window_end,
         recommended_channels, recommended_volume, analyst_note,

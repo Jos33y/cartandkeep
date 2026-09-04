@@ -51,6 +51,8 @@
 
 .barSlot { flex: 1; min-width: 0; }
 
+/* Demoted. It is a consequence of the rate above, not a finding of its own,
+   and at figure size beside the buying price it read as the headline. */
 .score {
   display: flex;
   align-items: baseline;
@@ -68,10 +70,10 @@
 }
 
 .scoreValue {
-  font-size: var(--t-figure);
+  font-size: var(--t-body);
   font-weight: 500;
-  letter-spacing: -0.02em;
-  color: var(--c-ink);
+  letter-spacing: -0.01em;
+  color: var(--c-ink-soft);
 }
 
 .thumb {
@@ -132,19 +134,32 @@
   color: var(--c-ink-faint);
 }
 
-.money { text-align: right; }
+/* The one figure that carries the row. Label above rather than beside, so the
+   number sits on its own baseline and the eye lands on it first. Three money
+   figures used to compete here and the loudest was the least trustworthy. */
+.money {
+  text-align: right;
+  min-width: 132px;
+}
+
+.moneyLabel {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+  white-space: nowrap;
+}
+
+.net {
+  margin-top: 1px;
+  color: var(--c-ink);
+  font-size: var(--t-figure);
+}
 
 .outOf {
   margin-top: 2px;
   font-size: var(--t-micro);
-  color: var(--c-ink-faint);
-  white-space: nowrap;
-}
-.net { color: var(--c-ink); }
-
-.pct {
-  margin-top: 2px;
-  font-size: var(--t-caption);
   color: var(--c-ink-faint);
   white-space: nowrap;
 }
@@ -355,4 +370,92 @@
   font-size: var(--t-micro);
   color: var(--c-ink-faint);
   letter-spacing: 0.01em;
+}
+/* The test that decides. Given the weight of a rule above it rather than a
+   line in the ledger, because a crowded market with a small seller selling in
+   it is a buy and an empty one without is not. */
+.entry {
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--c-line-mid);
+  font-family: var(--font-data);
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+}
+
+.entry span { margin-right: var(--s-2); }
+
+.entry a {
+  color: var(--c-ink-soft);
+  text-decoration-color: var(--c-line-mid);
+  text-underline-offset: 3px;
+}
+
+.entry a:hover { color: var(--c-ink); }
+
+/* A row of shelves rather than a paragraph of links. Wraps on a phone, which
+   is where it gets used: standing in the aisle with the picture on screen. */
+.shops {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  font-family: var(--font-data);
+  font-size: var(--t-caption);
+}
+
+.shops a {
+  padding: 2px var(--s-2);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  color: var(--c-ink-soft);
+  text-decoration: none;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.shops a:hover {
+  border-color: var(--c-ink-soft);
+  color: var(--c-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shops a { transition: none; }
+}
+
+/* Entry evidence on the face of the row. A dot rather than a badge: sixteen
+   badges in a column is a colour chart, and the verdict here is binary. */
+.proof {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+  font-family: var(--font-data);
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  transform: translateY(-1px);
+}
+
+.proofYes .dot { background: var(--c-positive); }
+.proofNo .dot { background: var(--c-warning); }
+.proofNone .dot { background: var(--c-line-mid); }
+
+.proofNone { color: var(--c-ink-faint); }
+
+.proofNote {
+  margin-left: var(--s-2);
+  padding: 1px var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--c-sunk);
+  font-size: var(--t-micro);
+  letter-spacing: 0.02em;
+  color: var(--c-ink-faint);
+  white-space: nowrap;
 }

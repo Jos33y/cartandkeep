@@ -21,6 +21,25 @@ const thumb = (url) => (url ? url.replace(/\/s-l\d+\./, '/s-l225.') : null);
 // only then is the average price a blend worth warning about.
 const BLENDED = 10;
 
+// Returns allowance and target profit. Headroom stops before both, so a card
+// that printed headroom as the buying price would overstate it by £2.30 on
+// every row. Both are ours and both are reversible, which is why they are
+// named here rather than folded into a stored number that goes stale.
+const RETURNS_ALLOWANCE = 0.30;
+const TARGET_PROFIT = 2.00;
+
+// Where UK stock is actually bought. B&M and Home Bargains do not put their
+// clearance online, so those two open a store finder rather than a search: the
+// point of the link is to stop her typing the same phrase into six sites.
+const SHOPS = [
+  { name: 'Amazon', url: (q) => `https://www.amazon.co.uk/s?k=${q}` },
+  { name: 'Argos', url: (q) => `https://www.argos.co.uk/search/${q}/` },
+  { name: 'The Range', url: (q) => `https://www.therange.co.uk/search/?q=${q}` },
+  { name: 'Screwfix', url: (q) => `https://www.screwfix.com/search?search=${q}` },
+  { name: 'Wickes', url: (q) => `https://www.wickes.co.uk/search?text=${q}` },
+  { name: 'eBay', url: (q) => `https://www.ebay.co.uk/sch/i.html?_nkw=${q}&LH_PrefLoc=1` },
+];
+
 // Windows are calendar months, so "sold in July" is truer than "sold in 30 days".
 function windowName(candidate) {
   const w = candidate.window_series?.at(-1)?.window
@@ -55,9 +74,28 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
   const score = candidate.score ?? null;
   const scored = Object.keys(candidate.breakdown ?? {}).length > 0;
 
-  // What it would be worth in a month at the going rate, before goods cost.
-  const worth = candidate.monthly_headroom
-    ?? (headroom != null && candidate.sold_30d != null ? headroom * candidate.sold_30d : null);
+  // The number she acts on standing in front of a shelf. Reported from the
+  // market price, never assumed as a share of it: the 40% assumption is what
+  // produced a £19.50 floor nobody had measured.
+  const maxGoods = m.max_goods_cost
+    ?? (headroom != null
+      ? Math.round((headroom - RETURNS_ALLOWANCE - TARGET_PROFIT) * 100) / 100
+      : null);
+
+  // The test that decides. Not how crowded the market is: whether a seller her
+  // size is selling on it right now, at roughly the price she would list at.
+  const entry = candidate.entry ?? null;
+
+  const search = encodeURIComponent(candidate.title);
+
+  // What a seller her size is taking on this in a month, before goods.
+  //
+  // No fallback. The old one recomputed headroom times the whole sampled
+  // market's units whenever the importer left this null, which is how a caravan
+  // pump came to read £3,734 a month on a review screen. Null here means nobody
+  // her size is proved to be selling, and the honest answer to that is to show
+  // nothing rather than the market's number wearing hers.
+  const worth = candidate.monthly_headroom ?? null;
 
   // A failed write used to disappear, leaving the row looking decided until the
   // next reload put it back.
@@ -110,7 +148,11 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
         <div className={styles.middle}>
           <h3 className={styles.title}>{candidate.title}</h3>
           <p className={styles.meta}>
-            <span data-num>{candidate.sold_30d ?? 0}</span> sold{month ? ` in ${month}` : ''}
+            {/* Whose units these are has to be on the line. "164 sold" beside
+                a figure derived from one seller's rate reads as one number
+                explaining the other, and they are two different populations. */}
+            <span data-num>{candidate.sold_30d ?? 0}</span> sold across the
+            market{month ? ` in ${month}` : ''}
             {candidate.same_sku_sellers != null && (
               <> · <span data-num>{candidate.same_sku_sellers}</span> seller{candidate.same_sku_sellers === 1 ? '' : 's'} on this product</>
             )}
@@ -123,26 +165,52 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
               </span></>
             )}
             {candidate.bulky && <> · <span className={styles.flagInline}>bulky</span></>}
+            {m.band_label && <> · {m.band_label}</>}
             {candidate.variation_count > 1 && (
               <> · <span className={candidate.variation_count >= BLENDED ? styles.flagInline : undefined}>
                 <span data-num>{candidate.variation_count}</span> variations
               </span></>
             )}
           </p>
+
+          {/* The test that decides, on the face of the row. It sat three clicks
+              down in the detail panel under three money figures, which is the
+              wrong way round: the money is worth nothing if she cannot get in. */}
+          {entry ? (
+            <p className={`${styles.proof} ${entry.proved ? styles.proofYes : styles.proofNo}`}>
+              <span className={styles.dot} aria-hidden="true" />
+              <span data-num>{entry.seller_feedback}</span> feedback
+              {entry.sold_lifetime != null && entry.age_days != null && (
+                <>, <span data-num>{entry.sold_lifetime}</span> sold
+                  in <span data-num>{entry.age_days}</span> days</>
+              )}
+              {entry.price != null && <> at <span data-num>{formatGbp(entry.price)}</span></>}
+              {!entry.proved && <span className={styles.proofNote}>too big to prove entry</span>}
+            </p>
+          ) : (
+            <p className={`${styles.proof} ${styles.proofNone}`}>
+              <span className={styles.dot} aria-hidden="true" />
+              nobody recent is selling this
+            </p>
+          )}
         </div>
 
+        {/* One figure carries the row: the number she acts on standing in front
+            of a shelf. Label above rather than beside, and the selling price
+            below as the context it is. */}
         <div className={styles.money}>
-          <p className={`figure ${styles.net}`}>
-            {quoted ? formatGbp(m.net) : (headroom != null ? formatGbp(headroom) : 'no figure')}
-          </p>
-          <p className={styles.pct}>
-            {quoted
-              ? (m.net_pct != null ? `${Math.round(m.net_pct * 100)}% net` : 'net')
-              : 'headroom'}
+          <p className={styles.moneyLabel}>
+            {quoted ? 'Profit a unit' : 'Pay up to'}
             {m.cost_source === 'estimated' && <span className={styles.est}> est</span>}
           </p>
+          <p className={`figure ${styles.net}`}>
+            {quoted ? formatGbp(m.net) : (maxGoods != null ? formatGbp(maxGoods) : 'no figure')}
+          </p>
           {m.sale_price != null && (
-            <p className={styles.outOf}>out of <span data-num>{formatGbp(m.sale_price)}</span></p>
+            <p className={styles.outOf}>
+              list at <span data-num>{formatGbp(m.sale_price)}</span>
+              {m.list_trusted === false && <span className={styles.est}> check</span>}
+            </p>
           )}
         </div>
 
@@ -169,11 +237,9 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
           </p>
         ) : worth != null ? (
           <p className={styles.score}>
-            <span className={styles.scoreLabel}>A month before goods</span>
+            <span className={styles.scoreLabel}>At that rate</span>
             <span className={styles.scoreValue} data-num>{formatGbp(worth)}</span>
-            <span className={styles.scoreFoot}>
-              {candidate.sold_30d} sold at {formatGbp(headroom)}
-            </span>
+            <span className={styles.scoreFoot}>a month, before goods</span>
           </p>
         ) : null}
 
@@ -230,7 +296,15 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
       {open && (
         <div className={`${styles.detail} ${styles.aligned}`}>
           <dl className={styles.ledger}>
-            <Line label="Sale price" value={formatGbp(m.sale_price)} />
+            <Line label="List at" value={formatGbp(m.sale_price)} sub={m.list_basis} />
+            {m.list_trusted === false && (
+              <Line label="Worth checking" value="the query may have found a different product"
+                sub="the price a seller her size gets and the market found do not sit together" />
+            )}
+            {m.market_median != null && m.market_median !== m.sale_price && (
+              <Line label="Market median" value={formatGbp(m.market_median)}
+                sub="what the market sells at, not what she can" />
+            )}
 
             {quoted ? (
               <>
@@ -260,7 +334,9 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
                   />
                 )}
                 <Line label="Headroom" value={headroom != null ? formatGbp(headroom) : 'no figure'} strong />
-                <Line label="Goods" value="not quoted" sub="awaiting supplier" />
+                <Line label="Returns allowance" value={`- ${formatGbp(RETURNS_ALLOWANCE)}`} />
+                <Line label="Target profit" value={`- ${formatGbp(TARGET_PROFIT)}`} />
+                <Line label="Pay up to" value={maxGoods != null ? formatGbp(maxGoods) : 'no figure'} strong />
               </>
             )}
 
@@ -326,6 +402,31 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
           )}
 
           {candidate.analyst_note && <p className={styles.note}>{candidate.analyst_note}</p>}
+
+          {entry?.item_id && (
+            <p className={styles.entry}>
+              <span className="micro">
+                {entry.proved ? 'Entry proved' : 'Selling, but not at her size'}
+              </span>{' '}
+              <a href={`https://www.ebay.co.uk/itm/${entry.item_id}`}
+                target="_blank" rel="noreferrer">see the listing this came from</a>
+            </p>
+          )}
+
+          {/* Where to buy it. Searches rather than found products: a price from
+              a feed is a price we do not hold, and typing the same phrase into
+              six sites is the part of sourcing that actually takes the time.
+              B&M and Home Bargains are absent on purpose, their clearance is
+              not online at all and a link that finds nothing is worse than no
+              link. */}
+          <p className={styles.shops}>
+            <span className="micro">Buy it from</span>
+            {SHOPS.map((shop) => (
+              <a key={shop.name} href={shop.url(search)} target="_blank" rel="noreferrer">
+                {shop.name}
+              </a>
+            ))}
+          </p>
 
           <SourceList candidate={candidate} onAdd={onSource} suppliers={suppliers} />
 

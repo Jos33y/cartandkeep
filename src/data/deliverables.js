@@ -16,7 +16,7 @@
 
 export const SCOPE_VERSION = '1.3';
 export const SCOPE_DATE = '2026-07-22';
-export const LAST_REVIEWED = '2026-08-25';
+export const LAST_REVIEWED = '2026-09-04';
 export const MONTH_ONE_DUE = '2026-08-22';
 
 export const DELIVERABLE_GROUPS = [
@@ -54,7 +54,7 @@ export const DELIVERABLE_GROUPS = [
       {
         label: 'Custom store live',
         detail:
-          'cartandkeep.com, guest checkout ready. The full path has been tested end to end: an order placed, paid, confirmed by email, stock taken off and a receipt issued. Everything below waits on this.',
+          'cartandkeep.com, guest checkout ready and taking card payments. The full path has been tested end to end: an order placed, paid, confirmed by email, stock taken off and a receipt issued. What is left is your trading details and the first products going on sale.',
         state: 'active',
       },
       {
@@ -363,7 +363,7 @@ export const DELIVERABLE_GROUPS = [
       {
         label: 'Supplier sourcing',
         detail:
-          'A UK trade supplier for mobility aids contacted, awaiting response. One factory confirmed on a percussion massager with a minimum order of one unit, pending compliance documents.',
+          'Sourcing runs inside the UK, so stock arrives in days rather than weeks and there is no import paperwork on you. Every candidate carries the most the goods can cost and still make the target, and suppliers are checked against that number rather than the other way round.',
         state: 'active',
       },
     ],
@@ -378,8 +378,9 @@ export const DELIVERABLE_GROUPS = [
       {
         label: 'Register your Stripe UK account',
         detail:
-          'stripe.com/gb. Approval takes 24 to 48 hours on Stripe\u2019s side, and the store checkout cannot take card payments until it is verified and integrated.',
-        state: 'client',
+          'Done. The account is verified and connected to the shop, so the checkout takes card and Apple Pay.',
+        state: 'done',
+        date: '2026-09-04',
       },
       {
         label: 'Decisions on the shortlisted products',

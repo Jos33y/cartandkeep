@@ -18,3 +18,4 @@ records/
 backups/
 *.zip
 *.ps1
+.gate
