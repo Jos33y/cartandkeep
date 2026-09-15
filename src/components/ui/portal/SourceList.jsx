@@ -38,6 +38,7 @@ export function SourceList({ candidate, onAdd, suppliers = [] }) {
   const sources = candidate.sources ?? [];
   const headroom = Number(candidate.headroom ?? candidate.margin?.headroom ?? 0);
   const postage = Number(candidate.margin?.postage ?? 0);
+  const shelf = candidate.margin?.shelf ?? null;
 
   // On a dropship order the supplier posts it, so the postage inside headroom
   // is not hers to pay and comes back on.
@@ -90,11 +91,22 @@ export function SourceList({ candidate, onAdd, suppliers = [] }) {
         </button>
       </div>
 
+      {/* A shelf price is a goods cost. Saying there is no supplier while the
+          card shows Home Bargains and £4.99 two lines above contradicts itself,
+          and the figure above is profit, not headroom. */}
       {sources.length === 0 && !open && (
-        <p className={styles.none}>
-          No supplier yet, so the goods cost is unknown and the figure above is
-          headroom rather than profit.
-        </p>
+        shelf?.shop ? (
+          <p className={styles.none}>
+            Priced off the shelf at {shelf.shop}
+            {shelf.price != null ? `, ${formatGbp(shelf.price)}` : ''}. Add a supplier
+            here if you find it cheaper somewhere else.
+          </p>
+        ) : (
+          <p className={styles.none}>
+            No supplier yet, so the goods cost is unknown and the figure above is
+            headroom rather than profit.
+          </p>
+        )
       )}
 
       {sources.map((s) => {

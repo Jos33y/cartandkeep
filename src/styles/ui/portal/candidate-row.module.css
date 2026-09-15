@@ -459,3 +459,34 @@
   color: var(--c-ink-faint);
   white-space: nowrap;
 }
+
+/* Where it came from. A fact, so it sits above the searches and reads as a
+   statement rather than as another thing to try. */
+.shelfLink {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  font-family: var(--font-data);
+  font-size: var(--t-caption);
+}
+
+.shelfLink a {
+  padding: 2px var(--s-2);
+  border: 1px solid var(--c-positive);
+  border-radius: var(--r-sm);
+  color: var(--c-ink);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.shelfLink a:hover { background: var(--c-sunk); }
+
+/* The shop's own name for it, which is rarely the query. Worth showing,
+   because a size mismatch between shelf and market is visible here first. */
+.shelfProduct {
+  color: var(--c-ink-faint);
+  flex-basis: 100%;
+  line-height: var(--lh-snug);
+}

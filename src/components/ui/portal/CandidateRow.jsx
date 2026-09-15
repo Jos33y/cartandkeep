@@ -31,6 +31,48 @@ const TARGET_PROFIT = 2.00;
 // Where UK stock is actually bought. B&M and Home Bargains do not put their
 // clearance online, so those two open a store finder rather than a search: the
 // point of the link is to stop her typing the same phrase into six sites.
+// eBay's composite id is v1|287502604374|0 and the /itm/ path wants the middle
+// part. Passed whole, the pipes percent-encode and the link 404s.
+const itmUrl = (id) => `https://www.ebay.co.uk/itm/${String(id).split('|')[1] ?? id}`;
+
+/*
+ * A proposed shop is a name, not a URL. Known shops get their own search page;
+ * anything else falls back to a site-scoped Google search, which finds the
+ * product page without this file having to hold every retailer in the country.
+ */
+const SHOP_SEARCH = {
+  'Amazon': (q) => `https://www.amazon.co.uk/s?k=${q}`,
+  'Argos': (q) => `https://www.argos.co.uk/search/${q}/`,
+  'The Range': (q) => `https://www.therange.co.uk/search/?q=${q}`,
+  'Screwfix': (q) => `https://www.screwfix.com/search?search=${q}`,
+  'Wickes': (q) => `https://www.wickes.co.uk/search?text=${q}`,
+  'Home Bargains': (q) => `https://home.bargains/search?q=${q}`,
+  'B&M': (q) => `https://www.bmstores.co.uk/search?q=${q}`,
+  'Wilko': (q) => `https://www.wilko.com/search?q=${q}`,
+  'Tesco': (q) => `https://www.tesco.com/groceries/en-GB/search?query=${q}`,
+  'Asda': (q) => `https://groceries.asda.com/search/${q}`,
+  'Sainsbury\'s': (q) => `https://www.sainsburys.co.uk/gol-ui/SearchResults/${q}`,
+  'Morrisons': (q) => `https://groceries.morrisons.com/search?entry=${q}`,
+  'Savers': (q) => `https://www.savers.co.uk/search?q=${q}`,
+  'Superdrug': (q) => `https://www.superdrug.com/search?text=${q}`,
+  'Boots': (q) => `https://www.boots.com/sitesearch?searchTerm=${q}`,
+  'Poundland': (q) => `https://www.poundland.co.uk/catalogsearch/result/?q=${q}`,
+  'Pets at Home': (q) => `https://www.petsathome.com/search?q=${q}`,
+  'Zooplus': (q) => `https://www.zooplus.co.uk/search?q=${q}`,
+  'Dunelm': (q) => `https://www.dunelm.com/search?q=${q}`,
+  'The Works': (q) => `https://www.theworks.co.uk/search?q=${q}`,
+  'QD Stores': (q) => `https://www.qdstores.co.uk/search?q=${q}`,
+  'Robert Dyas': (q) => `https://www.robertdyas.co.uk/catalogsearch/result?q=${q}`,
+  'Toolstation': (q) => `https://www.toolstation.com/search?q=${q}`,
+  'eBay': (q) => `https://www.ebay.co.uk/sch/i.html?_nkw=${q}&LH_PrefLoc=1`,
+};
+
+function searchUrlFor(name, q) {
+  const known = SHOP_SEARCH[name];
+  if (known) return known(q);
+  return `https://www.google.com/search?q=${q}+${encodeURIComponent(name)}+uk`;
+}
+
 const SHOPS = [
   { name: 'Amazon', url: (q) => `https://www.amazon.co.uk/s?k=${q}` },
   { name: 'Argos', url: (q) => `https://www.argos.co.uk/search/${q}/` },
@@ -62,9 +104,12 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
   const m = candidate.margin ?? {};
   const sources = [...new Set((candidate.signals ?? []).map((s) => s.source_id ?? s.sourceId))];
 
-  // Net needs a supplier quote. Until one exists the row shows headroom and
-  // says so, rather than printing a profit figure with no cost behind it.
-  const quoted = m.net != null;
+  // Net needs a supplier quote AND a list price somebody has actually been paid.
+  // Where the entry price fell outside the field the row is priced off the
+  // median, so the profit is arithmetic on a price nobody has achieved. Showing
+  // that at figure size is the caravan pump shape: the least trustworthy number
+  // presented as the headline. Those rows show the ceiling instead.
+  const quoted = m.net != null && m.list_trusted !== false;
   const headroom = candidate.headroom ?? m.headroom ?? null;
   const month = windowName(candidate);
 
@@ -82,13 +127,13 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
       ? Math.round((headroom - RETURNS_ALLOWANCE - TARGET_PROFIT) * 100) / 100
       : null);
 
-  // The test that decides. Not how crowded the market is: whether a seller her
-  // size is selling on it right now, at roughly the price she would list at.
+  // The test that decides. Not how crowded the market is: whether a small
+  // seller is selling on it right now, at roughly the price she would list at.
   const entry = candidate.entry ?? null;
 
   const search = encodeURIComponent(candidate.title);
 
-  // What a seller her size is taking on this in a month, before goods.
+  // What a small seller is taking on this in a month, before goods.
   //
   // No fallback. The old one recomputed headroom times the whole sampled
   // market's units whenever the importer left this null, which is how a caravan
@@ -387,13 +432,6 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
 
           <WindowSeries series={candidate.window_series} />
 
-          {candidate.reference_url && (
-            <p className={styles.reference}>
-              <a href={candidate.reference_url} target="_blank" rel="noreferrer noopener">
-                The listing these figures came from
-              </a>
-            </p>
-          )}
 
           {sources.length > 0 && (
             <p className={styles.sources}>
@@ -406,23 +444,43 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
           {entry?.item_id && (
             <p className={styles.entry}>
               <span className="micro">
-                {entry.proved ? 'Entry proved' : 'Selling, but not at her size'}
+                {entry.proved ? 'A small seller is selling this' : 'Selling, but only by large accounts'}
               </span>{' '}
-              <a href={`https://www.ebay.co.uk/itm/${entry.item_id}`}
+              <a href={itmUrl(entry.item_id)}
                 target="_blank" rel="noreferrer">see the listing this came from</a>
             </p>
           )}
 
-          {/* Where to buy it. Searches rather than found products: a price from
-              a feed is a price we do not hold, and typing the same phrase into
-              six sites is the part of sourcing that actually takes the time.
-              B&M and Home Bargains are absent on purpose, their clearance is
-              not online at all and a link that finds nothing is worse than no
-              link. */}
+          {/* Where it came from. One link to the product at the price it was
+              seen at, which is a fact, kept visually apart from the searches
+              below it, which are not. */}
+          {m?.shelf?.url && (
+            <p className={styles.shelfLink}>
+              <span className="micro">Seen at</span>
+              <a href={m.shelf.url} target="_blank" rel="noreferrer">
+                {m.shelf.shop ?? 'the shop'}
+                {m.shelf.price != null && ` · £${Number(m.shelf.price).toFixed(2)}`}
+              </a>
+              {m.shelf.product && (
+                <span className={styles.shelfProduct}>{m.shelf.product}</span>
+              )}
+            </p>
+          )}
+
+          {/* Also worth trying. Searches rather than found products: a shop that
+              does not stock it returns an empty page, which is honest. Six fixed
+              shops on every row was not, and is how Screwfix came to be offered
+              as a source of dog food. Proposed at import and stored, so the same
+              row shows the same shops every time it is opened. */}
           <p className={styles.shops}>
-            <span className="micro">Buy it from</span>
-            {SHOPS.map((shop) => (
-              <a key={shop.name} href={shop.url(search)} target="_blank" rel="noreferrer">
+            <span className="micro">
+              {m?.shops?.length ? 'Also try' : 'Buy it from'}
+            </span>
+            {(m?.shops?.length
+              ? m.shops.map((name) => ({ name, url: searchUrlFor(name, search) }))
+              : SHOPS.map((shop) => ({ name: shop.name, url: shop.url(search) }))
+            ).map((shop) => (
+              <a key={shop.name} href={shop.url} target="_blank" rel="noreferrer">
                 {shop.name}
               </a>
             ))}

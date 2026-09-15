@@ -20,6 +20,43 @@ function flatten(row) {
   };
 }
 
+/*
+ * The order she should work the board in.
+ *
+ * Not score, which is null on every row by design: a single Browse read has no
+ * trend and no sell-through, so four components have no data and a number built
+ * on the rest is asserted. Ordering on it did nothing, and every row fell
+ * through to monthly_headroom, which is only written where entry is proved. So
+ * the unproved rows sorted as null and the importer's ordering was discarded,
+ * which is how a 1,455 feedback seller ended up above a 709 one who is actually
+ * converting.
+ *
+ * Both deciding facts live inside jsonb, which PostgREST cannot order on, so
+ * this happens after the fetch.
+ *
+ * 1. A small seller selling, at a price that came from that seller.
+ * 2. A small seller selling, priced off the median.
+ * 3. Selling, but only by large accounts.
+ * 4. Nobody recent selling.
+ *
+ * Inside each, what a month is worth, then what a unit makes. A market she can
+ * get into at £40 a month beats one she cannot get into at £300.
+ */
+function workRank(r) {
+  const proved = r.entry?.proved === true;
+  const trusted = r.margin?.list_trusted !== false;
+  if (proved && trusted) return 0;
+  if (proved) return 1;
+  if (r.entry?.seller_feedback != null) return 2;
+  return 3;
+}
+
+function byWorkOrder(a, b) {
+  return workRank(a) - workRank(b)
+    || (b.monthly_headroom ?? 0) - (a.monthly_headroom ?? 0)
+    || (b.margin?.net ?? b.margin?.max_goods_cost ?? 0) - (a.margin?.net ?? a.margin?.max_goods_cost ?? 0);
+}
+
 export function useCandidates(batchId) {
   const [state, setState] = useState({ status: 'loading', rows: [], error: null });
 
@@ -49,12 +86,10 @@ export function useCandidates(batchId) {
           ships_from, transit_days, confirmed, quoted_on
         )
       `)
-      .eq('batch_id', batchId)
-      .order('score', { ascending: false, nullsFirst: false })
-      .order('monthly_headroom', { ascending: false, nullsFirst: false });
+      .eq('batch_id', batchId);
 
     if (error) return setState({ status: 'error', rows: [], error });
-    setState({ status: 'ready', rows: data.map(flatten), error: null });
+    setState({ status: 'ready', rows: data.map(flatten).sort(byWorkOrder), error: null });
   }, [batchId]);
 
   useEffect(() => {
