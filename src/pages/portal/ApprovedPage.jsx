@@ -76,8 +76,9 @@ export function ApprovedPage() {
       </header>
 
       <p className={styles.lead}>
-        Everything needed to put these on eBay. Copy the title, set the price, and
-        check the postage band against what the supplier quotes before you commit.
+        Everything needed to put these on eBay. List at the price shown, and buy
+        the goods only once one sells. Repack it before it goes out, never in the
+        shop's own packaging and never with their receipt inside.
       </p>
 
       <div className={styles.list}>
@@ -104,18 +105,34 @@ function Pack({ row, suppliers, onSource }) {
   const month = windowName(row);
 
   // Cheapest source that has actually been priced. A sourcing request with no
-  // answer is not a cost.
-  const best = (row.sources ?? []).find((s) => s.landed_unit_cost != null) ?? null;
+  // answer is not a cost. A shelf price is an answer: it is a price seen on a
+  // shelf, which is more certain than a quote, so it counts as one.
+  const quoted = (row.sources ?? []).find((s) => s.landed_unit_cost != null) ?? null;
+  const shelf = m.shelf ?? null;
+  const best = quoted ?? (shelf?.price != null
+    ? { supplier: shelf.shop ?? 'the shelf', landed_unit_cost: shelf.price, fulfilment: 'stock', url: shelf.url }
+    : null);
 
-  // On a dropship order the supplier posts it, so the postage inside headroom
-  // is not hers to pay.
-  const net = best && row.headroom != null
-    ? Math.round((
-      Number(row.headroom)
-      + (best.fulfilment === 'dropship' ? Number(m.postage ?? 0) : 0)
-      - Number(best.landed_unit_cost)
-    ) * 100) / 100
-    : null;
+  // She posts everything herself, so postage always comes off. It only came
+  // back on for a dropship quote, which this model does not use.
+  const net = m.net != null
+    ? m.net
+    : (best && row.headroom != null
+      ? Math.round((
+        Number(row.headroom)
+        + (best.fulfilment === 'dropship' ? Number(m.postage ?? 0) : 0)
+        - Number(best.landed_unit_cost)
+      ) * 100) / 100
+      : null);
+
+  // Fees, postage and packaging, which the importer now writes individually.
+  const costToSell = m.cost_to_sell ?? (
+    m.platform_fee != null
+      ? Math.round((Number(m.platform_fee) + Number(m.postage ?? 0) + Number(m.packaging ?? 0)) * 100) / 100
+      : null);
+
+  const entry = row.entry ?? null;
+  const trusted = m.list_trusted === true;
 
   async function copyTitle() {
     try {
@@ -146,10 +163,18 @@ function Pack({ row, suppliers, onSource }) {
 
         <div className={styles.packTitle}>
           <h2 className={styles.name}>{row.title}</h2>
+          {/* Why this is worth listing, which is who is selling it and how fast.
+              Score sat here and is null on every row by design, so it read as a
+              zero next to a product she had just committed to. */}
           <p className={styles.meta}>
-            <span className={styles.scoreLabel}>Score</span>
-            <span className={styles.scoreValue} data-num>{row.score ?? 0}</span>
-            {' · '}
+            {entry?.proved ? (
+              <>
+                <span data-num>{entry.seller_feedback}</span> feedback seller sold{' '}
+                <span data-num>{entry.sold_lifetime}</span> in{' '}
+                <span data-num>{entry.age_days}</span> days
+                {' · '}
+              </>
+            ) : null}
             <span data-num>{row.sold_30d ?? 0}</span> sold{month ? ` in ${month}` : ''}
             {row.same_sku_sellers != null && (
               <> · <span data-num>{row.same_sku_sellers}</span> seller{row.same_sku_sellers === 1 ? '' : 's'} on this product</>
@@ -166,23 +191,21 @@ function Pack({ row, suppliers, onSource }) {
       </div>
 
       <dl className={styles.figures}>
-        <Fig label="List at" value={formatGbp(m.sale_price ?? row.avg_sold_price)} strong />
+        <Fig label="List at" value={formatGbp(m.sale_price ?? row.avg_sold_price)} strong
+          foot={trusted ? 'what a small seller is getting' : 'market median, check this one'} />
         <Fig label="Cost to sell"
-          value={m.cost_to_sell != null ? `- ${formatGbp(m.cost_to_sell)}` : 'not computed'}
+          value={costToSell != null ? `- ${formatGbp(costToSell)}` : 'not computed'}
           foot="fees, postage, packaging" />
-        <Fig
-          label="Headroom"
-          value={formatGbp(row.headroom)}
-          strong={net == null}
-          foot={best ? 'before goods' : 'before goods, not yet quoted'}
-        />
-        {best && (
-          <Fig
-            label="Net a unit"
-            value={formatGbp(net)}
-            strong
-            foot={`${best.supplier} at ${formatGbp(best.landed_unit_cost)} landed`}
-          />
+        {best ? (
+          <Fig label="Goods" value={`- ${formatGbp(best.landed_unit_cost)}`}
+            foot={best.supplier} />
+        ) : (
+          <Fig label="Headroom" value={formatGbp(row.headroom)} strong
+            foot="before goods, not yet quoted" />
+        )}
+        {best && net != null && (
+          <Fig label="You keep" value={formatGbp(net)} strong
+            foot={`a unit, after everything${trusted ? '' : ', at an unchecked price'}`} />
         )}
       </dl>
 
@@ -193,6 +216,31 @@ function Pack({ row, suppliers, onSource }) {
           sub={row.ebay_category_id} />
         <Detail label="Channels" value={(row.recommended_channels ?? []).join(', ') || 'ebay'} />
       </dl>
+
+      {/* The model, on the page where it gets done. Nothing here is obvious to
+          somebody holding a phone in an aisle three weeks from now. */}
+      {best && (
+        <ol className={styles.steps}>
+          <li>List it at {formatGbp(m.sale_price ?? row.avg_sold_price)}. Buy nothing yet.</li>
+          <li>
+            When it sells, buy it
+            {best.url
+              ? <> at <a href={best.url} target="_blank" rel="noreferrer noopener">{best.supplier}</a></>
+              : <> at {best.supplier}</>} for {formatGbp(best.landed_unit_cost)}.
+          </li>
+          <li>Repack it. Not the shop's bag, and no receipt inside.</li>
+          <li>Post it yourself, {band(m.headroom_band) || 'small parcel'}.</li>
+          <li>Check the shelf price again before you relist.</li>
+        </ol>
+      )}
+
+      {!trusted && (
+        <p className={styles.flag}>
+          This price is the market median, not a price anybody her size has been paid.
+          Open the listing below and check it against what is actually selling before
+          you list at it.
+        </p>
+      )}
 
       {row.variation_count >= BLENDED && (
         <p className={styles.flag}>

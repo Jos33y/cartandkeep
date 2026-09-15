@@ -220,3 +220,29 @@
 @media (prefers-reduced-motion: reduce) {
   .copy { transition: none; }
 }
+
+/* What she does, in order, on the page where she does it. Numbered because the
+   order matters: buying before it sells is the whole thing this model avoids. */
+.steps {
+  margin-top: var(--s-4);
+  padding: var(--s-4) var(--s-4) var(--s-4) calc(var(--s-4) + 1.4em);
+  background: var(--c-sunk);
+  border-radius: var(--r-md);
+  list-style: decimal;
+  max-width: 62ch;
+}
+
+.steps li {
+  margin-bottom: var(--s-2);
+  font-size: var(--t-label);
+  line-height: var(--lh-snug);
+  color: var(--c-ink);
+}
+
+.steps li:last-child { margin-bottom: 0; }
+
+.steps a {
+  color: var(--c-action-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

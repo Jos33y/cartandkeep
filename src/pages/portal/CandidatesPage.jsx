@@ -16,14 +16,35 @@ const FILTERS = [
   { key: 'all', label: 'All' },
 ];
 
-// Units times headroom. What the product would be worth in a month at the
-// going rate, before goods cost. Computed at import, recomputed here only for
-// rows written before that column existed.
-const worthPerMonth = (r) => {
-  if (r.monthly_headroom != null) return r.monthly_headroom;
-  const head = r.headroom ?? r.margin?.headroom;
-  return head != null && r.sold_30d != null ? head * r.sold_30d : null;
-};
+// What a small seller is taking on this in a month, before goods. Written at
+// import, and only where entry is proved.
+//
+// The fallback that used to sit here multiplied headroom by the whole sampled
+// market's units whenever the column was null. That is the figure removed from
+// the card for showing £3,734 a month on a caravan pump, and null is not a gap
+// to fill: it means nobody her size is proved to be selling, so there is no
+// rate to compute against.
+const worthPerMonth = (r) => r.monthly_headroom ?? null;
+
+// The order she should work a group in, matching the board order the hook
+// returns. Sorting on worth alone put the rows with no evidence on top,
+// because the ones nobody her size sells have the whole market's units behind
+// them.
+const trusted = (r) => r.margin?.list_trusted === true;
+
+function byWorkOrder(a, b) {
+  const rank = (r) => {
+    if (r.entry?.proved && trusted(r)) return 0;
+    if (r.entry?.proved) return 1;
+    if (r.entry?.seller_feedback != null) return 2;
+    return 3;
+  };
+  const sinks = (r) => (r.tier === 'slipping' ? 1 : 0);
+  return sinks(a) - sinks(b)
+    || rank(a) - rank(b)
+    || (worthPerMonth(b) ?? 0) - (worthPerMonth(a) ?? 0)
+    || (b.margin?.net ?? b.margin?.max_goods_cost ?? 0) - (a.margin?.net ?? a.margin?.max_goods_cost ?? 0);
+}
 
 // A defer is a decision to look again, not a review. Counting it as reviewed
 // tells her she is finished when there is a pile still waiting.
@@ -74,26 +95,24 @@ export function CandidatesPage() {
       // owed a warning for being new.
       const { label } = matchBoundary(r.ebay_category_path, boundaries);
       const key = r.cluster || label || 'Not known';
-      if (!map.has(key)) map.set(key, { label: key, rows: [], worth: 0 });
+      if (!map.has(key)) map.set(key, { label: key, rows: [], worth: 0, provable: 0 });
       const g = map.get(key);
       g.rows.push(r);
       g.worth += worthPerMonth(r) ?? 0;
+      if (r.entry?.proved && trusted(r)) g.provable += 1;
     }
 
-    // Holding first inside a group, then by what the product is worth in a
-    // month. The score is null on a batch with no history behind it, so
-    // sorting on it puts every row in whatever order the query returned.
     for (const g of map.values()) {
-      g.rows.sort((a, b) => {
-        const sinks = (r) => (r.tier === 'slipping' ? 1 : 0);
-        return sinks(a) - sinks(b)
-          || (worthPerMonth(b) ?? 0) - (worthPerMonth(a) ?? 0);
-      });
+      g.rows.sort(byWorkOrder);
       g.slipping = g.rows.filter((r) => r.tier === 'slipping').length;
     }
 
-    // The cluster worth the most money first, not the one with most rows.
-    return [...map.values()].sort((a, b) => b.worth - a.worth || b.rows.length - a.rows.length);
+    // The cluster she can actually get into first. Ranking on worth alone put
+    // the groups with no entry proof on top, since worth is null there and the
+    // ones with the biggest markets are the ones she cannot enter.
+    return [...map.values()].sort(
+      (a, b) => b.provable - a.provable || b.worth - a.worth || b.rows.length - a.rows.length,
+    );
   }, [visible, boundaries]);
 
   const counts = useMemo(() => ({
