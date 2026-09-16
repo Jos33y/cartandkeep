@@ -44,7 +44,7 @@ function flatten(row) {
  */
 function workRank(r) {
   const proved = r.entry?.proved === true;
-  const trusted = r.margin?.list_trusted !== false;
+  const trusted = r.margin?.list_trusted === true;
   if (proved && trusted) return 0;
   if (proved) return 1;
   if (r.entry?.seller_feedback != null) return 2;
@@ -71,7 +71,7 @@ export function useCandidates(batchId) {
         classification, tier, score, component_count, breakdown,
         ebay_category_id, ebay_category_path, cluster, variation_count,
         monthly_headroom,
-        confidence, signal_count, signals, margin,
+        confidence, signal_count, signals, margin, listing,
         headroom, hold, same_sku_sellers, bulky, routes, window_series,
         entry,
         sold_30d, avg_sold_price, active_listings, sell_through, trend,

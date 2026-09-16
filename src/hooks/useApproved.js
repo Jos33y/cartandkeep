@@ -38,7 +38,7 @@ export function useApproved(tenantId) {
         id, title, category, external_ref, reference_url, classification,
         image_url, ebay_category_id, ebay_category_path, variation_count,
         score, breakdown, margin, headroom, hold, same_sku_sellers, bulky,
-        entry, monthly_headroom, active_listings,
+        entry, monthly_headroom, active_listings, listing,
         sold_30d, avg_sold_price, window_start, window_series,
         recommended_channels,
         batches ( delivered_for ),
