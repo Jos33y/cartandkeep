@@ -63,6 +63,13 @@ export const PORTAL_ROUTES = {
   COVERAGE: '/coverage',
   METRICS: '/metrics',
   SETTINGS: '/settings',
+  // Her own eBay account, which is a third surface: not the pipeline that feeds
+  // it and not the shop we built. Traffic is the first of these; listings and
+  // orders follow once they are read from eBay rather than entered by hand.
+  EBAY_TRAFFIC: '/ebay/traffic',
+  // eBay sends her here after she approves. Outside the guard, so it is not in
+  // the nav either.
+  EBAY_CALLBACK: '/ebay/callback',
 };
 
 // Dev serves all three hosts from one document, so portal links carry ?portal.
@@ -83,6 +90,22 @@ export const PORTAL_NAV_SECTIONS = [
       { route: PORTAL_ROUTES.APPROVED, label: 'Approved', icon: 'IconCheck' },
       { route: PORTAL_ROUTES.COVERAGE, label: 'Coverage', icon: 'IconMap' },
       { route: PORTAL_ROUTES.LISTINGS, label: 'Listings', icon: 'IconTag' },
+    ],
+  },
+  /*
+   * eBay sits between the two.
+   *
+   * Review is the pipeline deciding what to sell. Your shop is cartandkeep.com.
+   * Her eBay account is neither: it is where the pipeline's output actually
+   * goes, and where the only measurements of her own selling exist. Folding it
+   * into Review would file her live account among things still being decided,
+   * and folding it into Your shop would say eBay is ours, which it is not.
+   */
+  {
+    key: 'ebay',
+    label: 'eBay',
+    items: [
+      { route: PORTAL_ROUTES.EBAY_TRAFFIC, label: 'Traffic', icon: 'IconEye' },
     ],
   },
   /*

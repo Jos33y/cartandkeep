@@ -1,0 +1,158 @@
+.page { display: flex; flex-direction: column; gap: var(--s-5); }
+
+.status { min-height: 1em; font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-6);
+  flex-wrap: wrap;
+  padding-bottom: var(--s-5);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.head p:first-child { margin-bottom: var(--s-2); }
+
+.title { font-size: 2rem; letter-spacing: -0.025em; font-weight: 560; }
+
+.lead {
+  margin-top: var(--s-2);
+  max-width: 56ch;
+  color: var(--c-ink-soft);
+  line-height: var(--lh-body);
+}
+
+.stats { display: flex; gap: var(--s-6); }
+.stat { display: flex; flex-direction: column; gap: var(--s-1); }
+.statValue { color: var(--c-ink); }
+.statFoot { font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+
+.window { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.button {
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-label);
+  font-weight: 500;
+  transition: filter var(--dur) var(--ease);
+}
+
+.button:hover:not(:disabled) { filter: brightness(0.93); }
+.button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.quiet { max-width: 60ch; font-size: var(--t-caption); color: var(--c-ink-faint); line-height: var(--lh-body); }
+.failed { font-size: var(--t-caption); color: var(--c-negative); }
+
+/* One bar, widths in proportion to the counts. Four cards would give equal
+   space to four very different accounts of the same catalogue, and the shape
+   is the finding: mostly never shown is a titling problem, mostly opened and
+   not bought is a pricing one. */
+.split {
+  display: flex;
+  gap: 2px;
+  overflow: hidden;
+  border-radius: var(--r-md);
+}
+
+.segment {
+  flex: 1 1 0;
+  min-width: 96px;
+  padding: var(--s-3);
+  text-align: left;
+  border: none;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.segmentValue {
+  display: block;
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-lead);
+  font-weight: 500;
+}
+
+.segmentLabel { display: block; margin-top: 2px; font-size: var(--t-micro); }
+
+.dimmed { opacity: 0.35; }
+
+/* Warm through to settled, so the eye reads left to right as the funnel. */
+.unseen { background: #E8D9CE; color: var(--c-ink); }
+.ignored { background: #EFE3D2; color: var(--c-ink); }
+.unconvincing { background: #E6E3D6; color: var(--c-ink); }
+.selling { background: #D8E3D6; color: var(--c-ink); }
+
+.verdictNote {
+  max-width: 68ch;
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  line-height: var(--lh-body);
+}
+
+.table { display: flex; flex-direction: column; }
+
+.headRow, .row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px 84px 84px;
+  gap: var(--s-3);
+  align-items: baseline;
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--c-line);
+}
+
+.headRow {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.headRow span + span, .row span + span { text-align: right; font-family: var(--font-data); }
+
+.row:hover { background: var(--c-raised); }
+
+.product { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; }
+
+.product a {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--t-label);
+  color: var(--c-ink);
+  text-decoration: none;
+}
+
+.product a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.tag {
+  flex-shrink: 0;
+  padding: 1px var(--s-2);
+  border-radius: var(--r-sm);
+  font-size: var(--t-micro);
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .head { align-items: flex-start; }
+  .title { font-size: 1.625rem; }
+  .stats { gap: var(--s-5); }
+  .split { flex-wrap: wrap; }
+  .headRow, .row { grid-template-columns: minmax(0, 1fr) 56px 56px 56px; }
+  .tag { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button, .segment { transition: none; }
+}

@@ -30,6 +30,7 @@ const CoveragePage = lazy(() => import('@pages/portal/CoveragePage').then((m) =>
 const MetricsPage = lazy(() => import('@pages/portal/MetricsPage').then((m) => ({ default: m.MetricsPage })));
 const SettingsPage = lazy(() => import('@pages/portal/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 const EbayCallbackPage = lazy(() => import('@pages/portal/EbayCallbackPage').then((m) => ({ default: m.EbayCallbackPage })));
+const EbayTrafficPage = lazy(() => import('@pages/portal/EbayTrafficPage').then((m) => ({ default: m.EbayTrafficPage })));
 
 const deferred = (el) => <Suspense fallback={null}>{el}</Suspense>;
 
@@ -45,7 +46,7 @@ export const portalRouter = createBrowserRouter([
   //
   // It needs no session anyway. The tenant arrives from eBay in `state`, and
   // the exchange happens in the edge function under the service role.
-  { path: '/ebay/callback', element: deferred(<EbayCallbackPage />) },
+  { path: PORTAL_ROUTES.EBAY_CALLBACK, element: deferred(<EbayCallbackPage />) },
   { path: '/ebay/declined', element: deferred(<EbayCallbackPage />) },
   {
     path: '/',
@@ -72,6 +73,7 @@ export const portalRouter = createBrowserRouter([
       { path: 'coverage', element: deferred(<CoveragePage />) },
       { path: 'metrics', element: deferred(<MetricsPage />) },
       { path: 'activity', element: deferred(<ActivityPage />) },
+      { path: PORTAL_ROUTES.EBAY_TRAFFIC.slice(1), element: deferred(<EbayTrafficPage />) },
       { path: 'settings', element: deferred(<SettingsPage />) },
       // Catches everything unmatched, and does it inside the shell so she is
       // not thrown out of the portal by a typo in the address bar.

@@ -165,8 +165,22 @@ export function PortalShell({ children }) {
   );
 }
 
+/*
+ * The crumb, from the nav rather than from the path.
+ *
+ * Taking the first segment broke as soon as a route nested: /ebay/traffic read
+ * as "Ebay", and /orders/:reference/slip reads as "Orders". The nav already
+ * holds the name each route is called, so it is the honest source, and a route
+ * with no nav entry falls back to the last segment rather than the first.
+ */
 function titleFor(pathname) {
   if (pathname === '/') return 'Overview';
-  const [, first] = pathname.split('/');
-  return first ? first.charAt(0).toUpperCase() + first.slice(1) : 'Overview';
+
+  const named = PORTAL_NAV_SECTIONS
+    .flatMap((s) => s.items)
+    .find((i) => i.route !== '/' && pathname.startsWith(portalPath(i.route)));
+  if (named) return named.label;
+
+  const last = pathname.split('/').filter(Boolean).pop();
+  return last ? last.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase()) : 'Overview';
 }
