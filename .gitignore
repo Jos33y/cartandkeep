@@ -19,3 +19,6 @@ backups/
 *.zip
 *.ps1
 .gate
+gate-hb-1.csv
+gate-hb-2.csv
+audit.csv
