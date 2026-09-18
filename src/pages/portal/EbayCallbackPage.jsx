@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { portalPath } from '@utils/constants';
+import { useNavigate, useSearchParams } from 'react-router';
+import { portalPath } from '@utils/constants'; 
 import styles from '@styles/pages/portal/settings-page.module.css';
 
 /*
