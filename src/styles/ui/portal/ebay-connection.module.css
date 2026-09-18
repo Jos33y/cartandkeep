@@ -49,3 +49,42 @@
 @media (prefers-reduced-motion: reduce) {
   .button { transition: none; }
 }
+
+.actions { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+
+.ghost {
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-control);
+  border-radius: var(--r-md);
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-ink-soft);
+  transition: background var(--dur) var(--ease);
+}
+
+.ghost:hover:not(:disabled) { background: var(--c-sunk); }
+.ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* What eBay actually said, rather than what the token implies. */
+.report {
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--c-line);
+}
+
+.good { font-size: var(--t-label); color: var(--c-positive); }
+.warn { font-size: var(--t-label); color: var(--c-warning); max-width: 58ch; line-height: var(--lh-snug); }
+
+.found { margin-top: var(--s-3); display: flex; flex-direction: column; gap: var(--s-2); }
+
+.foundRow { display: flex; align-items: baseline; gap: var(--s-3); }
+
+.foundLabel {
+  flex: 0 0 72px;
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+}
+
+.foundValue { font-size: var(--t-caption); color: var(--c-ink); }
+.foundNone { font-size: var(--t-caption); color: var(--c-warning); }

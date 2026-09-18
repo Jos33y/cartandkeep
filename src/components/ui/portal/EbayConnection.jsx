@@ -24,6 +24,8 @@ export function EbayConnection({ tenantId }) {
   const [state, setState] = useState({ status: 'loading' });
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(null);
+  const [checking, setChecking] = useState(false);
+  const [pre, setPre] = useState(null);
 
   const check = useCallback(async () => {
     if (!tenantId) return;
@@ -35,6 +37,20 @@ export function EbayConnection({ tenantId }) {
   }, [tenantId]);
 
   useEffect(() => { check(); }, [check]);
+
+  // A token proves she consented. It does not prove eBay will accept a listing,
+  // which needs three business policies and an inventory location.
+  async function preflight() {
+    setChecking(true);
+    setFailed(null);
+    const { data, error } = await supabase.functions.invoke('ebay-oauth', {
+      body: { action: 'preflight', tenant_id: tenantId },
+    });
+    setChecking(false);
+    if (error || data?.error) return setFailed(data?.error ?? error.message);
+    setPre(data);
+    check();
+  }
 
   async function connect() {
     setBusy(true);
@@ -66,7 +82,7 @@ export function EbayConnection({ tenantId }) {
       <p className={styles.line}>
         <span className={state.connected ? styles.dotOn : styles.dotOff} aria-hidden="true" />
         {state.connected
-          ? `Connected since ${when(state.connected_at)}`
+          ? `${state.account ? `Connected as ${state.account}` : 'Connected'} since ${when(state.connected_at)}`
           : state.lapsed
             ? 'The connection has lapsed and needs granting again'
             : 'Not connected yet'}
@@ -89,9 +105,51 @@ export function EbayConnection({ tenantId }) {
         <button type="button" className={styles.button} disabled={busy} onClick={connect}>
           {busy ? 'Opening eBay' : state.connected ? 'Reconnect' : 'Connect eBay'}
         </button>
+        {state.connected && (
+          <button type="button" className={styles.ghost} disabled={checking} onClick={preflight}>
+            {checking ? 'Checking with eBay' : 'Check it works'}
+          </button>
+        )}
       </div>
 
+      {pre && (
+        <div className={styles.report}>
+          <p className={pre.can_list ? styles.good : styles.warn}>
+            {pre.can_list
+              ? 'Everything a listing needs is in place.'
+              : `Connected, but not able to list yet. Missing ${pre.missing.join(', ')}.`}
+          </p>
+
+          <dl className={styles.found}>
+            <Found label="Postage" items={pre.postage} />
+            <Found label="Payment" items={pre.payment} />
+            <Found label="Returns" items={pre.returns} />
+            <Found label="Location" items={pre.locations} />
+          </dl>
+
+          {pre.errors?.length > 0 && (
+            <p className={styles.failed}>
+              eBay refused some of it: {pre.errors.join(', ')}. A 403 there means the
+              scope was not granted, so reconnecting is the fix.
+            </p>
+          )}
+        </div>
+      )}
+
       {failed && <p className={styles.failed} role="alert">{failed}</p>}
+    </div>
+  );
+}
+
+function Found({ label, items = [] }) {
+  return (
+    <div className={styles.foundRow}>
+      <dt className={styles.foundLabel}>{label}</dt>
+      <dd className={items.length ? styles.foundValue : styles.foundNone}>
+        {items.length
+          ? items.map((i) => i.name ?? i.key).join(', ')
+          : 'none set up'}
+      </dd>
     </div>
   );
 }
