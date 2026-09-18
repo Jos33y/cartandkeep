@@ -29,11 +29,24 @@ const NotesPage = lazy(() => import('@pages/portal/NotesPage').then((m) => ({ de
 const CoveragePage = lazy(() => import('@pages/portal/CoveragePage').then((m) => ({ default: m.CoveragePage })));
 const MetricsPage = lazy(() => import('@pages/portal/MetricsPage').then((m) => ({ default: m.MetricsPage })));
 const SettingsPage = lazy(() => import('@pages/portal/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+const EbayCallbackPage = lazy(() => import('@pages/portal/EbayCallbackPage').then((m) => ({ default: m.EbayCallbackPage })));
 
 const deferred = (el) => <Suspense fallback={null}>{el}</Suspense>;
 
 export const portalRouter = createBrowserRouter([
   { path: PORTAL_ROUTES.LOGIN, element: <LoginPage /> },
+
+  // Outside the guard on purpose. eBay sends her here after she approves, and
+  // there is no guarantee that browser still holds a session: the sign-in may
+  // open elsewhere, she may approve on her phone, or the session may lapse
+  // while she is on eBay's screen. Behind the guard she would be bounced to
+  // login, the code would be lost from the address bar, and the code is good
+  // for five minutes and one use.
+  //
+  // It needs no session anyway. The tenant arrives from eBay in `state`, and
+  // the exchange happens in the edge function under the service role.
+  { path: '/ebay/callback', element: deferred(<EbayCallbackPage />) },
+  { path: '/ebay/declined', element: deferred(<EbayCallbackPage />) },
   {
     path: '/',
     element: <PortalProtected />,

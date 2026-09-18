@@ -1,4 +1,14 @@
-.page { display: flex; flex-direction: column; gap: var(--s-4); }
+/*
+ * A queue of things waiting to be listed. Closed, a row is the product and what
+ * it makes. Open, it answers the three questions this page exists for: why it
+ * was approved, where to buy it, and what goes up on eBay.
+ *
+ * The previous version gave four cells equal weight, so a postage figure sat at
+ * the same size as the profit, and it lost the case the candidate queue had
+ * already made, which is the reason she said yes in the first place.
+ */
+
+.page { display: flex; flex-direction: column; gap: var(--s-6); }
 
 .status { min-height: 1em; font-size: var(--t-caption); color: var(--c-ink-faint); }
 
@@ -8,79 +18,60 @@
   justify-content: space-between;
   gap: var(--s-6);
   flex-wrap: wrap;
-  padding-bottom: var(--s-4);
+  padding-bottom: var(--s-5);
   border-bottom: 1px solid var(--c-line);
 }
 
-.head p { margin-bottom: var(--s-2); }
+.title {
+  font-size: 2rem;
+  letter-spacing: -0.025em;
+  font-weight: 560;
+  margin-bottom: var(--s-2);
+}
 
-.title { font-size: 2rem; letter-spacing: -0.025em; font-weight: 560; }
+.lead { max-width: 54ch; color: var(--c-ink-soft); line-height: var(--lh-body); }
 
 .stats { display: flex; gap: var(--s-6); }
 .stat { display: flex; flex-direction: column; gap: var(--s-1); }
+.stat dt { font-size: var(--t-caption); color: var(--c-ink-faint); white-space: nowrap; }
 .statValue { color: var(--c-ink); }
-
-.statFoot {
-  font-size: var(--t-micro);
-  color: var(--c-ink-faint);
-  letter-spacing: 0.01em;
-}
-
-.lead {
-  max-width: 62ch;
-  color: var(--c-ink-soft);
-  line-height: var(--lh-body);
-}
 
 .list { display: flex; flex-direction: column; }
 
-.pack {
-  padding: var(--s-5) 0;
-  border-bottom: 1px solid var(--c-line);
+.pack { border-bottom: 1px solid var(--c-line); }
+.packOpen { background: var(--c-raised); }
+
+/* Photo, subject, figure, caret. The whole line opens the row, so the target is
+   the width of the page rather than a button somebody has to find. */
+.top {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto 16px;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-4) 0;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
 }
 
-.packHead {
-  display: grid;
-  grid-template-columns: 88px minmax(0, 1fr) auto;
-  align-items: start;
-  gap: var(--s-4);
-}
+.top:hover { background: var(--c-raised); }
+.top:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: -2px; }
 
 .thumb {
-  position: relative;
   display: block;
-  width: 88px;
-  height: 88px;
+  width: 72px;
+  height: 72px;
   padding: 0;
   overflow: hidden;
   border-radius: var(--r-md);
   border: 1px solid var(--c-line-mid);
   background: var(--c-surface);
+  cursor: zoom-in;
 }
 
 .thumb img { width: 100%; height: 100%; object-fit: contain; }
+.thumbEmpty { background: var(--c-sunk); cursor: default; }
 
-.thumbEmpty { background: var(--c-sunk); }
-
-.zoom {
-  position: absolute;
-  inset: auto 0 0 0;
-  padding: 3px 0;
-  background: rgba(42, 39, 35, 0.78);
-  color: var(--c-base);
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  text-align: center;
-  opacity: 0;
-  transition: opacity var(--dur) var(--ease);
-}
-
-.thumb:hover .zoom,
-.thumb:focus-visible .zoom { opacity: 1; }
-
-.packTitle { min-width: 0; }
+.subject { min-width: 0; }
 
 .name {
   font-size: var(--t-lead);
@@ -89,31 +80,180 @@
   line-height: var(--lh-snug);
 }
 
-.meta {
+/* Why it is here, in one sentence rather than a row of statistics. */
+.evidence {
   margin-top: var(--s-2);
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+  line-height: var(--lh-snug);
+}
+
+.warnCount { color: var(--c-warning); }
+
+.keep {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.keep .figure { color: var(--c-ink); font-size: var(--t-figure); line-height: 1; }
+.loss { color: var(--c-negative); }
+
+.keepLabel { margin-top: var(--s-1); font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.caret {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--c-ink-faint);
+  transition: transform var(--dur) var(--ease);
+}
+
+.caret[data-open] { transform: rotate(180deg); }
+
+.detail { padding: 0 0 var(--s-5) calc(72px + var(--s-4)); }
+
+/* Three questions, three sections, separated by space rather than by more
+   boxes. Nested cards were most of what made the old page heavy. */
+.block { padding-top: var(--s-5); }
+.block + .block { border-top: 1px solid var(--c-line); margin-top: var(--s-5); }
+
+.blockHead {
+  font-size: var(--t-label);
+  font-weight: 600;
+  color: var(--c-ink);
+  margin-bottom: var(--s-4);
+}
+
+/* The case, as figures. These are the numbers the candidate queue showed and
+   the page used to drop entirely. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--s-4);
+  margin-bottom: var(--s-4);
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: var(--s-3);
+  border-left: 1px solid var(--c-line-mid);
+}
+
+.cellLabel { font-size: var(--t-caption); color: var(--c-ink-faint); }
+.cellValue { font-size: var(--t-body); color: var(--c-ink); letter-spacing: -0.01em; }
+.cellFoot { font-size: var(--t-micro); color: var(--c-ink-faint); line-height: var(--lh-snug); }
+
+/* The workings as a sentence. A four cell grid gave the fee figure the same
+   weight as the profit, and only two of the four are decisions. */
+.sum {
+  max-width: 74ch;
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  line-height: var(--lh-body);
+}
+
+.sumStrong { color: var(--c-ink); font-weight: 500; }
+
+.decided {
+  margin-top: var(--s-3);
   font-size: var(--t-caption);
   color: var(--c-ink-faint);
 }
 
-.scoreLabel {
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+/* Only where something is actually wrong. A clean row shows none of this. */
+.warnings {
+  margin-top: var(--s-4);
+  padding-left: var(--s-3);
+  border-left: 2px solid var(--c-warning);
+  max-width: 70ch;
 }
 
-.scoreValue {
-  margin-left: var(--s-1);
+.warnings li { font-size: var(--t-caption); color: var(--c-ink-soft); line-height: var(--lh-snug); }
+.warnings li + li { margin-top: var(--s-2); }
+
+/* The shop and the price, which is what she opens this page for while standing
+   in the aisle. */
+.source {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-3);
+}
+
+.sourceLink {
+  padding: 3px var(--s-3);
+  border: 1px solid var(--c-positive);
+  border-radius: var(--r-sm);
   font-family: var(--font-data);
-  font-variant-numeric: tabular-nums;
   font-size: var(--t-label);
   font-weight: 500;
   color: var(--c-ink);
+  text-decoration: none;
 }
 
-.copy {
+a.sourceLink:hover { background: var(--c-sunk); }
+
+.inStock { font-size: var(--t-caption); color: var(--c-positive); }
+
+.alsoTry {
+  margin-bottom: var(--s-4);
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+}
+
+.facts { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+/* A strip, not a grid. Most products have one photograph and a grid of one
+   looks like something failed to load. */
+.gallery {
+  display: flex;
+  gap: var(--s-2);
+  overflow-x: auto;
+  padding-bottom: var(--s-3);
+}
+
+.shot {
+  flex: 0 0 auto;
+  width: 96px;
+  height: 96px;
+  overflow: hidden;
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+}
+
+.shot img { width: 100%; height: 100%; object-fit: contain; }
+
+.blurb { margin-top: var(--s-3); max-width: 68ch; color: var(--c-ink); line-height: var(--lh-body); }
+
+.body {
+  margin-top: var(--s-3);
+  max-width: 68ch;
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  line-height: var(--lh-body);
+}
+
+.features { margin-top: var(--s-3); padding-left: 1.1em; list-style: disc; max-width: 68ch; }
+.features li { font-size: var(--t-label); color: var(--c-ink-soft); line-height: var(--lh-snug); }
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  margin-top: var(--s-4);
+}
+
+.ghost {
   min-height: var(--tap);
-  padding: 0 var(--s-4);
+  padding: 0 var(--s-3);
   border: 1px solid var(--c-control);
   border-radius: var(--r-md);
   font-size: var(--t-label);
@@ -123,126 +263,37 @@
   transition: background var(--dur) var(--ease);
 }
 
-.copy:hover { background: var(--c-sunk); }
+.ghost:hover { background: var(--c-sunk); }
 
-.figures {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: var(--s-4);
-  margin-top: var(--s-4);
-  padding: var(--s-4);
-  background: var(--c-sunk);
-  border-radius: var(--r-md);
-}
-
-.fig {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
-  padding-left: var(--s-3);
-  border-left: 1px solid var(--c-line-mid);
-}
-
-.figLabel {
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--c-ink-faint);
-}
-
-.figValue {
-  font-size: var(--t-body);
-  color: var(--c-ink);
-  letter-spacing: -0.01em;
-}
-
-.figStrong { border-left-color: var(--c-brand-strong); }
-.figStrong .figValue { font-size: var(--t-figure); font-weight: 500; }
-
-.figFoot { font-size: var(--t-micro); color: var(--c-ink-faint); }
-
-/* The rest of the pack is reference, not decision, so it sits quietly on one
-   line instead of taking a cell the size of the price. */
-.details {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-2) var(--s-5);
-  margin-top: var(--s-3);
-  padding-top: var(--s-3);
-  border-top: 1px solid var(--c-line);
-}
-
-.detail { display: flex; align-items: baseline; gap: var(--s-2); }
-
-.detailLabel {
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--c-ink-faint);
-}
-
-.detailValue { font-size: var(--t-label); color: var(--c-ink); }
-
-.detailSub {
-  margin-left: var(--s-2);
+.reference {
   font-size: var(--t-caption);
-  color: var(--c-ink-faint);
-}
-
-.flag {
-  margin-top: var(--s-3);
-  padding-left: var(--s-3);
-  border-left: 2px solid var(--c-warning);
-  font-size: var(--t-caption);
-  line-height: var(--lh-snug);
-  color: var(--c-ink-soft);
-  max-width: 62ch;
-}
-
-.reference { margin-top: var(--s-3); font-size: var(--t-caption); }
-
-.reference a {
   color: var(--c-action-text);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
+/* Reviewed from a phone during her working day, so the figure moves under the
+   title rather than being squeezed beside it. */
 @media (max-width: 640px) {
   .head { align-items: flex-start; gap: var(--s-4); }
   .title { font-size: 1.625rem; }
-  .packHead { grid-template-columns: 64px minmax(0, 1fr); gap: var(--s-3); }
-  .thumb { width: 64px; height: 64px; }
-  .copy { grid-column: 1 / -1; justify-self: start; margin-top: var(--s-2); }
+  .stats { gap: var(--s-5); }
+
+  .top { grid-template-columns: 56px minmax(0, 1fr) 16px; gap: var(--s-3); }
+  .thumb { width: 56px; height: 56px; }
+
+  .keep {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--s-2);
+    margin-top: var(--s-2);
+  }
+
+  .detail { padding-left: 0; }
+  .ghost { flex: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .copy { transition: none; }
-}
-
-/* What she does, in order, on the page where she does it. Numbered because the
-   order matters: buying before it sells is the whole thing this model avoids. */
-.steps {
-  margin-top: var(--s-4);
-  padding: var(--s-4) var(--s-4) var(--s-4) calc(var(--s-4) + 1.4em);
-  background: var(--c-sunk);
-  border-radius: var(--r-md);
-  list-style: decimal;
-  max-width: 62ch;
-}
-
-.steps li {
-  margin-bottom: var(--s-2);
-  font-size: var(--t-label);
-  line-height: var(--lh-snug);
-  color: var(--c-ink);
-}
-
-.steps li:last-child { margin-bottom: 0; }
-
-.steps a {
-  color: var(--c-action-text);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  .top, .caret, .ghost { transition: none; }
 }

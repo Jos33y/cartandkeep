@@ -11,9 +11,9 @@ import { portalPath } from '@utils/constants';
 import styles from '@styles/pages/portal/approved-page.module.css';
 
 const COLUMNS = [
-  { key: 'score', label: 'Score' },
   { key: 'product', label: 'Product' },
-  { key: 'margin', label: 'Headroom', align: 'right' },
+  { key: 'list', label: 'List at', align: 'right' },
+  { key: 'keep', label: 'You keep', align: 'right' },
 ];
 
 const ROWS = [{}, {}, {}, {}];
@@ -24,14 +24,28 @@ const thumb = (url) => (url ? url.replace(/\/s-l\d+\./, '/s-l225.') : null);
 
 const BLENDED = 10;
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
-  'August', 'September', 'October', 'November', 'December'];
+const when = (iso) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? null
+    : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+};
 
-function windowName(row) {
-  const w = row.window_series?.at(-1)?.window
-    ?? (row.window_start ? row.window_start.slice(0, 7) : null);
-  if (!w) return null;
-  return MONTHS[Number(w.split('-')[1]) - 1] ?? null;
+/*
+ * How many units are in the pack, read off a product name.
+ *
+ * The shelf price and the market price have to be for the same pack or the
+ * margin is arithmetic on two different products. Butcher's proved it: the
+ * query found a 24 tin case on eBay, the shelf row was the 6 tin pack at
+ * £5.49, and the profit came out fourteen pounds too high.
+ */
+function packOf(name) {
+  const t = String(name ?? '').toLowerCase();
+  const m = t.match(/(\d+)\s?x\s?\d/)
+    || t.match(/\bx\s?(\d+)\b/)
+    || t.match(/(\d+)\s?(?:pack|pk|tins|trays|pouches|washes|tabs|tablets)\b/);
+  return m ? Number(m[1]) : null;
 }
 
 export function ApprovedPage() {
@@ -51,7 +65,7 @@ export function ApprovedPage() {
         eyebrow="Approved"
         title="Nothing approved yet"
         icon="IconCheck"
-        body="What you have committed to, kept together so you can see it before anything is ordered or listed."
+        body="What you have committed to, kept together so you can see it before anything is listed."
         columns={COLUMNS}
         rows={ROWS}
         note="Approve a few from the candidate queue and they appear here straight away."
@@ -60,26 +74,32 @@ export function ApprovedPage() {
     );
   }
 
+  // What she would keep if each of them sold once. An arithmetic total, said as
+  // one, not a forecast.
+  const perSale = rows.reduce((a, r) => a + (r.margin?.net ?? 0), 0);
+
   return (
     <div className={styles.page}>
       <header className={styles.head}>
         <div>
-          <p className="micro">Approved</p>
           <h1 className={styles.title}>Ready to list</h1>
+          <p className={styles.lead}>
+            List these at the price shown. Buy the goods only when one sells, repack
+            them, and post them yourself.
+          </p>
         </div>
+
         <dl className={styles.stats}>
           <div className={styles.stat}>
-            <dt className="micro">Products</dt>
+            <dt>Products</dt>
             <dd className={`figure ${styles.statValue}`}>{rows.length}</dd>
+          </div>
+          <div className={styles.stat}>
+            <dt>One sale of each</dt>
+            <dd className={`figure ${styles.statValue}`}>{formatGbp(perSale)}</dd>
           </div>
         </dl>
       </header>
-
-      <p className={styles.lead}>
-        Everything needed to put these on eBay. List at the price shown, and buy
-        the goods only once one sells. Repack it before it goes out, never in the
-        shop's own packaging and never with their receipt inside.
-      </p>
 
       <div className={styles.list}>
         {rows.map((r) => (
@@ -101,42 +121,53 @@ export function ApprovedPage() {
 function Pack({ row, suppliers, onSource }) {
   const [copied, setCopied] = useState(false);
   const [zoomed, setZoomed] = useState(false);
-  const m = row.margin ?? {};
-  const month = windowName(row);
+  const [open, setOpen] = useState(false);
 
-  // Cheapest source that has actually been priced. A sourcing request with no
-  // answer is not a cost. A shelf price is an answer: it is a price seen on a
-  // shelf, which is more certain than a quote, so it counts as one.
+  const m = row.margin ?? {};
+  const l = row.listing ?? null;
+  const entry = row.entry ?? null;
+
+  // The shop's own name for the product. row.title is the gate query, which is
+  // what was searched for and not what anybody would list.
+  const listingTitle = l?.title ?? row.title;
+  const hero = l?.images?.[0] ?? row.image_url;
+  const images = l?.images ?? [];
+
+  // A shelf price is a cost. It is a price seen on a shelf rather than a quote,
+  // which makes it more certain, not less.
   const quoted = (row.sources ?? []).find((s) => s.landed_unit_cost != null) ?? null;
   const shelf = m.shelf ?? null;
   const best = quoted ?? (shelf?.price != null
-    ? { supplier: shelf.shop ?? 'the shelf', landed_unit_cost: shelf.price, fulfilment: 'stock', url: shelf.url }
+    ? { supplier: shelf.shop ?? 'the shelf', landed_unit_cost: shelf.price, url: shelf.url }
     : null);
 
-  // She posts everything herself, so postage always comes off. It only came
-  // back on for a dropship quote, which this model does not use.
-  const net = m.net != null
-    ? m.net
-    : (best && row.headroom != null
-      ? Math.round((
-        Number(row.headroom)
-        + (best.fulfilment === 'dropship' ? Number(m.postage ?? 0) : 0)
-        - Number(best.landed_unit_cost)
-      ) * 100) / 100
-      : null);
-
-  // Fees, postage and packaging, which the importer now writes individually.
+  const listPrice = m.sale_price ?? row.avg_sold_price ?? null;
+  const net = m.net ?? null;
   const costToSell = m.cost_to_sell ?? (
     m.platform_fee != null
       ? Math.round((Number(m.platform_fee) + Number(m.postage ?? 0) + Number(m.packaging ?? 0)) * 100) / 100
       : null);
 
-  const entry = row.entry ?? null;
   const trusted = m.list_trusted === true;
 
-  async function copyTitle() {
+  const shelfPack = packOf(l?.title);
+  const marketPack = packOf(entry?.title);
+  const packMismatch = shelfPack && marketPack && shelfPack !== marketPack
+    ? { shelf: shelfPack, market: marketPack }
+    : null;
+
+  const warnings = [
+    packMismatch && `The shelf pack holds ${packMismatch.shelf}, the listing this price came from holds ${packMismatch.market}. Those are two different products, so the figures are not comparable.`,
+    !trusted && 'Priced at the market median. No small seller has been paid this, so check it against what is actually selling.',
+    l?.in_stock === 'no' && 'Out of stock at the shop. An order you cannot fill is a defect on the account.',
+    row.variation_count >= BLENDED && `Sold in ${row.variation_count} variations, so the price is an average across whichever sold. Price yours per size.`,
+    row.bulky && 'Costed as a small parcel and this one is bulky. Confirm the real band before listing.',
+  ].filter(Boolean);
+
+  async function copyTitle(e) {
+    e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(row.title);
+      await navigator.clipboard.writeText(listingTitle);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -145,149 +176,189 @@ function Pack({ row, suppliers, onSource }) {
   }
 
   return (
-    <article className={styles.pack}>
+    <article className={`${styles.pack} ${open ? styles.packOpen : ''}`}>
       {zoomed && (
-        <ImageLightbox src={row.image_url} alt={row.title} onClose={() => setZoomed(false)} />
+        <ImageLightbox src={hero} alt={listingTitle} onClose={() => setZoomed(false)} />
       )}
 
-      <div className={styles.packHead}>
-        {row.image_url ? (
-          <button className={styles.thumb} onClick={() => setZoomed(true)}
-            aria-label={`View ${row.title} larger`}>
-            <img src={thumb(row.image_url)} alt="" loading="lazy" />
-            <span className={styles.zoom} aria-hidden="true">View</span>
+      <div className={styles.top} onClick={() => setOpen((v) => !v)} role="button"
+        tabIndex={0} aria-expanded={open}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((v) => !v); } }}>
+        {hero ? (
+          <button className={styles.thumb}
+            onClick={(e) => { e.stopPropagation(); setZoomed(true); }}
+            aria-label={`View ${listingTitle} larger`}>
+            <img src={l?.images?.[0] ? hero : thumb(hero)} alt="" loading="lazy" />
           </button>
         ) : (
           <span className={`${styles.thumb} ${styles.thumbEmpty}`} aria-hidden="true" />
         )}
 
-        <div className={styles.packTitle}>
-          <h2 className={styles.name}>{row.title}</h2>
-          {/* Why this is worth listing, which is who is selling it and how fast.
-              Score sat here and is null on every row by design, so it read as a
-              zero next to a product she had just committed to. */}
-          <p className={styles.meta}>
-            {entry?.proved ? (
-              <>
-                <span data-num>{entry.seller_feedback}</span> feedback seller sold{' '}
-                <span data-num>{entry.sold_lifetime}</span> in{' '}
-                <span data-num>{entry.age_days}</span> days
-                {' · '}
-              </>
-            ) : null}
-            <span data-num>{row.sold_30d ?? 0}</span> sold{month ? ` in ${month}` : ''}
-            {row.same_sku_sellers != null && (
-              <> · <span data-num>{row.same_sku_sellers}</span> seller{row.same_sku_sellers === 1 ? '' : 's'} on this product</>
+        <div className={styles.subject}>
+          <h2 className={styles.name}>{listingTitle}</h2>
+          <p className={styles.evidence}>
+            {entry?.proved
+              ? `A ${entry.seller_feedback} feedback seller has sold ${entry.sold_lifetime} of these in ${entry.age_days} days`
+              : 'Nobody her size is proved to be selling this'}
+            {warnings.length > 0 && (
+              <span className={styles.warnCount}>
+                {' '}{warnings.length} thing{warnings.length === 1 ? '' : 's'} to check
+              </span>
             )}
-            {row.variation_count > 1 && (
-              <> · <span data-num>{row.variation_count}</span> variations</>
-            )}
-            {row.classification && row.classification !== 'unknown' && <> · {row.classification}</>}
           </p>
         </div>
-        <button className={styles.copy} onClick={copyTitle}>
-          {copied ? 'Copied' : 'Copy title'}
-        </button>
+
+        {/* The one number she is deciding on. The selling price sits under it as
+            the context it is, not beside it as an equal. */}
+        <p className={styles.keep}>
+          <span className={`figure ${net != null && net < 0 ? styles.loss : ''}`}>
+            {net != null ? formatGbp(net) : formatGbp(m.max_goods_cost)}
+          </span>
+          <span className={styles.keepLabel}>
+            {net != null ? `a unit at ${formatGbp(listPrice)}` : 'pay up to, before goods'}
+          </span>
+        </p>
+
+        <span className={styles.caret} data-open={open || undefined} aria-hidden="true">
+          <svg viewBox="0 0 12 12" width="12" height="12" fill="none">
+            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.4"
+              strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
       </div>
 
-      <dl className={styles.figures}>
-        <Fig label="List at" value={formatGbp(m.sale_price ?? row.avg_sold_price)} strong
-          foot={trusted ? 'what a small seller is getting' : 'market median, check this one'} />
-        <Fig label="Cost to sell"
-          value={costToSell != null ? `- ${formatGbp(costToSell)}` : 'not computed'}
-          foot="fees, postage, packaging" />
-        {best ? (
-          <Fig label="Goods" value={`- ${formatGbp(best.landed_unit_cost)}`}
-            foot={best.supplier} />
-        ) : (
-          <Fig label="Headroom" value={formatGbp(row.headroom)} strong
-            foot="before goods, not yet quoted" />
-        )}
-        {best && net != null && (
-          <Fig label="You keep" value={formatGbp(net)} strong
-            foot={`a unit, after everything${trusted ? '' : ', at an unchecked price'}`} />
-        )}
-      </dl>
+      {open && (
+        <div className={styles.detail}>
+          {/* Why this one, which is the whole case the candidate queue made and
+              the reason she said yes. Without it the page three weeks from now
+              is a list of products with no argument attached. */}
+          <section className={styles.block}>
+            <h3 className={styles.blockHead}>Why this one</h3>
 
-      <dl className={styles.details}>
-        <Detail label="Postage band" value={band(m.headroom_band) || 'small parcel'} />
-        <Detail label="eBay category"
-          value={breadcrumb(row.ebay_category_path) || 'not known'}
-          sub={row.ebay_category_id} />
-        <Detail label="Channels" value={(row.recommended_channels ?? []).join(', ') || 'ebay'} />
-      </dl>
+            <dl className={styles.grid}>
+              {entry?.proved && (
+                <Cell label="Proved by"
+                  value={`${entry.seller_feedback} feedback`}
+                  foot={`${entry.sold_lifetime} sold in ${entry.age_days} days at ${formatGbp(entry.price_gbp ?? entry.priceGbp)}`} />
+              )}
+              {row.monthly_headroom != null && (
+                <Cell label="At that rate" value={formatGbp(row.monthly_headroom)}
+                  foot="a month, before goods" />
+              )}
+              {row.active_listings != null && (
+                <Cell label="Competing" value={row.active_listings}
+                  foot="live listings on this search" />
+              )}
+              {m.price_p25 != null && m.price_p75 != null && (
+                <Cell label="Most sell at"
+                  value={`${formatGbp(m.price_p25)} to ${formatGbp(m.price_p75)}`}
+                  foot={trusted ? 'and hers sits inside that' : 'hers is the median of it'} />
+              )}
+            </dl>
 
-      {/* The model, on the page where it gets done. Nothing here is obvious to
-          somebody holding a phone in an aisle three weeks from now. */}
-      {best && (
-        <ol className={styles.steps}>
-          <li>List it at {formatGbp(m.sale_price ?? row.avg_sold_price)}. Buy nothing yet.</li>
-          <li>
-            When it sells, buy it
-            {best.url
-              ? <> at <a href={best.url} target="_blank" rel="noreferrer noopener">{best.supplier}</a></>
-              : <> at {best.supplier}</>} for {formatGbp(best.landed_unit_cost)}.
-          </li>
-          <li>Repack it. Not the shop's bag, and no receipt inside.</li>
-          <li>Post it yourself, {band(m.headroom_band) || 'small parcel'}.</li>
-          <li>Check the shelf price again before you relist.</li>
-        </ol>
-      )}
+            <p className={styles.sum}>
+              <span className={styles.sumStrong} data-num>{formatGbp(listPrice)}</span> on eBay,
+              less <span data-num>{formatGbp(costToSell)}</span> in fees, postage and packaging,
+              {best
+                ? <> less <span data-num>{formatGbp(best.landed_unit_cost)}</span> for the goods</>
+                : <> and no goods cost yet</>}
+              {net != null && <>, leaving <span className={styles.sumStrong} data-num>{formatGbp(net)}</span></>}
+            </p>
 
-      {!trusted && (
-        <p className={styles.flag}>
-          This price is the market median, not a price anybody her size has been paid.
-          Open the listing below and check it against what is actually selling before
-          you list at it.
-        </p>
-      )}
+            {row.decision?.decided_at && (
+              <p className={styles.decided}>
+                Approved {when(row.decision.decided_at)}
+                {row.decision.note ? `. ${row.decision.note}` : ''}
+              </p>
+            )}
 
-      {row.variation_count >= BLENDED && (
-        <p className={styles.flag}>
-          This one is sold in {row.variation_count} variations, so the price above is an
-          average across whichever of them sold. Price your own listing per size rather
-          than taking the figure straight across.
-        </p>
-      )}
+            {warnings.length > 0 && (
+              <ul className={styles.warnings}>
+                {warnings.map((w) => <li key={w}>{w}</li>)}
+              </ul>
+            )}
+          </section>
 
-      {row.bulky && (
-        <p className={styles.flag}>
-          Costed as a small parcel. This one is bulky, so confirm the real band with
-          the supplier before listing at this price.
-        </p>
-      )}
+          {/* Where to buy it when one sells. This is the page she opens standing
+              in the shop, so the link and the price are the point of it. */}
+          <section className={styles.block}>
+            <h3 className={styles.blockHead}>Where to buy it</h3>
 
-      <SourceList candidate={row} onAdd={onSource} suppliers={suppliers} />
+            {best && (
+              <p className={styles.source}>
+                {best.url
+                  ? <a className={styles.sourceLink} href={best.url} target="_blank" rel="noreferrer noopener">
+                    {best.supplier}, {formatGbp(best.landed_unit_cost)}
+                  </a>
+                  : <span className={styles.sourceLink}>{best.supplier}, {formatGbp(best.landed_unit_cost)}</span>}
+                {l?.in_stock === 'yes' && <span className={styles.inStock}>in stock</span>}
+                {l?.max_qty != null && <span className={styles.facts}>up to {l.max_qty} per order</span>}
+              </p>
+            )}
 
-      {row.reference_url && (
-        <p className={styles.reference}>
-          <a href={row.reference_url} target="_blank" rel="noreferrer noopener">
-            The listing these figures came from
-          </a>
-        </p>
+            {(m.shops ?? []).length > 0 && (
+              <p className={styles.alsoTry}>
+                Also stocked by {m.shops.join(', ')}
+              </p>
+            )}
+
+            <SourceList candidate={row} onAdd={onSource} suppliers={suppliers} />
+          </section>
+
+          {/* What goes up. */}
+          <section className={styles.block}>
+            <h3 className={styles.blockHead}>The listing</h3>
+
+            {images.length > 0 && (
+              <div className={styles.gallery}>
+                {images.map((src) => (
+                  <a key={src} href={src} target="_blank" rel="noreferrer noopener" className={styles.shot}>
+                    <img src={src} alt="" loading="lazy" />
+                  </a>
+                ))}
+              </div>
+            )}
+
+            <p className={styles.facts}>
+              {[l?.brand,
+                breadcrumb(row.ebay_category_path) || l?.shop_category,
+                band(m.headroom_band) || 'small parcel',
+              ].filter(Boolean).join(', ')}
+            </p>
+
+            {l?.summary && <p className={styles.blurb}>{l.summary}</p>}
+            {l?.description && <p className={styles.body}>{l.description}</p>}
+
+            {(l?.features ?? []).length > 0 && (
+              <ul className={styles.features}>
+                {l.features.map((f) => <li key={f}>{f}</li>)}
+              </ul>
+            )}
+
+            <div className={styles.actions}>
+              <button className={styles.ghost} onClick={copyTitle}>
+                {copied ? 'Copied' : `Copy title, ${listingTitle.length} of 80`}
+              </button>
+              {row.reference_url && (
+                <a className={styles.reference} href={row.reference_url}
+                  target="_blank" rel="noreferrer noopener">
+                  The eBay listing these figures came from
+                </a>
+              )}
+            </div>
+          </section>
+        </div>
       )}
     </article>
   );
 }
 
-function Fig({ label, value, strong, foot }) {
+function Cell({ label, value, foot }) {
   return (
-    <div className={`${styles.fig} ${strong ? styles.figStrong : ''}`}>
-      <dt className={styles.figLabel}>{label}</dt>
-      <dd className={styles.figValue} data-num>{value}</dd>
-      {foot && <dd className={styles.figFoot}>{foot}</dd>}
-    </div>
-  );
-}
-
-function Detail({ label, value, sub }) {
-  return (
-    <div className={styles.detail}>
-      <dt className={styles.detailLabel}>{label}</dt>
-      <dd className={styles.detailValue}>
-        {value}
-        {sub && <span className={styles.detailSub} data-num>{sub}</span>}
-      </dd>
+    <div className={styles.cell}>
+      <dt className={styles.cellLabel}>{label}</dt>
+      <dd className={styles.cellValue} data-num>{value}</dd>
+      {foot && <dd className={styles.cellFoot}>{foot}</dd>}
     </div>
   );
 }

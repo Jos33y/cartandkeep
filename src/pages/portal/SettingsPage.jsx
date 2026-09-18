@@ -3,6 +3,7 @@ import { supabase } from '@lib/supabase';
 import { loadTenant } from '@lib/tenant';
 import { useAccount } from '@hooks/useAccount';
 import { StoreSettings } from '@components/ui/portal/StoreSettings';
+import { EbayConnection } from '@components/ui/portal/EbayConnection';
 import styles from '@styles/pages/portal/settings-page.module.css';
 
 const pct = (n) => `${Math.round(n * 100)}%`;
@@ -93,6 +94,16 @@ export function SettingsPage() {
         * mostly closed.
         */}
       <StoreSettings tenantId={tenant?.id} />
+
+      {/* Hers to grant and hers to revoke. It sits with what she controls
+          rather than under what the studio sets, because the consent belongs to
+          her eBay account and nobody here can give it on her behalf. */}
+      <Block
+        title="eBay"
+        note="Connect the seller account so approved products can be listed from here. You can disconnect it from eBay at any time."
+      >
+        <EbayConnection tenantId={tenant?.id} />
+      </Block>
 
       <Block title="Set by the studio" note="Ours to change rather than yours, so a settings screen cannot break how the pipeline scores anything.">
         <dl className={styles.rows}>
