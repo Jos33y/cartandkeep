@@ -129,8 +129,8 @@ export function EbayConnection({ tenantId }) {
 
           {pre.errors?.length > 0 && (
             <p className={styles.failed}>
-              eBay refused some of it: {pre.errors.join(', ')}. A 403 there means the
-              scope was not granted, so reconnecting is the fix.
+              eBay refused some of it: {pre.errors.join(', ')}. A 403 means the scope
+              was not granted and reconnecting fixes it.
             </p>
           )}
         </div>
