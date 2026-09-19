@@ -120,6 +120,16 @@ export function EbayConnection({ tenantId }) {
               : `Connected, but not able to list yet. Missing ${pre.missing.join(', ')}.`}
           </p>
 
+          {/* What the consent actually covers. A permission granted before a
+              feature existed is not in it, and the call that needs it comes
+              back 403, which reads like a broken endpoint and is not one. */}
+          {pre.missing_scopes?.length > 0 && (
+            <p className={styles.warn}>
+              This connection was granted before {pre.missing_scopes.join(', ')} were
+              asked for, so those are not covered by it. Reconnect to include them.
+            </p>
+          )}
+
           <dl className={styles.found}>
             <Found label="Postage" items={pre.postage} />
             <Found label="Payment" items={pre.payment} />
