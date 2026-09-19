@@ -42,7 +42,7 @@ export const VERDICTS = {
 };
 
 export function useEbayTraffic(tenantId) {
-  const [state, setState] = useState({ status: 'loading', total: null, listings: [], error: null });
+  const [state, setState] = useState({ status: 'loading', total: null, listings: [], days: [], error: null });
   const [pulling, setPulling] = useState(false);
 
   const load = useCallback(async () => {
@@ -58,24 +58,34 @@ export function useEbayTraffic(tenantId) {
       .limit(1)
       .maybeSingle();
 
-    if (e1) return setState({ status: 'error', total: null, listings: [], error: e1.message });
-    if (!recent) return setState({ status: 'empty', total: null, listings: [], error: null });
+    if (e1) return setState({ status: 'error', total: null, listings: [], days: [], error: e1.message });
+    if (!recent) return setState({ status: 'empty', total: null, listings: [], days: [], error: null });
 
     const { data, error } = await supabase
       .from('ebay_traffic')
-      .select('listing_id, title, impressions, views, click_rate, transactions, conversion_rate, window_start, window_end, fetched_at')
+      .select('listing_id, title, image_url, price, currency, impressions, views, click_rate, transactions, conversion_rate, window_start, window_end, fetched_at')
       .eq('tenant_id', tenantId)
       .eq('window_start', recent.window_start)
       .eq('window_end', recent.window_end)
       .order('impressions', { ascending: false, nullsFirst: false });
 
-    if (error) return setState({ status: 'error', total: null, listings: [], error: error.message });
+    if (error) return setState({ status: 'error', total: null, listings: [], days: [], error: error.message });
 
     // The account total is the row with no listing on it.
     const total = data.find((r) => !r.listing_id) ?? null;
     const listings = data.filter((r) => r.listing_id);
 
-    setState({ status: 'ready', total, listings, error: null });
+    // The day by day series, for the chart. Separate table, because a daily row
+    // and a per listing row share no columns worth sharing a table for.
+    const { data: days } = await supabase
+      .from('ebay_traffic_daily')
+      .select('day, impressions, views, transactions')
+      .eq('tenant_id', tenantId)
+      .gte('day', recent.window_start)
+      .lte('day', recent.window_end)
+      .order('day');
+
+    setState({ status: 'ready', total, listings, days: days ?? [], error: null });
   }, [tenantId]);
 
   useEffect(() => { load(); }, [load]);

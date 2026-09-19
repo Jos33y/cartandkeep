@@ -12,21 +12,53 @@
   border-bottom: 1px solid var(--c-line);
 }
 
-.head p:first-child { margin-bottom: var(--s-2); }
+.head > div > p:first-child { margin-bottom: var(--s-2); }
 
 .title { font-size: 2rem; letter-spacing: -0.025em; font-weight: 560; }
 
-.lead {
-  margin-top: var(--s-2);
-  max-width: 56ch;
-  color: var(--c-ink-soft);
-  line-height: var(--lh-body);
-}
+.lead { margin-top: var(--s-2); max-width: 56ch; color: var(--c-ink-soft); line-height: var(--lh-body); }
 
 .stats { display: flex; gap: var(--s-6); }
 .stat { display: flex; flex-direction: column; gap: var(--s-1); }
 .statValue { color: var(--c-ink); }
-.statFoot { font-size: var(--t-micro); color: var(--c-ink-faint); }
+.statFoot { font-size: var(--t-micro); color: var(--c-ink-faint); white-space: nowrap; }
+
+/* Ninety days, as a shape. No axis: whether it is climbing is the question and
+   a gridline does not answer it. */
+.trend { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.chart {
+  width: 100%;
+  height: 96px;
+  display: block;
+  border-radius: var(--r-md);
+  background: var(--c-sunk);
+}
+
+.area { fill: var(--c-line-mid); }
+.line { stroke: var(--c-ink-soft); stroke-width: 1.25; vector-effect: non-scaling-stroke; }
+.sold { fill: var(--c-positive); }
+
+.trendKey {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+}
+
+.keyArea::before, .keyLine::before, .keyDot::before {
+  content: '';
+  display: inline-block;
+  margin-right: var(--s-1);
+  vertical-align: middle;
+}
+
+.keyArea::before { width: 10px; height: 8px; background: var(--c-line-mid); border-radius: 2px; }
+.keyLine::before { width: 10px; height: 2px; background: var(--c-ink-soft); }
+.keyDot::before { width: 6px; height: 6px; border-radius: var(--r-full); background: var(--c-positive); }
+
+.trendSpan { margin-left: auto; }
 
 .bar {
   display: flex;
@@ -55,21 +87,12 @@
 .quiet { max-width: 60ch; font-size: var(--t-caption); color: var(--c-ink-faint); line-height: var(--lh-body); }
 .failed { font-size: var(--t-caption); color: var(--c-negative); }
 
-/* One bar, widths in proportion to the counts. Four cards would give equal
-   space to four very different accounts of the same catalogue, and the shape
-   is the finding: mostly never shown is a titling problem, mostly opened and
-   not bought is a pricing one. */
-.split {
-  display: flex;
-  gap: 2px;
-  overflow: hidden;
-  border-radius: var(--r-md);
-}
+.split { display: flex; gap: 2px; overflow: hidden; border-radius: var(--r-md); }
 
 .segment {
   flex: 1 1 0;
-  min-width: 96px;
-  padding: var(--s-3);
+  min-width: 104px;
+  padding: var(--s-3) var(--s-4);
   text-align: left;
   border: none;
   transition: opacity var(--dur) var(--ease);
@@ -84,64 +107,90 @@
 }
 
 .segmentLabel { display: block; margin-top: 2px; font-size: var(--t-micro); }
+.dimmed { opacity: 0.3; }
 
-.dimmed { opacity: 0.35; }
+.unseen { background: #E8D4C4; color: var(--c-ink); }
+.ignored { background: #EFE0CB; color: var(--c-ink); }
+.unconvincing { background: #E4E1D2; color: var(--c-ink); }
+.selling { background: #D5E2D2; color: var(--c-ink); }
 
-/* Warm through to settled, so the eye reads left to right as the funnel. */
-.unseen { background: #E8D9CE; color: var(--c-ink); }
-.ignored { background: #EFE3D2; color: var(--c-ink); }
-.unconvincing { background: #E6E3D6; color: var(--c-ink); }
-.selling { background: #D8E3D6; color: var(--c-ink); }
+.verdictNote { max-width: 70ch; font-size: var(--t-label); color: var(--c-ink-soft); line-height: var(--lh-body); }
 
-.verdictNote {
-  max-width: 68ch;
-  font-size: var(--t-label);
-  color: var(--c-ink-soft);
-  line-height: var(--lh-body);
-}
+.list { display: flex; flex-direction: column; }
 
-.table { display: flex; flex-direction: column; }
-
-.headRow, .row {
+/* Photograph, what it is, the drop, the numbers. The drop is drawn because
+   three columns of digits make you compute what a bar shows. */
+.row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 84px 84px 84px;
-  gap: var(--s-3);
-  align-items: baseline;
-  padding: var(--s-3) 0;
+  grid-template-columns: 44px minmax(0, 1fr) 120px 168px;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-2);
   border-bottom: 1px solid var(--c-line);
+  text-decoration: none;
+  color: inherit;
+  transition: background var(--dur) var(--ease);
 }
-
-.headRow {
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--c-ink-faint);
-}
-
-.headRow span + span, .row span + span { text-align: right; font-family: var(--font-data); }
 
 .row:hover { background: var(--c-raised); }
 
-.product { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; }
+.thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--c-line-mid);
+  background: var(--c-surface);
+}
 
-.product a {
+.thumbEmpty { background: var(--c-sunk); }
+
+.who { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+
+.name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--t-label);
   color: var(--c-ink);
-  text-decoration: none;
 }
 
-.product a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.row:hover .name { text-decoration: underline; text-underline-offset: 3px; }
 
-.tag {
-  flex-shrink: 0;
-  padding: 1px var(--s-2);
-  border-radius: var(--r-sm);
+.sub {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-family: var(--font-data);
   font-size: var(--t-micro);
-  white-space: nowrap;
+  color: var(--c-ink-faint);
+}
+
+.tag { padding: 1px var(--s-2); border-radius: var(--r-sm); white-space: nowrap; }
+
+.funnel { display: flex; flex-direction: column; gap: 3px; }
+
+.funnelImp, .funnelView { height: 4px; border-radius: var(--r-full); min-width: 2px; }
+.funnelImp { background: var(--c-line-strong); }
+.funnelView { background: var(--c-ink-soft); }
+
+.figs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-2);
+  text-align: right;
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+}
+
+.won { color: var(--c-positive); font-weight: 500; }
+.none { color: var(--c-ink-faint); }
+
+@media (max-width: 860px) {
+  .row { grid-template-columns: 44px minmax(0, 1fr) 120px; }
+  .funnel { display: none; }
 }
 
 @media (max-width: 640px) {
@@ -149,10 +198,11 @@
   .title { font-size: 1.625rem; }
   .stats { gap: var(--s-5); }
   .split { flex-wrap: wrap; }
-  .headRow, .row { grid-template-columns: minmax(0, 1fr) 56px 56px 56px; }
+  .row { grid-template-columns: 40px minmax(0, 1fr) 104px; gap: var(--s-3); }
+  .thumb { width: 40px; height: 40px; }
   .tag { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .button, .segment { transition: none; }
+  .button, .segment, .row { transition: none; }
 }
