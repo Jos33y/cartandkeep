@@ -1,0 +1,62 @@
+.wrap { display: flex; flex-direction: column; gap: var(--s-3); }
+
+/* eBay's own list view, near enough to judge by. Not a pixel copy: close
+   enough that a title reading badly here reads badly there. */
+.tile {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  gap: var(--s-4);
+  padding: var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-base);
+}
+
+.shot {
+  width: 116px;
+  height: 116px;
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  overflow: hidden;
+}
+
+.shot img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+.shotEmpty { display: block; width: 100%; height: 100%; background: var(--c-sunk); }
+
+.body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+
+/* eBay's blue and its weight, because a title that looks fine in ink can read
+   as a wall of text in a link colour at this size. */
+.title {
+  font-size: 0.9375rem;
+  line-height: 1.25;
+  color: #3665f3;
+  word-break: break-word;
+}
+
+/* Past 80 characters eBay stops. Showing the cut rather than trimming it makes
+   the loss visible while typing. */
+.clip { color: var(--c-negative); text-decoration: line-through; opacity: 0.55; }
+
+.meta { font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+.price {
+  margin-top: 2px;
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--c-ink);
+}
+
+.postage { font-size: var(--t-micro); color: var(--c-positive); }
+.seller { margin-top: auto; font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+.compare { font-size: var(--t-caption); color: var(--c-ink-soft); }
+.compare strong { color: var(--c-ink); font-weight: 500; }
+
+@media (max-width: 520px) {
+  .tile { grid-template-columns: 84px minmax(0, 1fr); }
+  .shot { width: 84px; height: 84px; }
+}

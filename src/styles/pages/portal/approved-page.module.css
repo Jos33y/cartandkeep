@@ -1,16 +1,13 @@
 /*
- * A queue of things waiting to be listed. Closed, a row is the product and what
- * it makes. Open, it answers the three questions this page exists for: why it
- * was approved, where to buy it, and what goes up on eBay.
+ * A queue, and a workbench.
  *
- * The previous version gave four cells equal weight, so a postage figure sat at
- * the same size as the profit, and it lost the case the candidate queue had
- * already made, which is the reason she said yes in the first place.
+ * Closed, a row is the product and what it makes. Open, it is a working area:
+ * the price and the search tile side by side, because those are the two
+ * decisions, then the listing, then everything already settled kept quiet
+ * underneath.
  */
 
-.page { display: flex; flex-direction: column; gap: var(--s-6); }
-
-.status { min-height: 1em; font-size: var(--t-caption); color: var(--c-ink-faint); }
+.page { display: flex; flex-direction: column; gap: var(--s-5); }
 
 .head {
   display: flex;
@@ -18,38 +15,68 @@
   justify-content: space-between;
   gap: var(--s-6);
   flex-wrap: wrap;
-  padding-bottom: var(--s-5);
+  padding-bottom: var(--s-4);
   border-bottom: 1px solid var(--c-line);
 }
 
-.title {
-  font-size: 2rem;
-  letter-spacing: -0.025em;
-  font-weight: 560;
-  margin-bottom: var(--s-2);
+.head > div > p:first-child { margin-bottom: var(--s-2); }
+.title { font-size: 2rem; letter-spacing: -0.025em; font-weight: 560; }
+.headStats { display: flex; gap: var(--s-6); }
+
+.tools { display: flex; align-items: center; gap: var(--s-3); }
+.findWrap { position: relative; flex: 1; max-width: 280px; }
+
+.findIcon {
+  position: absolute;
+  left: var(--s-3);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  color: var(--c-ink-faint);
+  pointer-events: none;
 }
 
-.lead { max-width: 54ch; color: var(--c-ink-soft); line-height: var(--lh-body); }
+.find {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--s-3) 0 calc(var(--s-3) + 20px);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  font-size: var(--t-label);
+}
 
-.stats { display: flex; gap: var(--s-6); }
-.stat { display: flex; flex-direction: column; gap: var(--s-1); }
-.stat dt { font-size: var(--t-caption); color: var(--c-ink-faint); white-space: nowrap; }
-.statValue { color: var(--c-ink); }
+.find:focus { outline: none; border-color: var(--c-control); }
+.count { font-size: var(--t-caption); color: var(--c-ink-faint); }
+.quiet { font-size: var(--t-caption); color: var(--c-ink-faint); }
 
-.list { display: flex; flex-direction: column; }
+.list { display: flex; flex-direction: column; gap: var(--s-2); }
 
-.pack { border-bottom: 1px solid var(--c-line); }
-.packOpen { background: var(--c-raised); }
+/* A closed row is a line. An open one is a panel, and lifting it off the canvas
+   is what says the rest of the list is parked. */
+.pack {
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  transition: box-shadow var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
 
-/* Photo, subject, figure, caret. The whole line opens the row, so the target is
-   the width of the page rather than a button somebody has to find. */
+.pack:hover { border-color: var(--c-line-mid); }
+
+.packOpen {
+  border-color: var(--c-line-mid);
+  box-shadow: var(--e-2);
+}
+
 .top {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) auto 16px;
+  grid-template-columns: 64px minmax(0, 1fr) auto 16px;
   align-items: center;
   gap: var(--s-4);
-  padding: var(--s-4) 0;
+  padding: var(--s-4);
   cursor: pointer;
+  border-radius: var(--r-lg);
   transition: background var(--dur) var(--ease);
 }
 
@@ -58,9 +85,9 @@
 
 .thumb {
   display: block;
-  width: 72px;
-  height: 72px;
-  padding: 0;
+  width: 64px;
+  height: 64px;
+  padding: 3px;
   overflow: hidden;
   border-radius: var(--r-md);
   border: 1px solid var(--c-line-mid);
@@ -80,8 +107,10 @@
   line-height: var(--lh-snug);
 }
 
-/* Why it is here, in one sentence rather than a row of statistics. */
 .evidence {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   margin-top: var(--s-2);
   font-size: var(--t-caption);
   color: var(--c-ink-faint);
@@ -91,17 +120,18 @@
 .warnCount { color: var(--c-warning); }
 .sep { margin: 0 var(--s-2); color: var(--c-line-strong); }
 
-.keep {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  text-align: right;
-  white-space: nowrap;
+.editedTag {
+  margin-left: var(--s-2);
+  padding: 1px var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--c-action-wash);
+  color: var(--c-action-text);
+  font-size: var(--t-micro);
 }
 
+.keep { display: flex; flex-direction: column; align-items: flex-end; text-align: right; white-space: nowrap; }
 .keep .figure { color: var(--c-ink); font-size: var(--t-figure); line-height: 1; }
 .loss { color: var(--c-negative); }
-
 .keepLabel { margin-top: var(--s-1); font-size: var(--t-caption); color: var(--c-ink-faint); }
 
 .caret {
@@ -114,157 +144,127 @@
 
 .caret[data-open] { transform: rotate(180deg); }
 
-.detail { padding: 0 0 var(--s-5) calc(72px + var(--s-4)); }
-
-/* Three questions, three sections, separated by space rather than by more
-   boxes. Nested cards were most of what made the old page heavy. */
-.block { padding-top: var(--s-5); }
-.block + .block { border-top: 1px solid var(--c-line); margin-top: var(--s-5); }
-
-.blockHead {
-  font-size: var(--t-label);
-  font-weight: 600;
-  color: var(--c-ink);
-  margin-bottom: var(--s-4);
-}
-
-/* The case, as figures. These are the numbers the candidate queue showed and
-   the page used to drop entirely. */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: var(--s-4);
-  margin-bottom: var(--s-4);
-}
-
-.cell {
+/* The workbench. On a sunk surface so the cards inside it read as things on a
+   desk rather than as more of the same page. */
+.work {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding-left: var(--s-3);
-  border-left: 1px solid var(--c-line-mid);
+  gap: var(--s-4);
+  padding: var(--s-4);
+  border-top: 1px solid var(--c-line);
+  background: var(--c-sunk);
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+  animation: rise var(--dur-settle) var(--ease-out) both;
 }
 
-.cellLabel { font-size: var(--t-caption); color: var(--c-ink-faint); }
-.cellValue { font-size: var(--t-body); color: var(--c-ink); letter-spacing: -0.01em; }
-.cellFoot { font-size: var(--t-micro); color: var(--c-ink-faint); line-height: var(--lh-snug); }
-
-/* The workings as a sentence. A four cell grid gave the fee figure the same
-   weight as the profit, and only two of the four are decisions. */
-.sum {
-  max-width: 74ch;
-  font-size: var(--t-label);
-  color: var(--c-ink-soft);
-  line-height: var(--lh-body);
+/* Price and tile together: the change and its consequence. Splitting them
+   across a scroll is why the price felt like a number rather than a decision. */
+.deck {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: var(--s-4);
+  align-items: start;
 }
 
-.sumStrong { color: var(--c-ink); font-weight: 500; }
+.draftState { display: inline-flex; align-items: center; gap: var(--s-2); font-size: var(--t-micro); color: var(--c-ink-faint); }
 
-.decided {
-  margin-top: var(--s-3);
-  font-size: var(--t-caption);
+.revert {
+  color: var(--c-action-text);
+  font-size: var(--t-micro);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Settled, so it recedes. */
+.context { background: var(--c-base); }
+.contextGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--s-5); }
+
+.contextHead {
+  margin-bottom: var(--s-3);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--c-ink-faint);
 }
 
-/* Only where something is actually wrong. A clean row shows none of this. */
+.sum { margin-top: var(--s-3); max-width: 46ch; font-size: var(--t-caption); color: var(--c-ink-soft); line-height: var(--lh-body); }
+
 .warnings {
-  margin-top: var(--s-4);
+  margin-top: var(--s-3);
   padding-left: var(--s-3);
   border-left: 2px solid var(--c-warning);
-  max-width: 70ch;
 }
 
 .warnings li { font-size: var(--t-caption); color: var(--c-ink-soft); line-height: var(--lh-snug); }
 .warnings li + li { margin-top: var(--s-2); }
 
-/* The shop and the price, which is what she opens this page for while standing
-   in the aisle. */
-.source {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--s-2) var(--s-3);
-  margin-bottom: var(--s-3);
-}
+.source { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--s-2) var(--s-3); margin-bottom: var(--s-3); }
 
 .sourceLink {
   padding: 3px var(--s-3);
   border: 1px solid var(--c-positive);
   border-radius: var(--r-sm);
   font-family: var(--font-data);
-  font-size: var(--t-label);
+  font-size: var(--t-caption);
   font-weight: 500;
   color: var(--c-ink);
   text-decoration: none;
 }
 
 a.sourceLink:hover { background: var(--c-sunk); }
+.inStock { font-size: var(--t-micro); color: var(--c-positive); }
+.alsoTry { margin-bottom: var(--s-3); font-size: var(--t-micro); color: var(--c-ink-faint); }
+.facts { font-size: var(--t-micro); color: var(--c-ink-faint); }
 
-.inStock { font-size: var(--t-caption); color: var(--c-positive); }
-
-.alsoTry {
-  margin-bottom: var(--s-4);
-  font-size: var(--t-caption);
-  color: var(--c-ink-faint);
-}
-
-.facts { font-size: var(--t-caption); color: var(--c-ink-faint); }
-
-/* A strip, not a grid. Most products have one photograph and a grid of one
-   looks like something failed to load. */
-.gallery {
-  display: flex;
-  gap: var(--s-2);
-  overflow-x: auto;
-  padding-bottom: var(--s-3);
-}
-
-.shot {
-  flex: 0 0 auto;
-  width: 96px;
-  height: 96px;
-  overflow: hidden;
-  border: 1px solid var(--c-line-mid);
-  border-radius: var(--r-md);
-  background: var(--c-surface);
-}
-
-.shot img { width: 100%; height: 100%; object-fit: contain; }
-
-.blurb { margin-top: var(--s-3); max-width: 68ch; color: var(--c-ink); line-height: var(--lh-body); }
-
-.body {
-  margin-top: var(--s-3);
-  max-width: 68ch;
-  font-size: var(--t-label);
-  color: var(--c-ink-soft);
-  line-height: var(--lh-body);
-}
-
-.features { margin-top: var(--s-3); padding-left: 1.1em; list-style: disc; max-width: 68ch; }
-.features li { font-size: var(--t-label); color: var(--c-ink-soft); line-height: var(--lh-snug); }
-
-.actions {
+/* One action, at the foot, with the two figures it acts on beside it. */
+.bar {
   display: flex;
   align-items: center;
-  gap: var(--s-4);
+  justify-content: space-between;
+  gap: var(--s-5);
   flex-wrap: wrap;
-  margin-top: var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
 }
+
+.barFigures { display: flex; gap: var(--s-6); }
+.barActions { display: flex; align-items: center; gap: var(--s-4); margin-left: auto; }
+
+.primary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0 var(--s-5);
+  border-radius: var(--r-md);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-label);
+  font-weight: 500;
+  box-shadow: var(--e-1);
+  transition: filter var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.primary:hover:not(:disabled) { filter: brightness(0.93); }
+.primary:active:not(:disabled) { transform: translateY(1px); }
+.primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .ghost {
   min-height: var(--tap);
-  padding: 0 var(--s-3);
+  padding: 0 var(--s-4);
   border: 1px solid var(--c-control);
   border-radius: var(--r-md);
   font-size: var(--t-label);
   font-weight: 500;
   color: var(--c-ink-soft);
-  white-space: nowrap;
   transition: background var(--dur) var(--ease);
 }
 
 .ghost:hover { background: var(--c-sunk); }
+.btnIcon { width: 15px; height: 15px; }
 
 .reference {
   font-size: var(--t-caption);
@@ -273,90 +273,29 @@ a.sourceLink:hover { background: var(--c-sunk); }
   text-underline-offset: 3px;
 }
 
-/* Reviewed from a phone during her working day, so the figure moves under the
-   title rather than being squeezed beside it. */
+.problem { font-size: var(--t-caption); color: var(--c-negative); line-height: var(--lh-snug); }
+
+.confirm { border-color: var(--c-action-strong); }
+.confirmTitle { margin-top: var(--s-4); font-size: var(--t-label); color: var(--c-ink); line-height: var(--lh-snug); }
+.confirmActions { display: flex; gap: var(--s-2); margin-top: var(--s-4); }
+
+@media (max-width: 900px) {
+  .deck { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 640px) {
   .head { align-items: flex-start; gap: var(--s-4); }
   .title { font-size: 1.625rem; }
-  .stats { gap: var(--s-5); }
-
-  .top { grid-template-columns: 56px minmax(0, 1fr) 16px; gap: var(--s-3); }
-  .thumb { width: 56px; height: 56px; }
-
-  .keep {
-    grid-column: 1 / -1;
-    flex-direction: row;
-    align-items: baseline;
-    gap: var(--s-2);
-    margin-top: var(--s-2);
-  }
-
-  .detail { padding-left: 0; }
-  .ghost { flex: 1; }
+  .top { grid-template-columns: 52px minmax(0, 1fr) 16px; gap: var(--s-3); padding: var(--s-3); }
+  .thumb { width: 52px; height: 52px; }
+  .keep { grid-column: 1 / -1; flex-direction: row; align-items: baseline; gap: var(--s-2); margin-top: var(--s-2); }
+  .work { padding: var(--s-3); }
+  .bar { flex-direction: column; align-items: stretch; }
+  .barActions { margin-left: 0; justify-content: space-between; }
+  .primary { flex: 1; justify-content: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .top, .caret, .ghost { transition: none; }
+  .top, .caret, .pack, .primary, .ghost { transition: none; }
+  .work { animation: none; }
 }
-
-.primary {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-  min-height: var(--tap);
-  padding: 0 var(--s-4);
-  border-radius: var(--r-md);
-  background: var(--c-action-strong);
-  color: #fff;
-  font-size: var(--t-label);
-  font-weight: 500;
-  transition: filter var(--dur) var(--ease), transform var(--dur) var(--ease);
-}
-
-.primary:hover:not(:disabled) { filter: brightness(0.93); }
-.primary:active:not(:disabled) { transform: translateY(1px); }
-.primary:disabled { opacity: 0.6; cursor: not-allowed; }
-
-.btnIcon { width: 15px; height: 15px; }
-
-.problem {
-  margin-top: var(--s-3);
-  max-width: 68ch;
-  font-size: var(--t-caption);
-  color: var(--c-negative);
-  line-height: var(--lh-snug);
-}
-
-/* What eBay would receive, before it receives it. A listing costs money and a
-   wrong category costs more, and the category is the one field nobody can
-   check in advance because eBay chooses it from the title. */
-.confirm {
-  margin-top: var(--s-4);
-  padding: var(--s-4);
-  border: 1px solid var(--c-line-mid);
-  border-radius: var(--r-md);
-  background: var(--c-sunk);
-  animation: rise var(--dur) var(--ease-out) both;
-}
-
-.confirmGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
-  gap: var(--s-3) var(--s-4);
-}
-
-.line { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.lineLabel { font-size: var(--t-micro); color: var(--c-ink-faint); }
-.lineValue { font-size: var(--t-label); color: var(--c-ink); }
-.lineSub { display: block; font-size: var(--t-micro); color: var(--c-ink-faint); }
-
-.confirmTitle {
-  margin-top: var(--s-4);
-  padding-top: var(--s-3);
-  border-top: 1px solid var(--c-line);
-  font-size: var(--t-label);
-  color: var(--c-ink-soft);
-  line-height: var(--lh-snug);
-}
-
-.confirmActions { display: flex; gap: var(--s-2); margin-top: var(--s-4); }

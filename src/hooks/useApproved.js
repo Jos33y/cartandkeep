@@ -7,16 +7,8 @@ function one(decisions) {
   return decisions ?? null;
 }
 
-/*
- * List the ones with real evidence first, then the ones that make the most.
- *
- * Ordering on score did nothing here for the same reason it did nothing on the
- * candidates board: score is null on every row, so the rows came back in
- * whatever order Postgres chose. Ranking purely on net was no better, because
- * the median-priced rows carry the larger figure precisely because nobody has
- * been paid it: Cesar selection at £11.98 outranked Cesar trays at £9.82, which
- * is the row with a seller actually converting.
- */
+// Evidence first, then value. A median-priced row carries the bigger figure
+// precisely because nobody has been paid it.
 function byListOrder(a, b) {
   const trust = (r) => (r.margin?.list_trusted === true ? 0 : 1);
   const worth = (r) => r.margin?.net ?? r.margin?.max_goods_cost ?? 0;
@@ -38,7 +30,8 @@ export function useApproved(tenantId) {
         id, title, category, external_ref, reference_url, classification,
         image_url, ebay_category_id, ebay_category_path, variation_count,
         score, breakdown, margin, headroom, hold, same_sku_sellers, bulky,
-        entry, monthly_headroom, active_listings, listing, ebay,
+        entry, monthly_headroom, active_listings,
+        listing, draft, ebay, competition,
         sold_30d, avg_sold_price, window_start, window_series,
         recommended_channels,
         batches ( delivered_for ),
@@ -52,9 +45,8 @@ export function useApproved(tenantId) {
       `)
       .eq('tenant_id', tenantId)
       .eq('decisions.action', 'approve')
-      // Approved means decided and not yet listed. Nothing ever left this
-      // screen, so a month in it is a pile she cannot tell apart from work
-      // already done. A row goes to Listings the moment it publishes.
+      // A row goes to Listings the moment it publishes, so this screen stays
+      // what is still waiting.
       .is('ebay', null);
 
     if (error) return setState({ status: 'error', rows: [], error });
@@ -107,22 +99,15 @@ export function useApproved(tenantId) {
     [],
   );
 
-  /*
-   * Put one on eBay.
-   *
-   * dry returns what would be sent, including the category eBay suggests from
-   * the title, which is the one thing nobody can check beforehand and the one
-   * that costs money to get wrong.
-   */
+  // dry returns what eBay would receive, including the category it suggests
+  // from the title, which is the one field nobody can check in advance.
   const list = useCallback(
-    async ({ candidateId, price, quantity = 1, dry = false }) => {
+    async ({ candidateId, dry = false, ...fields }) => {
       const { data, error } = await supabase.functions.invoke('ebay-list', {
-        body: { tenant_id: tenantId, candidate_id: candidateId, price, quantity, dry },
+        body: { tenant_id: tenantId, candidate_id: candidateId, dry, ...fields },
       });
       if (error || data?.error) throw new Error(data?.error ?? error.message);
-      if (!dry) {
-        setState((s) => ({ ...s, rows: s.rows.filter((r) => r.id !== candidateId) }));
-      }
+      if (!dry) setState((s) => ({ ...s, rows: s.rows.filter((r) => r.id !== candidateId) }));
       return data;
     },
     [tenantId],

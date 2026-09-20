@@ -1,0 +1,58 @@
+.card {
+  padding: var(--s-5);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e-1);
+}
+
+.raised { box-shadow: var(--e-2); }
+.flush { padding: 0; }
+
+.cardHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-4);
+  margin-bottom: var(--s-4);
+}
+
+.cardHeadText { min-width: 0; }
+
+.cardTitle {
+  font-size: var(--t-label);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--c-ink);
+}
+
+.cardNote {
+  margin-top: 2px;
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+  line-height: var(--lh-snug);
+}
+
+.cardAside { margin-left: auto; flex-shrink: 0; }
+
+.stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.statLabel {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.statValue { color: var(--c-ink); line-height: 1.05; }
+.positive { color: var(--c-positive); }
+.negative { color: var(--c-negative); }
+.action { color: var(--c-action-text); }
+
+.statFoot { font-size: var(--t-micro); color: var(--c-ink-faint); line-height: var(--lh-snug); }
+
+.facts { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-5); }
+.fact { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; }
+.factLabel { font-size: var(--t-micro); color: var(--c-ink-faint); white-space: nowrap; }
+.factValue { font-size: var(--t-caption); color: var(--c-ink-soft); }
+.factSub { margin-left: var(--s-2); color: var(--c-ink-faint); }

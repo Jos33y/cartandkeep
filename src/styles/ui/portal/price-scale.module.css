@@ -1,0 +1,160 @@
+.wrap { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.readout { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s-5); }
+
+.label { font-size: var(--t-micro); color: var(--c-ink-faint); margin-bottom: var(--s-1); }
+
+.priceRow { display: flex; align-items: baseline; gap: 2px; }
+
+.currency { font-family: var(--font-data); font-size: var(--t-figure); color: var(--c-ink-faint); }
+
+/* Typed or dragged. The figure is the field, so it reads as a number on the
+   page rather than as a form control sitting on one. */
+.input {
+  width: 6ch;
+  padding: 0;
+  border: none;
+  border-bottom: 1px solid var(--c-line-mid);
+  background: none;
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-figure);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--c-ink);
+  transition: border-color var(--dur) var(--ease);
+}
+
+.input:hover { border-color: var(--c-control); }
+.input:focus { outline: none; border-color: var(--c-action-strong); }
+.input::-webkit-outer-spin-button, .input::-webkit-inner-spin-button { appearance: none; margin: 0; }
+
+.keepBox { text-align: right; }
+.keep { color: var(--c-positive); font-size: var(--t-figure); line-height: 1; }
+.loss { color: var(--c-negative); }
+
+.track {
+  position: relative;
+  height: 34px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.track:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; border-radius: var(--r-sm); }
+
+.rail {
+  position: absolute;
+  inset: 16px 0 auto 0;
+  height: 2px;
+  border-radius: var(--r-full);
+  background: var(--c-line);
+}
+
+/* The interquartile range. Outside it is a price nobody is charging. */
+.body {
+  position: absolute;
+  top: 11px;
+  height: 12px;
+  border-radius: var(--r-sm);
+  background: var(--c-line-mid);
+}
+
+.median {
+  position: absolute;
+  top: 8px;
+  width: 1px;
+  height: 18px;
+  background: var(--c-ink-faint);
+}
+
+/* The one price somebody her size has actually been paid. */
+.proof { position: absolute; top: 9px; transform: translateX(-50%); }
+
+.proofDot {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-full);
+  background: var(--c-positive);
+  box-shadow: 0 0 0 3px var(--c-positive-wash);
+}
+
+.handle {
+  position: absolute;
+  top: 5px;
+  width: 4px;
+  height: 24px;
+  margin-left: -2px;
+  border-radius: var(--r-full);
+  background: var(--c-action-strong);
+  box-shadow: var(--e-1);
+  transition: transform var(--dur) var(--ease);
+}
+
+.handle::after {
+  content: '';
+  position: absolute;
+  inset: -8px -10px;
+}
+
+.handleOn { transform: scaleY(1.15); }
+
+.legend {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  font-family: var(--font-data);
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+}
+
+.legendMid { color: var(--c-ink-soft); }
+
+.suggest {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--c-line);
+}
+
+.suggestNote {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+}
+
+.proofKey {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-full);
+  background: var(--c-positive);
+}
+
+.suggestButtons { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+
+.chip {
+  min-height: 28px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-full);
+  background: var(--c-base);
+  font-size: var(--t-micro);
+  color: var(--c-ink-soft);
+  white-space: nowrap;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.chip:hover { border-color: var(--c-control); color: var(--c-ink); }
+
+@media (max-width: 640px) {
+  .suggest { flex-direction: column; align-items: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .handle, .chip, .input { transition: none; }
+}

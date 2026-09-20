@@ -1,0 +1,140 @@
+.wrap { display: flex; flex-direction: column; gap: var(--s-5); }
+
+.field { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.fieldHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.fieldLabel { font-size: var(--t-label); font-weight: 600; color: var(--c-ink); }
+.fieldHint { flex: 1; min-width: 12ch; font-size: var(--t-micro); color: var(--c-ink-faint); }
+.fieldSide { display: flex; align-items: center; gap: var(--s-3); margin-left: auto; }
+
+.count { font-family: var(--font-data); font-size: var(--t-micro); color: var(--c-ink-faint); }
+.countOver { font-family: var(--font-data); font-size: var(--t-micro); color: var(--c-negative); }
+
+/* Fields read as text on the page until touched, so the row stays a document
+   rather than becoming a form. */
+.input, .area {
+  width: 100%;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: var(--c-sunk);
+  font-family: inherit;
+  font-size: var(--t-label);
+  color: var(--c-ink);
+  line-height: var(--lh-snug);
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.area { line-height: var(--lh-body); resize: none; overflow: hidden; }
+
+.input:hover, .area:hover { border-color: var(--c-line-mid); }
+
+.input:focus, .area:focus {
+  outline: none;
+  border-color: var(--c-action-strong);
+  background: var(--c-surface);
+}
+
+.inputOver { border-color: var(--c-negative); }
+
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-height: 28px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-full);
+  background: var(--c-base);
+  font-size: var(--t-micro);
+  color: var(--c-ink-soft);
+  white-space: nowrap;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.ghost:hover:not(:disabled) { border-color: var(--c-control); color: var(--c-ink); }
+.ghost:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.icon { width: 12px; height: 12px; }
+.spin { animation: spin 900ms linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Suggestions are options, not replacements. Nothing changes until one is
+   chosen, and the length is shown because 80 is the target. */
+.options { display: flex; flex-direction: column; gap: 2px; margin-top: var(--s-1); }
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  text-align: left;
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  line-height: var(--lh-snug);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.option:hover { background: var(--c-sunk); color: var(--c-ink); }
+.optionCount { margin-left: auto; font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+.gallery { display: flex; gap: var(--s-2); overflow-x: auto; padding-bottom: var(--s-2); }
+
+.shot {
+  position: relative;
+  flex: 0 0 auto;
+  width: 88px;
+  height: 88px;
+  overflow: hidden;
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  cursor: grab;
+  transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.shot img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+.shot:hover { border-color: var(--c-control); }
+.shotDrag { opacity: 0.4; transform: scale(0.96); }
+
+/* The tile is the one buyers see in results, so it is marked rather than
+   implied by position. */
+.shotLead { border-color: var(--c-action-strong); }
+
+.leadTag {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 2px 0;
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-micro);
+  text-align: center;
+}
+
+.makeLead {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 3px 0;
+  background: rgba(42, 39, 35, 0.78);
+  color: var(--c-base);
+  font-size: var(--t-micro);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.shot:hover .makeLead { opacity: 1; }
+
+.failed { font-size: var(--t-caption); color: var(--c-negative); }
+
+@media (prefers-reduced-motion: reduce) {
+  .input, .area, .ghost, .option, .shot, .makeLead { transition: none; }
+  .spin { animation: none; }
+}
