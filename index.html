@@ -130,6 +130,123 @@
     </script>
   </head>
   <body>
+    <!--
+      The frame before React.
+
+      Nothing is rendered until the module graph has parsed, so the browser
+      shows the page background and nothing else. No React component can cover
+      that, because React is not running yet.
+
+      Inline rather than in the stylesheet on purpose: a linked stylesheet is
+      another request, and this has to paint on the first frame or it has done
+      nothing at all.
+    -->
+    <style>
+      #boot {
+        position: fixed;
+        inset: 0;
+        z-index: 999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: #faf6ef;
+        transition: opacity 260ms cubic-bezier(0.22, 0.61, 0.36, 1);
+      }
+
+      #boot[data-done] { opacity: 0; pointer-events: none; }
+
+      #boot .mark {
+        width: 52px;
+        height: 52px;
+        display: block;
+        /* Breathing, not spinning. A spinner says the app is busy. This says
+           the app is here and is about to show you something. */
+        animation: boot-breathe 1800ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      }
+
+      /* The handle draws itself, once. The basket is already full when the
+         page is; the handle arriving is the only thing that moves, and it
+         stops rather than looping. */
+      #boot .handle {
+        stroke-dasharray: 28;
+        stroke-dashoffset: 28;
+        animation: boot-draw 900ms cubic-bezier(0.16, 1, 0.3, 1) 120ms forwards;
+      }
+
+      #boot .track {
+        width: 132px;
+        height: 2px;
+        border-radius: 999px;
+        background: #e8e0d3;
+        overflow: hidden;
+      }
+
+      #boot .track span {
+        display: block;
+        width: 40%;
+        height: 100%;
+        border-radius: 999px;
+        background: #ba5a3d;
+        animation: boot-slide 1200ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      }
+
+      #boot .word {
+        font: 600 11px/1 ui-sans-serif, system-ui, -apple-system, sans-serif;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #736c5d;
+      }
+
+      @keyframes boot-breathe {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(0.94); opacity: 0.82; }
+      }
+
+      @keyframes boot-slide {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(350%); }
+      }
+
+      @keyframes boot-draw {
+        to { stroke-dashoffset: 0; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #boot .mark, #boot .track span, #boot .handle { animation: none; }
+        #boot .track span { width: 100%; opacity: 0.4; }
+        #boot .handle { stroke-dashoffset: 0; }
+      }
+    </style>
+
+    <div id="boot" role="status" aria-label="Loading Cart and Keep">
+      <svg class="mark" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+        <path d="M4.6 9.8h20.8l-2.1 14a2.4 2.4 0 0 1-2.4 2H9.1a2.4 2.4 0 0 1-2.4-2l-2.1-14Z" fill="#2A2723"/>
+        <path class="handle" d="M10.6 9.8V8a4.4 4.4 0 0 1 8.8 0v1.8" stroke="#5E7359" stroke-width="2.1" stroke-linecap="round"/>
+        <path d="M14.014 23.7Q12.968 23.7 12.206 23.319Q11.445 22.939 11.037 22.3Q10.629 21.661 10.629 20.879Q10.629 20.267 10.871 19.805Q11.112 19.343 11.544 18.952Q11.975 18.561 12.539 18.174L14.47 16.896Q14.681 16.76 14.85 16.587Q15.02 16.413 15.119 16.213Q15.218 16.012 15.218 15.781Q15.218 15.434 14.973 15.19Q14.728 14.945 14.273 14.945Q13.974 14.945 13.749 15.061Q13.525 15.176 13.403 15.387Q13.28 15.598 13.28 15.883Q13.28 16.216 13.447 16.546Q13.613 16.875 13.906 17.236Q14.198 17.596 14.579 18.038L19.371 23.55H17.223L13.233 19.085Q12.818 18.602 12.424 18.113Q12.03 17.623 11.771 17.069Q11.513 16.515 11.513 15.863Q11.513 15.135 11.856 14.554Q12.199 13.973 12.818 13.636Q13.437 13.3 14.259 13.3Q15.068 13.3 15.653 13.623Q16.237 13.946 16.557 14.486Q16.876 15.027 16.876 15.686Q16.876 16.155 16.71 16.57Q16.543 16.984 16.244 17.338Q15.945 17.691 15.53 17.997L13.464 19.486Q13.049 19.792 12.835 20.094Q12.621 20.396 12.621 20.798Q12.621 21.178 12.804 21.464Q12.988 21.749 13.314 21.902Q13.641 22.055 14.076 22.055Q14.633 22.055 15.16 21.81Q15.687 21.566 16.118 21.114Q16.55 20.662 16.805 20.033Q17.06 19.404 17.06 18.643H18.766Q18.766 19.581 18.562 20.318Q18.358 21.056 18.004 21.593Q17.651 22.13 17.202 22.47L16.679 22.81Q16.122 23.265 15.408 23.482Q14.694 23.7 14.014 23.7Z" fill="#FAF6EF"/>
+      </svg>
+      <span class="track" aria-hidden="true"><span></span></span>
+      <span class="word">Cart &amp; Keep</span>
+    </div>
+
+    <script>
+      // Taken down by the app once it has painted, not on a timer. Too short
+      // shows the blank frame this exists to prevent; too long holds a loaded
+      // app behind a splash screen.
+      window.__bootDone = function () {
+        var el = document.getElementById('boot');
+        if (!el) return;
+        el.setAttribute('data-done', '');
+        setTimeout(function () { el.remove(); }, 300);
+      };
+
+      // A broken app behind a splash screen looks exactly like a slow one.
+      setTimeout(function () {
+        if (document.getElementById('boot')) window.__bootDone();
+      }, 8000);
+    </script>
+
     <div id="root"></div>
     <noscript>
       Cart &amp; Keep needs JavaScript to show the catalogue. Email

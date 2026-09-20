@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router';
 import { PortalProtected } from '@components/layout/portal/PortalProtected';
+import { PageSkeleton } from '@components/ui/portal/Skeleton';
 import { LoginPage } from '@pages/portal/LoginPage';
 import { OverviewPage } from '@pages/portal/OverviewPage';
 import { CandidatesPage } from '@pages/portal/CandidatesPage';
@@ -32,7 +33,12 @@ const SettingsPage = lazy(() => import('@pages/portal/SettingsPage').then((m) =>
 const EbayCallbackPage = lazy(() => import('@pages/portal/EbayCallbackPage').then((m) => ({ default: m.EbayCallbackPage })));
 const EbayTrafficPage = lazy(() => import('@pages/portal/EbayTrafficPage').then((m) => ({ default: m.EbayTrafficPage })));
 
-const deferred = (el) => <Suspense fallback={null}>{el}</Suspense>;
+/*
+ * A null fallback meant a route change froze the previous screen and then
+ * replaced it. The skeleton holds the shape of what is coming, so the
+ * transition is a page filling in rather than a page being swapped.
+ */
+const deferred = (el) => <Suspense fallback={<PageSkeleton />}>{el}</Suspense>;
 
 export const portalRouter = createBrowserRouter([
   { path: PORTAL_ROUTES.LOGIN, element: <LoginPage /> },

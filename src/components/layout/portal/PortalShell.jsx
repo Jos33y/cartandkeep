@@ -10,12 +10,20 @@ import { supabase } from '@lib/supabase';
 import { useNoIndex } from '@hooks/useNoIndex';
 import styles from '@styles/layout/portal/portal-shell.module.css';
 
+/*
+ * The actual mark, not a letter in a box.
+ *
+ * The sidebar drew a dark rounded square with a C in it, which is not the logo
+ * and never was. The basket and ampersand are what is on the favicon, the app
+ * icon and the shop, so the one place she looks at all day was the one place
+ * showing something else.
+ */
 function Mark({ className }) {
   return (
-    <svg viewBox="0 0 512 512" className={className} role="img" aria-label="Cart and Keep">
-      <rect width="512" height="512" rx="72" fill="var(--c-ink)" />
-      <text x="256" y="378" textAnchor="middle" fill="var(--c-base)"
-        fontFamily="var(--font-ui)" fontWeight="500" fontSize="360" letterSpacing="-12">C</text>
+    <svg viewBox="0 0 30 30" className={className} fill="none" role="img" aria-label="Cart and Keep">
+      <path d="M4.6 9.8h20.8l-2.1 14a2.4 2.4 0 0 1-2.4 2H9.1a2.4 2.4 0 0 1-2.4-2l-2.1-14Z" fill="var(--c-ink)" />
+      <path d="M10.6 9.8V8a4.4 4.4 0 0 1 8.8 0v1.8" stroke="var(--c-brand)" strokeWidth="2.1" strokeLinecap="round" />
+      <path d="M14.014 23.7Q12.968 23.7 12.206 23.319Q11.445 22.939 11.037 22.3Q10.629 21.661 10.629 20.879Q10.629 20.267 10.871 19.805Q11.112 19.343 11.544 18.952Q11.975 18.561 12.539 18.174L14.47 16.896Q14.681 16.76 14.85 16.587Q15.02 16.413 15.119 16.213Q15.218 16.012 15.218 15.781Q15.218 15.434 14.973 15.19Q14.728 14.945 14.273 14.945Q13.974 14.945 13.749 15.061Q13.525 15.176 13.403 15.387Q13.28 15.598 13.28 15.883Q13.28 16.216 13.447 16.546Q13.613 16.875 13.906 17.236Q14.198 17.596 14.579 18.038L19.371 23.55H17.223L13.233 19.085Q12.818 18.602 12.424 18.113Q12.03 17.623 11.771 17.069Q11.513 16.515 11.513 15.863Q11.513 15.135 11.856 14.554Q12.199 13.973 12.818 13.636Q13.437 13.3 14.259 13.3Q15.068 13.3 15.653 13.623Q16.237 13.946 16.557 14.486Q16.876 15.027 16.876 15.686Q16.876 16.155 16.71 16.57Q16.543 16.984 16.244 17.338Q15.945 17.691 15.53 17.997L13.464 19.486Q13.049 19.792 12.835 20.094Q12.621 20.396 12.621 20.798Q12.621 21.178 12.804 21.464Q12.988 21.749 13.314 21.902Q13.641 22.055 14.076 22.055Q14.633 22.055 15.16 21.81Q15.687 21.566 16.118 21.114Q16.55 20.662 16.805 20.033Q17.06 19.404 17.06 18.643H18.766Q18.766 19.581 18.562 20.318Q18.358 21.056 18.004 21.593Q17.651 22.13 17.202 22.47L16.679 22.81Q16.122 23.265 15.408 23.482Q14.694 23.7 14.014 23.7Z" fill="var(--c-base)" />
     </svg>
   );
 }

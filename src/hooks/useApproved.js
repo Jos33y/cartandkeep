@@ -38,7 +38,7 @@ export function useApproved(tenantId) {
         id, title, category, external_ref, reference_url, classification,
         image_url, ebay_category_id, ebay_category_path, variation_count,
         score, breakdown, margin, headroom, hold, same_sku_sellers, bulky,
-        entry, monthly_headroom, active_listings, listing,
+        entry, monthly_headroom, active_listings, listing, ebay,
         sold_30d, avg_sold_price, window_start, window_series,
         recommended_channels,
         batches ( delivered_for ),
@@ -51,7 +51,11 @@ export function useApproved(tenantId) {
         )
       `)
       .eq('tenant_id', tenantId)
-      .eq('decisions.action', 'approve');
+      .eq('decisions.action', 'approve')
+      // Approved means decided and not yet listed. Nothing ever left this
+      // screen, so a month in it is a pile she cannot tell apart from work
+      // already done. A row goes to Listings the moment it publishes.
+      .is('ebay', null);
 
     if (error) return setState({ status: 'error', rows: [], error });
 
@@ -103,5 +107,26 @@ export function useApproved(tenantId) {
     [],
   );
 
-  return { ...state, reload: load, addSource };
+  /*
+   * Put one on eBay.
+   *
+   * dry returns what would be sent, including the category eBay suggests from
+   * the title, which is the one thing nobody can check beforehand and the one
+   * that costs money to get wrong.
+   */
+  const list = useCallback(
+    async ({ candidateId, price, quantity = 1, dry = false }) => {
+      const { data, error } = await supabase.functions.invoke('ebay-list', {
+        body: { tenant_id: tenantId, candidate_id: candidateId, price, quantity, dry },
+      });
+      if (error || data?.error) throw new Error(data?.error ?? error.message);
+      if (!dry) {
+        setState((s) => ({ ...s, rows: s.rows.filter((r) => r.id !== candidateId) }));
+      }
+      return data;
+    },
+    [tenantId],
+  );
+
+  return { ...state, reload: load, addSource, list };
 }

@@ -205,6 +205,90 @@ const IconMap = (p) => (
   </svg>
 );
 
+
+/*
+ * Below here: the set stopped at the sidebar.
+ *
+ * Twenty-two icons, one geometry, one stroke weight, used in exactly one place,
+ * while every screen in the portal explained itself in prose instead. A funnel
+ * step labelled with a mark and a word is shorter and clearer than a word and a
+ * sentence underneath it.
+ */
+
+// The funnel, three marks. Seen, opened, paid for.
+const IconImpression = (p) => (
+  <svg {...base} {...p}>
+    <path d="M1.75 10s3-5 8.25-5 8.25 5 8.25 5-3 5-8.25 5-8.25-5-8.25-5Z" />
+    <circle cx="10" cy="10" r="2.4" />
+  </svg>
+);
+
+// A listing page, open. The first version was a mouse cursor, which reads as
+// "click this" rather than "was opened": an instruction where a state was
+// meant, on a label that only ever describes something already done.
+const IconOpened = (p) => (
+  <svg {...base} {...p}>
+    <rect x="2.75" y="3.75" width="14.5" height="12.5" rx="1.5" />
+    <path d="M2.75 7.5h14.5" />
+    <path d="M6 11h4.5M6 13.5h7" />
+  </svg>
+);
+
+const IconBought = (p) => (
+  <svg {...base} {...p}>
+    <path d="M4.25 6.75h11.5l-1.1 9a1.4 1.4 0 0 1-1.4 1.25H6.75a1.4 1.4 0 0 1-1.4-1.25z" />
+    <path d="M7.5 6.75V5.5a2.5 2.5 0 0 1 5 0v1.25" />
+  </svg>
+);
+
+// Explanation on demand rather than on the page. Four lines of prose wrapped
+// around three figures is what this replaces.
+const IconInfo = (p) => (
+  <svg {...base} {...p}>
+    <circle cx="10" cy="10" r="7.25" />
+    <path d="M10 9.25v4" />
+    <circle cx="10" cy="6.6" r="0.85" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+// Clearing a filter. Applying one was a click on a band; removing it was the
+// same click again, which nobody finds.
+const IconX = (p) => (
+  <svg {...base} {...p}>
+    <path d="M5.5 5.5l9 9M14.5 5.5l-9 9" />
+  </svg>
+);
+
+const IconRefresh = (p) => (
+  <svg {...base} {...p}>
+    <path d="M16.5 8.25A6.75 6.75 0 0 0 4.4 5.9" />
+    <path d="M3.5 11.75A6.75 6.75 0 0 0 15.6 14.1" />
+    <path d="M3.9 2.9v3.1h3.1M16.1 17.1V14h-3.1" />
+  </svg>
+);
+
+// A row that opens somewhere else should say so. Leaving the portal without
+// warning is the kind of small dishonesty that adds up.
+const IconOut = (p) => (
+  <svg {...base} {...p}>
+    <path d="M8 4.25H4.5a1.25 1.25 0 0 0-1.25 1.25v10a1.25 1.25 0 0 0 1.25 1.25h10a1.25 1.25 0 0 0 1.25-1.25V12" />
+    <path d="M11.5 3.25h5.25V8.5M16.25 3.75L9.5 10.5" />
+  </svg>
+);
+
+const IconFilter = (p) => (
+  <svg {...base} {...p}>
+    <path d="M3.25 4.75h13.5l-5.25 6v5.5l-3-1.75V10.75z" />
+  </svg>
+);
+
+// A single caret, rotated by the column that owns it, rather than two glyphs.
+const IconCaret = (p) => (
+  <svg {...base} {...p}>
+    <path d="M6 8l4 4 4-4" />
+  </svg>
+);
+
 export const ICONS = {
   IconGrid,
   IconGauge,
@@ -228,6 +312,15 @@ export const ICONS = {
   IconEye,
   IconSearch,
   IconSpeech,
+  IconImpression,
+  IconOpened,
+  IconBought,
+  IconInfo,
+  IconX,
+  IconRefresh,
+  IconOut,
+  IconFilter,
+  IconCaret,
 };
 
 export function Icon({ name, ...rest }) {

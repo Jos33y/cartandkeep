@@ -6,6 +6,7 @@ import { useApproved } from '@hooks/useApproved';
 import { useSuppliers } from '@hooks/useSuppliers';
 import { loadTenant } from '@lib/tenant';
 import { formatGbp } from '@utils/formatGbp';
+import { Icon } from '@components/ui/icons';
 import { breadcrumb } from '@utils/category';
 import { portalPath } from '@utils/constants';
 import styles from '@styles/pages/portal/approved-page.module.css';
@@ -52,7 +53,7 @@ export function ApprovedPage() {
   const [tenant, setTenant] = useState(undefined);
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
-  const { status, rows, addSource } = useApproved(tenant?.id);
+  const { status, rows, addSource, list } = useApproved(tenant?.id);
   const { suppliers, remember } = useSuppliers(tenant?.id);
 
   if (tenant === undefined || status === 'loading') {
@@ -107,6 +108,7 @@ export function ApprovedPage() {
             key={r.id}
             row={r}
             suppliers={suppliers}
+            onList={(opts) => list({ candidateId: r.id, ...opts })}
             onSource={async (fields) => {
               await addSource({ candidateId: r.id, tenantId: tenant.id, ...fields });
               await remember({ tenantId: tenant.id, name: fields.supplier, country: fields.ships_from });
@@ -118,10 +120,16 @@ export function ApprovedPage() {
   );
 }
 
-function Pack({ row, suppliers, onSource }) {
+function Pack({ row, suppliers, onSource, onList }) {
   const [copied, setCopied] = useState(false);
   const [zoomed, setZoomed] = useState(false);
   const [open, setOpen] = useState(false);
+
+  // Listing costs money and a wrong category costs more, so the button asks
+  // eBay what it would do and shows that before anything is published.
+  const [confirm, setConfirm] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState(null);
 
   const m = row.margin ?? {};
   const l = row.listing ?? null;
@@ -199,11 +207,14 @@ function Pack({ row, suppliers, onSource }) {
           <p className={styles.evidence}>
             {entry?.proved
               ? `A ${entry.seller_feedback} feedback seller has sold ${entry.sold_lifetime} of these in ${entry.age_days} days`
-              : 'Nobody her size is proved to be selling this'}
+              : 'No small seller is proved to be selling this'}
             {warnings.length > 0 && (
-              <span className={styles.warnCount}>
-                {' '}{warnings.length} thing{warnings.length === 1 ? '' : 's'} to check
-              </span>
+              <>
+                <span className={styles.sep} aria-hidden="true">·</span>
+                <span className={styles.warnCount}>
+                  {warnings.length} to check
+                </span>
+              </>
             )}
           </p>
         </div>
@@ -336,9 +347,26 @@ function Pack({ row, suppliers, onSource }) {
             )}
 
             <div className={styles.actions}>
+              <button className={styles.primary} disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  setProblem(null);
+                  try {
+                    setConfirm(await onList({ price: listPrice, quantity: 1, dry: true }));
+                  } catch (e) {
+                    setProblem(e.message);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}>
+                <Icon name="IconTag" className={styles.btnIcon} />
+                {busy ? 'Checking' : 'List on eBay'}
+              </button>
+
               <button className={styles.ghost} onClick={copyTitle}>
                 {copied ? 'Copied' : `Copy title, ${listingTitle.length} of 80`}
               </button>
+
               {row.reference_url && (
                 <a className={styles.reference} href={row.reference_url}
                   target="_blank" rel="noreferrer noopener">
@@ -346,10 +374,58 @@ function Pack({ row, suppliers, onSource }) {
                 </a>
               )}
             </div>
+
+            {problem && <p className={styles.problem} role="alert">{problem}</p>}
+
+            {/* What eBay would actually receive. The category is the part
+                nobody can check in advance and the part that costs money to
+                get wrong, so it is the first thing shown. */}
+            {confirm && (
+              <div className={styles.confirm}>
+                <dl className={styles.confirmGrid}>
+                  <Line label="Category" value={confirm.category.name} sub={confirm.category.id} />
+                  <Line label="Price" value={formatGbp(confirm.price)} />
+                  <Line label="Quantity" value={confirm.quantity} />
+                  <Line label="Photographs" value={confirm.images} />
+                  <Line label="Code" value={confirm.sku} />
+                </dl>
+
+                <p className={styles.confirmTitle}>{listingTitle}</p>
+
+                <div className={styles.confirmActions}>
+                  <button className={styles.primary} disabled={busy}
+                    onClick={async () => {
+                      setBusy(true);
+                      setProblem(null);
+                      try {
+                        await onList({ price: confirm.price, quantity: confirm.quantity });
+                      } catch (e) {
+                        setProblem(e.message);
+                        setBusy(false);
+                      }
+                    }}>
+                    {busy ? 'Publishing' : 'Publish it'}
+                  </button>
+                  <button className={styles.ghost} onClick={() => setConfirm(null)}>Cancel</button>
+                </div>
+              </div>
+            )}
           </section>
         </div>
       )}
     </article>
+  );
+}
+
+function Line({ label, value, sub }) {
+  return (
+    <div className={styles.line}>
+      <dt className={styles.lineLabel}>{label}</dt>
+      <dd className={styles.lineValue} data-num>
+        {value}
+        {sub && <span className={styles.lineSub}>{sub}</span>}
+      </dd>
+    </div>
   );
 }
 

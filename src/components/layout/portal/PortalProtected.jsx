@@ -4,6 +4,7 @@ import { supabase } from '@lib/supabase';
 import { loadTenant } from '@lib/tenant';
 import { PortalShell } from './PortalShell';
 import { portalPath } from '@utils/constants';
+import { PageSkeleton } from '@components/ui/portal/Skeleton';
 import styles from '@styles/layout/portal/no-access.module.css';
 
 export function PortalProtected() {
@@ -56,7 +57,10 @@ export function PortalProtected() {
     };
   }, []);
 
-  if (status === 'checking') return null;
+  // Returning null here left a blank frame between the splash coming down and
+  // the first screen appearing, which is the most visible of the three loading
+  // moments because something has already been on screen by then.
+  if (status === 'checking') return <PageSkeleton />;
   if (status === 'out') return <Navigate to={portalPath('/login')} replace />;
 
   if (status === 'no-access' || status === 'error') {

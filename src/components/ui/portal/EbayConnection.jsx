@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@lib/supabase';
+import { Icon } from '@components/ui/icons';
 import styles from '@styles/ui/portal/ebay-connection.module.css';
 
 /*
@@ -26,6 +27,9 @@ export function EbayConnection({ tenantId }) {
   const [failed, setFailed] = useState(null);
   const [checking, setChecking] = useState(false);
   const [pre, setPre] = useState(null);
+  const [choice, setChoice] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const check = useCallback(async () => {
     if (!tenantId) return;
@@ -49,8 +53,30 @@ export function EbayConnection({ tenantId }) {
     setChecking(false);
     if (error || data?.error) return setFailed(data?.error ?? error.message);
     setPre(data);
+    // One of each is the common case, so preselect it rather than making her
+    // choose from a list of one.
+    setChoice({
+      fulfillment: data.settings?.fulfillment ?? (data.postage?.length === 1 ? data.postage[0].id : ''),
+      payment: data.settings?.payment ?? (data.payment?.length === 1 ? data.payment[0].id : ''),
+      return: data.settings?.return ?? (data.returns?.length === 1 ? data.returns[0].id : ''),
+      location: data.settings?.location ?? (data.locations?.length === 1 ? data.locations[0].key : ''),
+    });
     check();
   }
+
+  async function saveSettings() {
+    setSaving(true);
+    setFailed(null);
+    const { data, error } = await supabase.functions.invoke('ebay-oauth', {
+      body: { action: 'save_settings', tenant_id: tenantId, settings: choice },
+    });
+    setSaving(false);
+    if (error || data?.error) return setFailed(data?.error ?? error.message);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  }
+
+  const ready = choice.fulfillment && choice.payment && choice.return && choice.location;
 
   async function connect() {
     setBusy(true);
@@ -130,12 +156,34 @@ export function EbayConnection({ tenantId }) {
             </p>
           )}
 
-          <dl className={styles.found}>
-            <Found label="Postage" items={pre.postage} />
-            <Found label="Payment" items={pre.payment} />
-            <Found label="Returns" items={pre.returns} />
-            <Found label="Location" items={pre.locations} />
-          </dl>
+          {/* An offer names all four and eBay refuses to publish without them.
+              Sixteen postage policies and two Shenzhen locations on one account
+              mean nothing can choose automatically: a guess here publishes a
+              listing that tells buyers it dispatches from China. */}
+          <div className={styles.picks}>
+            <Pick label="Postage" value={choice.fulfillment}
+              onChange={(v) => setChoice((c) => ({ ...c, fulfillment: v }))}
+              options={(pre.postage ?? []).map((p) => ({ value: p.id, label: p.name }))} />
+            <Pick label="Payment" value={choice.payment}
+              onChange={(v) => setChoice((c) => ({ ...c, payment: v }))}
+              options={(pre.payment ?? []).map((p) => ({ value: p.id, label: p.name }))} />
+            <Pick label="Returns" value={choice.return}
+              onChange={(v) => setChoice((c) => ({ ...c, return: v }))}
+              options={(pre.returns ?? []).map((p) => ({ value: p.id, label: p.name }))} />
+            <Pick label="Dispatch from" value={choice.location}
+              onChange={(v) => setChoice((c) => ({ ...c, location: v }))}
+              options={(pre.locations ?? []).map((l) => ({ value: l.key, label: l.name ?? l.key }))} />
+          </div>
+
+          <div className={styles.saveRow}>
+            <button type="button" className={styles.button} disabled={!ready || saving}
+              onClick={saveSettings}>
+              {saving ? 'Saving' : saved ? 'Saved' : 'Save for listings'}
+            </button>
+            {!ready && (
+              <span className={styles.quiet}>Choose all four before anything can be listed.</span>
+            )}
+          </div>
 
           {pre.errors?.length > 0 && (
             <p className={styles.failed}>
@@ -151,15 +199,21 @@ export function EbayConnection({ tenantId }) {
   );
 }
 
-function Found({ label, items = [] }) {
+function Pick({ label, value, onChange, options }) {
   return (
-    <div className={styles.foundRow}>
-      <dt className={styles.foundLabel}>{label}</dt>
-      <dd className={items.length ? styles.foundValue : styles.foundNone}>
-        {items.length
-          ? items.map((i) => i.name ?? i.key).join(', ')
-          : 'none set up'}
-      </dd>
-    </div>
+    <label className={styles.pick}>
+      <span className={styles.pickLabel}>{label}</span>
+      {options.length ? (
+        <select className={styles.select} value={value ?? ''} onChange={(e) => onChange(e.target.value)}>
+          <option value="">Choose one</option>
+          {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      ) : (
+        <span className={styles.pickNone}>
+          <Icon name="IconInfo" className={styles.pickIcon} />
+          None set up in Seller Hub
+        </span>
+      )}
+    </label>
   );
 }

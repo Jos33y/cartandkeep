@@ -1,76 +1,32 @@
-.page { display: flex; flex-direction: column; gap: var(--s-5); }
+/*
+ * Marks and numbers, not sentences.
+ *
+ * The page explained itself four times over: a lead paragraph, a caption under
+ * every figure, a note under the bands and a helper line by the search box.
+ * All of it is now an icon, a number, or a tooltip that waits to be asked.
+ */
 
-.status { min-height: 1em; font-size: var(--t-caption); color: var(--c-ink-faint); }
+.page { display: flex; flex-direction: column; gap: var(--s-4); }
 
 .head {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--s-6);
+  gap: var(--s-5);
   flex-wrap: wrap;
-  padding-bottom: var(--s-5);
-  border-bottom: 1px solid var(--c-line);
+  padding-bottom: var(--s-2);
 }
 
 .head > div > p:first-child { margin-bottom: var(--s-2); }
-
 .title { font-size: 2rem; letter-spacing: -0.025em; font-weight: 560; }
 
-.lead { margin-top: var(--s-2); max-width: 56ch; color: var(--c-ink-soft); line-height: var(--lh-body); }
-
-.stats { display: flex; gap: var(--s-6); }
-.stat { display: flex; flex-direction: column; gap: var(--s-1); }
-.statValue { color: var(--c-ink); }
-.statFoot { font-size: var(--t-micro); color: var(--c-ink-faint); white-space: nowrap; }
-
-/* Ninety days, as a shape. No axis: whether it is climbing is the question and
-   a gridline does not answer it. */
-.trend { display: flex; flex-direction: column; gap: var(--s-2); }
-
-.chart {
-  width: 100%;
-  height: 96px;
-  display: block;
-  border-radius: var(--r-md);
-  background: var(--c-sunk);
-}
-
-.area { fill: var(--c-line-mid); }
-.line { stroke: var(--c-ink-soft); stroke-width: 1.25; vector-effect: non-scaling-stroke; }
-.sold { fill: var(--c-positive); }
-
-.trendKey {
-  display: flex;
-  align-items: center;
-  gap: var(--s-4);
-  font-size: var(--t-micro);
-  color: var(--c-ink-faint);
-}
-
-.keyArea::before, .keyLine::before, .keyDot::before {
-  content: '';
-  display: inline-block;
-  margin-right: var(--s-1);
-  vertical-align: middle;
-}
-
-.keyArea::before { width: 10px; height: 8px; background: var(--c-line-mid); border-radius: 2px; }
-.keyLine::before { width: 10px; height: 2px; background: var(--c-ink-soft); }
-.keyDot::before { width: 6px; height: 6px; border-radius: var(--r-full); background: var(--c-positive); }
-
-.trendSpan { margin-left: auto; }
-
-.bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-4);
-  flex-wrap: wrap;
-}
-
-.window { font-size: var(--t-caption); color: var(--c-ink-faint); }
+.headSide { display: flex; align-items: center; gap: var(--s-4); }
+.window { font-size: var(--t-caption); color: var(--c-ink-faint); white-space: nowrap; }
 
 .button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
   min-height: var(--tap);
   padding: 0 var(--s-4);
   border-radius: var(--r-md);
@@ -78,65 +34,403 @@
   color: #fff;
   font-size: var(--t-label);
   font-weight: 500;
-  transition: filter var(--dur) var(--ease);
+  transition: filter var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 
 .button:hover:not(:disabled) { filter: brightness(0.93); }
-.button:disabled { opacity: 0.5; cursor: not-allowed; }
+.button:active:not(:disabled) { transform: translateY(1px); }
+.button:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.quiet { max-width: 60ch; font-size: var(--t-caption); color: var(--c-ink-faint); line-height: var(--lh-body); }
+.btnIcon { width: 15px; height: 15px; }
+.spin { animation: spin 900ms linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.quiet { max-width: 58ch; font-size: var(--t-caption); color: var(--c-ink-faint); line-height: var(--lh-body); }
 .failed { font-size: var(--t-caption); color: var(--c-negative); }
 
-.split { display: flex; gap: 2px; overflow: hidden; border-radius: var(--r-md); }
+/* Explanation on demand. */
+.info { position: relative; display: inline-flex; cursor: help; }
+.infoIcon { width: 13px; height: 13px; color: var(--c-line-strong); }
+.info:hover .infoIcon, .info:focus-visible .infoIcon { color: var(--c-ink-soft); }
 
+.tip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(3px);
+  z-index: var(--z-sticky);
+  width: max-content;
+  max-width: 250px;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-ink);
+  color: var(--c-base);
+  font-size: var(--t-micro);
+  line-height: var(--lh-snug);
+  box-shadow: var(--e-2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.info:hover .tip, .info:focus-visible .tip { opacity: 1; transform: translateX(-50%); }
+
+/* The funnel, where the bars are the numbers. Three figures at one size made
+   the collapse from 158,000 to 30 invisible, which is the whole measurement. */
+/* start, not end. Shown had no rate line under it, so aligning to the bottom
+   pushed its label out of line with the other two. */
+.funnel {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-5);
+  align-items: start;
+}
+
+.step { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; }
+
+.stepHead {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.stepIcon { width: 14px; height: 14px; }
+.stepValue { color: var(--c-ink); line-height: 1; }
+.stepWon .stepValue { color: var(--c-positive); }
+.stepWon .stepIcon { color: var(--c-positive); }
+
+/* A hairline track with a solid fill.
+   At 1.7% a six pixel track and a fill of nearly the same value read as one
+   full bar, which is the opposite of the finding. The track is now barely
+   there and the fill is ink, so a sliver is legible as a sliver. */
+.stepBar {
+  display: block;
+  height: 3px;
+  border-radius: var(--r-full);
+  background: var(--c-line);
+  overflow: hidden;
+}
+
+.stepBar span {
+  display: block;
+  height: 100%;
+  min-width: 3px;
+  border-radius: var(--r-full);
+  background: var(--c-ink-soft);
+  animation: grow var(--dur-enter) var(--ease-out) both;
+}
+
+.stepWon .stepBar span { background: var(--c-positive); }
+
+@keyframes grow { from { transform: scaleX(0); transform-origin: left; } }
+
+.stepRate { font-size: var(--t-micro); color: var(--c-ink-faint); line-height: var(--lh-snug); }
+
+/* All three at one size. Impressions at display size read as a balance, and it
+   is context: the number that matters is how little of it carried through, and
+   it will be in the millions inside a year. */
+
+.bench {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--c-line);
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+}
+
+.benchIcon { width: 13px; height: 13px; }
+
+.trend { margin-top: var(--s-5); display: flex; flex-direction: column; gap: var(--s-2); }
+
+.read {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  min-height: 18px;
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+}
+
+.read strong { color: var(--c-ink); font-weight: 500; }
+.peakTag { color: var(--c-action-text); }
+.hint { margin-left: auto; color: var(--c-line-strong); }
+
+.chart { width: 100%; height: 108px; display: block; cursor: crosshair; }
+.area { fill: url(#trafficFill); }
+.line { stroke: var(--c-ink-soft); stroke-width: 1.25; vector-effect: non-scaling-stroke; }
+.sold { fill: var(--c-positive); }
+.peak { fill: var(--c-action-strong); }
+.cursor { stroke: var(--c-ink-faint); stroke-width: 1; stroke-dasharray: 3 3; }
+
+.axis { position: relative; height: 14px; font-size: var(--t-micro); color: var(--c-ink-faint); }
+.axis span { position: absolute; transform: translateX(-2px); white-space: nowrap; }
+
+/* One component. The bands were a row of buttons and the note was a sentence
+   floating beneath them with no surface and nothing to align to, so the answer
+   read as an orphan rather than as a consequence of the press. */
+.bands { border-radius: var(--r-md); overflow: hidden; }
+
+.split { display: flex; gap: 2px; }
+
+/* A band is a control, so it says so before it is pressed. Four coloured
+   blocks that happen to be clickable is the discoverability failure the design
+   standard names: a thing that acts on click and looks like a thing that does
+   not. */
 .segment {
+  position: relative;
   flex: 1 1 0;
-  min-width: 104px;
+  min-width: 100px;
   padding: var(--s-3) var(--s-4);
   text-align: left;
   border: none;
+  cursor: pointer;
+  transition: opacity var(--dur) var(--ease), filter var(--dur) var(--ease);
+}
+
+.segment::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 2px;
+  background: var(--c-ink);
+  opacity: 0;
   transition: opacity var(--dur) var(--ease);
 }
 
-.segmentValue {
-  display: block;
-  font-family: var(--font-data);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--t-lead);
-  font-weight: 500;
-}
+.segment:hover::after { opacity: 0.25; }
+.segment[aria-selected='true']::after { opacity: 0.8; }
 
+.segment:hover { filter: brightness(0.97); }
+.segmentValue { display: block; font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: var(--t-lead); font-weight: 500; }
 .segmentLabel { display: block; margin-top: 2px; font-size: var(--t-micro); }
-.dimmed { opacity: 0.3; }
+/* Enough to recede, not enough to disappear. At 0.28 the bands you filtered
+   out of were unreadable, so you lost the context the split exists to give. */
+.dimmed { opacity: 0.55; }
 
-.unseen { background: #E8D4C4; color: var(--c-ink); }
-.ignored { background: #EFE0CB; color: var(--c-ink); }
-.unconvincing { background: #E4E1D2; color: var(--c-ink); }
-.selling { background: #D5E2D2; color: var(--c-ink); }
+.unseen { background: var(--c-scale-1); color: var(--c-ink); }
+.ignored { background: var(--c-scale-2); color: var(--c-ink); }
+.unconvincing { background: var(--c-scale-3); color: var(--c-ink); }
+.selling { background: var(--c-scale-4); color: var(--c-ink); }
 
-.verdictNote { max-width: 70ch; font-size: var(--t-label); color: var(--c-ink-soft); line-height: var(--lh-body); }
-
-.list { display: flex; flex-direction: column; }
-
-/* Photograph, what it is, the drop, the numbers. The drop is drawn because
-   three columns of digits make you compute what a bar shows. */
-.row {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 120px 168px;
+/* The panel. Same colour as the band above it and joined to it, so the
+   sentence is visibly the answer to the thing that was pressed rather than a
+   caption floating underneath the set. */
+.panel {
+  display: flex;
   align-items: center;
   gap: var(--s-4);
-  padding: var(--s-3) var(--s-2);
-  border-bottom: 1px solid var(--c-line);
-  text-decoration: none;
-  color: inherit;
+  flex-wrap: wrap;
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid rgba(42, 39, 35, 0.08);
+}
+
+.panelNote {
+  flex: 1;
+  min-width: 20ch;
+  font-size: var(--t-label);
+  color: var(--c-ink);
+}
+
+.panelClear {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex-shrink: 0;
+  min-height: 28px;
+  padding: 0 var(--s-3) 0 var(--s-2);
+  border: none;
+  border-radius: var(--r-full);
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--c-ink-soft);
+  font-size: var(--t-micro);
+  white-space: nowrap;
+  cursor: pointer;
   transition: background var(--dur) var(--ease);
 }
 
-.row:hover { background: var(--c-raised); }
+.panelClear:hover { background: rgba(255, 255, 255, 0.95); }
 
+/* An icon with no size takes the width of its box, which is how a 12px cross
+   rendered at 40 and pushed the label onto its own line. */
+.panelX {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+}
+
+/* An estimate, so it is stated as one.
+   At display size on a terracotta panel it shouted like a balance owed, when
+   what it is is an inference from her own conversion rate. Quieter surface,
+   figure at the same size as the funnel above it, and a label saying what kind
+   of number it is before the number itself. */
+.finding {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--c-sunk);
+  border-left: 2px solid var(--c-action-strong);
+}
+
+.findingLabel {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.findingValue { color: var(--c-ink); font-size: var(--t-figure); line-height: 1; }
+
+.findingNote {
+  flex: 1;
+  min-width: 24ch;
+  font-size: var(--t-caption);
+  color: var(--c-ink-faint);
+  line-height: var(--lh-snug);
+}
+
+.headline {
+  margin-top: var(--s-4);
+  max-width: 68ch;
+  font-size: var(--t-lead);
+  color: var(--c-ink-soft);
+  line-height: var(--lh-snug);
+}
+
+.headline strong { color: var(--c-ink); font-weight: 560; }
+
+.tools { display: flex; align-items: center; gap: var(--s-3); margin: var(--s-4) 0 var(--s-2); }
+
+.findWrap { position: relative; flex: 1; max-width: 260px; }
+
+.findIcon {
+  position: absolute;
+  left: var(--s-3);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  color: var(--c-ink-faint);
+  pointer-events: none;
+}
+
+.find {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--s-3) 0 calc(var(--s-3) + 20px);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-base);
+  font-size: var(--t-label);
+  transition: border-color var(--dur) var(--ease);
+}
+
+.find:focus { border-color: var(--c-control); }
+
+.count { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+/* A filter you can see and dismiss. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 30px;
+  padding: 0 var(--s-2) 0 var(--s-3);
+  border-radius: var(--r-full);
+  background: var(--c-action-wash);
+  color: var(--c-action-text);
+  font-size: var(--t-caption);
+  transition: filter var(--dur) var(--ease);
+}
+
+.chip:hover { filter: brightness(0.96); }
+.chipIcon { width: 12px; height: 12px; }
+.chipX { width: 13px; height: 13px; opacity: 0.7; }
+.chip:hover .chipX { opacity: 1; }
+
+.table { display: flex; flex-direction: column; }
+
+.headRow, .row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 112px 72px 60px 52px 78px;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+/* Without at stake, which measures nothing where nothing was opened. */
+.tableNarrow .headRow, .tableNarrow .row {
+  grid-template-columns: 44px minmax(0, 1fr) 112px 72px 60px 52px;
+}
+
+.headRow {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--s-2) 0;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-line-mid);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.sortable {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1px;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: color var(--dur) var(--ease);
+}
+
+.sortable:hover { color: var(--c-ink); }
+.sorted { color: var(--c-ink); }
+
+.caret { width: 12px; height: 12px; opacity: 0; transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease); }
+.sortable:hover .caret { opacity: 0.35; }
+.caretOn { opacity: 1; }
+.caretUp { transform: rotate(180deg); }
+.dropCol { text-align: left; }
+
+.row {
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--c-line);
+  text-decoration: none;
+  color: inherit;
+  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.row:hover { background: var(--c-raised); box-shadow: inset 2px 0 0 var(--c-line-strong); }
+
+.urgent { background: linear-gradient(to right, var(--c-action-wash), transparent 42%); }
+.urgent:hover { box-shadow: inset 2px 0 0 var(--c-action-strong); }
+.urgent .stake { color: var(--c-action-text); }
+
+/* White behind every one, and padding, so a product shot on black and a
+   product shot on white read as the same column rather than as two. */
 .thumb {
   width: 44px;
   height: 44px;
+  padding: 3px;
   object-fit: contain;
   border-radius: var(--r-sm);
   border: 1px solid var(--c-line-mid);
@@ -148,6 +442,9 @@
 .who { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 
 .name {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -155,29 +452,19 @@
   color: var(--c-ink);
 }
 
-.row:hover .name { text-decoration: underline; text-underline-offset: 3px; }
+/* A row that leaves the portal should say so before it does. */
+.out { flex-shrink: 0; width: 12px; height: 12px; opacity: 0; color: var(--c-ink-faint); transition: opacity var(--dur) var(--ease); }
+.row:hover .out { opacity: 1; }
 
-.sub {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  font-family: var(--font-data);
-  font-size: var(--t-micro);
-  color: var(--c-ink-faint);
-}
-
+.sub { display: flex; align-items: center; gap: var(--s-2); font-family: var(--font-data); font-size: var(--t-micro); color: var(--c-ink-faint); }
 .tag { padding: 1px var(--s-2); border-radius: var(--r-sm); white-space: nowrap; }
 
-.funnel { display: flex; flex-direction: column; gap: 3px; }
+.drop2 { display: flex; align-items: center; gap: var(--s-2); }
+.dropTrack { flex: 1; height: 5px; min-width: 34px; border-radius: var(--r-full); background: var(--c-sunk); overflow: hidden; }
+.dropFill { display: block; height: 100%; border-radius: var(--r-full); background: var(--c-data-4); }
+.dropPct { font-size: var(--t-micro); color: var(--c-ink-faint); min-width: 28px; text-align: right; }
 
-.funnelImp, .funnelView { height: 4px; border-radius: var(--r-full); min-width: 2px; }
-.funnelImp { background: var(--c-line-strong); }
-.funnelView { background: var(--c-ink-soft); }
-
-.figs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--s-2);
+.fig {
   text-align: right;
   font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
@@ -186,23 +473,33 @@
 }
 
 .won { color: var(--c-positive); font-weight: 500; }
-.none { color: var(--c-ink-faint); }
+.none { color: var(--c-line-strong); }
+.stake { color: var(--c-ink); font-weight: 500; }
 
-@media (max-width: 860px) {
-  .row { grid-template-columns: 44px minmax(0, 1fr) 120px; }
-  .funnel { display: none; }
+/* Narrow enough that the funnel stacks and the table sheds the columns that
+   are context rather than answer. */
+@media (max-width: 900px) {
+  .headRow, .row { grid-template-columns: 44px minmax(0, 1fr) 56px 78px; }
+  .dropCol, .drop2 { display: none; }
+  .headRow > :nth-child(4), .headRow > :nth-child(5),
+  .fig:nth-of-type(1), .fig:nth-of-type(2) { display: none; }
 }
 
 @media (max-width: 640px) {
   .head { align-items: flex-start; }
   .title { font-size: 1.625rem; }
-  .stats { gap: var(--s-5); }
+  .funnel { grid-template-columns: 1fr; gap: var(--s-4); }
+  .step:first-child .stepValue { font-size: var(--t-figure); }
+  .finding { flex-direction: column; align-items: flex-start; gap: var(--s-2); }
   .split { flex-wrap: wrap; }
-  .row { grid-template-columns: 40px minmax(0, 1fr) 104px; gap: var(--s-3); }
+  .headRow, .row { grid-template-columns: 40px minmax(0, 1fr) 50px 72px; gap: var(--s-2); }
   .thumb { width: 40px; height: 40px; }
   .tag { display: none; }
+  .tip { left: auto; right: 0; transform: none; }
+  .info:hover .tip, .info:focus-visible .tip { transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .button, .segment, .row { transition: none; }
+  .button, .segment, .row, .sortable, .caret, .out, .tip { transition: none; }
+  .stepBar span, .spin { animation: none; }
 }

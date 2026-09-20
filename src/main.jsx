@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from '@app/App';
 import { registerStoreWorker } from '@pwa/registerStore';
+import { bootDone } from '@lib/boot';
 import '@styles/base/reset.css';
 import '@styles/base/tokens.css';
 import '@styles/base/global.css';
@@ -16,6 +17,12 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>,
 );
+
+// The splash in index.html covers the frames before this line runs. Taken down
+// after the first paint rather than here, because rendering and painting are
+// not the same frame and hiding it on render shows the blank frame it exists
+// to prevent.
+bootDone();
 
 // Not awaited, on purpose. A service worker must never sit in front of first
 // paint, and it decides for itself whether this host should have one at all.

@@ -88,3 +88,41 @@
 
 .foundValue { font-size: var(--t-caption); color: var(--c-ink); }
 .foundNone { font-size: var(--t-caption); color: var(--c-warning); }
+
+/* The four an offer must name. Read back from her account, chosen once. */
+.picks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+}
+
+.pick { display: flex; flex-direction: column; gap: var(--s-1); min-width: 0; }
+
+.pickLabel { font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+.select {
+  min-height: 34px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-base);
+  font-size: var(--t-label);
+  color: var(--c-ink);
+  transition: border-color var(--dur) var(--ease);
+}
+
+.select:focus { border-color: var(--c-control); }
+
+.pickNone {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-height: 34px;
+  font-size: var(--t-caption);
+  color: var(--c-warning);
+}
+
+.pickIcon { width: 13px; height: 13px; }
+
+.saveRow { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; margin-top: var(--s-4); }

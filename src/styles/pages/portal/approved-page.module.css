@@ -89,6 +89,7 @@
 }
 
 .warnCount { color: var(--c-warning); }
+.sep { margin: 0 var(--s-2); color: var(--c-line-strong); }
 
 .keep {
   display: flex;
@@ -297,3 +298,65 @@ a.sourceLink:hover { background: var(--c-sunk); }
 @media (prefers-reduced-motion: reduce) {
   .top, .caret, .ghost { transition: none; }
 }
+
+.primary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-label);
+  font-weight: 500;
+  transition: filter var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.primary:hover:not(:disabled) { filter: brightness(0.93); }
+.primary:active:not(:disabled) { transform: translateY(1px); }
+.primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btnIcon { width: 15px; height: 15px; }
+
+.problem {
+  margin-top: var(--s-3);
+  max-width: 68ch;
+  font-size: var(--t-caption);
+  color: var(--c-negative);
+  line-height: var(--lh-snug);
+}
+
+/* What eBay would receive, before it receives it. A listing costs money and a
+   wrong category costs more, and the category is the one field nobody can
+   check in advance because eBay chooses it from the title. */
+.confirm {
+  margin-top: var(--s-4);
+  padding: var(--s-4);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-sunk);
+  animation: rise var(--dur) var(--ease-out) both;
+}
+
+.confirmGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: var(--s-3) var(--s-4);
+}
+
+.line { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lineLabel { font-size: var(--t-micro); color: var(--c-ink-faint); }
+.lineValue { font-size: var(--t-label); color: var(--c-ink); }
+.lineSub { display: block; font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+.confirmTitle {
+  margin-top: var(--s-4);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--c-line);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  line-height: var(--lh-snug);
+}
+
+.confirmActions { display: flex; gap: var(--s-2); margin-top: var(--s-4); }

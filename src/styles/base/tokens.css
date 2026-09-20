@@ -18,12 +18,31 @@
   --c-control: #9d8764;
   --c-line-strong: #9d8764;
 
-  --c-ink-soft: #6b6459;
+  /*
+   * Three steps, and they now differ.
+   *
+   * soft was #6b6459 and faint #736c5d: 5.3:1 and 4.8:1 on the canvas, which is
+   * the same grey twice. A page with one text colour reads flat however good
+   * the copy is, so soft moves down to open a real gap while faint holds the
+   * 4.5:1 floor, which is what captions are set in.
+   */
+  --c-ink-soft: #55504a;
   --c-ink-faint: #736c5d;
 
   --c-positive: #4e7849;
   --c-warning: #966828;
   --c-negative: #a3402c;
+
+  /*
+   * Functional colour needs a surface as well as a text tone, or a status can
+   * only ever be a word in a colour. A pill, a row highlight and a chart fill
+   * all need the wash.
+   */
+  --c-positive-wash: #e9f0e7;
+  --c-warning-wash: #f7eedc;
+  --c-negative-wash: #f9e8e3;
+  --c-info: #4a6b80;
+  --c-info-wash: #e7eef2;
 
   /* sage at 3.90:1 on the sunk panel is under 3:1 as a filled shape, so data
      fills use the darker step at the same hue. Measured, not assumed. */
@@ -32,6 +51,32 @@
   --c-brand-wash: #eef2ec;
   --c-brand-mid: #cdd9c9;
   --c-action-wash: #faeee9;
+
+  /*
+   * Data colour.
+   *
+   * Six hues drawn around the warm base rather than borrowed from a chart
+   * library, distinguishable from each other at 4px wide, and ordered so that
+   * the first three are still separable under the common colour vision
+   * deficiencies. Without these every page invents its own, which is how a
+   * traffic chart ended up with four hex values written into one stylesheet.
+   */
+  --c-data-1: #ba5a3d;
+  --c-data-2: #6f896a;
+  --c-data-3: #a8822f;
+  --c-data-4: #4a6b80;
+  --c-data-5: #8a5a7a;
+  --c-data-6: #7a6a4f;
+
+  /*
+   * A sequential scale, for a funnel or a set of stages where the categories
+   * are ordered rather than unrelated. Warm through to settled, so left to
+   * right reads as progress without needing a legend.
+   */
+  --c-scale-1: #e8d4c4;
+  --c-scale-2: #efe0cb;
+  --c-scale-3: #e4e1d2;
+  --c-scale-4: #d5e2d2;
 
   --font-data: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
   --font-ui: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -62,9 +107,29 @@
   --r-lg: 10px;
   --r-full: 999px;
 
+  /*
+   * Elevation, which did not exist.
+   *
+   * Every surface in the portal was separated by a one pixel line, so the whole
+   * interface sat on one plane and read as a document. A border plus a soft
+   * shadow on a lighter surface is the difference between a list and an
+   * interface, and it is two lines of CSS.
+   *
+   * Tinted toward the ink rather than pure black. Black shadow on a warm canvas
+   * reads as a bevel from 2009.
+   */
+  --e-1: 0 1px 2px rgba(42, 39, 35, 0.04), 0 1px 3px rgba(42, 39, 35, 0.03);
+  --e-2: 0 1px 2px rgba(42, 39, 35, 0.05), 0 6px 16px rgba(42, 39, 35, 0.05);
+  --e-3: 0 16px 40px rgba(42, 39, 35, 0.14);
+
   --dur: 120ms;
   --dur-settle: 260ms;
+  /* Content arriving, rather than feedback under the finger. Charts drawing,
+     rows staggering in, a number counting up. */
+  --dur-enter: 420ms;
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* Asymmetric, because that is what physical things do: quick away, gentle in. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
   --z-sticky: 10;
   --z-drawer: 40;
@@ -104,4 +169,99 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--c-ink-faint);
+}
+
+/*
+ * A card, defined once.
+ *
+ * Every page was writing its own surface, border and padding, which is how four
+ * screens end up with four versions of the same rectangle. Anything appearing
+ * on a third screen becomes a primitive, and this was on all of them.
+ */
+.card {
+  padding: var(--s-5);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e-1);
+}
+
+.card-raised { box-shadow: var(--e-2); }
+
+/*
+ * Status, driven by functional colour rather than by a grey pill with a word
+ * in it. Never colour alone: each carries its own label.
+ */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 1px var(--s-2);
+  border-radius: var(--r-sm);
+  font-size: var(--t-micro);
+  white-space: nowrap;
+}
+
+.pill-positive { background: var(--c-positive-wash); color: var(--c-positive); }
+.pill-warning { background: var(--c-warning-wash); color: var(--c-warning); }
+.pill-negative { background: var(--c-negative-wash); color: var(--c-negative); }
+.pill-info { background: var(--c-info-wash); color: var(--c-info); }
+.pill-quiet { background: var(--c-sunk); color: var(--c-ink-faint); }
+
+/*
+ * Loading, as a shape rather than as a word.
+ *
+ * Every page said "Loading" in 12px grey and then jumped to a full screen. That
+ * is the least designed moment in the product and it happens before every
+ * screen. A skeleton holding the real layout means nothing moves when the data
+ * lands, and the wait reads as the page already being there.
+ */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  background: var(--c-sunk);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.55),
+    transparent
+  );
+  animation: sweep 1.4s var(--ease) infinite;
+}
+
+@keyframes sweep {
+  to { transform: translateX(100%); }
+}
+
+/* Text loses its rounded ends at small heights, so the line variant carries
+   its own radius and a last-line width that looks like prose. */
+.skeleton-line { height: 0.75em; border-radius: var(--r-full); }
+.skeleton-line:last-child { width: 62%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; }
+  .skeleton { background: var(--c-sunk); }
+}
+
+/*
+ * Content arriving. A chart that appears and a chart that draws are the same
+ * information and different products.
+ */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.enter { animation: rise var(--dur-enter) var(--ease-out) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .enter { animation: none; }
 }

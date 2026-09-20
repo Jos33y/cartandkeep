@@ -25,20 +25,50 @@ export function diagnose(r) {
   return 'selling';
 }
 
+/*
+ * What a listing that is not converting is costing her.
+ *
+ * Measured against her own selling listings rather than against a published
+ * benchmark, because a rate from an article is somebody else's account in
+ * somebody else's category. If the listings that do sell convert at some rate,
+ * a listing with views and no sales is short of that rate, and the shortfall
+ * times the price is what the fault is worth.
+ *
+ * An ordering device, not a forecast. It says fix this one before that one.
+ */
+export function atStake(row, benchmark) {
+  if (!benchmark || !row.views || row.transactions) return 0;
+  const expected = row.views * benchmark;
+  return Math.round(expected * Number(row.price ?? 0));
+}
+
+// The median conversion of the listings that are actually selling. Median
+// rather than mean, because one listing converting at 20% would drag a mean
+// into fiction.
+export function benchmarkOf(listings) {
+  const rates = listings
+    .filter((r) => r.transactions > 0 && r.views > 0)
+    .map((r) => r.transactions / r.views)
+    .sort((a, b) => a - b);
+  if (!rates.length) return null;
+  const mid = Math.floor(rates.length / 2);
+  return rates.length % 2 ? rates[mid] : (rates[mid - 1] + rates[mid]) / 2;
+}
+
 export const VERDICTS = {
   unseen: {
     label: 'Never shown',
-    note: 'eBay put it in front of nobody, so the title carries no search volume. Rewriting the title is the only thing that changes this.',
+    note: 'No search volume on the title. Rewriting it is the only fix.',
   },
   ignored: {
     label: 'Shown, not opened',
-    note: 'People saw it in results and passed. That is the photograph or the price, because those are all a buyer sees before clicking.',
+    note: 'Passed over in results. The photograph or the price.',
   },
   unconvincing: {
     label: 'Opened, not bought',
-    note: 'People looked and left. The listing itself is doing the damage: description, postage cost, or the price against the others on the page.',
+    note: 'Read and abandoned. Check the description, postage and price.',
   },
-  selling: { label: 'Selling', note: 'Working as it should.' },
+  selling: { label: 'Selling', note: 'Converting. Nothing to do here.' },
 };
 
 export function useEbayTraffic(tenantId) {
