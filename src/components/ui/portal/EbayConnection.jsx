@@ -161,18 +161,36 @@ export function EbayConnection({ tenantId }) {
               mean nothing can choose automatically: a guess here publishes a
               listing that tells buyers it dispatches from China. */}
           <div className={styles.picks}>
+            {/* Free postage, because every price on the board absorbs it.
+                Three days handling or more, because she buys after it sells. */}
             <Pick label="Postage" value={choice.fulfillment}
               onChange={(v) => setChoice((c) => ({ ...c, fulfillment: v }))}
-              options={(pre.postage ?? []).map((p) => ({ value: p.id, label: p.name }))} />
+              options={(pre.postage ?? []).map((p) => ({
+                value: p.id,
+                label: [
+                  p.name,
+                  p.free ? 'free' : 'buyer pays',
+                  p.handling != null ? `${p.handling}d handling` : null,
+                  p.international ? 'international' : null,
+                ].filter(Boolean).join(' · '),
+                warn: !p.free || (p.handling != null && p.handling < 3),
+              }))} />
             <Pick label="Payment" value={choice.payment}
               onChange={(v) => setChoice((c) => ({ ...c, payment: v }))}
               options={(pre.payment ?? []).map((p) => ({ value: p.id, label: p.name }))} />
             <Pick label="Returns" value={choice.return}
               onChange={(v) => setChoice((c) => ({ ...c, return: v }))}
-              options={(pre.returns ?? []).map((p) => ({ value: p.id, label: p.name }))} />
+              options={(pre.returns ?? []).map((p) => ({
+                value: p.id,
+                label: [p.name, p.accepted && p.days ? `${p.days} days` : null].filter(Boolean).join(' · '),
+              }))} />
             <Pick label="Dispatch from" value={choice.location}
               onChange={(v) => setChoice((c) => ({ ...c, location: v }))}
-              options={(pre.locations ?? []).map((l) => ({ value: l.key, label: l.name ?? l.key }))} />
+              options={(pre.locations ?? []).map((l) => ({
+                value: l.key,
+                label: [l.name ?? l.key, l.where].filter(Boolean).join(' · '),
+                warn: l.country && l.country !== 'GB',
+              }))} />
           </div>
 
           <div className={styles.saveRow}>
@@ -206,7 +224,9 @@ function Pick({ label, value, onChange, options }) {
       {options.length ? (
         <select className={styles.select} value={value ?? ''} onChange={(e) => onChange(e.target.value)}>
           <option value="">Choose one</option>
-          {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>{o.warn ? `⚠ ${o.label}` : o.label}</option>
+          ))}
         </select>
       ) : (
         <span className={styles.pickNone}>
