@@ -321,7 +321,7 @@ function Pack({ row, base, tenantId, suppliers, onSource, onList }) {
                   value={a.entry?.proved ? `${a.entry.sold_lifetime} sold` : 'Unproven'}
                   label={a.entry?.proved
                     ? `in ${a.entry.age_days} days by a ${a.entry.seller_feedback} feedback seller`
-                    : 'no seller her size converting'}
+                    : 'no small seller converting'}
                 />
                 <Proof
                   icon="IconChart"

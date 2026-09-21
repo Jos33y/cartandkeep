@@ -344,11 +344,11 @@ export function CandidateRow({ candidate, onDecide, onClear, onNote, onSource, s
             <Line label="List at" value={formatGbp(m.sale_price)} sub={m.list_basis} />
             {m.list_trusted === false && (
               <Line label="Worth checking" value="the query may have found a different product"
-                sub="the price a seller her size gets and the market found do not sit together" />
+                sub="the small seller's price sits outside where most of the market sells" />
             )}
             {m.market_median != null && m.market_median !== m.sale_price && (
               <Line label="Market median" value={formatGbp(m.market_median)}
-                sub="what the market sells at, not what she can" />
+                sub="the middle of everyone listed, including those not selling" />
             )}
 
             {quoted ? (
