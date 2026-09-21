@@ -1,20 +1,36 @@
-.wrap { display: flex; flex-direction: column; gap: var(--s-3); }
+.wrap { display: flex; flex-direction: column; gap: var(--s-4); }
 
-.readout { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s-5); }
+.readout { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-5); }
 
-.label { font-size: var(--t-micro); color: var(--c-ink-faint); margin-bottom: var(--s-1); }
+.label {
+  display: block;
+  margin-bottom: var(--s-1);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
 
-.priceRow { display: flex; align-items: baseline; gap: 2px; }
+.priceRow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 2px 2px 2px var(--s-2);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-base);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.priceRow:focus-within { border-color: var(--c-action-strong); box-shadow: 0 0 0 3px var(--c-action-wash); }
 
 .currency { font-family: var(--font-data); font-size: var(--t-figure); color: var(--c-ink-faint); }
 
-/* Typed or dragged. The figure is the field, so it reads as a number on the
-   page rather than as a form control sitting on one. */
 .input {
-  width: 6ch;
+  width: 5.5ch;
   padding: 0;
   border: none;
-  border-bottom: 1px solid var(--c-line-mid);
   background: none;
   font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
@@ -22,82 +38,134 @@
   font-weight: 500;
   letter-spacing: -0.02em;
   color: var(--c-ink);
-  transition: border-color var(--dur) var(--ease);
 }
 
-.input:hover { border-color: var(--c-control); }
-.input:focus { outline: none; border-color: var(--c-action-strong); }
+.input:focus { outline: none; }
 .input::-webkit-outer-spin-button, .input::-webkit-inner-spin-button { appearance: none; margin: 0; }
 
-.keepBox { text-align: right; }
-.keep { color: var(--c-positive); font-size: var(--t-figure); line-height: 1; }
-.loss { color: var(--c-negative); }
+/* 50p either way. Dragging is for finding the neighbourhood, these are for
+   landing on a price. */
+.step {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-sm);
+  color: var(--c-ink-faint);
+  font-size: 15px;
+  line-height: 1;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
 
+.step:hover { background: var(--c-sunk); color: var(--c-ink); }
+
+.keepBox { text-align: right; }
+.keep { display: block; color: var(--c-positive); font-size: var(--t-figure); line-height: 1; }
+.loss { color: var(--c-negative); }
+.keepFoot { display: block; margin-top: 2px; font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+/* A control, not a hairline. 44px of hit area, a rail you can see, and a thumb
+   with a shadow so it reads as sitting on top of it. */
 .track {
   position: relative;
-  height: 34px;
-  cursor: ew-resize;
+  height: 44px;
+  margin-top: var(--s-4);
+  cursor: grab;
   touch-action: none;
 }
 
-.track:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; border-radius: var(--r-sm); }
+.trackOn { cursor: grabbing; }
+.track:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 4px; border-radius: var(--r-sm); }
 
 .rail {
   position: absolute;
-  inset: 16px 0 auto 0;
-  height: 2px;
+  inset: 19px 0 auto 0;
+  height: 6px;
   border-radius: var(--r-full);
-  background: var(--c-line);
+  background: var(--c-sunk);
+  border: 1px solid var(--c-line);
+  overflow: hidden;
 }
 
-/* The interquartile range. Outside it is a price nobody is charging. */
+/* Where most of the field sits. Outside it is a price nobody is charging. */
 .body {
   position: absolute;
-  top: 11px;
-  height: 12px;
-  border-radius: var(--r-sm);
+  inset: 0 auto 0 0;
   background: var(--c-line-mid);
+}
+
+.fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--c-action-wash);
 }
 
 .median {
   position: absolute;
-  top: 8px;
+  top: 14px;
   width: 1px;
-  height: 18px;
+  height: 16px;
+  margin-left: -0.5px;
   background: var(--c-ink-faint);
 }
 
-/* The one price somebody her size has actually been paid. */
-.proof { position: absolute; top: 9px; transform: translateX(-50%); }
+.tickLabel {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+  white-space: nowrap;
+}
 
-.proofDot {
-  display: block;
+/* The one price somebody her size has actually been paid. */
+.proof {
+  position: absolute;
+  top: 17px;
   width: 10px;
   height: 10px;
+  margin-left: -5px;
   border-radius: var(--r-full);
   background: var(--c-positive);
   box-shadow: 0 0 0 3px var(--c-positive-wash);
 }
 
-.handle {
+.thumb {
   position: absolute;
-  top: 5px;
-  width: 4px;
-  height: 24px;
-  margin-left: -2px;
+  top: 11px;
+  width: 22px;
+  height: 22px;
+  margin-left: -11px;
   border-radius: var(--r-full);
-  background: var(--c-action-strong);
-  box-shadow: var(--e-1);
+  background: var(--c-surface);
+  border: 2px solid var(--c-action-strong);
+  box-shadow: var(--e-2);
   transition: transform var(--dur) var(--ease);
 }
 
-.handle::after {
+.thumb::after {
   content: '';
   position: absolute;
-  inset: -8px -10px;
+  inset: 5px;
+  border-radius: var(--r-full);
+  background: var(--c-action-strong);
 }
 
-.handleOn { transform: scaleY(1.15); }
+.thumbOn { transform: scale(1.12); }
+
+/* The value rides with the thumb, so the number and the position are never
+   read separately. */
+.bubble {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--c-ink);
+  color: var(--c-base);
+  font-size: var(--t-micro);
+  white-space: nowrap;
+}
 
 .legend {
   display: flex;
@@ -108,7 +176,9 @@
   color: var(--c-ink-faint);
 }
 
-.legendMid { color: var(--c-ink-soft); }
+.legendMid { color: var(--c-ink-soft); font-family: var(--font-ui); }
+
+.outside { font-size: var(--t-caption); color: var(--c-warning); }
 
 .suggest {
   display: flex;
@@ -120,25 +190,12 @@
   border-top: 1px solid var(--c-line);
 }
 
-.suggestNote {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  font-size: var(--t-caption);
-  color: var(--c-ink-soft);
-}
-
-.proofKey {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--r-full);
-  background: var(--c-positive);
-}
-
+.suggestNote { display: flex; align-items: center; gap: var(--s-2); font-size: var(--t-caption); color: var(--c-ink-soft); }
+.proofKey { width: 8px; height: 8px; border-radius: var(--r-full); background: var(--c-positive); }
 .suggestButtons { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 
 .chip {
-  min-height: 28px;
+  min-height: 30px;
   padding: 0 var(--s-3);
   border: 1px solid var(--c-line-mid);
   border-radius: var(--r-full);
@@ -156,5 +213,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .handle, .chip, .input { transition: none; }
+  .thumb, .chip, .step, .priceRow { transition: none; }
 }

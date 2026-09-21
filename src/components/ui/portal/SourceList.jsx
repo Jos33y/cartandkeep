@@ -29,7 +29,7 @@ const display = (name, suppliers) => {
 // months in transit is an account risk before it is a slow one.
 const SLOW_DAYS = 30;
 
-export function SourceList({ candidate, onAdd, suppliers = [] }) {
+export function SourceList({ candidate, onAdd, suppliers = [], compact = false }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
@@ -85,16 +85,15 @@ export function SourceList({ candidate, onAdd, suppliers = [] }) {
   return (
     <div className={styles.wrap}>
       <div className={styles.head}>
-        <p className="micro">Where it comes from</p>
+        {/* Inside a card that already names the shop and its price, a heading
+            and a sentence saying the same thing is the same fact twice. */}
+        {!compact && <p className="micro">Where it comes from</p>}
         <button className={styles.add} onClick={() => setOpen((v) => !v)}>
-          {open ? 'Cancel' : 'Add a supplier'}
+          {open ? 'Cancel' : compact ? 'Found it cheaper elsewhere?' : 'Add a supplier'}
         </button>
       </div>
 
-      {/* A shelf price is a goods cost. Saying there is no supplier while the
-          card shows Home Bargains and £4.99 two lines above contradicts itself,
-          and the figure above is profit, not headroom. */}
-      {sources.length === 0 && !open && (
+      {!compact && sources.length === 0 && !open && (
         shelf?.shop ? (
           <p className={styles.none}>
             Priced off the shelf at {shelf.shop}

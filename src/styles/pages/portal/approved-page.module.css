@@ -1,12 +1,3 @@
-/*
- * A queue, and a workbench.
- *
- * Closed, a row is the product and what it makes. Open, it is a working area:
- * the price and the search tile side by side, because those are the two
- * decisions, then the listing, then everything already settled kept quiet
- * underneath.
- */
-
 .page { display: flex; flex-direction: column; gap: var(--s-5); }
 
 .head {
@@ -15,16 +6,67 @@
   justify-content: space-between;
   gap: var(--s-6);
   flex-wrap: wrap;
-  padding-bottom: var(--s-4);
-  border-bottom: 1px solid var(--c-line);
 }
 
-.head > div > p:first-child { margin-bottom: var(--s-2); }
+.headText > p:first-child { margin-bottom: var(--s-2); }
 .title { font-size: 2rem; letter-spacing: -0.025em; font-weight: 560; }
-.headStats { display: flex; gap: var(--s-6); }
 
-.tools { display: flex; align-items: center; gap: var(--s-3); }
-.findWrap { position: relative; flex: 1; max-width: 280px; }
+/* The one figure the page answers for, with what it is measured on beside it. */
+.worth { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+
+.worthLabel {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.worthValue { color: var(--c-positive); margin-top: 2px; }
+.worthFoot { margin-top: var(--s-1); font-size: var(--t-micro); color: var(--c-ink-faint); line-height: var(--lh-snug); }
+
+.states {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  padding: var(--s-2);
+  border-radius: var(--r-lg);
+  background: var(--c-sunk);
+}
+
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 36px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-md);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.state:hover { background: var(--c-raised); color: var(--c-ink); }
+.stateOn { background: var(--c-surface); color: var(--c-ink); box-shadow: var(--e-1); }
+
+.stateIcon { width: 15px; height: 15px; }
+.state.positive .stateIcon { color: var(--c-positive); }
+.state.warning .stateIcon { color: var(--c-warning); }
+
+.stateCount {
+  min-width: 22px;
+  padding: 1px 6px;
+  border-radius: var(--r-full);
+  background: var(--c-base);
+  font-size: var(--t-micro);
+  text-align: center;
+  color: var(--c-ink-faint);
+}
+
+.stateOn .stateCount { background: var(--c-sunk); color: var(--c-ink); }
+
+.findWrap { position: relative; margin-left: auto; width: 200px; }
 
 .findIcon {
   position: absolute;
@@ -41,52 +83,52 @@
   width: 100%;
   min-height: 36px;
   padding: 0 var(--s-3) 0 calc(var(--s-3) + 20px);
-  border: 1px solid var(--c-line-mid);
+  border: 1px solid transparent;
   border-radius: var(--r-md);
   background: var(--c-surface);
   font-size: var(--t-label);
+  transition: border-color var(--dur) var(--ease);
 }
 
 .find:focus { outline: none; border-color: var(--c-control); }
-.count { font-size: var(--t-caption); color: var(--c-ink-faint); }
 .quiet { font-size: var(--t-caption); color: var(--c-ink-faint); }
 
 .list { display: flex; flex-direction: column; gap: var(--s-2); }
 
-/* A closed row is a line. An open one is a panel, and lifting it off the canvas
-   is what says the rest of the list is parked. */
 .pack {
+  position: relative;
   border: 1px solid var(--c-line);
   border-radius: var(--r-lg);
   background: var(--c-surface);
+  overflow: hidden;
   transition: box-shadow var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 
 .pack:hover { border-color: var(--c-line-mid); }
-
-.packOpen {
-  border-color: var(--c-line-mid);
-  box-shadow: var(--e-2);
-}
+.packOpen { border-color: var(--c-line-mid); box-shadow: var(--e-2); }
 
 .top {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) auto 16px;
+  grid-template-columns: 56px minmax(0, 1fr) 96px 104px 16px;
   align-items: center;
   gap: var(--s-4);
-  padding: var(--s-4);
+  padding: var(--s-3) var(--s-4) var(--s-3) var(--s-5);
   cursor: pointer;
-  border-radius: var(--r-lg);
   transition: background var(--dur) var(--ease);
 }
 
 .top:hover { background: var(--c-raised); }
 .top:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: -2px; }
 
+/* State at the left edge, read down the list before any row is read across. */
+.rail { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.rail.ready { background: var(--c-positive); }
+.rail.check { background: var(--c-warning); }
+
 .thumb {
   display: block;
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
   padding: 3px;
   overflow: hidden;
   border-radius: var(--r-md);
@@ -101,27 +143,36 @@
 .subject { min-width: 0; }
 
 .name {
-  font-size: var(--t-lead);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--t-body);
   font-weight: 500;
   letter-spacing: -0.01em;
-  line-height: var(--lh-snug);
 }
 
 .evidence {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  margin-top: var(--s-2);
+  gap: var(--s-2);
+  margin-top: var(--s-1);
   font-size: var(--t-caption);
-  color: var(--c-ink-faint);
-  line-height: var(--lh-snug);
+  color: var(--c-ink-soft);
 }
 
-.warnCount { color: var(--c-warning); }
-.sep { margin: 0 var(--s-2); color: var(--c-line-strong); }
+.evIcon { width: 13px; height: 13px; color: var(--c-positive); }
+.evIconWarn { width: 13px; height: 13px; color: var(--c-warning); }
+
+.warnCount {
+  padding: 1px var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--c-warning-wash);
+  color: var(--c-warning);
+  font-size: var(--t-micro);
+}
 
 .editedTag {
-  margin-left: var(--s-2);
   padding: 1px var(--s-2);
   border-radius: var(--r-sm);
   background: var(--c-action-wash);
@@ -129,10 +180,12 @@
   font-size: var(--t-micro);
 }
 
-.keep { display: flex; flex-direction: column; align-items: flex-end; text-align: right; white-space: nowrap; }
-.keep .figure { color: var(--c-ink); font-size: var(--t-figure); line-height: 1; }
+.figures { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+
+.figLabel { font-size: var(--t-micro); color: var(--c-ink-faint); }
+.figPrice { margin-top: 2px; font-size: var(--t-body); color: var(--c-ink-soft); }
+.figKeep { margin-top: 2px; color: var(--c-positive); font-size: var(--t-lead); line-height: 1.1; }
 .loss { color: var(--c-negative); }
-.keepLabel { margin-top: var(--s-1); font-size: var(--t-caption); color: var(--c-ink-faint); }
 
 .caret {
   display: flex;
@@ -144,8 +197,6 @@
 
 .caret[data-open] { transform: rotate(180deg); }
 
-/* The workbench. On a sunk surface so the cards inside it read as things on a
-   desk rather than as more of the same page. */
 .work {
   display: flex;
   flex-direction: column;
@@ -153,85 +204,158 @@
   padding: var(--s-4);
   border-top: 1px solid var(--c-line);
   background: var(--c-sunk);
-  border-radius: 0 0 var(--r-lg) var(--r-lg);
   animation: rise var(--dur-settle) var(--ease-out) both;
 }
 
-/* Price and tile together: the change and its consequence. Splitting them
-   across a scroll is why the price felt like a number rather than a decision. */
-.deck {
+.notice {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--c-warning-wash);
+  color: var(--c-warning);
+  font-size: var(--t-caption);
+}
+
+.noticeIcon { width: 14px; height: 14px; flex-shrink: 0; }
+
+.deck, .case {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
   gap: var(--s-4);
   align-items: start;
 }
 
-.draftState { display: inline-flex; align-items: center; gap: var(--s-2); font-size: var(--t-micro); color: var(--c-ink-faint); }
+.proofs { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-4); }
 
-.revert {
-  color: var(--c-action-text);
-  font-size: var(--t-micro);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.proof { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+
+.proofIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-bottom: var(--s-2);
+  border-radius: var(--r-md);
+  background: var(--c-sunk);
+  color: var(--c-ink-soft);
 }
 
-/* Settled, so it recedes. */
-.context { background: var(--c-base); }
-.contextGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--s-5); }
+.proofIcon.positive { background: var(--c-positive-wash); color: var(--c-positive); }
+.proofIcon.warning { background: var(--c-warning-wash); color: var(--c-warning); }
+.proofGlyph { width: 15px; height: 15px; }
 
-.contextHead {
-  margin-bottom: var(--s-3);
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--c-ink-faint);
-}
+.proofValue { color: var(--c-ink); font-size: var(--t-lead); line-height: 1.1; }
+.proofLabel { font-size: var(--t-micro); color: var(--c-ink-faint); line-height: var(--lh-snug); }
 
-.sum { margin-top: var(--s-3); max-width: 46ch; font-size: var(--t-caption); color: var(--c-ink-soft); line-height: var(--lh-body); }
+.divider { height: 1px; margin: var(--s-4) 0; background: var(--c-line); }
 
-.warnings {
-  margin-top: var(--s-3);
-  padding-left: var(--s-3);
-  border-left: 2px solid var(--c-warning);
-}
+.caseHead { margin-bottom: var(--s-3); font-size: var(--t-caption); font-weight: 500; color: var(--c-ink-soft); }
 
-.warnings li { font-size: var(--t-caption); color: var(--c-ink-soft); line-height: var(--lh-snug); }
-.warnings li + li { margin-top: var(--s-2); }
+.warnings { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-4); }
 
-.source { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--s-2) var(--s-3); margin-bottom: var(--s-3); }
-
-.sourceLink {
-  padding: 3px var(--s-3);
-  border: 1px solid var(--c-positive);
-  border-radius: var(--r-sm);
-  font-family: var(--font-data);
+.warnings li {
+  display: flex;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-warning-wash);
   font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+  line-height: var(--lh-snug);
+}
+
+.warnIcon { width: 13px; height: 13px; flex-shrink: 0; margin-top: 2px; color: var(--c-warning); }
+
+.decided { margin-top: var(--s-3); font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+/* The shop as a destination, not a label. Two columns only: what and where on
+   the left, the price on the right. A third column for the icon took the stock
+   line with it and crushed it into sixteen pixels. */
+.shop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-base);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+a.shop:hover { border-color: var(--c-positive); box-shadow: var(--e-1); }
+
+.shopMain { display: flex; flex-direction: column; gap: var(--s-1); min-width: 0; }
+
+.shopName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-body);
   font-weight: 500;
   color: var(--c-ink);
-  text-decoration: none;
 }
 
-a.sourceLink:hover { background: var(--c-sunk); }
-.inStock { font-size: var(--t-micro); color: var(--c-positive); }
-.alsoTry { margin-bottom: var(--s-3); font-size: var(--t-micro); color: var(--c-ink-faint); }
-.facts { font-size: var(--t-micro); color: var(--c-ink-faint); }
+.shopOut { width: 13px; height: 13px; color: var(--c-ink-faint); transition: color var(--dur) var(--ease); }
+a.shop:hover .shopOut { color: var(--c-positive); }
 
-/* One action, at the foot, with the two figures it acts on beside it. */
+.shopMeta { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-3); font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+.shopPrice {
+  flex-shrink: 0;
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-figure);
+  font-weight: 500;
+  color: var(--c-ink);
+}
+
+.dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: var(--r-full);
+  background: currentColor;
+  vertical-align: 1px;
+}
+
+.inStock { color: var(--c-positive); }
+.outStock { color: var(--c-negative); }
+
+.alts { display: flex; flex-direction: column; gap: var(--s-2); margin: var(--s-4) 0; }
+.altsLabel { font-size: var(--t-micro); color: var(--c-ink-faint); }
+.altsList { display: flex; flex-wrap: wrap; gap: var(--s-1); }
+
+.alt {
+  padding: 2px var(--s-2);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-sm);
+  font-size: var(--t-micro);
+  color: var(--c-ink-soft);
+}
+
+.draftState { display: inline-flex; align-items: center; gap: var(--s-3); font-size: var(--t-micro); color: var(--c-ink-faint); }
+.revert { color: var(--c-action-text); font-size: var(--t-micro); text-decoration: underline; text-underline-offset: 3px; }
+
 .bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--s-5);
+  gap: var(--s-4);
   flex-wrap: wrap;
-  padding: var(--s-4);
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
   border-radius: var(--r-md);
   background: var(--c-surface);
   border: 1px solid var(--c-line);
 }
 
-.barFigures { display: flex; gap: var(--s-6); }
-.barActions { display: flex; align-items: center; gap: var(--s-4); margin-left: auto; }
+.barNote { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; font-size: var(--t-caption); color: var(--c-ink-soft); }
 
 .primary {
   display: inline-flex;
@@ -250,7 +374,7 @@ a.sourceLink:hover { background: var(--c-sunk); }
 
 .primary:hover:not(:disabled) { filter: brightness(0.93); }
 .primary:active:not(:disabled) { transform: translateY(1px); }
-.primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .ghost {
   min-height: var(--tap);
@@ -266,36 +390,48 @@ a.sourceLink:hover { background: var(--c-sunk); }
 .ghost:hover { background: var(--c-sunk); }
 .btnIcon { width: 15px; height: 15px; }
 
-.reference {
-  font-size: var(--t-caption);
-  color: var(--c-action-text);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
+.reference { color: var(--c-action-text); text-decoration: underline; text-underline-offset: 3px; }
 .problem { font-size: var(--t-caption); color: var(--c-negative); line-height: var(--lh-snug); }
 
 .confirm { border-color: var(--c-action-strong); }
-.confirmTitle { margin-top: var(--s-4); font-size: var(--t-label); color: var(--c-ink); line-height: var(--lh-snug); }
-.confirmActions { display: flex; gap: var(--s-2); margin-top: var(--s-4); }
 
-@media (max-width: 900px) {
-  .deck { grid-template-columns: 1fr; }
+.confirmGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--c-sunk);
+}
+
+.confirmItem { display: flex; flex-direction: column; gap: 2px; }
+.confirmLabel { font-size: var(--t-micro); color: var(--c-ink-faint); }
+.confirmValue { font-size: var(--t-body); color: var(--c-ink); }
+.confirmValue.positive { color: var(--c-positive); }
+.confirmSub { font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+.confirmTitle { margin-top: var(--s-4); font-size: var(--t-label); color: var(--c-ink); line-height: var(--lh-snug); }
+.confirmActions { display: flex; justify-content: flex-end; gap: var(--s-2); margin-top: var(--s-4); }
+
+@media (max-width: 960px) {
+  .deck, .case { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) {
-  .head { align-items: flex-start; gap: var(--s-4); }
   .title { font-size: 1.625rem; }
-  .top { grid-template-columns: 52px minmax(0, 1fr) 16px; gap: var(--s-3); padding: var(--s-3); }
-  .thumb { width: 52px; height: 52px; }
-  .keep { grid-column: 1 / -1; flex-direction: row; align-items: baseline; gap: var(--s-2); margin-top: var(--s-2); }
+  .worth { align-items: flex-start; text-align: left; }
+  .findWrap { width: 100%; margin-left: 0; }
+  .top { grid-template-columns: 48px minmax(0, 1fr) auto 16px; gap: var(--s-3); padding-left: var(--s-4); }
+  .top > .figures:nth-of-type(1) { display: none; }
+  .thumb { width: 48px; height: 48px; }
+  .name { white-space: normal; }
   .work { padding: var(--s-3); }
+  .proofs { grid-template-columns: 1fr; }
   .bar { flex-direction: column; align-items: stretch; }
-  .barActions { margin-left: 0; justify-content: space-between; }
-  .primary { flex: 1; justify-content: center; }
+  .primary { justify-content: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .top, .caret, .pack, .primary, .ghost { transition: none; }
+  .top, .caret, .pack, .primary, .ghost, .state, .shop { transition: none; }
   .work { animation: none; }
 }

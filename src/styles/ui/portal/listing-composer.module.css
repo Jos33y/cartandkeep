@@ -138,3 +138,57 @@
   .input, .area, .ghost, .option, .shot, .makeLead { transition: none; }
   .spin { animation: none; }
 }
+
+/* Out, but not gone. A photograph removed by accident should be one click from
+   coming back, not a reset of the whole draft. */
+.shotOut { opacity: 0.4; border-style: dashed; cursor: default; }
+.shotOut:hover { opacity: 0.75; }
+
+.remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-full);
+  background: rgba(42, 39, 35, 0.72);
+  color: var(--c-base);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.shot:hover .remove, .remove:focus-visible { opacity: 1; }
+.removeIcon { width: 11px; height: 11px; }
+
+.restore {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 3px 0;
+  background: var(--c-ink);
+  color: var(--c-base);
+  font-size: var(--t-micro);
+}
+
+.areaWrap { position: relative; }
+
+/* A fade rather than a hard cut, so it is obvious there is more below. */
+.areaClipped::after {
+  content: '';
+  position: absolute;
+  inset: auto 1px 1px 1px;
+  height: 56px;
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  background: linear-gradient(to bottom, transparent, var(--c-sunk));
+  pointer-events: none;
+}
+
+.expand {
+  align-self: flex-start;
+  font-size: var(--t-micro);
+  color: var(--c-action-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
