@@ -21,7 +21,7 @@
 .page {
   display: flex;
   flex-direction: column;
-  max-width: 1000px;
+  max-width: 1120px;
 }
 
 .head {
@@ -306,4 +306,158 @@
 
 @media (prefers-reduced-motion: reduce) {
   .control, .button { transition: none; }
+}
+
+
+/* --- the frame ---------------------------------------------------------- */
+
+/* A long page needs a way through it. Sections were one column of equal
+   blocks with nothing saying where you were or what was left to fill. */
+.layout {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: var(--s-6);
+  align-items: start;
+}
+
+.nav {
+  position: sticky;
+  top: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 36px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-md);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  text-decoration: none;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.navItem:hover { background: var(--c-sunk); color: var(--c-ink); }
+
+.navOn {
+  background: var(--c-surface);
+  color: var(--c-ink);
+  box-shadow: var(--e-1);
+}
+
+.navIcon { width: 15px; height: 15px; }
+
+.sections { display: flex; flex-direction: column; gap: var(--s-4); min-width: 0; }
+
+/* Cards on the canvas. The hairline between sections read as one document
+   rather than as separate things she can finish one at a time. */
+.section, .anchor .block {
+  scroll-margin-top: var(--s-5);
+  padding: var(--s-5);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--e-1);
+}
+
+.anchor { display: flex; flex-direction: column; gap: var(--s-4); scroll-margin-top: var(--s-5); }
+
+/* StoreSettings keeps its two column block, now inside a card. */
+.anchor .block { border-top: 1px solid var(--c-line); gap: var(--s-6); }
+.anchor .aside { top: var(--s-5); }
+
+.sectionHead { margin-bottom: var(--s-4); }
+.sectionTitle { font-size: var(--t-lead); font-weight: 560; letter-spacing: -0.01em; }
+.sectionNote { margin-top: 2px; font-size: var(--t-caption); color: var(--c-ink-faint); max-width: 60ch; }
+.sectionBody { display: flex; flex-direction: column; gap: var(--s-4); }
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-sunk);
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-full);
+  background: var(--c-ink);
+  color: var(--c-base);
+  font-weight: 500;
+}
+
+.identityText { display: flex; flex-direction: column; min-width: 0; }
+.identityEmail { font-size: var(--t-body); color: var(--c-ink); overflow: hidden; text-overflow: ellipsis; }
+.identityRole { font-size: var(--t-micro); color: var(--c-ink-faint); text-transform: capitalize; }
+
+.saveHint { margin-left: auto; font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+/* A channel is a thing that is connected or not, so each gets its own tile. */
+.channel {
+  padding: var(--s-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-base);
+}
+
+.channelSoon { opacity: 0.6; }
+.channelHead { display: flex; align-items: baseline; gap: var(--s-3); margin-bottom: var(--s-3); }
+.channelSoon .channelHead { margin-bottom: 0; }
+.channelMark { font-size: var(--t-body); font-weight: 600; color: var(--c-ink); }
+.channelNote { font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+.rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-3); }
+
+.rule {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--c-sunk);
+}
+
+.ruleLabel { font-size: var(--t-micro); color: var(--c-ink-faint); }
+.ruleValue { font-family: var(--font-data); font-size: var(--t-body); color: var(--c-ink); }
+.ruleNote { font-size: var(--t-micro); color: var(--c-ink-faint); line-height: var(--lh-snug); }
+
+.meta { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-6); padding-top: var(--s-2); }
+.metaItem { display: flex; flex-direction: column; gap: 2px; }
+.metaLabel { font-size: var(--t-micro); color: var(--c-ink-faint); }
+.metaValue { font-size: var(--t-label); color: var(--c-ink); }
+
+.cats { display: flex; flex-direction: column; gap: var(--s-2); padding-top: var(--s-3); border-top: 1px solid var(--c-line); }
+.catsLabel { font-size: var(--t-micro); color: var(--c-ink-faint); }
+.catsNote { font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-sticky);
+    flex-direction: row;
+    overflow-x: auto;
+    padding: var(--s-2) 0;
+    background: var(--c-base);
+  }
+
+  .navItem { white-space: nowrap; }
+  .rules { grid-template-columns: 1fr; }
+  .saveHint { margin-left: 0; flex-basis: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navItem { transition: none; }
 }

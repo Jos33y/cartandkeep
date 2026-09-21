@@ -38,6 +38,7 @@ export function EbayConnection({ tenantId }) {
     });
     if (error) return setState({ status: 'error', message: error.message });
     setState({ status: 'ready', ...data });
+    if (data?.settings) setChoice((c) => ({ ...data.settings, ...c }));
   }, [tenantId]);
 
   useEffect(() => { check(); }, [check]);
@@ -117,6 +118,16 @@ export function EbayConnection({ tenantId }) {
       {state.connected && lapses && (
         <p className={styles.quiet}>
           Good until {lapses}. eBay expires it then and it has to be granted again.
+        </p>
+      )}
+
+      {/* Saved choices, shown without having to run the check. Only the ids are
+          stored, so names appear once the check has read them from eBay. */}
+      {state.connected && !pre && (
+        <p className={state.settings ? styles.savedOk : styles.savedNone}>
+          {state.settings
+            ? 'Listing policies are saved. Run the check to see or change them.'
+            : 'No listing policies saved yet. Run the check and choose them before listing.'}
         </p>
       )}
 

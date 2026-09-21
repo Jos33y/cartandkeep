@@ -27,6 +27,22 @@ const COLUMNS = [
 const ROWS = [{}, {}, {}, {}];
 
 const band = (b) => (b ?? '').replace(/_/g, ' ');
+
+const slugify = (s) => String(s ?? '')
+  .toLowerCase()
+  .replace(/&/g, ' and ')
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '')
+  .slice(0, 60);
+
+// Stripe rather than eBay. Same shape as store_product_margin, tenant rates
+// first and the defaults it falls back to otherwise.
+function storeKeep(price, fees, goods, postage) {
+  if (price == null || goods == null) return null;
+  const pct = fees?.store?.pct ?? 0.015;
+  const fixed = fees?.store?.fixed ?? 0.2;
+  return Math.round((price - (price * pct + fixed) - goods - (postage ?? 0)) * 100) / 100;
+}
 const thumb = (url) => (url ? url.replace(/\/s-l\d+\./, '/s-l225.') : null);
 const BLENDED = 10;
 
@@ -97,7 +113,7 @@ export function ApprovedPage() {
   const [tenant, setTenant] = useState(undefined);
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
-  const { status, rows, addSource, list } = useApproved(tenant?.id);
+  const { status, rows, addSource, list, addToShop } = useApproved(tenant?.id);
   const { suppliers, remember } = useSuppliers(tenant?.id);
   const [find, setFind] = useState('');
   const [only, setOnly] = useState(null);
@@ -180,8 +196,10 @@ export function ApprovedPage() {
             row={row}
             base={a}
             tenantId={tenant.id}
+            fees={tenant.fees}
             suppliers={suppliers}
             onList={(opts) => list({ candidateId: row.id, ...opts })}
+            onShop={(product) => addToShop({ candidateId: row.id, product })}
             onSource={async (fields) => {
               await addSource({ candidateId: row.id, tenantId: tenant.id, ...fields });
               await remember({ tenantId: tenant.id, name: fields.supplier, country: fields.ships_from });
@@ -208,12 +226,13 @@ function StateTab({ id, only, setOnly, icon, label, count, tone }) {
   );
 }
 
-function Pack({ row, base, tenantId, suppliers, onSource, onList }) {
+function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }) {
   const [open, setOpen] = useState(false);
   const [zoomed, setZoomed] = useState(false);
   const [confirm, setConfirm] = useState(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
+  const [shopping, setShopping] = useState(false);
 
   const { draft, change, revert, generate, saving, edited } = useDraft(row, tenantId);
 
@@ -221,6 +240,36 @@ function Pack({ row, base, tenantId, suppliers, onSource, onList }) {
   const a = useMemo(() => assess({ ...row, draft }), [row, draft]);
   const hero = a.images[0] ?? row.image_url;
   const status = a.ready ? 'ready' : 'check';
+
+  const inShop = (row.store_products ?? [])[0] ?? null;
+  const shopKeep = storeKeep(a.price, fees, a.goods, a.postage);
+
+  async function sendToShop() {
+    setShopping(true);
+    setProblem(null);
+    try {
+      await onShop({
+        slug: `${slugify(a.title)}-${String(row.id).slice(0, 6)}`,
+        title: a.title,
+        description: draft.description ?? a.l?.description ?? null,
+        price: a.price,
+        image_url: a.images[0] ?? null,
+        images: a.images,
+        brand: a.l?.brand ?? null,
+        category: a.l?.shop_category ?? null,
+        postage_band: a.m.headroom_band ?? null,
+        landed_cost: a.goods,
+        postage_cost: a.postage,
+        cost_note: a.best ? `Shelf price at ${a.best.supplier}` : null,
+        cost_updated_at: new Date().toISOString(),
+        source_ref: row.id,
+      });
+    } catch (e) {
+      setProblem(e.message);
+    } finally {
+      setShopping(false);
+    }
+  }
 
   return (
     <article className={`${styles.pack} ${open ? styles.packOpen : ''}`}>
@@ -425,6 +474,23 @@ function Pack({ row, base, tenantId, suppliers, onSource, onList }) {
                     target="_blank" rel="noreferrer noopener">See the listing this came from</a>
                 )}
               </p>
+
+              {/* Same price, different arithmetic: no eBay fee or ad rate on her
+                  own shop, only the card fee. */}
+              {inShop ? (
+                <span className={styles.inShop}>
+                  <Icon name="IconCheck" className={styles.btnIcon} />
+                  On your shop as a {inShop.status}
+                </span>
+              ) : (
+                <button className={styles.ghost} disabled={shopping || a.goods == null}
+                  onClick={sendToShop}>
+                  <Icon name="IconShop" className={styles.btnIcon} />
+                  {shopping ? 'Adding' : shopKeep != null
+                    ? `Add to your shop · keep ${formatGbp(shopKeep)}`
+                    : 'Add to your shop'}
+                </button>
+              )}
 
               <button className={styles.primary} disabled={busy || a.keep == null || a.keep < 0}
                 onClick={async () => {

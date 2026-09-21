@@ -4,20 +4,33 @@ import { loadTenant } from '@lib/tenant';
 import { useAccount } from '@hooks/useAccount';
 import { StoreSettings } from '@components/ui/portal/StoreSettings';
 import { EbayConnection } from '@components/ui/portal/EbayConnection';
+import { Icon } from '@components/ui/icons';
 import styles from '@styles/pages/portal/settings-page.module.css';
 
-const pct = (n) => `${Math.round(n * 100)}%`;
+const SECTIONS = [
+  { id: 'you', label: 'You', icon: 'IconPeople' },
+  { id: 'shop', label: 'Your shop', icon: 'IconShop' },
+  { id: 'channels', label: 'Channels', icon: 'IconTag' },
+  { id: 'rules', label: 'How we choose', icon: 'IconLayers' },
+];
+
+// From gate.js. These are what actually refuses a product, not the composite
+// score the old pipeline used.
+const RULES = [
+  { label: 'You keep at least', value: '£2.00 a sale', note: 'After fees, postage, packaging and goods' },
+  { label: 'Competing listings', value: 'at most 250', note: 'Above this, page one costs more than the ad rate allows' },
+  { label: 'Market volume', value: 'at least 10 a month', note: 'Below this a listing is not worth the slot' },
+  { label: 'A seller your size', value: 'under 1,000 feedback', note: 'Has to be converting for a product to count as proven' },
+];
 
 export function SettingsPage() {
   const account = useAccount();
   const [tenant, setTenant] = useState(null);
   const [name, setName] = useState('');
-  // What came back from the server, so the save can tell whether anything
-  // changed. Without it this button is terracotta permanently, and terracotta
-  // that is always on marks nothing.
   const [savedName, setSavedName] = useState('');
   const [saved, setSaved] = useState('');
   const [busy, setBusy] = useState(false);
+  const [active, setActive] = useState('you');
 
   useEffect(() => { loadTenant().then(setTenant); }, []);
 
@@ -29,6 +42,24 @@ export function SettingsPage() {
     });
   }, []);
 
+  // The nav follows the page, so it says where you are rather than where you
+  // last clicked.
+  useEffect(() => {
+    const seen = new IntersectionObserver(
+      (entries) => {
+        const top = entries.filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (top) setActive(top.target.id);
+      },
+      { rootMargin: '-20% 0px -65% 0px' },
+    );
+    SECTIONS.forEach((s) => {
+      const el = document.getElementById(s.id);
+      if (el) seen.observe(el);
+    });
+    return () => seen.disconnect();
+  }, [tenant]);
+
   async function saveName() {
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ data: { full_name: name.trim() } });
@@ -37,154 +68,140 @@ export function SettingsPage() {
     setSaved(error ? 'Could not save that. Try again.' : 'Saved');
   }
 
-  const gates = tenant?.scoring?.gates ?? {};
   const research = tenant?.research ?? {};
   const categories = research.categories ?? [];
   const excluded = research.exclude?.terms ?? [];
+  const initial = (account.email ?? '?')[0].toUpperCase();
 
   return (
     <div className={styles.page}>
       <header className={styles.head}>
-        <p className={styles.eyebrow}>Settings</p>
+        <p className={styles.eyebrow}>Account</p>
         <h1 className={styles.title}>Settings</h1>
       </header>
 
-      <Block title="You" note="How you appear to us, and how you sign in.">
-        <div className={styles.fields}>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="full-name">Name</label>
-            <span className={styles.control}>
-              <input
-                id="full-name"
-                className={styles.input}
-                value={name}
-                placeholder="How you want to be addressed"
-                onChange={(e) => { setName(e.target.value); setSaved(''); }}
-              />
-            </span>
+      <div className={styles.layout}>
+        <nav className={styles.nav} aria-label="Settings sections">
+          {SECTIONS.map((s) => (
+            <a key={s.id} href={`#${s.id}`}
+              className={`${styles.navItem} ${active === s.id ? styles.navOn : ''}`}
+              onClick={() => setActive(s.id)}>
+              <Icon name={s.icon} className={styles.navIcon} />
+              {s.label}
+            </a>
+          ))}
+        </nav>
+
+        <div className={styles.sections}>
+          <Section id="you" title="You" note="How you appear to us, and how you sign in.">
+            <div className={styles.identity}>
+              <span className={styles.avatar} aria-hidden="true">{initial}</span>
+              <div className={styles.identityText}>
+                <span className={styles.identityEmail}>{account.email}</span>
+                <span className={styles.identityRole}>{account.role}</span>
+              </div>
+            </div>
+
+            <div className={styles.fields}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="full-name">Name</label>
+                <span className={styles.control}>
+                  <input id="full-name" className={styles.input} value={name}
+                    placeholder="How you want to be addressed"
+                    onChange={(e) => { setName(e.target.value); setSaved(''); }} />
+                </span>
+              </div>
+            </div>
+
+            <div className={styles.save}>
+              <button type="button"
+                className={`${styles.button} ${!busy && name.trim() !== savedName ? styles.buttonReady : ''}`}
+                disabled={busy || name.trim() === savedName}
+                onClick={saveName}>
+                {busy ? 'Saving' : 'Save name'}
+              </button>
+              <span className={styles.saved} role="status">{saved}</span>
+              <span className={styles.saveHint}>Changing your email changes how you sign in, so ask us first.</span>
+            </div>
+          </Section>
+
+          <div id="shop" className={styles.anchor}>
+            <StoreSettings tenantId={tenant?.id} />
           </div>
+
+          <Section id="channels" title="Channels" note="Where approved products can be published from here.">
+            <div className={styles.channel}>
+              <div className={styles.channelHead}>
+                <span className={styles.channelMark}>eBay</span>
+                <span className={styles.channelNote}>Listing, traffic and order data</span>
+              </div>
+              <EbayConnection tenantId={tenant?.id} />
+            </div>
+
+            <div className={`${styles.channel} ${styles.channelSoon}`}>
+              <div className={styles.channelHead}>
+                <span className={styles.channelMark}>TikTok Shop</span>
+                <span className={styles.channelNote}>Not connected yet</span>
+              </div>
+            </div>
+          </Section>
+
+          <Section id="rules" title="How we choose"
+            note="Set by the studio. What a product has to clear before it reaches your queue.">
+            <dl className={styles.rules}>
+              {RULES.map((r) => (
+                <div key={r.label} className={styles.rule}>
+                  <dt className={styles.ruleLabel}>{r.label}</dt>
+                  <dd className={styles.ruleValue}>{r.value}</dd>
+                  <dd className={styles.ruleNote}>{r.note}</dd>
+                </div>
+              ))}
+            </dl>
+
+            <div className={styles.meta}>
+              <Meta label="Marketplace" value={tenant?.marketplace} />
+              <Meta label="Currency" value={tenant?.currency} />
+              <Meta label="Order references"
+                value={`${tenant?.store?.reference_prefix ?? 'CK'}-XXXX-XXXX`} mono />
+            </div>
+
+            {categories.length > 0 && (
+              <div className={styles.cats}>
+                <span className={styles.catsLabel}>Categories swept</span>
+                <ul className={styles.tags}>
+                  {categories.map((c) => <li key={c} className={styles.tag}>{c}</li>)}
+                </ul>
+                {excluded.length > 0 && (
+                  <span className={styles.catsNote}>
+                    {excluded.length} terms held back for regulatory reasons.
+                  </span>
+                )}
+              </div>
+            )}
+          </Section>
         </div>
-
-        <div className={styles.save}>
-          <button
-            type="button"
-            className={`${styles.button} ${!busy && name.trim() !== savedName ? styles.buttonReady : ''}`}
-            disabled={busy || name.trim() === savedName}
-            onClick={saveName}
-          >
-            {busy ? 'Saving' : 'Save name'}
-          </button>
-          <span className={styles.saved} role="status">{saved}</span>
-        </div>
-
-        <dl className={styles.rows}>
-          <Row label="Email" value={account.email ?? ''} note="Changing this changes how you sign in, so ask us first." />
-          <Row label="Access" value={account.role ?? ''} />
-        </dl>
-      </Block>
-
-      {/*
-        * One Settings page with sections rather than a second page under Your
-        * shop. Two pages both called settings is a question she answers every
-        * time she goes looking for something.
-        *
-        * Order matters: what she can change comes before what she cannot. The
-        * three sections below this are studio work she should not be able to
-        * break by accident, and putting them first would make the page read as
-        * mostly closed.
-        */}
-      <StoreSettings tenantId={tenant?.id} />
-
-      {/* Hers to grant and hers to revoke. It sits with what she controls
-          rather than under what the studio sets, because the consent belongs to
-          her eBay account and nobody here can give it on her behalf. */}
-      <Block
-        title="eBay"
-        note="Connect the seller account so approved products can be listed from here. You can disconnect it from eBay at any time."
-      >
-        <EbayConnection tenantId={tenant?.id} />
-      </Block>
-
-      <Block title="Set by the studio" note="Ours to change rather than yours, so a settings screen cannot break how the pipeline scores anything.">
-        <dl className={styles.rows}>
-          <Row label="Name" value={tenant?.name ?? ''} />
-          <Row label="Marketplace" value={tenant?.marketplace ?? ''} />
-          <Row label="Currency" value={tenant?.currency ?? ''} />
-          <Row
-            label="Order references"
-            value={tenant?.store?.reference_prefix
-              ? `${tenant.store.reference_prefix}-XXXX-XXXX`
-              : 'CK-XXXX-XXXX'}
-            mono
-            note="Not changeable. Two prefixes in one order book look like two businesses."
-          />
-        </dl>
-      </Block>
-
-      <Block
-        title="What we look for"
-        note="The thresholds a product clears before it reaches your queue. Fixed for now. Once you have worked through a few weeks we will open them up, because by then you will know what you want to move."
-      >
-        <dl className={styles.rows}>
-          <Row label="Net per unit" value={`at least ${money(gates.margin_abs_min ?? 4)}`} mono />
-          <Row label="Net margin" value={`at least ${pct(gates.margin_pct_min ?? 0.25)}`} mono />
-          <Row label="Sell-through" value={`at least ${pct(gates.str_min ?? 0.3)}`} mono />
-          <Row label="Demand direction" value={`at least ${(gates.trend_min ?? 0.8).toFixed(2)}`} mono />
-          <Row label="Active listings" value={`at most ${gates.listings_max ?? 500}`} mono />
-          <Row label="Top three sellers" value={`under ${pct(gates.concentration_max ?? 0.7)}`} mono />
-        </dl>
-      </Block>
-
-      <Block title="Categories" note="What the pipeline sweeps for you.">
-        {categories.length > 0 ? (
-          <ul className={styles.tags}>
-            {categories.map((c) => <li key={c} className={styles.tag}>{c}</li>)}
-          </ul>
-        ) : (
-          <p className={styles.note}>No categories set yet.</p>
-        )}
-        {excluded.length > 0 && (
-          <p className={styles.note}>
-            {excluded.length} terms are held back for regulatory reasons, mainly
-            cosmetics, pet food and health products.
-          </p>
-        )}
-      </Block>
+      </div>
     </div>
   );
 }
 
-/*
- * The same two column section the shop half uses.
- *
- * Defined here rather than imported from StoreSettings, because that component
- * is the writable half and this page should not depend on it to render its own
- * read only rows. Twelve lines duplicated is cheaper than that dependency.
- */
-function Block({ title, note, children }) {
+function Section({ id, title, note, children }) {
   return (
-    <section className={styles.block}>
-      <div className={styles.aside}>
-        <h2 className={styles.blockLabel}>{title}</h2>
-        {note ? <p className={styles.blockNote}>{note}</p> : null}
-      </div>
-      <div className={styles.body}>{children}</div>
+    <section id={id} className={styles.section}>
+      <header className={styles.sectionHead}>
+        <h2 className={styles.sectionTitle}>{title}</h2>
+        {note && <p className={styles.sectionNote}>{note}</p>}
+      </header>
+      <div className={styles.sectionBody}>{children}</div>
     </section>
   );
 }
 
-function money(n) {
-  return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n);
-}
-
-function Row({ label, value, note, mono = false }) {
+function Meta({ label, value, mono }) {
   return (
-    <div className={styles.row}>
-      <dt className={styles.rowLabel}>{label}</dt>
-      <dd className={styles.rowValue}>
-        <span className={mono ? styles.mono : undefined}>{value || '--'}</span>
-        {note ? <span className={styles.rowNote}>{note}</span> : null}
-      </dd>
+    <div className={styles.metaItem}>
+      <span className={styles.metaLabel}>{label}</span>
+      <span className={`${styles.metaValue} ${mono ? styles.mono : ''}`}>{value ?? '--'}</span>
     </div>
   );
 }

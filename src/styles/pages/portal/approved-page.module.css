@@ -435,3 +435,20 @@ a.shop:hover .shopOut { color: var(--c-positive); }
   .top, .caret, .pack, .primary, .ghost, .state, .shop { transition: none; }
   .work { animation: none; }
 }
+
+.ghost { display: inline-flex; align-items: center; gap: var(--s-2); }
+.ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.inShop {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 0 var(--s-3);
+  min-height: var(--tap);
+  border-radius: var(--r-md);
+  background: var(--c-positive-wash);
+  color: var(--c-positive);
+  font-size: var(--t-label);
+}
+
+.bar .barNote { flex: 1; }

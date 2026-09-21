@@ -32,6 +32,7 @@ export function useApproved(tenantId) {
         score, breakdown, margin, headroom, hold, same_sku_sellers, bulky,
         entry, monthly_headroom, active_listings,
         listing, draft, ebay, competition,
+        store_products ( id, status, slug ),
         sold_30d, avg_sold_price, window_start, window_series,
         recommended_channels,
         batches ( delivered_for ),
@@ -113,5 +114,29 @@ export function useApproved(tenantId) {
     [tenantId],
   );
 
-  return { ...state, reload: load, addSource, list };
+  // A draft product, never live. The shop is not public yet, and 0036 keeps
+  // anything with unconfirmed returns or hazard fields off sale anyway.
+  const addToShop = useCallback(
+    async ({ candidateId, product }) => {
+      const { data, error } = await supabase
+        .from('store_products')
+        .upsert(
+          { tenant_id: tenantId, status: 'draft', source_kind: 'candidate', ...product, candidate_id: candidateId },
+          { onConflict: 'tenant_id,slug' },
+        )
+        .select('id, status, slug')
+        .single();
+
+      if (error) throw error;
+
+      setState((s) => ({
+        ...s,
+        rows: s.rows.map((r) => (r.id === candidateId ? { ...r, store_products: [data] } : r)),
+      }));
+      return data;
+    },
+    [tenantId],
+  );
+
+  return { ...state, reload: load, addSource, list, addToShop };
 }

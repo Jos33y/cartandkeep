@@ -126,3 +126,6 @@
 .pickIcon { width: 13px; height: 13px; }
 
 .saveRow { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; margin-top: var(--s-4); }
+
+.savedOk { font-size: var(--t-caption); color: var(--c-positive); }
+.savedNone { font-size: var(--t-caption); color: var(--c-warning); }
