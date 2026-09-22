@@ -143,5 +143,14 @@ export function useListings(tenantId) {
     return data;
   }, [tenantId]);
 
-  return { ...state, reload: load, addToShop, updateOnEbay };
+  // eBay's own copy of a listing, including edits made outside the portal.
+  const readLive = useCallback(async (item) => {
+    const { data, error } = await supabase.functions.invoke('ebay-item', {
+      body: { tenant_id: tenantId, listing_id: item.listingId },
+    });
+    if (error || data?.error) throw new Error(data?.error ?? error.message);
+    return data;
+  }, [tenantId]);
+
+  return { ...state, reload: load, addToShop, updateOnEbay, readLive };
 }

@@ -62,7 +62,7 @@ export function ListingsPage() {
   const [tenant, setTenant] = useState(undefined);
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
-  const { status, items, window, error, addToShop, updateOnEbay } = useListings(tenant?.id);
+  const { status, items, window, error, addToShop, updateOnEbay, readLive } = useListings(tenant?.id);
   const [filter, setFilter] = useState('all');
   const [find, setFind] = useState('');
 
@@ -147,7 +147,7 @@ export function ListingsPage() {
 
       <div className={styles.list}>
         {shown.map((i) => (
-          <Listing key={i.key} item={i} fees={tenant?.fees} onShop={addToShop} onUpdate={updateOnEbay} />
+          <Listing key={i.key} item={i} fees={tenant?.fees} onShop={addToShop} onUpdate={updateOnEbay} onRead={readLive} />
         ))}
         {shown.length === 0 && <p className={styles.quiet}>Nothing here.</p>}
       </div>
@@ -165,7 +165,7 @@ function Stat({ icon, label, value, foot, tone }) {
   );
 }
 
-function Listing({ item, fees, onShop, onUpdate }) {
+function Listing({ item, fees, onShop, onUpdate, onRead }) {
   const [open, setOpen] = useState(false);
   const [revising, setRevising] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -294,7 +294,7 @@ function Listing({ item, fees, onShop, onUpdate }) {
 
                   {item.origin === 'portal' && (
                     revising
-                      ? <Revise item={item} onUpdate={onUpdate} onClose={() => setRevising(false)} />
+                      ? <Revise item={item} onUpdate={onUpdate} onRead={onRead} onClose={() => setRevising(false)} />
                       : (
                         <button type="button" className={styles.revise} onClick={() => setRevising(true)}>
                           <Icon name="IconRefresh" className={styles.btnIcon} />
@@ -361,12 +361,32 @@ function Listing({ item, fees, onShop, onUpdate }) {
 
 // Sends the portal's copy to the live listing. Anything changed on eBay since
 // is replaced, so price and quantity are asked for rather than assumed.
-function Revise({ item, onUpdate, onClose }) {
+function Revise({ item, onUpdate, onRead, onClose }) {
   const [price, setPrice] = useState(String(item.ebay?.price ?? ''));
   const [qty, setQty] = useState(String(item.ebay?.quantity ?? 1));
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [failed, setFailed] = useState(null);
+  const [live, setLive] = useState(null);
+  const [reading, setReading] = useState(true);
+
+  // Starts from what is live, so the update keeps any price set on eBay unless changed here.
+  useEffect(() => {
+    let on = true;
+    onRead(item)
+      .then((d) => {
+        if (!on) return;
+        setLive(d);
+        if (d.price) setPrice(String(d.price));
+        if (d.available) setQty(String(d.available));
+      })
+      .catch((e) => on && setFailed(e.message))
+      .finally(() => on && setReading(false));
+    return () => { on = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.listingId]);
+
+  const sending = item.row?.draft?.images ?? item.row?.listing?.images ?? [];
 
   async function send() {
     setBusy(true);
@@ -393,6 +413,25 @@ function Revise({ item, onUpdate, onClose }) {
 
   return (
     <div className={styles.revisePanel}>
+      {reading && <p className={styles.reviseNote}>Reading the listing from eBay…</p>}
+
+      {live && (
+        <dl className={styles.compare}>
+          <div className={styles.compareHead}>
+            <span />
+            <span>On eBay now</span>
+            <span>After update</span>
+          </div>
+          <Row label="Price" now={gbpOf(live.price)} next={gbpOf(Number(price))} />
+          <Row label="Available" now={live.available} next={qty} />
+          <Row label="Photos" now={live.photos.length} next={sending.length} />
+          <Row label="Postage" now={live.postage.name ?? 'not set'}
+            next={live.postage.matches_saved ? live.postage.name : 'your saved policy'}
+            changes={!live.postage.matches_saved} />
+          <Row label="Description" now="as on eBay" next="paragraphs and bullets" changes />
+        </dl>
+      )}
+
       <p className={styles.reviseWarn}>
         <Icon name="IconInfo" className={styles.btnIcon} />
         This replaces the title, description, photos, price and quantity on eBay with the portal's.
@@ -421,6 +460,20 @@ function Revise({ item, onUpdate, onClose }) {
           {busy ? 'Updating eBay' : 'Update listing'}
         </button>
       </div>
+    </div>
+  );
+}
+
+const gbpOf = (v) => (v == null || Number.isNaN(v) ? '--'
+  : new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(v));
+
+function Row({ label, now, next, changes }) {
+  const differs = changes ?? String(now) !== String(next);
+  return (
+    <div className={`${styles.compareRow} ${differs ? styles.compareChanged : ''}`}>
+      <dt>{label}</dt>
+      <dd data-num>{now}</dd>
+      <dd data-num>{next}</dd>
     </div>
   );
 }

@@ -348,3 +348,22 @@
   .revise { transition: none; }
   .revisePanel { animation: none; }
 }
+
+/* What is live next to what the update sends, so nothing is overwritten unseen. */
+.reviseNote { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.compare { display: flex; flex-direction: column; border-radius: var(--r-md); background: var(--c-surface); overflow: hidden; }
+
+.compareHead, .compareRow {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  font-size: var(--t-caption);
+}
+
+.compareHead { font-size: var(--t-micro); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-ink-faint); border-bottom: 1px solid var(--c-line); }
+.compareRow + .compareRow { border-top: 1px solid var(--c-line); }
+.compareRow dt { color: var(--c-ink-faint); }
+.compareRow dd { color: var(--c-ink-soft); }
+.compareChanged dd:last-child { color: var(--c-action-text); font-weight: 500; }
