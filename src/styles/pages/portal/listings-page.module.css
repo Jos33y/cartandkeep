@@ -367,3 +367,11 @@
 .compareRow dt { color: var(--c-ink-faint); }
 .compareRow dd { color: var(--c-ink-soft); }
 .compareChanged dd:last-child { color: var(--c-action-text); font-weight: 500; }
+
+.parcel { display: flex; flex-direction: column; gap: var(--s-2); }
+.parcelLabel { font-size: var(--t-micro); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-ink-faint); }
+.parcelFields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-2); }
+
+@media (max-width: 640px) {
+  .parcelFields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

@@ -536,3 +536,27 @@ a.shop:hover .shopOut { color: var(--c-positive); }
 @media (max-width: 640px) {
   .toast { left: var(--s-3); right: var(--s-3); bottom: var(--s-3); max-width: none; }
 }
+
+.parcel { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-4); }
+.parcelFields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-2); }
+.parcelField { display: flex; flex-direction: column; gap: var(--s-1); font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+.parcelControl {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-height: 36px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+}
+
+.parcelControl:focus-within { border-color: var(--c-control); }
+.parcelControl input { flex: 1; min-width: 0; border: none; background: none; font-size: var(--t-label); color: var(--c-ink); }
+.parcelControl input:focus { outline: none; }
+.parcelUnit { font-family: var(--font-data); color: var(--c-ink-faint); }
+
+@media (max-width: 640px) {
+  .parcelFields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

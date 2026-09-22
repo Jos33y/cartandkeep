@@ -124,7 +124,7 @@ export function useListings(tenantId) {
   }, [tenantId]);
 
   // Revises the live listing in place from the portal's copy of the product.
-  const updateOnEbay = useCallback(async (item, { price, quantity }) => {
+  const updateOnEbay = useCallback(async (item, { price, quantity, parcel }) => {
     const { data, error } = await supabase.functions.invoke('ebay-list', {
       body: {
         tenant_id: tenantId,
@@ -132,6 +132,7 @@ export function useListings(tenantId) {
         update: true,
         price: Number(price),
         quantity: Number(quantity),
+        package: parcel,
       },
     });
     if (error || data?.error) throw new Error(data?.error ?? error.message);

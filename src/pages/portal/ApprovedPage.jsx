@@ -533,6 +533,7 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
                     setConfirm(await onList({
                       price: a.price,
                       quantity: qty,
+                      package: draft.package,
                       title: draft.title,
                       description: draft.description,
                       images: draft.images,
@@ -575,6 +576,24 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
                 <ConfirmItem label="You keep" value={formatGbp(a.keep)} tone="positive" />
               </div>
 
+              {/* eBay's tracked services price by parcel and refuse a listing without one. */}
+              <div className={styles.parcel}>
+                <span className={styles.confirmLabel}>Parcel, as packed</span>
+                <div className={styles.parcelFields}>
+                  {[['weight_kg', 'Weight', 'kg'], ['length_cm', 'Length', 'cm'], ['width_cm', 'Width', 'cm'], ['height_cm', 'Height', 'cm']].map(([k, label, unit]) => (
+                    <label key={k} className={styles.parcelField}>
+                      <span>{label}</span>
+                      <span className={styles.parcelControl}>
+                        <input inputMode="decimal" data-num
+                          value={draft.package?.[k] ?? ''}
+                          onChange={(e) => change({ package: { ...(draft.package ?? {}), [k]: e.target.value === '' ? '' : Number(e.target.value) } })} />
+                        <span className={styles.parcelUnit}>{unit}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <p className={styles.confirmTitle}>{a.title}</p>
 
               <div className={styles.confirmActions}>
@@ -587,6 +606,7 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
                       await onList({
                         price: confirm.price,
                         quantity: qty,
+                        package: draft.package,
                         title: draft.title,
                         description: draft.description,
                         images: draft.images,

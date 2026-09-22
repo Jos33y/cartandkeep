@@ -369,6 +369,16 @@ function Revise({ item, onUpdate, onRead, onClose }) {
   const [failed, setFailed] = useState(null);
   const [live, setLive] = useState(null);
   const [reading, setReading] = useState(true);
+  const saved = item.ebay?.package ?? item.row?.draft?.package ?? {};
+  const [parcel, setParcel] = useState({
+    weight_kg: saved.weight_kg ?? '',
+    length_cm: saved.length_cm ?? '',
+    width_cm: saved.width_cm ?? '',
+    height_cm: saved.height_cm ?? '',
+  });
+  const set = (k) => (e) => setParcel((p) => ({ ...p, [k]: e.target.value }));
+  const parcelOk = Number(parcel.weight_kg) > 0
+    && ['length_cm', 'width_cm', 'height_cm'].every((k) => Number(parcel[k]) > 0);
 
   // Starts from what is live, so the update keeps any price set on eBay unless changed here.
   useEffect(() => {
@@ -392,7 +402,11 @@ function Revise({ item, onUpdate, onRead, onClose }) {
     setBusy(true);
     setFailed(null);
     try {
-      await onUpdate(item, { price, quantity: qty });
+      await onUpdate(item, {
+        price,
+        quantity: qty,
+        parcel: Object.fromEntries(Object.entries(parcel).map(([k, v]) => [k, Number(v)])),
+      });
       setDone(true);
     } catch (e) {
       setFailed(e.message);
@@ -452,11 +466,34 @@ function Revise({ item, onUpdate, onRead, onClose }) {
           </span>
         </label>
       </div>
+      {/* eBay's tracked and Click & Collect services price by parcel and refuse without one. */}
+      <div className={styles.parcel}>
+        <span className={styles.parcelLabel}>Parcel, as packed</span>
+        <div className={styles.parcelFields}>
+          <label className={styles.reviseField}>
+            <span>Weight</span>
+            <span className={styles.reviseControl}>
+              <input inputMode="decimal" value={parcel.weight_kg} onChange={set('weight_kg')} data-num />
+              <span className={styles.affix}>kg</span>
+            </span>
+          </label>
+          {[['length_cm', 'Length'], ['width_cm', 'Width'], ['height_cm', 'Height']].map(([k, label]) => (
+            <label key={k} className={styles.reviseField}>
+              <span>{label}</span>
+              <span className={styles.reviseControl}>
+                <input inputMode="decimal" value={parcel[k]} onChange={set(k)} data-num />
+                <span className={styles.affix}>cm</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
+
       {failed && <p className={styles.failed}>{failed}</p>}
       <div className={styles.reviseActions}>
         <button type="button" className={styles.ghostBtn} onClick={onClose}>Cancel</button>
         <button type="button" className={styles.primary}
-          disabled={busy || !(Number(price) > 0) || !(Number(qty) >= 1)} onClick={send}>
+          disabled={busy || !(Number(price) > 0) || !(Number(qty) >= 1) || !parcelOk} onClick={send}>
           {busy ? 'Updating eBay' : 'Update listing'}
         </button>
       </div>
