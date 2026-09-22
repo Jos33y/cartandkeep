@@ -12,12 +12,13 @@ const TITLE_MAX = 80;
  * the title decides whether a listing is ever shown and the first photograph
  * decides whether it is opened.
  */
-export function ListingComposer({ listing, draft, onChange, onGenerate }) {
+export function ListingComposer({ listing, draft, onChange, onGenerate, onUpload }) {
   const title = draft.title ?? listing?.title ?? '';
   const description = draft.description ?? listing?.description ?? '';
   const images = draft.images ?? listing?.images ?? [];
-  const all = listing?.images ?? [];
+  const all = [...new Set([...(listing?.images ?? []), ...(draft.uploads ?? [])])];
   const excluded = all.filter((src) => !images.includes(src));
+  const [uploading, setUploading] = useState(false);
 
   const [busy, setBusy] = useState(null);
   const [options, setOptions] = useState(null);
@@ -73,6 +74,26 @@ export function ListingComposer({ listing, draft, onChange, onGenerate }) {
 
   function restore(src) {
     onChange({ images: [...images, src] });
+  }
+
+  // eBay takes up to 24; 12 keeps the gallery readable.
+  async function add(files) {
+    const list = [...files].filter((f) => f.type.startsWith('image/')).slice(0, 12 - images.length);
+    if (!list.length) return;
+    setUploading(true);
+    setFailed(null);
+    try {
+      const urls = [];
+      for (const f of list) urls.push(await onUpload(f));
+      onChange({
+        images: [...images, ...urls],
+        uploads: [...(draft.uploads ?? []), ...urls],
+      });
+    } catch (e) {
+      setFailed(e.message);
+    } finally {
+      setUploading(false);
+    }
   }
 
   const over = title.length > TITLE_MAX;
@@ -166,6 +187,19 @@ export function ListingComposer({ listing, draft, onChange, onGenerate }) {
               </button>
             </li>
           ))}
+
+          {onUpload && images.length < 12 && (
+            <li className={styles.addShot}>
+              <label className={styles.addLabel}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); add(e.dataTransfer.files); }}>
+                <input type="file" accept="image/*" multiple className={styles.fileInput}
+                  onChange={(e) => { add(e.target.files); e.target.value = ''; }} />
+                <Icon name="IconPlus" className={styles.addIcon} />
+                <span>{uploading ? 'Uploading' : 'Add photo'}</span>
+              </label>
+            </li>
+          )}
         </ol>
       </Field>
 

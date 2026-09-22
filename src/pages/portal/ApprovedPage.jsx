@@ -234,7 +234,7 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
   const [problem, setProblem] = useState(null);
   const [shopping, setShopping] = useState(false);
 
-  const { draft, change, revert, generate, saving, edited } = useDraft(row, tenantId);
+  const { draft, change, revert, generate, upload, saving, edited } = useDraft(row, tenantId);
 
   // Live while editing, from the same function the closed line uses.
   const a = useMemo(() => assess({ ...row, draft }), [row, draft]);
@@ -458,7 +458,8 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
                 </span>
               )}
             />
-            <ListingComposer listing={a.l} draft={draft} onChange={change} onGenerate={generate} />
+            <ListingComposer listing={a.l} draft={draft} onChange={change}
+              onGenerate={generate} onUpload={upload} />
           </Card>
 
           {problem && <p className={styles.problem} role="alert">{problem}</p>}

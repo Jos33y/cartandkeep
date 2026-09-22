@@ -63,10 +63,25 @@ export function useDraft(candidate, tenantId) {
       body: { tenant_id: tenantId, candidate_id: candidate.id, kind },
     });
     if (error || data?.error) throw new Error(data?.error ?? error.message);
+    if (data?.conflict) throw new Error(`The sources disagree: ${data.conflict}. Check the product before listing.`);
     return kind === 'title' ? data.titles : data.description;
+  }, [candidate?.id, tenantId]);
+
+  // Stored under the tenant's folder so the storage policy can scope writes.
+  const upload = useCallback(async (file) => {
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `${tenantId}/${candidate.id}/${Date.now()}.${ext}`;
+
+    const { error } = await supabase.storage
+      .from('listing-images')
+      .upload(path, file, { contentType: file.type, upsert: false });
+    if (error) throw new Error(error.message);
+
+    const { data } = supabase.storage.from('listing-images').getPublicUrl(path);
+    return data.publicUrl;
   }, [candidate?.id, tenantId]);
 
   const edited = Object.keys(draft).length > 0;
 
-  return { draft, change, revert, generate, saving, failed, edited };
+  return { draft, change, revert, generate, upload, saving, failed, edited };
 }

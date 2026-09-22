@@ -192,3 +192,28 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+/* Drop a file on it or click it. Same size as a photograph so the strip reads
+   as one row of slots, one of them empty. */
+.addShot { flex: 0 0 auto; width: 88px; height: 88px; }
+
+.addLabel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-1);
+  width: 100%;
+  height: 100%;
+  border: 1px dashed var(--c-line-strong);
+  border-radius: var(--r-md);
+  background: var(--c-base);
+  font-size: var(--t-micro);
+  color: var(--c-ink-soft);
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.addLabel:hover { border-color: var(--c-action-strong); background: var(--c-action-wash); color: var(--c-action-text); }
+.addIcon { width: 18px; height: 18px; }
+.fileInput { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }

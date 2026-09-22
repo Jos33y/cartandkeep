@@ -289,6 +289,12 @@ const IconCaret = (p) => (
   </svg>
 );
 
+const IconPlus = (p) => (
+  <svg {...base} {...p}>
+    <path d="M10 4.5v11M4.5 10h11" />
+  </svg>
+);
+
 export const ICONS = {
   IconGrid,
   IconGauge,
@@ -321,6 +327,7 @@ export const ICONS = {
   IconOut,
   IconFilter,
   IconCaret,
+  IconPlus,
 };
 
 export function Icon({ name, ...rest }) {
