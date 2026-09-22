@@ -1,217 +1,205 @@
+import { useMemo, useState } from 'react';
+import { Icon } from '@components/ui/icons';
 import styles from '@styles/pages/portal/metrics-page.module.css';
 
-const MONEY = [
-  {
-    term: 'Headroom',
-    short: 'What is left of the sale price after the costs of selling, before paying for the product.',
-    body: 'It is the sale price less the eBay fee, promoted listings, postage and packaging, each shown as its own line so they add up to the figure. It is not profit. Profit is headroom less what the product costs to buy, so until a supplier is priced the goods line reads not quoted. A product needs at least four pounds of headroom to reach this list at all.',
-  },
-  {
-    term: 'Cost to sell',
-    short: 'Everything headroom has already taken off.',
-    body: 'Fees, postage and packaging added together. Postage is costed on a small parcel, which is the conservative assumption until a supplier gives real dimensions.',
-  },
-  {
-    term: 'Goods, not quoted',
-    short: 'The product cost, until a supplier has been added.',
-    body: 'Rather than estimate it and show a profit figure built on a guess, the line says what it is. Add a supplier on the row and it fills in, and the net appears beside the headroom.',
-  },
-];
-
-const DEMAND = [
-  {
-    added: '2026-08-12',
-    term: 'Units sold',
-    short: 'How many of that exact listing sold in the most recent month.',
-    body: 'Taken from eBay\u2019s own sold transaction data through Terapeak, not an estimate. There is no minimum to appear here. A product selling three a month is not worth buying stock in, but it is worth a listing if it can be sourced, and that is your call rather than ours.',
-  },
-  {
-    added: '2026-08-12',
-    term: 'Holding',
-    short: 'How the latest month compares with the product\u2019s own average.',
-    body: 'One means it is selling at its usual rate. Below zero point six means it has fallen away. This is what keeps summer products off an August list, and it is the test that separates a product worth holding stock in from one worth listing. It needs at least three months of history, so on a new search term it is blank rather than guessed.',
-  },
-  {
-    term: 'Same product sellers',
-    short: 'How many other sellers are listing a matching product.',
-    body: 'Measured on title matching, so on a listing with many variations it is a rough figure rather than an exact one. Fewer means less direct competition on a stock buy. More can mean the opposite on a dropship listing, because a product thirty sellers carry is one a supplier will actually have.',
-  },
-  {
-    added: '2026-08-13',
-    term: 'Live listings competing',
-    short: 'How many listings are up for sale right now against this product.',
-    body: 'Same product sellers counts who else has this exact item. This counts how deep the whole search is, which is a different question: two hundred sales across four hundred listings is a different market from two hundred across twenty. It reads eBay\u2019s live listings rather than its sold history, so it is what is on sale today rather than what sold last month. Under a hundred is thin, over two thousand is crowded.',
-  },
-  {
-    added: '2026-08-13',
-    term: 'Most of them sell at',
-    short: 'The price range the middle half of sellers sit in.',
-    body: 'Not the cheapest and not the dearest, because both of those are usually one listing rather than the market. The middle half is what a buyer comparing a page of results actually sees. A narrow range means sellers have converged and the only lever left is price. A wide one means there is room to sell on presentation.',
-  },
-  {
-    added: '2026-08-13',
-    term: 'Left on the table',
-    short: 'What pricing up to the market would be worth on a product selling below it.',
-    body: 'Where a product sells for less than the cheapest of the middle half, the difference is money nobody is collecting. It is shown after eBay fees and promoted listings, so it is what would actually reach headroom rather than the raw gap, and then multiplied by last month\u2019s units. It is an opportunity rather than a promise: pricing up may sell fewer.',
-  },
-  {
-    term: 'Evergreen, rising, new, fading',
-    short: 'How the product has behaved across the windows we measured.',
-    body: 'Evergreen means it sold in every window we looked at. New means it did not exist a year ago, which is not a fault. Fading means the latest window is well below its own history.',
-  },
-];
-
-const SOURCING = [
-  {
-    added: '2026-08-05',
-    term: 'A source',
-    short: 'Where a product would come from, and what it costs to get.',
-    body: 'One product can have several. Each one records who the supplier is, whether they post it to the buyer or you buy stock and post it yourself, the cost a unit, the minimum order, where it ships from and how long it takes. Nothing here is assumed. A source with no price yet says so rather than counting as free.',
-  },
-  {
-    added: '2026-08-05',
-    term: 'Landed cost',
-    short: 'What a unit really costs by the time it is ready to sell.',
-    body: 'Not the same as the price a supplier quotes. On a stock order it is the price at that quantity, plus any duty, plus the freight to get it to you, divided across the units. On a dropship order it is the goods plus what the supplier charges to post it. Comparing two suppliers on the quoted price alone compares two different things.',
-  },
-  {
-    added: '2026-08-05',
-    term: 'They post it, or you post it',
-    short: 'Who ships decides which costs are yours.',
-    body: 'If the supplier posts it to the buyer, the postage inside headroom is not yours to pay and comes back on, and their shipping charge goes on instead. If you buy stock and post it yourself, the postage stands and the freight to get the goods to you is added to the cost of each unit.',
-  },
-  {
-    added: '2026-08-05',
-    term: 'Net a unit',
-    short: 'Headroom less what the goods actually cost.',
-    body: 'This is the profit figure, and it only appears once a supplier has been priced. Until then the page shows headroom and says the goods are not quoted.',
-  },
-];
-
-const CAVEATS = [
-  {
-    term: 'Variations',
-    short: 'How many size or colour options sit on the listing the figures came from.',
-    body: 'On a listing with many variations the sold count covers all of them and the price is an average across whichever sold. A vet bed listing with two hundred variations spans a wide price range, so the money shown is a blend and not a per-size figure. Above ten variations the row says so.',
-  },
-  {
-    added: '2026-08-05',
-    term: 'Slipping',
-    short: 'Proven, still selling, but below its own average.',
-    body: 'A product that sold in every window we measured and is running under sixty per cent of its own usual rate. It is not a reject. It is still selling, and a product that dipped can come back, which is why it is here rather than hidden. It is not one to buy stock in today, and you may know why it dipped when we do not.',
-  },
-  {
-    term: 'Bulky',
-    short: 'The product is unlikely to post as a small parcel.',
-    body: 'Postage is still costed as a small parcel, so headroom on a bulky product is optimistic until the supplier gives dimensions and weight.',
-  },
-];
-
-const SCORE = [
-  {
-    added: '2026-08-12',
-    term: 'A month before goods',
-    short: 'Units sold last month multiplied by the headroom on each one.',
-    body: 'What the product would have been worth over a month at the rate it actually sold, before paying for the goods. Two numbers multiplied together, nothing weighted and nothing hidden, and the line underneath shows both so you can check it. It is what the list is sorted by.',
-  },
-  {
-    added: '2026-08-12',
-    term: 'The score, and why it is absent',
-    short: 'A weighted number, shown only where there is enough behind it.',
-    body: 'The score combines sell-through, margin, direction, competition and postage band into one figure for sorting. Most of those need either several months of history or a supplier price, so on a new search term there is not enough to build it from. Rather than show a number made of two components and call it a score, the row shows nothing and the money is used instead.',
-  },
-  {
-    term: 'The bar',
-    short: 'One segment per component. Width is how much it counts, fill is how it scored.',
-    body: 'A candidate measured on five things shows five segments. Where a component has no data it is left out rather than counted as zero, so the bar shows what the score was actually made of. Where nothing has been measured yet there is no bar at all.',
-  },
-];
-
 const SECTIONS = [
-  { title: 'The money', items: MONEY },
-  { title: 'The demand', items: DEMAND },
-  { title: 'Where it comes from', items: SOURCING },
-  { title: 'What weakens a figure', items: CAVEATS },
-  { title: 'The score and the bar', items: SCORE },
+  {
+    id: 'row',
+    title: 'On a candidate',
+    terms: [
+      {
+        term: 'You keep',
+        short: 'What one sale leaves you, after everything except your time.',
+        body: 'The listing price less eBay\u2019s fee, the promoted listings allowance, postage, packaging, a returns allowance and the price of the goods. Every one of those is shown as its own line when you open the row, so the figure can be checked rather than trusted.',
+      },
+      {
+        term: 'Keeps a month',
+        short: 'What you would keep in a month at the rate a small seller is actually selling.',
+        body: 'Their price and their rate, both read off the same listing. It is blank where no small seller is proved to be selling, because there is no rate to multiply. It is never the whole market\u2019s volume dressed up as yours.',
+      },
+      {
+        term: 'Sold a month',
+        short: 'How many the whole sampled market sells in a month.',
+        body: 'Added up across the ten listings the check sampled. It says how big the market is, not what you would take from it.',
+      },
+      {
+        term: 'A small seller is converting',
+        short: 'Somebody starting out is selling this right now.',
+        body: 'A listing under 90 days old, from a seller under 1,000 feedback, that is genuinely selling. This is the only competition test that decides anything. A large account selling proves demand; it proves nothing about whether a new account can get in.',
+      },
+      {
+        term: 'Only large accounts selling',
+        short: 'People are buying, but nobody your size is proved to be selling it.',
+        body: 'Not a refusal. The market is live and the product may still be worth listing, but the evidence that a new account can rank on it is missing.',
+      },
+      {
+        term: 'Check pack size',
+        short: 'The price on eBay is far above the shelf price, so the packs may differ.',
+        body: 'Where a converting listing is more than three and a half times the shelf price, it is usually a bigger pack. Until that is checked, the figures compare two different products, so the row is kept out of Worth approving.',
+      },
+      {
+        term: 'Branded, open market',
+        short: 'How the product would be bought, not whether it is worth buying.',
+        body: 'Branded means buying the genuine article from a shop or a UK distributor. Open market means most of the listings carry no real brand, so a generic supplier can make it. Both are workable and neither is a refusal.',
+      },
+    ],
+  },
+  {
+    id: 'refusals',
+    title: 'Why a product does not reach you',
+    terms: [
+      {
+        term: 'Too many listings to rank on',
+        short: 'Over 250 live listings on that search.',
+        body: 'Not because a busy market cannot be entered, but because reaching page one there costs more in promoted listings than the 3% the pricing allows.',
+      },
+      {
+        term: 'Nothing selling',
+        short: 'None of the sampled listings has sold a unit.',
+        body: 'People are listing it and nobody is buying.',
+      },
+      {
+        term: 'New sellers are not selling',
+        short: 'Recent listings exist, and none of them is selling.',
+        body: 'A new listing would join a group already failing to sell. This is the clearest refusal there is.',
+      },
+      {
+        term: 'Market too small',
+        short: 'The sampled market moves under 10 a month.',
+        body: 'A listing slot and the sourcing time cost more than that returns.',
+      },
+      {
+        term: 'Sells below the cost of selling',
+        short: 'At the market price, the fees and postage use up the whole sale.',
+        body: 'Before a penny is spent on the goods. No supplier price can rescue a product here.',
+      },
+      {
+        term: 'Shelf price too high',
+        short: 'The market works, but the shop wants too much for the goods.',
+        body: 'Measured at your listing price and at the price a small seller is being paid. If either leaves under £2 a sale, it is held back rather than sent to you.',
+      },
+      {
+        term: 'Must buy under £5',
+        short: 'The goods would have to cost less than £5 for it to pay.',
+        body: 'UK stock rarely does, so these are set aside rather than searched for.',
+      },
+      {
+        term: 'Same as another search',
+        short: 'Two searches found the same listing.',
+        body: 'Kept once, under the tighter of the two searches.',
+      },
+    ],
+  },
+  {
+    id: 'money',
+    title: 'The cost model',
+    terms: [
+      {
+        term: 'What comes off a sale',
+        short: 'eBay 12.8% plus 30p, a 3% promoted listings allowance, postage, packaging and 30p for returns.',
+        body: 'The same model runs in the research, in the portal and on the page where a price is set, so the three can never disagree.',
+      },
+      {
+        term: 'Postage band',
+        short: 'Postage is a property of the product, not a flat figure.',
+        body: 'Evri to 5kg at £2.62 covers most of what is listed. Letters cost less, heavier parcels more. Costing everything at one rate is what once refused products that were fine.',
+      },
+      {
+        term: 'The £2 target',
+        short: 'What a sale has to leave before a product is sent to you.',
+        body: 'A studio working figure rather than a rule of eBay\u2019s. Raise it and fewer products qualify; lower it and the queue fills with products that are not worth the postage.',
+      },
+      {
+        term: 'Buy under',
+        short: 'The most the goods can cost and still leave the target.',
+        body: 'The number to hold in your head standing in front of a shelf. It is reported rather than assumed, so no percentage of the selling price is ever guessed as the cost.',
+      },
+    ],
+  },
+  {
+    id: 'sources',
+    title: 'Where the numbers come from',
+    terms: [
+      {
+        term: 'The sample',
+        short: 'The ten live listings eBay returns first for that search.',
+        body: 'Each one is read individually for its price, its lifetime sales, its age and its seller. The market figures, the median and the price range all come from those ten.',
+      },
+      {
+        term: 'A sales rate',
+        short: 'Lifetime sales divided by the listing\u2019s own age.',
+        body: 'Available on the first run, with no waiting. It is ignored on a listing under seven days old, where one sale would read as four a month.',
+      },
+      {
+        term: 'Most sell at',
+        short: 'The price range the middle half of listings sit in.',
+        body: 'Not the cheapest and not the dearest, because each of those is usually one listing rather than the market.',
+      },
+      {
+        term: 'The shelf price',
+        short: 'Read from the shop\u2019s own product page on the day it was checked.',
+        body: 'A clearance price can revert, so it is worth re-checking before a restock rather than assuming it holds.',
+      },
+      {
+        term: 'How fresh this is',
+        short: 'Market evidence goes stale in about a week.',
+        body: 'On a recent re-check of 22 products, 15 of them had no listing left in common with the sample taken seven days earlier. A figure older than that is history rather than a market read.',
+      },
+    ],
+  },
 ];
-
-// Fourteen days, because she reads this page rarely and a marker that has gone
-// by the time she comes back is no marker at all.
-const FRESH_DAYS = 14;
-
-const isNew = (added) => {
-  if (!added) return false;
-  const days = (Date.now() - new Date(added).getTime()) / 86400000;
-  return days >= 0 && days <= FRESH_DAYS;
-};
-
-const updated = () => {
-  const dates = SECTIONS.flatMap((s) => s.items.map((i) => i.added)).filter(Boolean).sort();
-  return dates.length ? dates[dates.length - 1] : null;
-};
 
 export function MetricsPage() {
-  const last = updated();
+  const [find, setFind] = useState('');
+
+  const shown = useMemo(() => {
+    const q = find.trim().toLowerCase();
+    if (!q) return SECTIONS;
+    return SECTIONS
+      .map((s) => ({ ...s, terms: s.terms.filter((t) => `${t.term} ${t.short} ${t.body}`.toLowerCase().includes(q)) }))
+      .filter((s) => s.terms.length);
+  }, [find]);
 
   return (
     <div className={styles.page}>
       <header className={styles.head}>
-        <p className="micro">
-          Metrics
-          {last && (
-            <span className={styles.updated}>
-              {' '}
-              updated {new Intl.DateTimeFormat('en-GB', {
-                timeZone: 'Europe/London', day: 'numeric', month: 'long',
-              }).format(new Date(last))}
-            </span>
-          )}
-        </p>
+        <p className="micro">Metrics</p>
         <h1 className={styles.title}>What the numbers mean</h1>
         <p className={styles.lead}>
-          Every figure in the portal comes from eBay sold transaction data or is
-          computed from it. Where something is an assumption rather than a
-          measurement, it is named as one here and on the row itself.
+          Every figure in the portal is read from eBay&apos;s live listings or worked out from the cost model.
+          Where something is an assumption rather than a measurement, it says so here and on the row itself.
         </p>
       </header>
 
-      {SECTIONS.map((section) => (
-        <section key={section.title} className={styles.section}>
-          <h2 className={styles.sectionTitle}>{section.title}</h2>
+      <div className={styles.controls}>
+        <span className={styles.findWrap}>
+          <Icon name="IconSearch" className={styles.findIcon} />
+          <input className={styles.find} value={find} placeholder="Find a term"
+            onChange={(e) => setFind(e.target.value)} aria-label="Find a term" />
+        </span>
+        <nav className={styles.jump} aria-label="Sections">
+          {SECTIONS.map((s) => <a key={s.id} href={`#${s.id}`} className={styles.jumpLink}>{s.title}</a>)}
+        </nav>
+      </div>
+
+      {shown.map((s) => (
+        <section key={s.id} id={s.id} className={styles.section}>
+          <h2 className={styles.sectionTitle}>{s.title}</h2>
           <dl className={styles.terms}>
-            {section.items.map((item) => (
-              <div key={item.term} className={styles.term}>
-                <dt className={styles.name}>
-                  {item.term}
-                  {isNew(item.added) && <span className={styles.new}>new</span>}
-                </dt>
-                <dd className={styles.short}>{item.short}</dd>
-                <dd className={styles.body}>{item.body}</dd>
+            {s.terms.map((t) => (
+              <div key={t.term} className={styles.term}>
+                <dt className={styles.name}>{t.term}</dt>
+                <dd className={styles.meaning}>
+                  <p className={styles.short}>{t.short}</p>
+                  <p className={styles.body}>{t.body}</p>
+                </dd>
               </div>
             ))}
           </dl>
         </section>
       ))}
 
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>How a product reaches this list</h2>
-        <ol className={styles.steps}>
-          <li>A search term is measured on eBay sold data across several months.</li>
-          <li>Brand and compliance screens remove what we cannot list, and what
-            they removed is kept on this page rather than dropped.</li>
-          <li>Anything with less than four pounds of headroom drops out.</li>
-          <li>What is left is the list you see. Selling at all is enough, because
-            a listing costs nothing to try.</li>
-          <li>Anything selling ten or more a month and holding against its own
-            history is marked as one worth buying stock in.</li>
-          <li>You decide, and add a supplier when you have one.</li>
-        </ol>
-        <p className={styles.note}>
-          Screens are word lists and they get things wrong in both directions, so
-          anything removed by a screen is kept and can be reviewed rather than
-          disappearing quietly.
-        </p>
-      </section>
+      {shown.length === 0 && <p className={styles.none}>Nothing here matches that.</p>}
     </div>
   );
 }

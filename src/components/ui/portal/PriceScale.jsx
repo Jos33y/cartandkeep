@@ -1,24 +1,14 @@
 import { useMemo, useRef, useState } from 'react';
+import { keepAt } from '@lib/assess';
 import styles from '@styles/ui/portal/price-scale.module.css';
+
+export { keepAt };
 
 const gbp = (v) => (v == null ? '--'
   : new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(v));
 
-// Fees, postage, packaging and returns come off; the shelf price comes off after.
-export function keepAt(price, margin, goods) {
-  const r = margin?.rates;
-  if (!r || price == null) return null;
-  const net = price * (1 - r.fvf - r.ad)
-    - r.fixed
-    - Number(margin.postage ?? 0)
-    - Number(margin.packaging ?? 0)
-    - Number(margin.returns_allowance ?? 0)
-    - Number(goods ?? 0);
-  return Math.round(net * 100) / 100;
-}
-
 /*
- * The market, and where her price sits in it.
+ * The market, and where the listing price sits in it.
  *
  * The scale is drawn from the quartiles, not from low and high. One £481
  * listing in a dog food market pinned every real price into the first three
@@ -74,8 +64,8 @@ export function PriceScale({ market, entry, price, goods, margin, onChange }) {
     onChange(from(Math.max(0, Math.min(100, ((clientX - box.left) / box.width) * 100))));
   };
 
-  const keep = keepAt(price, margin, goods);
-  const entryKeep = keepAt(entry?.price, margin, goods);
+  const keep = goods != null ? keepAt(price, margin, goods) : null;
+  const entryKeep = goods != null ? keepAt(entry?.price, margin, goods) : null;
   const step = (n) => onChange(Math.max(0, Math.round((price + n) * 100) / 100));
 
   // Outside the drawn range rather than clipped to it, so a price beyond the

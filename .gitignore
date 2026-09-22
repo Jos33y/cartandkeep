@@ -21,4 +21,6 @@ backups/
 .gate
 gate-hb-1.csv
 gate-hb-2.csv
+gate-refresh-2026-09-16.csv
+gate-refresh-2026-09-17.csv
 audit.csv

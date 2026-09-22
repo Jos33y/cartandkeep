@@ -1,3 +1,5 @@
+import { useId } from 'react';
+import { Icon } from '@components/ui/icons';
 import styles from '@styles/ui/portal/primitives.module.css';
 
 // Anything on a third screen becomes a primitive. These were being rewritten
@@ -57,5 +59,17 @@ export function Facts({ items }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+export function Tip({ children, label = 'What this means', side }) {
+  const id = useId();
+  return (
+    <span className={styles.tip} data-side={side}>
+      <button type="button" className={styles.tipButton} aria-label={label} aria-describedby={id}>
+        <Icon name="IconInfo" className={styles.tipIcon} width="14" height="14" />
+      </button>
+      <span id={id} role="tooltip" className={styles.tipBody}>{children}</span>
+    </span>
   );
 }

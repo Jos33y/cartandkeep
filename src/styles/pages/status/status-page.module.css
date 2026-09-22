@@ -95,13 +95,46 @@
 }
 
 .line {
-  height: 4px;
+  display: flex;
+  height: 8px;
   margin-top: var(--s-5);
+  border-radius: var(--r-full);
   background: var(--c-line-mid);
   overflow: hidden;
 }
 
-.lineFill { display: block; height: 100%; background: var(--c-brand); }
+.lineFill { display: block; height: 100%; background: var(--c-brand-strong); }
+.lineActive { display: block; height: 100%; background: var(--c-warning); opacity: 0.8; }
+
+/* Three counts, read before the list underneath. */
+.tally {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-4);
+  margin-top: var(--s-5);
+  list-style: none;
+}
+
+.tallyFigure {
+  display: block;
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: var(--lh-tight);
+  color: var(--c-ink);
+}
+
+.tallyLabel {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
 
 .meta { margin-top: var(--s-3); font-size: var(--t-caption); color: var(--c-ink-faint); }
 
@@ -238,15 +271,32 @@
 
 .rowMain { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 
-.rowLabel { font-size: var(--t-body); line-height: var(--lh-snug); }
 
+/* Read as prose, not as data. In the mono face at caption size this was the
+   hardest thing on the page to get through, and it is most of the page. */
 .rowDetail,
 .rowDue {
-  font-family: var(--font-data);
-  font-size: var(--t-caption);
-  color: var(--c-ink-faint);
+  font-size: var(--t-label);
+  line-height: var(--lh-snug);
+  color: var(--c-ink-soft);
   overflow-wrap: anywhere;
 }
+
+.rowDue { font-family: var(--font-data); color: var(--c-ink-faint); }
+
+.rowLabel { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--s-2); font-size: var(--t-body); line-height: var(--lh-snug); }
+
+.tag {
+  padding: 1px var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--c-sunk);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--c-ink-faint);
+}
+
+.rowOld .rowLabel { color: var(--c-ink-soft); }
 
 .rowPhase {
   font-size: var(--t-micro);

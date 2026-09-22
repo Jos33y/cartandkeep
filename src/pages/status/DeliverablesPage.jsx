@@ -1,6 +1,5 @@
 import { Link } from 'react-router';
 import {
-  DELIVERABLE_GROUPS,
   SCOPE_VERSION,
   groupsFor,
   lastUpdated,
@@ -8,6 +7,8 @@ import {
 } from '@data/deliverables';
 import { StateIcon } from '@components/status/StateIcon';
 import styles from '@styles/pages/status/deliverables-page.module.css';
+
+const SUPERSEDED_LABEL = 'Since replaced';
 
 const STATE_LABEL = {
   done: 'Complete',
@@ -23,10 +24,13 @@ const fmt = (iso, opts) =>
 
 function Row({ item }) {
   return (
-    <li className={styles.row}>
+    <li className={`${styles.row} ${item.superseded ? styles.rowOld : ''}`}>
       <StateIcon state={item.state} className={styles.icon} pulseClass={styles.pulse} />
       <span className={styles.rowMain}>
-        <span className={styles.rowLabel}>{item.label}</span>
+        <span className={styles.rowLabel}>
+          {item.label}
+          {item.superseded ? <span className={styles.tag}>{SUPERSEDED_LABEL}</span> : null}
+        </span>
         {item.detail ? <span className={styles.rowDetail}>{item.detail}</span> : null}
       </span>
       <span className={`${styles.stateText} ${styles[item.state] ?? ''}`.trim()}>

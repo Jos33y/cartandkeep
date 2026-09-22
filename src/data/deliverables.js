@@ -10,13 +10,15 @@
  * carried on each group so any line can be checked against the document.
  *
  * state:    done | active | queued | client
+ * superseded: delivered, and the method behind it has since been replaced.
+ *           The line stays because the work happened and was handed over.
  * blocking: the thing an item waits on, so the page can count without a
  *           hardcoded number going stale the moment something ships.
  */
 
 export const SCOPE_VERSION = '1.3';
 export const SCOPE_DATE = '2026-07-22';
-export const LAST_REVIEWED = '2026-09-04';
+export const LAST_REVIEWED = '2026-09-22';
 export const MONTH_ONE_DUE = '2026-08-22';
 
 export const DELIVERABLE_GROUPS = [
@@ -48,18 +50,18 @@ export const DELIVERABLE_GROUPS = [
         // folded into the item above.
         label: 'Financial dashboard in the portal',
         detail:
-          'Revenue, platform fees, promoted listings, postage, packaging, returns provision and cost of goods, per product and per channel. Built. It fills as sales come in, and your eBay and TikTok Shop sales come in from their own reports so the figures cover all three.',
+          'Revenue, platform fees, promoted listings, postage, packaging, returns provision and cost of goods, per product and per channel. Built, and now carrying your real eBay sales with the fees eBay actually charged. TikTok Shop comes in from its own report.',
         state: 'active',
       },
       {
         label: 'Custom store live',
         detail:
-          'cartandkeep.com, guest checkout ready and taking card payments. The full path has been tested end to end: an order placed, paid, confirmed by email, stock taken off and a receipt issued. What is left is your trading details and the first products going on sale.',
+          'cartandkeep.com, guest checkout ready and taking card payments. The full path has been tested end to end: an order placed, paid, confirmed by email, stock taken off and a receipt issued. Your trading details are in. What is left is the products going on sale.',
         state: 'active',
       },
       {
         label: 'First batch of products listed on the store',
-        detail: '78 products loaded with photographs, brands, specifications and categories. Held as drafts until they are approved.',
+        detail: 'The seeded batch was cleared out on 22 September rather than left as drafts nobody had read. What is in the shop now are the products your eBay listings have actually sold, and what follows comes from the research board.',
         state: 'active',
       },
       {
@@ -74,7 +76,7 @@ export const DELIVERABLE_GROUPS = [
       },
       {
         label: 'Legal pages live',
-        detail: 'Six pages: delivery, returns and refunds, terms of sale, privacy, cookies, frequently asked. Twelve points still need your confirmation, marked on each page.',
+        detail: 'Six pages: delivery, returns and refunds, terms of sale, privacy, cookies, frequently asked. The points that need your confirmation are marked where they appear on each page.',
         state: 'active',
       },
       {
@@ -188,8 +190,8 @@ export const DELIVERABLE_GROUPS = [
           'Per product, which is the useful half: what went into a basket and came back out again. Basket level abandonment follows the first checkouts.',
         state: 'active',
       },
-      { label: 'Sales', detail: 'Follows the first order.', state: 'queued', blocking: 'store' },
-      { label: 'Revenue', detail: 'Follows the first order.', state: 'queued', blocking: 'store' },
+      { label: 'Sales', detail: 'Your eBay sales are in, with what each one took and what eBay charged for it. The shop\u2019s own follow its first order.', state: 'active' },
+      { label: 'Revenue', detail: 'By month and by channel, from your eBay account today and from the shop as it sells.', state: 'active' },
       {
         label: 'Traffic sources',
         detail:
@@ -207,21 +209,21 @@ export const DELIVERABLE_GROUPS = [
       {
         label: 'Revenue by channel',
         detail:
-          'Your shop, eBay and TikTok Shop in the same figures. The other two come in from the reports both platforms already give you, so this does not wait on the shop selling anything.',
+          'Your shop, eBay and TikTok Shop in the same figures. eBay comes straight from your account, TikTok Shop from its own report, so this does not wait on the shop selling anything.',
         state: 'done',
         date: '2026-08-20',
       },
       {
         label: 'Cost tracking',
         detail:
-          'What each product cost you landed, what postage costs you, packaging per parcel, a returns provision and promoted listings. Platform fees come off the real figure where the export gives one and off the rate where it does not.',
+          'What each product cost you landed, what postage costs you, packaging per parcel, a returns provision and promoted listings. eBay fees come off what eBay actually charged, and a cost can be put on anything that has sold, whether or not it is in your shop.',
         state: 'done',
         date: '2026-08-20',
       },
       {
         label: 'Margin per product per channel',
         detail:
-          'The same product side by side on all three. On a pan set at £117 that is £46 on your own shop against £28 on eBay, after every fee, postage, packaging and what it cost you.',
+          'The same product side by side on all three, after every fee, postage, packaging and what it cost you. On Cesar Country Stew, bought at £4.99 and listed at £22, eBay leaves about £10 a sale, and your own shop leaves more because there is no eBay fee on it.',
         state: 'done',
         date: '2026-08-20',
       },
@@ -254,28 +256,31 @@ export const DELIVERABLE_GROUPS = [
       {
         label: 'Cross-channel research pipeline live in the portal',
         detail:
-          'Seven to nine months of sales history per category, with sell-through, competition depth and margin recorded per product.',
+          'Every candidate is read against eBay\u2019s live market: ten listings taken one at a time for price, sales, age and seller size, with the market\u2019s monthly volume and its price range recorded per product.',
         state: 'done',
-        date: '2026-08-13',
+        date: '2026-09-16',
       },
       {
         label: 'Three product batches ready for review',
-        detail: 'Mobility and daily living aids 50, bedding and duvet covers 41, massage and recovery 23.',
+        detail:
+          'Mobility and daily living aids, bedding and duvet covers, massage and recovery. All three were retired when the entry check replaced the scoring model, and batches found on a shop shelf took their place.',
         state: 'done',
+        superseded: true,
         date: '2026-08-16',
       },
       {
         label: 'Listing screening',
         detail:
-          'Restricted, branded, medical device and cosmetic items are filtered out before anything reaches the shortlist.',
+          'Restricted and prohibited categories are filtered out before anything reaches the shortlist. Branded products are not: what sells on your account is branded, so a brand is treated as a buying route rather than a reason to refuse.',
         state: 'done',
-        date: '2026-08-14',
+        date: '2026-09-02',
       },
       {
         label: 'Live competition check on every candidate',
-        detail: 'How many sellers compete on the same product, and at what price.',
+        detail:
+          'How many sellers compete on the same search, at what price, and whether any of them is small enough for their sales to prove a new account can get in.',
         state: 'done',
-        date: '2026-08-16',
+        date: '2026-09-02',
       },
       {
         label: 'Google Shopping feed for free listings',
@@ -363,7 +368,7 @@ export const DELIVERABLE_GROUPS = [
       {
         label: 'Supplier sourcing',
         detail:
-          'Sourcing runs inside the UK, so stock arrives in days rather than weeks and there is no import paperwork on you. Every candidate carries the most the goods can cost and still make the target, and suppliers are checked against that number rather than the other way round.',
+          'Sourcing runs inside the UK, so stock arrives in days rather than weeks and there is no import paperwork on you. Candidates now come off a real shop shelf with the price on them, so the card shows what is left after everything rather than a ceiling. Every candidate carries the most the goods can cost and still make the target, and suppliers are checked against that number rather than the other way round.',
         state: 'active',
       },
     ],
@@ -385,34 +390,31 @@ export const DELIVERABLE_GROUPS = [
       {
         label: 'Decisions on the shortlisted products',
         detail:
-          'Approve, reject or defer in the portal. Sourcing starts on whatever is approved. Rejecting with a reason teaches the pipeline what to stop bringing you.',
+          'Approve, reject or defer in the portal. The first approved product is now listed on eBay, so this is the step that decides what follows it. Rejecting with a reason is what stops the same kind of product coming back.',
         state: 'client',
       },
       {
         label: 'Your trading name and address',
         detail:
-          'Under Settings. The law requires both on every order confirmation, so until they are in, each one goes out short. Two boxes.',
-        state: 'client',
+          'Done. Both are in Settings and now appear on every order confirmation, as the law requires.',
+        state: 'done',
+        date: '2026-09-22',
       },
       {
-        // Eleven was the sealed count. Sixteen more are things that cannot come
-        // back at all, and the portal reports twenty five waiting. A number she
-        // can check against her own screen and find wrong is worse than none.
-        label: 'Confirm the returns rule on twenty five products',
+        // The counts here were against the 78 seeded products, and 74 of those
+        // were cleared out on 22 September. No number is quoted now, because
+        // one she can check on her own screen and find wrong is worse than
+        // none, and the portal shows the real count beside each product.
+        label: 'Confirm the returns rule on what is in the shop',
         detail:
-          'Under Products. Bath sets, pads, food and anything that comes sealed cannot carry the same return as a saucepan, and the wording is a contract term, so it is yours to agree rather than ours to write. There is a suggestion on each one with the reason for it.',
-        state: 'client',
-      },
-      {
-        label: 'Read the label on eight chemicals',
-        detail:
-          'Under Products. Carpet cleaner, Jeyes Fluid, drain unblocker, weed killer, wasp killer, super glue and the rest. An online offer for a classified mixture has to carry its hazard wording, and only the bottle knows what that is.',
-        state: 'client',
+          'Done. Every product in the shop carries a confirmed returns rule. Anything sealed, edible or hygiene related cannot take the same return as a saucepan, so a new product is held off sale until its rule is agreed, and each one arrives with a suggestion and the reason for it.',
+        state: 'done',
+        date: '2026-09-22',
       },
       {
         label: 'Product descriptions',
         detail:
-          'Under Products. Empty on all 78. It is the only thing on a product page that argues for the purchase, Google will not list a product without one, and a description written from a supplier feed title is the feed title with more words.',
+          'Under Products. Most of what is in the shop still has none. It is the only thing on a product page that argues for the purchase, Google will not list a product without one, and a description written from a supplier feed title is the feed title with more words. There is a draft written for you on each one to work from.',
         state: 'client',
       },
       {

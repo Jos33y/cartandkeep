@@ -4,7 +4,8 @@ import { ImageLightbox } from '@components/ui/portal/ImageLightbox';
 import { SourceList } from '@components/ui/portal/SourceList';
 import { PageSkeleton } from '@components/ui/portal/Skeleton';
 import { Card, CardHead } from '@components/ui/portal/primitives';
-import { PriceScale, keepAt } from '@components/ui/portal/PriceScale';
+import { PriceScale } from '@components/ui/portal/PriceScale';
+import { assess } from '@lib/assess';
 import { ListingComposer } from '@components/ui/portal/ListingComposer';
 import { SearchTile } from '@components/ui/portal/SearchTile';
 import { Breakdown } from '@components/ui/portal/Breakdown';
@@ -44,7 +45,6 @@ function storeKeep(price, fees, goods, postage) {
   return Math.round((price - (price * pct + fixed) - goods - (postage ?? 0)) * 100) / 100;
 }
 const thumb = (url) => (url ? url.replace(/\/s-l\d+\./, '/s-l225.') : null);
-const BLENDED = 10;
 
 const when = (iso) => {
   if (!iso) return null;
@@ -52,62 +52,6 @@ const when = (iso) => {
   return Number.isNaN(d.getTime()) ? null
     : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 };
-
-// Butcher's found a 24 tin case on eBay against a 6 tin shelf pack.
-function packOf(name) {
-  const t = String(name ?? '').toLowerCase();
-  const m = t.match(/(\d+)\s?x\s?\d/)
-    || t.match(/\bx\s?(\d+)\b/)
-    || t.match(/(\d+)\s?(?:pack|pk|tins|trays|pouches|washes|tabs|tablets)\b/);
-  return m ? Number(m[1]) : null;
-}
-
-// Everything a row needs to say about itself, computed once so the closed line
-// and the open panel can never disagree.
-function assess(row) {
-  const m = row.margin ?? {};
-  const l = row.listing ?? null;
-  const entry = row.entry ?? null;
-  const d = row.draft ?? {};
-
-  const quoted = (row.sources ?? []).find((s) => s.landed_unit_cost != null) ?? null;
-  const shelf = m.shelf ?? null;
-  const best = quoted ?? (shelf?.price != null
-    ? { supplier: shelf.shop ?? 'the shelf', landed_unit_cost: shelf.price, url: shelf.url }
-    : null);
-
-  const goods = best?.landed_unit_cost ?? null;
-  const price = d.price ?? m.sale_price ?? row.avg_sold_price ?? null;
-  const modelled = Boolean(m.rates);
-  const keep = modelled ? keepAt(price, m, goods) : (d.price == null ? m.net ?? null : null);
-
-  const fees = modelled && price != null
-    ? Math.round((price * (m.rates.fvf + m.rates.ad) + m.rates.fixed) * 100) / 100
-    : (m.platform_fee ?? null);
-  const postage = Math.round(((m.postage ?? 0) + (m.packaging ?? 0) + (m.returns_allowance ?? 0)) * 100) / 100;
-
-  const trusted = m.list_trusted === true;
-  const shelfPack = packOf(l?.title);
-  const marketPack = packOf(entry?.title);
-
-  const warnings = [
-    shelfPack && marketPack && shelfPack !== marketPack
-      && `Shelf pack holds ${shelfPack}, the listing this price came from holds ${marketPack}.`,
-    !trusted && d.price == null && 'Priced at the market median, which no small seller has been paid.',
-    l?.in_stock === 'no' && 'Out of stock at the shop.',
-    row.variation_count >= BLENDED && `Sold in ${row.variation_count} variations, so the price is an average.`,
-    row.bulky && 'Costed as a small parcel and this one is bulky.',
-    keep != null && keep < 0 && 'Loses money at this price.',
-  ].filter(Boolean);
-
-  return {
-    m, l, entry, d, best, goods, price, keep, fees, postage, modelled, trusted, warnings,
-    ready: warnings.length === 0 && entry?.proved === true && keep != null && keep > 0,
-    title: d.title ?? l?.title ?? row.title,
-    images: d.images ?? l?.images ?? [],
-    edited: Object.keys(d).length > 0,
-  };
-}
 
 export function ApprovedPage() {
   const [tenant, setTenant] = useState(undefined);
@@ -133,9 +77,9 @@ export function ApprovedPage() {
     edited: assessed.filter(({ a }) => a.edited).length,
   }), [assessed]);
 
-  // Only rows with a proven rate. A month's worth on the untrusted ones would
-  // be arithmetic on a price nobody has been paid.
-  const monthly = assessed.reduce((s, { row }) => s + (row.monthly_headroom ?? 0), 0);
+  // After goods, at the proving seller's own price and rate. monthly_headroom is
+  // before goods, which is how this header overstated what a month keeps.
+  const monthly = assessed.reduce((s, { a }) => s + (a.month ?? 0), 0);
 
   if (tenant === undefined || status === 'loading') return <PageSkeleton rows={4} />;
 
@@ -344,7 +288,7 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
         <div className={styles.figures}>
           <span className={styles.figLabel}>You keep</span>
           <span className={`figure ${styles.figKeep} ${a.keep < 0 ? styles.loss : ''}`}>
-            {a.keep != null ? formatGbp(a.keep) : '—'}
+            {a.keep != null ? formatGbp(a.keep) : 'Unknown'}
           </span>
         </div>
 
@@ -406,12 +350,12 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
                 />
                 <Proof
                   icon="IconChart"
-                  value={row.monthly_headroom != null ? formatGbp(row.monthly_headroom) : '—'}
-                  label="a month at that seller's rate, before goods"
+                  value={a.month != null ? formatGbp(a.month) : 'Not proved'}
+                  label="a month kept, at that seller's price and rate"
                 />
                 <Proof
                   icon="IconLayers"
-                  value={row.active_listings ?? '—'}
+                  value={row.active_listings ?? 'Unknown'}
                   label="listings competing on the same search"
                 />
               </div>

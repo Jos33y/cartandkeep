@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '@components/ui/portal/EmptyState';
+import { PageSkeleton } from '@components/ui/portal/Skeleton';
+import { Icon } from '@components/ui/icons';
 import { useActivity } from '@hooks/useActivity';
 import { loadTenant } from '@lib/tenant';
 import { REJECTION_REASONS } from '@utils/constants';
 import styles from '@styles/pages/portal/activity-page.module.css';
-import { PageSkeleton } from '@components/ui/portal/Skeleton';
 
 const COLUMNS = [
   { key: 'when', label: 'When' },
@@ -15,41 +16,79 @@ const COLUMNS = [
 
 const ROWS = [{}, {}, {}, {}, {}];
 
-const ACTION = { approve: 'Approved', reject: 'Rejected', defer: 'Saved for later' };
+const KINDS = {
+  approve: { label: 'Approved', icon: 'IconCheck', tone: 'positive' },
+  reject: { label: 'Rejected', icon: 'IconX', tone: 'negative' },
+  defer: { label: 'Saved for later', icon: 'IconClock', tone: 'warning' },
+  undone: { label: 'Taken back', icon: 'IconRefresh', tone: 'quiet' },
+};
+
+const FILTERS = [
+  { key: 'all', label: 'Everything' },
+  { key: 'approve', label: 'Approved' },
+  { key: 'reject', label: 'Rejected' },
+  { key: 'defer', label: 'Later' },
+  { key: 'undone', label: 'Taken back' },
+];
 
 const reasonLabel = (r) => (r ? REJECTION_REASONS.find((x) => x.value === r)?.label ?? r : null);
+const kindOf = (e) => e.to_action ?? 'undone';
 
-const when = (ts) => new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Europe/London',
-  day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+const time = (ts) => new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit',
 }).format(new Date(ts));
 
-// A cleared decision has no to_action. Saying so is the point of the log.
-function describe(e) {
-  if (!e.to_action) return { verb: 'Undecided', from: ACTION[e.from_action] ?? null };
-  return { verb: ACTION[e.to_action] ?? e.to_action, from: e.from_action ? ACTION[e.from_action] : null };
+const dayKey = (ts) => new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/London', day: 'numeric', month: 'long', year: 'numeric',
+}).format(new Date(ts));
+
+function dayLabel(ts) {
+  const today = dayKey(Date.now());
+  const yesterday = dayKey(Date.now() - 86400000);
+  const day = dayKey(ts);
+  if (day === today) return 'Today';
+  if (day === yesterday) return 'Yesterday';
+  return day.replace(` ${new Date().getFullYear()}`, '');
 }
 
 export function ActivityPage() {
   const [tenant, setTenant] = useState(undefined);
+  const [only, setOnly] = useState('all');
+
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
   const { status, rows } = useActivity(tenant?.id);
 
-  if (tenant === undefined || status === 'loading') {
-    return <PageSkeleton />;
-  }
+  const counts = useMemo(() => rows.reduce((o, e) => {
+    const k = kindOf(e);
+    o[k] = (o[k] ?? 0) + 1;
+    o.all += 1;
+    return o;
+  }, { all: 0 }), [rows]);
+
+  const days = useMemo(() => {
+    const shown = only === 'all' ? rows : rows.filter((e) => kindOf(e) === only);
+    const map = new Map();
+    for (const e of shown) {
+      const k = dayKey(e.happened_at);
+      if (!map.has(k)) map.set(k, { label: dayLabel(e.happened_at), events: [] });
+      map.get(k).events.push(e);
+    }
+    return [...map.values()];
+  }, [rows, only]);
+
+  if (tenant === undefined || status === 'loading') return <PageSkeleton />;
 
   if (status === 'ready' && rows.length === 0) {
     return (
       <EmptyState
         eyebrow="Activity"
-        title="Nothing recorded yet"
+        title="Nothing decided yet"
         icon="IconClock"
-        body="Every decision with its date and reason, so you can look back at what you passed on and why."
+        body="Every decision with its date and reason, so you can look back at what was passed on and why."
         columns={COLUMNS}
         rows={ROWS}
-        note="Your rejection reasons are also what tunes the research. Enough of the same reason and the threshold moves on its own, so this record is worth more than it looks."
+        note="Rejection reasons are also what tunes the research. Enough of the same reason and the threshold moves, so this record is worth more than it looks."
       />
     );
   }
@@ -59,35 +98,58 @@ export function ActivityPage() {
       <header className={styles.head}>
         <p className="micro">Activity</p>
         <h1 className={styles.title}>What has been decided</h1>
-        <p className={styles.lead}>
-          Every decision and every change to one, in order. A row that says Undecided
-          is a decision that was taken back.
-        </p>
       </header>
 
-      <ol className={styles.log}>
-        {rows.map((e) => {
-          const { verb, from } = describe(e);
-          const reason = reasonLabel(e.to_reason ?? e.from_reason);
+      <div className={styles.filters} role="tablist" aria-label="Show">
+        {FILTERS.filter((f) => f.key === 'all' || counts[f.key]).map((f) => (
+          <button key={f.key} type="button" role="tab" aria-selected={only === f.key}
+            className={`${styles.filter} ${only === f.key ? styles.filterOn : ''}`}
+            onClick={() => setOnly(f.key)}>
+            {f.key !== 'all' && <i className={styles.dot} data-tone={KINDS[f.key].tone} aria-hidden="true" />}
+            {f.label}
+            <span className={styles.count} data-num>{counts[f.key] ?? 0}</span>
+          </button>
+        ))}
+      </div>
 
-          return (
-            <li key={e.id} className={styles.event}>
-              <p className={styles.when} data-num>{when(e.happened_at)}</p>
+      {days.map((d) => (
+        <section key={d.label} className={styles.day}>
+          <header className={styles.dayHead}>
+            <h2 className={styles.dayTitle}>{d.label}</h2>
+            <span className={styles.dayCount} data-num>{d.events.length}</span>
+          </header>
 
-              <div className={styles.body}>
-                <p className={styles.what}>
-                  <span className={`${styles.verb} ${styles[e.to_action ?? 'cleared']}`}>{verb}</span>
-                  {from && <span className={styles.from}> was {from}</span>}
-                </p>
-                <p className={styles.product}>{e.candidate_title ?? 'Product no longer in the batch'}</p>
-                {e.note && <p className={styles.note}>{e.note}</p>}
-              </div>
+          <ol className={styles.log}>
+            {d.events.map((e) => {
+              const k = KINDS[kindOf(e)];
+              const reason = reasonLabel(e.to_reason ?? e.from_reason);
+              const was = kindOf(e) === 'undone' && e.from_action ? KINDS[e.from_action]?.label : null;
 
-              <p className={styles.reason}>{reason ?? ''}</p>
-            </li>
-          );
-        })}
-      </ol>
+              return (
+                <li key={e.id} className={styles.event} data-tone={k.tone}>
+                  <span className={styles.badge}><Icon name={k.icon} className={styles.badgeIcon} /></span>
+
+                  <div className={styles.body}>
+                    <p className={styles.product}>{e.candidate_title ?? 'Product no longer in the batch'}</p>
+                    <p className={styles.what}>
+                      <span className={styles.verb}>
+                        {k.label}
+                        {was && <span className={styles.from}>, was {was.toLowerCase()}</span>}
+                      </span>
+                      {reason && <span className={styles.reason}>{reason}</span>}
+                    </p>
+                    {e.note && <p className={styles.note}>{e.note}</p>}
+                  </div>
+
+                  <time className={styles.time} dateTime={e.happened_at} data-num>{time(e.happened_at)}</time>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      ))}
+
+      {days.length === 0 && <p className={styles.none}>Nothing of that kind yet.</p>}
     </div>
   );
 }

@@ -56,3 +56,63 @@
 .factLabel { font-size: var(--t-micro); color: var(--c-ink-faint); white-space: nowrap; }
 .factValue { font-size: var(--t-caption); color: var(--c-ink-soft); }
 .factSub { margin-left: var(--s-2); color: var(--c-ink-faint); }
+
+.tip { position: relative; display: inline-flex; vertical-align: middle; }
+
+.tipButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--r-full);
+  color: var(--c-ink-faint);
+  transition: color var(--dur) var(--ease);
+}
+
+/* 44px to hit, 16px to see. */
+.tipButton::before { content: ''; position: absolute; inset: -14px; }
+.tipButton:hover, .tipButton:focus-visible { color: var(--c-ink); }
+.tipButton:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+.tipIcon { flex-shrink: 0; width: 14px; height: 14px; }
+
+.tipBody {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: var(--z-drawer);
+  width: max-content;
+  max-width: 260px;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-ink);
+  color: var(--c-base);
+  box-shadow: var(--e-3);
+  font-size: var(--t-caption);
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: var(--lh-snug);
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px);
+  transition: opacity var(--dur) var(--ease), transform var(--dur-settle) var(--ease-out);
+}
+
+.tip[data-side='end'] .tipBody { left: auto; right: -6px; transform: translateY(4px); }
+.tip[data-side='start'] .tipBody { left: -6px; transform: translateY(4px); }
+
+.tip:hover .tipBody,
+.tip:focus-within .tipBody { opacity: 1; transform: translate(-50%, 0); }
+
+.tip[data-side='end']:hover .tipBody,
+.tip[data-side='end']:focus-within .tipBody,
+.tip[data-side='start']:hover .tipBody,
+.tip[data-side='start']:focus-within .tipBody { transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tipBody { transition: none; }
+}

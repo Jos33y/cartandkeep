@@ -1,0 +1,184 @@
+.band { display: flex; flex-direction: column; gap: var(--s-3); margin: 0; }
+
+.lanes {
+  position: relative;
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  align-items: center;
+  row-gap: var(--s-3);
+  column-gap: var(--s-4);
+  padding-top: 34px;
+}
+
+.laneLabel { font-size: var(--t-caption); color: var(--c-ink-soft); }
+
+/* Explicit, because the overlay takes the rail column from auto-placement. */
+.lanes > :nth-child(1) { grid-column: 1; grid-row: 1; }
+.lanes > :nth-child(2) { grid-column: 2; grid-row: 1; }
+.lanes > :nth-child(3) { grid-column: 1; grid-row: 2; }
+.lanes > :nth-child(4) { grid-column: 2; grid-row: 2; }
+
+.rail {
+  position: relative;
+  height: 14px;
+  border-radius: var(--r-full);
+  background: var(--c-sunk);
+}
+
+.body {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--r-full);
+  background: var(--c-brand-mid);
+}
+
+.median {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--c-brand-strong);
+}
+
+.seller {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: var(--r-full);
+  background: var(--c-surface);
+  border: 3px solid var(--c-warning);
+  box-shadow: var(--e-1);
+}
+
+.sellerProved { border-color: var(--c-positive); }
+
+.pays { overflow: hidden; }
+.loss, .thin, .gain { position: absolute; top: 0; bottom: 0; }
+.loss { left: 0; background: var(--c-negative-wash); box-shadow: inset -2px 0 0 var(--c-negative); }
+.thin { background: var(--c-warning-wash); }
+.gain { background: var(--c-positive-wash); box-shadow: inset 2px 0 0 var(--c-positive); }
+
+.unknown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding-left: var(--s-3);
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+}
+
+/* In the rail column so a percentage means the same on both rails. */
+.overlay {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: stretch;
+  pointer-events: none;
+}
+
+.list {
+  position: absolute;
+  top: 0;
+  height: 14px;
+  width: 0;
+  animation: settle var(--dur-enter) var(--ease-out) both;
+}
+
+/* The same price where it lands on the money rail, without a line joining them. */
+.knob {
+  position: absolute;
+  bottom: 1px;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: var(--r-full);
+  background: var(--c-ink);
+  box-shadow: 0 0 0 2px var(--c-surface);
+  animation: settle var(--dur-enter) var(--ease-out) both;
+}
+
+.knob.short { background: var(--c-negative); }
+
+/* A pin on the rail: the tag points at the price, so no line has to cross. */
+.flag {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  padding: 3px var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--c-ink);
+  color: var(--c-base);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.flag::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border: 5px solid transparent;
+  border-top-color: var(--c-ink);
+  border-bottom: 0;
+}
+
+.flagPrice { font-size: var(--t-label); font-weight: 500; }
+.flagKeep { font-size: var(--t-micro); color: var(--c-brand-mid); }
+.flagShort { color: var(--c-warning-wash); }
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  margin-left: calc(7.5rem + var(--s-4));
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+}
+
+.key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-5);
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+}
+
+.keyItem { display: inline-flex; align-items: center; gap: var(--s-2); }
+.keyItem b { font-weight: 500; color: var(--c-ink); }
+.keyBody, .keyLoss, .keyGain { display: inline-block; width: 16px; height: 8px; border-radius: var(--r-full); }
+.keyBody { background: var(--c-brand-mid); }
+.keyLoss { background: var(--c-negative-wash); box-shadow: inset 0 0 0 1px var(--c-negative); }
+.keyGain { background: var(--c-positive-wash); box-shadow: inset 0 0 0 1px var(--c-positive); }
+
+.keyDot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-full);
+  border: 2px solid var(--c-warning);
+}
+
+.keyDot.sellerProved { border-color: var(--c-positive); }
+.clipped { color: var(--c-ink-faint); }
+
+@keyframes settle {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 640px) {
+  .lanes { grid-template-columns: 4.5rem minmax(0, 1fr); column-gap: var(--s-3); }
+  .axis { margin-left: calc(4.5rem + var(--s-3)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .list { animation: none; }
+}

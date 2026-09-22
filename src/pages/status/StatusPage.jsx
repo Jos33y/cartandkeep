@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import {
   STATUS_ITEMS,
   STATE_LABEL,
+  SUPERSEDED_LABEL,
   activeItems,
   upcomingPhases,
   completedByMonth,
@@ -40,10 +41,13 @@ function Chevron({ open }) {
 
 function Row({ item, showPhase = false, showDate = false }) {
   return (
-    <li className={styles.row}>
+    <li className={`${styles.row} ${item.superseded ? styles.rowOld : ''}`}>
       <StateIcon state={item.state} className={styles.icon} pulseClass={styles.pulse} />
       <span className={styles.rowMain}>
-        <span className={styles.rowLabel}>{item.label}</span>
+        <span className={styles.rowLabel}>
+          {item.label}
+          {item.superseded ? <span className={styles.tag}>{SUPERSEDED_LABEL}</span> : null}
+        </span>
         {item.detail ? <span className={styles.rowDetail}>{item.detail}</span> : null}
         {item.due ? <span className={styles.rowDue}>{item.due}</span> : null}
         {showPhase ? <span className={styles.rowPhase}>{item.phase}</span> : null}
@@ -64,8 +68,13 @@ export function StatusPage() {
   const [showAllMonths, setShowAllMonths] = useState(false);
   const [current, setCurrent] = useState('now');
 
-  const done = STATUS_ITEMS.filter((i) => i.state === 'done').length;
-  const total = STATUS_ITEMS.length;
+  // Work whose method has since been replaced is delivered, and it is not
+  // part of what is live, so it is counted separately rather than inflating
+  // the bar she reads.
+  const live = STATUS_ITEMS.filter((i) => !i.superseded);
+  const replaced = STATUS_ITEMS.length - live.length;
+  const done = live.filter((i) => i.state === 'done').length;
+  const total = live.length;
   const running = activeItems();
   const upcoming = upcomingPhases();
   const history = completedByMonth();
@@ -143,11 +152,19 @@ export function StatusPage() {
         <div className={styles.line} role="progressbar" aria-valuemin={0} aria-valuemax={total}
           aria-valuenow={done} aria-label="Build milestones complete">
           <span className={styles.lineFill} style={{ width: `${pct}%` }} />
+          <span className={styles.lineActive} style={{ width: `${Math.round((running.length / total) * 100)}%` }} />
         </div>
+
+        <ul className={styles.tally}>
+          <li><span className={styles.tallyFigure}>{done}</span><span className={styles.tallyLabel}>Built</span></li>
+          <li><span className={styles.tallyFigure}>{running.length}</span><span className={styles.tallyLabel}>In progress</span></li>
+          <li><span className={styles.tallyFigure}>{queued}</span><span className={styles.tallyLabel}>Coming up</span></li>
+        </ul>
 
         <p className={styles.meta}>
           <span className={styles.metaNum}>{done}</span> of <span className={styles.metaNum}>{total}</span> build
-          milestones complete{updated ? ` · updated ${fmt(updated, { day: 'numeric', month: 'long' })}` : ''}
+          milestones complete{replaced ? `, with ${replaced} since replaced by a better method` : ''}
+          {updated ? `. Updated ${fmt(updated, { day: 'numeric', month: 'long' })}` : ''}
         </p>
       </section>
 

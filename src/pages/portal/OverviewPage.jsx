@@ -13,7 +13,8 @@ import styles from '@styles/pages/portal/overview-page.module.css';
 
 const fmt = (d, opts) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', ...opts }).format(d);
 const n = (v) => Number(v ?? 0).toLocaleString('en-GB');
-const pct = (v) => (v == null ? '--' : `${(Number(v) * 100).toFixed(1)}%`);
+const pct = (v) => (v == null ? 'Unknown' : `${(Number(v) * 100).toFixed(1)}%`);
+const plural = (count, one, many) => (count === 1 ? one : many);
 
 function greeting(now = new Date()) {
   const h = Number(fmt(now, { hour: 'numeric', hour12: false }));
@@ -63,7 +64,7 @@ export function OverviewPage() {
       icon: 'IconInfo',
       tone: 'warning',
       count: o.approved.waiting - o.approved.ready,
-      title: `${o.approved.waiting - o.approved.ready} approved need a look`,
+      title: `${o.approved.waiting - o.approved.ready} approved ${plural(o.approved.waiting - o.approved.ready, 'needs', 'need')} a look`,
       body: 'A price, a pack size or a claim to confirm before they go up.',
       to: portalPath('/approved'),
       cta: 'Check them',
@@ -71,7 +72,7 @@ export function OverviewPage() {
     ebayOnly > 0 && {
       icon: 'IconShop',
       count: ebayOnly,
-      title: `${ebayOnly} on eBay, not on your shop`,
+      title: `${ebayOnly} on eBay, ${plural(ebayOnly, 'not', 'none')} on your shop`,
       body: 'Same price keeps more on your own shop, with no eBay fee.',
       to: portalPath('/listings'),
       cta: 'Add them',
@@ -81,11 +82,13 @@ export function OverviewPage() {
   const stages = [
     { label: 'To review', value: o.counts.pending, to: portalPath('/candidates'), icon: 'IconLayers' },
     { label: 'Approved', value: o.approved.waiting, to: portalPath('/approved'), icon: 'IconCheck',
-      foot: o.approved.worth > 0 ? `${formatGbp(o.approved.worth)} if each sells once` : null },
+      foot: o.approved.worth > 0
+        ? `${formatGbp(o.approved.worth)} if ${plural(o.approved.waiting, 'it sells', 'each sells')} once`
+        : null },
     { label: 'Live', value: onEbay, to: portalPath('/listings'), icon: 'IconTag',
-      foot: onShop ? `${onShop} also on your shop` : 'on eBay' },
+      foot: onShop ? `${onShop} ${plural(onShop, 'is', 'are')} also on your shop` : 'on eBay' },
     { label: 'Sold', value: sold, to: portalPath('/listings'), icon: 'IconBought', tone: sold > 0 ? 'positive' : null,
-      foot: o.traffic ? `from those ${onEbay} live, last 90 days` : 'no traffic pulled yet' },
+      foot: o.traffic ? `from ${plural(onEbay, 'that one', `those ${onEbay}`)}, last 90 days` : 'no traffic pulled yet' },
   ];
 
   const nothingYet = o.batches.length === 0 && onEbay === 0;
@@ -207,7 +210,7 @@ export function OverviewPage() {
           {o.reasons.length > 0 && (
             <Card className={styles.wide}>
               <CardHead title="Why products were rejected"
-                note="The studio reads these to adjust what the research looks for." />
+                note="Used to adjust what the research looks for." />
               <ul className={styles.reasons}>
                 {o.reasons.map(({ reason, count }) => {
                   const label = REJECTION_REASONS.find((r) => r.value === reason)?.label ?? reason;

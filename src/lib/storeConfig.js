@@ -22,6 +22,31 @@ const DEFAULTS = {
   domain: 'cartandkeep.com',
   email: 'support@cartandkeep.com',
   referencePrefix: 'CK',
+
+  /*
+   * Who the customer is buying from, and the terms they buy under.
+   *
+   * Null rather than a placeholder string. The legal pages render a missing
+   * value as a line that needs confirming, which is honest; a placeholder
+   * renders as prose and goes live reading "TO CONFIRM" to a customer.
+   */
+  trader: {
+    name: null,
+    address: null,
+    company: null,
+    returnAddress: null,
+    vat: null,
+  },
+  returns: {
+    days: 30,
+    statutoryDays: 14,
+    // 'customer' or 'us'. Unset means the trader pays, which is what the
+    // regulations decide when nothing was said before the sale.
+    postagePaidBy: null,
+  },
+  privacy: {
+    retentionYears: null,
+  },
   delivery: {
     freeOver: 40,
     postage: 3.95,
@@ -104,6 +129,9 @@ export const supportEmail = () => config.email;
 export const siteUrl = () => `https://${config.domain}`;
 export const freeOver = () => config.delivery.freeOver;
 export const postage = () => config.delivery.postage;
+export const trader = () => config.trader ?? {};
+export const returnsTerms = () => config.returns ?? {};
+export const privacyTerms = () => config.privacy ?? {};
 
 /*
  * Whether a basket clears the threshold, and what it costs if not.
