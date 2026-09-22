@@ -117,6 +117,13 @@ export function ApprovedPage() {
   const { suppliers, remember } = useSuppliers(tenant?.id);
   const [find, setFind] = useState('');
   const [only, setOnly] = useState(null);
+  const [listed, setListed] = useState(null);
+
+  useEffect(() => {
+    if (!listed) return undefined;
+    const t = setTimeout(() => setListed(null), 12000);
+    return () => clearTimeout(t);
+  }, [listed]);
 
   const assessed = useMemo(() => rows.map((r) => ({ row: r, a: assess(r) })), [rows]);
 
@@ -198,7 +205,11 @@ export function ApprovedPage() {
             tenantId={tenant.id}
             fees={tenant.fees}
             suppliers={suppliers}
-            onList={(opts) => list({ candidateId: row.id, ...opts })}
+            onList={async (opts) => {
+              const out = await list({ candidateId: row.id, ...opts });
+              if (!opts.dry && out?.listing_id) setListed({ ...out, title: opts.title ?? row.listing?.title ?? row.title });
+              return out;
+            }}
             onShop={(product) => addToShop({ candidateId: row.id, product })}
             onSource={async (fields) => {
               await addSource({ candidateId: row.id, tenantId: tenant.id, ...fields });
@@ -209,6 +220,25 @@ export function ApprovedPage() {
 
         {shown.length === 0 && <p className={styles.quiet}>Nothing here.</p>}
       </div>
+
+      {listed && (
+        <div className={styles.toast} role="status" aria-live="polite">
+          <span className={styles.toastIcon}><Icon name="IconCheck" className={styles.btnIcon} /></span>
+          <div className={styles.toastText}>
+            <strong>Live on eBay</strong>
+            <span>{listed.title} · {formatGbp(listed.price)} · {listed.quantity} available</span>
+          </div>
+          <a className={styles.toastLink} href={`https://www.ebay.co.uk/itm/${listed.listing_id}`}
+            target="_blank" rel="noreferrer noopener">
+            View listing
+            <Icon name="IconOut" className={styles.toastOut} />
+          </a>
+          <button type="button" className={styles.toastClose} aria-label="Dismiss"
+            onClick={() => setListed(null)}>
+            <Icon name="IconX" className={styles.toastOut} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -233,6 +263,8 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   const [shopping, setShopping] = useState(false);
+  // She buys after each sale, and the shop caps how many one order can take.
+  const [qty, setQty] = useState(Math.min(5, row.listing?.max_qty ?? 5));
 
   const { draft, change, revert, generate, upload, saving, edited } = useDraft(row, tenantId);
 
@@ -500,7 +532,7 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
                   try {
                     setConfirm(await onList({
                       price: a.price,
-                      quantity: draft.quantity ?? 1,
+                      quantity: qty,
                       title: draft.title,
                       description: draft.description,
                       images: draft.images,
@@ -526,7 +558,19 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
               <div className={styles.confirmGrid}>
                 <ConfirmItem label="Category" value={confirm.category.name} sub={`#${confirm.category.id}`} />
                 <ConfirmItem label="Price" value={formatGbp(confirm.price)} />
-                <ConfirmItem label="Quantity" value={confirm.quantity} />
+                <div className={styles.confirmItem}>
+                  <span className={styles.confirmLabel}>Quantity</span>
+                  <span className={styles.qty}>
+                    <button type="button" className={styles.qtyStep} aria-label="One fewer"
+                      onClick={() => setQty((q) => Math.max(1, q - 1))}>−</button>
+                    <span className={styles.confirmValue} data-num>{qty}</span>
+                    <button type="button" className={styles.qtyStep} aria-label="One more"
+                      onClick={() => setQty((q) => Math.min(99, q + 1))}>+</button>
+                  </span>
+                  {a.l?.max_qty != null && qty > a.l.max_qty && (
+                    <span className={styles.confirmWarn}>Shop limit is {a.l.max_qty} per order</span>
+                  )}
+                </div>
                 <ConfirmItem label="Photographs" value={confirm.images} />
                 <ConfirmItem label="You keep" value={formatGbp(a.keep)} tone="positive" />
               </div>
@@ -542,7 +586,7 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
                     try {
                       await onList({
                         price: confirm.price,
-                        quantity: confirm.quantity,
+                        quantity: qty,
                         title: draft.title,
                         description: draft.description,
                         images: draft.images,

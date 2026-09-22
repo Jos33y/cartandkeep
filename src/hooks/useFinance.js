@@ -98,19 +98,27 @@ export function useFinance(tenantId) {
        * the whole month, and saying "£46.32, over 3 of 4 products" tells her
        * both things. Withholding it told her neither.
        */
-      net: round(sum(costed, 'net')),
+      // A total over nothing is unknown, not zero. With no product costed the
+      // sum was 0 and the page showed it as her profit.
+      net: costed.length ? round(sum(costed, 'net')) : null,
       netCovers: costed.length,
       uncosted: rows.length - costed.length,
       unmatched: sum(rows, 'unmatched_lines'),
     };
   }).filter((c) => c.lines > 0), [inMonth]);
 
-  const totals = useMemo(() => ({
-    revenue: round(sum(byChannel, 'revenue')),
-    net: round(sum(byChannel, 'net')),
-    units: sum(byChannel, 'units'),
-    uncosted: sum(byChannel, 'uncosted'),
-  }), [byChannel]);
+  const totals = useMemo(() => {
+    const covered = sum(byChannel, 'netCovers');
+    return {
+      revenue: round(sum(byChannel, 'revenue')),
+      net: covered ? round(byChannel.reduce((n, c) => n + (c.net ?? 0), 0)) : null,
+      units: sum(byChannel, 'units'),
+      uncosted: sum(byChannel, 'uncosted'),
+      covered,
+      lines: sum(byChannel, 'lines'),
+      unmatched: sum(byChannel, 'unmatched'),
+    };
+  }, [byChannel]);
 
   // Products worth the most, worst costed first among equals, because a product
   // earning well with no cost recorded is the one worth ten minutes.
@@ -149,6 +157,9 @@ export function useFinance(tenantId) {
     return [...rolled.values()]
       .map((r) => ({
         ...r,
+        // No product id means the shop product is gone, so there is no cost
+        // to add. Telling her to add one under Products is not possible.
+        removed: r.product_id == null,
         revenue: round(r.revenue),
         net: r.costed ? round(r.net) : null,
         byChannel: r.byChannel.sort((a, b) => (b.net ?? -1e9) - (a.net ?? -1e9)),
@@ -182,7 +193,28 @@ export function useFinance(tenantId) {
     await load();
   }, [tenantId, load]);
 
+  const [pulling, setPulling] = useState(false);
+  const [pulled, setPulled] = useState(null);
+
+  // Her eBay orders with eBay's real fees, through the connection she approved.
+  const pullEbay = useCallback(async (days = 90) => {
+    setPulling(true);
+    setPulled(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('ebay-sales', {
+        body: { tenant_id: tenantId, days },
+      });
+      if (error || data?.error) throw new Error(data?.error ?? error.message);
+      setPulled(data);
+      await load();
+      return data;
+    } finally {
+      setPulling(false);
+    }
+  }, [tenantId, load]);
+
   return {
     ...state, months, showing, setMonth, byChannel, totals, products, saveCosts, reload: load,
+    pullEbay, pulling, pulled,
   };
 }

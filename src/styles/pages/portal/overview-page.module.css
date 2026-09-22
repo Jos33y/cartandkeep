@@ -1,69 +1,8 @@
-.page { display: flex; flex-direction: column; gap: var(--s-7); }
+.page { display: flex; flex-direction: column; gap: var(--s-5); }
 
 .head { display: flex; flex-direction: column; gap: var(--s-2); }
 
 .eyebrow {
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--c-ink-faint);
-}
-
-.title {
-  font-size: 2rem;
-  font-weight: 560;
-  letter-spacing: -0.035em;
-  line-height: var(--lh-tight);
-}
-
-.sub { font-size: var(--t-body); color: var(--c-ink-soft); }
-
-.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; color: var(--c-ink); }
-
-/* The batch as one bar. Width is the count, so the shape of the week is
-   readable before a single number is. */
-.split { display: flex; flex-direction: column; gap: var(--s-3); }
-
-.splitBar { display: flex; gap: 2px; height: 10px; background: var(--c-line); }
-
-.seg { display: block; }
-.segApproved { background: var(--c-brand-strong); }
-.segRejected { background: var(--c-action-strong); }
-.segDeferred { background: var(--c-warning); }
-.segPending { background: var(--c-line-mid); }
-
-.legend { display: flex; flex-wrap: wrap; gap: var(--s-4); }
-
-.legendItem { display: flex; align-items: baseline; gap: var(--s-2); font-size: var(--t-caption); }
-
-.legendItem dt { color: var(--c-ink-soft); }
-.legendItem dd { font-family: var(--font-data); font-variant-numeric: tabular-nums; font-weight: 500; }
-
-.swatch { width: 8px; height: 8px; border-radius: 2px; transform: translateY(-1px); }
-
-.splitMeta { font-size: var(--t-caption); color: var(--c-ink-faint); }
-
-.figures {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 1px;
-  background: var(--c-line);
-  border: 1px solid var(--c-line);
-}
-
-.figure {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  padding: var(--s-5) var(--s-4);
-  background: var(--c-base);
-}
-
-.figureLink { text-decoration: none; color: inherit; transition: background var(--dur) var(--ease); }
-.figureLink:hover { background: var(--c-sunk); }
-
-.figureLabel {
   font-size: var(--t-micro);
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -71,148 +10,209 @@
   color: var(--c-ink-faint);
 }
 
-.figureValue {
-  font-family: var(--font-data);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--t-display);
-  font-weight: 500;
-  letter-spacing: -0.03em;
-  line-height: var(--lh-tight);
-}
+.title { max-width: 26ch; font-size: 2rem; letter-spacing: -0.025em; font-weight: 560; line-height: 1.15; }
 
-.figureMoney { font-size: 2rem; }
-
-.figureCta {
-  font-size: var(--t-caption);
-  color: var(--c-action-text);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-/* Stands in for the figures until there is something to report. */
-.flow {
+/* Four stages joined, not four cards apart. The arrows are the point: this is
+   one flow, and where the numbers pile up is where the work is. */
+.pipeline {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1px;
-  background: var(--c-line);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--e-1);
+  overflow: hidden;
 }
 
-.step {
+.stage {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--s-2);
-  padding: var(--s-5) var(--s-4);
-  background: var(--c-base);
+  gap: 3px;
+  padding: var(--s-4) var(--s-5);
+  color: inherit;
+  text-decoration: none;
+  transition: background var(--dur) var(--ease);
 }
 
-.stepIcon { width: 20px; height: 20px; color: var(--c-brand); margin-bottom: var(--s-2); }
+.stage + .stage { border-left: 1px solid var(--c-line); }
+.stage:hover { background: var(--c-raised); }
+.stage:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: -2px; }
 
-.stepTitle { font-size: var(--t-lead); font-weight: 560; letter-spacing: -0.02em; }
-
-.stepBody { font-size: var(--t-body); line-height: var(--lh-snug); color: var(--c-ink-soft); }
-
-.block { display: flex; flex-direction: column; gap: var(--s-4); }
-
-.blockLabel {
+.stageHead {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
   font-size: var(--t-micro);
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--c-ink-faint);
-  padding-bottom: var(--s-2);
-  border-bottom: 1px solid var(--c-line);
 }
 
-.blockNote { font-size: var(--t-caption); color: var(--c-ink-faint); max-width: 56ch; }
+.stageIcon { width: 14px; height: 14px; }
+.stageValue { color: var(--c-ink); font-size: var(--t-display); line-height: 1; margin-top: var(--s-1); }
+.stageFoot { font-size: var(--t-micro); color: var(--c-ink-faint); }
 
-.reasons { list-style: none; display: flex; flex-direction: column; gap: var(--s-3); }
+.arrow {
+  position: absolute;
+  top: 50%;
+  right: -7px;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  border-top: 1px solid var(--c-line);
+  border-right: 1px solid var(--c-line);
+  background: var(--c-surface);
+  transform: translateY(-50%) rotate(45deg);
+}
 
-.reason {
+.stage:hover .arrow { background: var(--c-raised); }
+
+.positive { color: var(--c-positive); }
+.action { background: var(--c-action-wash); color: var(--c-action-text); }
+.warning { background: var(--c-warning-wash); color: var(--c-warning); }
+
+.grid {
   display: grid;
-  grid-template-columns: minmax(0, 12rem) 1fr 2rem;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: var(--s-4);
+  align-items: start;
+}
+
+.wide { grid-column: 1 / -1; }
+
+/* Tasks down the left, money and eBay stacked beside it. */
+.tasks { grid-row: span 2; }
+
+.taskList { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.task {
+  display: flex;
   align-items: center;
   gap: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-base);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 
-.reasonLabel { font-size: var(--t-body); }
+.task:hover { border-color: var(--c-line-mid); box-shadow: var(--e-1); transform: translateY(-1px); }
 
-.reasonTrack { height: 8px; background: var(--c-sunk); }
-
-.reasonFill { display: block; height: 100%; background: var(--c-brand-mid); }
-
-.reason .num { text-align: right; font-size: var(--t-label); }
-
-.sources { list-style: none; display: flex; flex-direction: column; }
-
-.source {
-  display: grid;
-  grid-template-columns: 8px 1fr auto;
+.taskIcon {
+  display: flex;
   align-items: center;
-  gap: var(--s-3);
-  padding: var(--s-3) 0;
-  border-bottom: 1px solid var(--c-line);
-}
-
-.dot { width: 8px; height: 8px; border-radius: var(--r-full); }
-.ok { background: var(--c-positive); }
-.bad { background: var(--c-negative); }
-.idle { background: var(--c-line-mid); }
-
-.sourceName { font-size: var(--t-body); }
-
-.sourceMeta {
-  font-family: var(--font-data);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--t-caption);
-  color: var(--c-ink-faint);
-}
-
-@media (min-width: 720px) {
-  .title { font-size: 2.5rem; }
-  .flow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .reason { grid-template-columns: minmax(0, 14rem) 1fr 2.5rem; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .figureLink { transition: none; }
-}
-
-/* Append to src/styles/pages/portal/overview-page.module.css
-   ------------------------------------------------------------------
-   The batch breakdown under the headline. It exists only when there is
-   more than one live batch, so it must not look like a permanent piece
-   of furniture: no card, no border, no heading. A count, a name and a
-   date, set on the same baseline as the sub line above it. */
-
-.batchBreak {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
-  margin-top: var(--s-3);
-}
-
-.batchLine {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s-3);
-  font-size: var(--t-caption);
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  background: var(--c-sunk);
   color: var(--c-ink-soft);
 }
 
-/* The count is the only figure on the line, so it is the only thing in
-   mono. Fixed width so two lines of different counts stay aligned. */
-.batchLine .num {
-  min-width: 2.5ch;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  color: var(--c-ink);
+.taskGlyph { width: 17px; height: 17px; }
+.taskText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.taskTitle { font-size: var(--t-body); font-weight: 500; color: var(--c-ink); }
+.taskBody { font-size: var(--t-caption); color: var(--c-ink-faint); line-height: var(--lh-snug); }
+
+.taskCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: var(--t-caption);
+  font-weight: 500;
+  color: var(--c-action-text);
+  white-space: nowrap;
 }
 
-.batchName { color: var(--c-ink); }
+.taskCaret { width: 14px; height: 14px; transform: rotate(-90deg); transition: transform var(--dur) var(--ease); }
+.task:hover .taskCaret { transform: rotate(-90deg) translateY(2px); }
 
-.batchDate { color: var(--c-ink-faint); margin-left: auto; }
+.clear {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--c-positive-wash);
+  color: var(--c-positive);
+  font-size: var(--t-label);
+}
 
-@media (max-width: 480px) {
-  .batchDate { display: none; }
+.clearIcon { width: 16px; height: 16px; flex-shrink: 0; }
+
+.more { font-size: var(--t-caption); color: var(--c-action-text); text-decoration: none; }
+.more:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.funnel { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-3); }
+.mini { display: flex; flex-direction: column; gap: 2px; }
+.miniHead { display: flex; align-items: center; gap: var(--s-1); font-size: var(--t-micro); color: var(--c-ink-faint); }
+.miniIcon { width: 13px; height: 13px; }
+.miniValue { font-size: var(--t-lead); color: var(--c-ink); line-height: 1.1; }
+.miniFoot { font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+.spark { width: 100%; height: 56px; margin-top: var(--s-4); display: block; }
+
+.empty { padding: var(--s-3); border-radius: var(--r-md); background: var(--c-sunk); font-size: var(--t-caption); color: var(--c-ink-soft); }
+
+.reasons { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.reason {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.reasonLabel { font-size: var(--t-caption); color: var(--c-ink-soft); }
+.reasonTrack { height: 6px; border-radius: var(--r-full); background: var(--c-sunk); overflow: hidden; }
+.reasonFill { display: block; height: 100%; border-radius: var(--r-full); background: var(--c-line-strong); animation: grow var(--dur-enter) var(--ease-out) both; transform-origin: left; }
+.reasonCount { text-align: right; font-size: var(--t-caption); color: var(--c-ink); }
+
+@keyframes grow { from { transform: scaleX(0); } }
+
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-4); }
+.step { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.stepIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  background: var(--c-sunk);
+  color: var(--c-ink-soft);
+}
+
+.stepTitle { font-size: var(--t-body); font-weight: 500; color: var(--c-ink); }
+.stepBody { font-size: var(--t-caption); color: var(--c-ink-faint); line-height: var(--lh-snug); }
+
+@media (max-width: 900px) {
+  .grid { grid-template-columns: 1fr; }
+  .tasks { grid-row: auto; }
+  .pipeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stage:nth-child(3) { border-left: none; }
+  .stage:nth-child(n + 3) { border-top: 1px solid var(--c-line); }
+  .stage:nth-child(2) .arrow { display: none; }
+}
+
+@media (max-width: 640px) {
+  .title { font-size: 1.625rem; }
+  .stageValue { font-size: var(--t-figure); }
+  .steps { grid-template-columns: 1fr; }
+  .reason { grid-template-columns: 1fr 36px; }
+  .reasonTrack { grid-column: 1 / -1; grid-row: 2; }
+  .taskCta { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage, .task, .taskCaret { transition: none; }
+  .reasonFill { animation: none; }
 }

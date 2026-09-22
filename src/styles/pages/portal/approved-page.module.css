@@ -452,3 +452,87 @@ a.shop:hover .shopOut { color: var(--c-positive); }
 }
 
 .bar .barNote { flex: 1; }
+
+/* The row leaves the list on publish, so something has to say where it went. */
+.toast {
+  position: fixed;
+  right: var(--s-5);
+  bottom: var(--s-5);
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  max-width: min(520px, calc(100vw - 2 * var(--s-5)));
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--e-3);
+  animation: rise var(--dur-settle) var(--ease-out) both;
+}
+
+.toastIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-full);
+  background: var(--c-positive-wash);
+  color: var(--c-positive);
+}
+
+.toastText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.toastText strong { font-size: var(--t-label); font-weight: 600; color: var(--c-ink); }
+.toastText span { font-size: var(--t-micro); color: var(--c-ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.toastLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0 var(--s-3);
+  min-height: 34px;
+  border-radius: var(--r-md);
+  background: var(--c-positive);
+  color: #fff;
+  font-size: var(--t-caption);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.toastLink:hover { filter: brightness(0.93); }
+.toastOut { width: 12px; height: 12px; }
+
+.toastClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-full);
+  color: var(--c-ink-faint);
+}
+
+.toastClose:hover { background: var(--c-sunk); color: var(--c-ink); }
+
+.qty { display: inline-flex; align-items: center; gap: var(--s-2); }
+
+.qtyStep {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  color: var(--c-ink-soft);
+  line-height: 1;
+}
+
+.qtyStep:hover { border-color: var(--c-control); color: var(--c-ink); }
+.confirmWarn { font-size: var(--t-micro); color: var(--c-warning); }
+
+@media (max-width: 640px) {
+  .toast { left: var(--s-3); right: var(--s-3); bottom: var(--s-3); max-width: none; }
+}

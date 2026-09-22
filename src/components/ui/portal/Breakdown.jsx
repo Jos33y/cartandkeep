@@ -10,11 +10,11 @@ const gbp = (v) => (v == null ? '--'
  * share she keeps against the share eBay and the shop take is visible before
  * any number is read.
  */
-export function Breakdown({ price, fees, postage, goods, keep }) {
+export function Breakdown({ price, fees, postage, goods, keep, feeLabel = 'eBay fees' }) {
   if (!(price > 0)) return null;
 
   const parts = [
-    { key: 'fees', label: 'eBay fees', value: fees },
+    { key: 'fees', label: feeLabel, value: fees },
     { key: 'post', label: 'Postage & packing', value: postage },
     { key: 'goods', label: 'Goods', value: goods },
     { key: 'keep', label: 'You keep', value: keep },
