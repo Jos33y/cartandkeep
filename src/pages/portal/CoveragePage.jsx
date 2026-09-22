@@ -44,6 +44,24 @@ const REASONS = {
     tip: 'At the market price, eBay fees, postage and packaging use up the whole sale before any goods are paid for.',
     figure: (q) => (q.median_price != null ? `sells at ${formatGbp(q.median_price)}` : null),
   },
+  entry_large_only: {
+    short: 'Only large accounts selling',
+    label: 'Only large accounts are selling it',
+    tip: 'People are buying, but the smallest seller making sales has more feedback than a new account can match. A market that is closed to a newcomer is worth nothing to you, however big it is.',
+    figure: (q) => (q.entry_feedback != null ? `smallest ${n(q.entry_feedback)} feedback` : null),
+  },
+  entry_thin: {
+    short: 'Small seller barely selling',
+    label: 'A small seller is on it, and barely selling',
+    tip: 'Somebody your size has sold one, at a rate under one a month. One person bought a thing once, which is not a market.',
+    figure: () => null,
+  },
+  entry_untested: {
+    short: 'Untested and crowded',
+    label: 'Nobody new has tried it, and it is crowded',
+    tip: 'No listing under 90 days old in the sample, so there is no evidence either way, and too many listings competing to find out cheaply. In a thinner market this would still be worth a try.',
+    figure: (q) => (q.competitors != null ? `${n(q.competitors)} listings` : null),
+  },
   no_listings: {
     short: 'Nobody listing it',
     label: 'Nobody is listing it',

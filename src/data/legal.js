@@ -43,6 +43,23 @@ export function legalTrader() {
   };
 }
 
+/*
+ * The trading details as a plain object, for anything reading them outside a
+ * page build. Read through on every access rather than captured once, because
+ * settings resolve after this module loads and a snapshot taken here would be
+ * the empty one for the life of the tab.
+ */
+export const TRADER = new Proxy({}, {
+  get: (_, key) => legalTrader()[key],
+  has: (_, key) => key in legalTrader(),
+  ownKeys: () => Reflect.ownKeys(legalTrader()),
+  getOwnPropertyDescriptor: (_, key) => ({
+    value: legalTrader()[key],
+    enumerable: true,
+    configurable: true,
+  }),
+});
+
 const keep = (...blocks) => blocks.filter(Boolean);
 
 function deliveryPage(T, email) {
