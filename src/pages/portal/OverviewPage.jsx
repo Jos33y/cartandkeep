@@ -161,8 +161,10 @@ export function OverviewPage() {
           <Card>
             <CardHead
               title="Money"
-              note={f.showing ? new Date(`${String(f.showing).slice(0, 7)}-01T00:00:00Z`)
-                .toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : 'No sales yet'}
+              note={!f.totals.lines ? 'No sales yet'
+                : f.showing === 'all' ? 'All time'
+                  : new Date(`${String(f.showing).slice(0, 7)}-01T00:00:00Z`)
+                    .toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })}
               aside={<Link to={portalPath('/finance')} className={styles.more}>Finance</Link>}
             />
             {/* No sales is not an unknown profit. Unknown is for sales with no

@@ -1,48 +1,34 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { AppError } from '@components/layout/shared/AppError';
 import { BrandLoader } from '@components/ui/store/BrandLoader';
 import { isPortalHost, isStatusHost } from '@lib/host';
+import { bootDone } from '@lib/boot';
 
 const StoreApp = lazy(() => import('./StoreApp'));
 const PortalApp = lazy(() => import('./PortalApp'));
 const StatusApp = lazy(() => import('./StatusApp'));
 
-// Splitting by host keeps margins and supplier costs out of the shopper bundle.
-// The host test itself moved to @lib/host, because the manifest injection in
-// index.html and the service worker gate both need the same answer and three
-// copies of it is how one of them ends up disagreeing.
-export function App() {
-  let chunk;
-  let booting;
+// Rendered after the chunk, so the splash stays up until there is a page under it.
+function Booted() {
+  useEffect(() => { bootDone(); }, []);
+  return null;
+}
 
-  if (isPortalHost()) {
-    chunk = <PortalApp />;
-    booting = <Booting />;
-  } else if (isStatusHost()) {
-    chunk = <StatusApp />;
-    booting = <Booting />;
-  } else {
-    chunk = <StoreApp />;
-    // The shop gets the mark. A stranger's first frame should say whose shop
-    // they have opened, and grey text saying Loading says nothing. The portal
-    // and the status page keep the plain one: she knows where she is, and the
-    // mark would mean loading her review tool pulls in the shop's fonts.
-    booting = <BrandLoader />;
-  }
+// Split by host so margins and supplier costs never reach the shopper bundle.
+export function App() {
+  const portal = isPortalHost();
+  const status = isStatusHost();
+  const chunk = portal ? <PortalApp /> : status ? <StatusApp /> : <StoreApp />;
+
+  // The splash covers the portal and status page while they load; the shop keeps its mark.
+  const fallback = portal || status ? null : <BrandLoader />;
 
   return (
     <AppError>
-      <Suspense fallback={booting}>{chunk}</Suspense>
+      <Suspense fallback={fallback}>
+        {chunk}
+        <Booted />
+      </Suspense>
     </AppError>
-  );
-}
-
-function Booting() {
-  return (
-    <div
-      style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', color: '#736c5d' }}
-    >
-      <p style={{ fontSize: '0.8125rem' }}>Loading</p>
-    </div>
   );
 }

@@ -245,35 +245,9 @@
 .head > div > p:first-child { margin-bottom: var(--s-2); }
 .title { font-size: 2rem; letter-spacing: -0.025em; font-weight: 560; }
 
-.monthPick {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  min-height: 38px;
-  padding-left: calc(var(--s-3) + 18px);
-  border: 1px solid var(--c-line-mid);
-  border-radius: var(--r-md);
-  background: var(--c-surface);
-}
+.headActions { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
 
-.monthPick select {
-  min-height: 36px;
-  padding: 0 var(--s-6) 0 0;
-  border: none;
-  background: none;
-  font-size: var(--t-label);
-  color: var(--c-ink);
-  cursor: pointer;
-}
-
-.monthPick select:focus { outline: none; }
-.monthPick:focus-within { border-color: var(--c-control); }
-.monthIcon { position: absolute; left: var(--s-3); width: 14px; height: 14px; color: var(--c-ink-faint); }
-
-/* Four figures, each its own card, so "Kept: unknown" sits at the same weight
-   as "Taken" rather than as a footnote to it. */
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-4); }
-
 .stat { display: flex; flex-direction: column; gap: 4px; }
 
 .statLabel {
@@ -286,7 +260,7 @@
 
 .statValue { font-size: var(--t-figure); color: var(--c-ink); line-height: 1.1; }
 .statFoot { font-size: var(--t-micro); color: var(--c-ink-faint); line-height: var(--lh-snug); }
-.of { color: var(--c-ink-faint); font-size: var(--t-lead); }
+.statLink { margin-top: var(--s-1); font-size: var(--t-micro); color: var(--c-action-text); text-decoration: underline; text-underline-offset: 3px; }
 
 .good { color: var(--c-positive); }
 .bad { color: var(--c-negative); }
@@ -309,9 +283,24 @@
 }
 
 .noticeIcon { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; color: var(--c-warning); }
+.inlineLink { color: var(--c-action-text); text-decoration: underline; text-underline-offset: 3px; }
+
+.insight {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--c-info-wash);
+  color: var(--c-ink-soft);
+  font-size: var(--t-caption);
+  line-height: var(--lh-body);
+}
+
+.insight strong { color: var(--c-ink); font-weight: 600; }
+.insightIcon { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; color: var(--c-info); }
 
 .channels { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--s-4); }
-
 .channelNet { font-size: var(--t-figure); line-height: 1; }
 
 .partial {
@@ -345,8 +334,9 @@
 .lineRule { margin-top: var(--s-1); padding-top: var(--s-3); border-top: 1px solid var(--c-line-mid); border-bottom: none; font-size: var(--t-label); font-weight: 600; }
 .lineRule .lineLabel { color: var(--c-ink); }
 
-.tableHead { padding: var(--s-5) var(--s-5) 0; }
+/* --- by product ------------------------------------------------------------ */
 
+.tableHead { padding: var(--s-5) var(--s-5) 0; }
 .table { display: flex; flex-direction: column; }
 
 .headRow, .row, .split {
@@ -373,18 +363,10 @@
 
 .num { text-align: right; }
 
-.product {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-  font-size: var(--t-label);
-  color: var(--c-ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+.product { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: var(--t-label); color: var(--c-ink); }
+.productName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.removed {
+.tag {
   align-self: flex-start;
   padding: 1px var(--s-2);
   border-radius: var(--r-sm);
@@ -393,8 +375,9 @@
   color: var(--c-ink-faint);
 }
 
-.where { display: flex; flex-wrap: wrap; gap: var(--s-1); }
+.tagAction { background: var(--c-action-wash); color: var(--c-action-text); }
 
+.where { display: flex; flex-wrap: wrap; gap: var(--s-1); }
 .chan { padding: 1px var(--s-2); border-radius: var(--r-sm); font-size: var(--t-micro); white-space: nowrap; }
 .chan.store { background: var(--c-positive-wash); color: var(--c-positive); }
 .chan.ebay { background: var(--c-info-wash); color: var(--c-info); }
@@ -404,9 +387,16 @@
 .split { padding-top: 0; }
 .splitName { padding-left: var(--s-4); font-size: var(--t-micro); color: var(--c-ink-faint); }
 
-.setup { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--s-4); align-items: start; }
+/* One channel: every row would say the same, so the column goes. */
+.oneChannel .headRow, .oneChannel .row, .oneChannel .split { grid-template-columns: minmax(0, 1fr) 60px 90px 90px; }
+.oneChannel .headRow > :nth-child(2), .oneChannel .row > .where, .oneChannel .split > :nth-child(2) { display: none; }
 
+/* --- setup ----------------------------------------------------------------- */
+
+.setup { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--s-4); align-items: start; }
 .costFields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3); }
+
+.primary, .ghost { display: inline-flex; align-items: center; gap: var(--s-2); white-space: nowrap; }
 
 .primary {
   min-height: var(--tap);
@@ -429,24 +419,15 @@
   color: var(--c-ink-soft);
 }
 
-@media (max-width: 960px) {
-  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .costFields { grid-template-columns: 1fr; }
-}
+.ghost:disabled { opacity: 0.6; cursor: not-allowed; }
+.btnIcon { width: 15px; height: 15px; }
+.spin { animation: spin 900ms linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-@media (max-width: 640px) {
-  .title { font-size: 1.625rem; }
-  .headRow, .row, .split { grid-template-columns: minmax(0, 1fr) 80px 80px; padding-left: var(--s-4); padding-right: var(--s-4); }
-  .headRow > :nth-child(2), .headRow > :nth-child(3),
-  .row > .where, .row > .cell:nth-of-type(1),
-  .split > :nth-child(2), .split > .cell:nth-of-type(1) { display: none; }
-}
+.pullOk { margin-top: var(--s-3); font-size: var(--t-caption); color: var(--c-positive); }
+.pullFail { margin-top: var(--s-3); font-size: var(--t-caption); color: var(--c-negative); line-height: var(--lh-snug); }
 
-@media (prefers-reduced-motion: reduce) {
-  .meter span, .row { transition: none; }
-}
-
-/* --- empty ---------------------------------------------------------------- */
+/* --- empty ----------------------------------------------------------------- */
 
 .hero { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s-4); align-items: start; }
 
@@ -466,8 +447,6 @@
 .heroTitle { font-size: var(--t-lead); font-weight: 560; letter-spacing: -0.01em; }
 .heroBody { max-width: 72ch; font-size: var(--t-label); color: var(--c-ink-soft); line-height: var(--lh-body); }
 
-/* The model as a line of steps in its own well, not hung off a rule under the
-   sentence above it. */
 .flowWell {
   grid-column: 1 / -1;
   display: flex;
@@ -505,7 +484,6 @@
 .flowKeep .flowMinus { color: var(--c-positive); }
 
 .sources { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-4); }
-
 .source { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--s-3); align-items: center; }
 
 .sourceIcon {
@@ -538,23 +516,169 @@
 
 .stateIcon { width: 12px; height: 12px; }
 
+/* --- period and bars --------------------------------------------------------- */
+
+.period {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--r-md);
+  background: var(--c-sunk);
+}
+
+.periodBtn, .periodPick {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 var(--s-3);
+  border-radius: calc(var(--r-md) - 2px);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.periodPick { padding-right: 0; }
+
+.periodPick select {
+  min-height: 32px;
+  padding-right: var(--s-6);
+  border: none;
+  background: none;
+  font-size: var(--t-label);
+  color: inherit;
+  cursor: pointer;
+}
+
+.periodPick select:focus { outline: none; }
+.periodBtn:hover, .periodPick:hover { color: var(--c-ink); }
+.periodOn { background: var(--c-surface); color: var(--c-ink); box-shadow: var(--e-1); }
+
+/* A month is a button. Picking one fades the rest, so the comparison survives. */
+.bars {
+  display: flex;
+  align-items: stretch;
+  gap: var(--s-3);
+  height: 180px;
+  overflow-x: auto;
+  padding-bottom: var(--s-1);
+}
+
+.bar {
+  flex: 1 0 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) 0;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: opacity var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.bar:hover { background: var(--c-sunk); }
+/* Receded, not gone: the comparison is the reason to fade rather than hide. */
+.barFaded { opacity: 0.6; }
+.barFaded .barFill { background: var(--c-line-mid); }
+.barValue { font-size: var(--t-micro); color: var(--c-ink-soft); white-space: nowrap; }
+
+.barTrack { position: relative; flex: 1; width: 60%; max-width: 44px; display: flex; align-items: flex-end; }
+
+.barFill {
+  width: 100%;
+  border-radius: var(--r-sm) var(--r-sm) 2px 2px;
+  background: var(--c-scale-2);
+  animation: rise var(--dur-enter) var(--ease-out) both;
+  transition: background var(--dur) var(--ease);
+}
+
+.bar:hover .barFill { background: var(--c-line-strong); }
+.barOn .barFill { background: var(--c-action-strong); }
+.barOn .barValue { color: var(--c-ink); font-weight: 600; }
+.barLabel { font-size: var(--t-micro); color: var(--c-ink-faint); white-space: nowrap; }
+
+/* --- narrow ------------------------------------------------------------------ */
+
+@media (max-width: 960px) {
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .costFields { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 760px) {
   .sources { grid-template-columns: 1fr; }
   .source { grid-template-columns: auto minmax(0, 1fr); }
   .sourceState { grid-column: 2; justify-self: start; }
 }
 
-.headActions { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
-
-.primary, .ghost { display: inline-flex; align-items: center; gap: var(--s-2); white-space: nowrap; }
-.ghost:disabled { opacity: 0.6; cursor: not-allowed; }
-.btnIcon { width: 15px; height: 15px; }
-.spin { animation: spin 900ms linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.pullOk { margin-top: var(--s-3); font-size: var(--t-caption); color: var(--c-positive); }
-.pullFail { margin-top: var(--s-3); font-size: var(--t-caption); color: var(--c-negative); line-height: var(--lh-snug); }
+@media (max-width: 640px) {
+  .title { font-size: 1.625rem; }
+  .headActions { width: 100%; }
+  .period { flex: 1; }
+  .bars { height: 150px; }
+  .headRow, .row, .split { grid-template-columns: minmax(0, 1fr) 80px 80px; padding-left: var(--s-4); padding-right: var(--s-4); }
+  .headRow > :nth-child(2), .headRow > :nth-child(3),
+  .row > .where, .row > .cell:nth-of-type(1),
+  .split > :nth-child(2), .split > .cell:nth-of-type(1) { display: none; }
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .spin { animation: none; }
+  .meter span, .row, .bar, .barFill, .periodBtn, .periodPick { transition: none; }
+  .spin, .barFill { animation: none; }
+}
+
+/* --- costs per product ------------------------------------------------------ */
+
+.keptCell { display: flex; justify-content: flex-end; }
+
+.addCost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px var(--s-2);
+  border: 1px dashed var(--c-line-strong);
+  border-radius: var(--r-sm);
+  font-size: var(--t-micro);
+  color: var(--c-action-text);
+  white-space: nowrap;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.addCost:hover { background: var(--c-action-wash); border-color: var(--c-action-strong); border-style: solid; }
+.addCostIcon { width: 11px; height: 11px; }
+
+.keptValue {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--t-caption);
+  font-family: var(--font-data);
+}
+
+.editIcon { width: 12px; height: 12px; opacity: 0; color: var(--c-ink-faint); transition: opacity var(--dur) var(--ease); }
+.group:hover .editIcon, .keptValue:focus-visible .editIcon { opacity: 1; }
+
+/* Opens under its own row, so the cost is typed next to the sale it explains. */
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  margin: 0 var(--s-5) var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--c-sunk);
+  animation: rise var(--dur) var(--ease-out) both;
+}
+
+.editorFields { display: grid; grid-template-columns: repeat(2, minmax(0, 220px)); gap: var(--s-4); }
+.editorFoot { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.editorNote { flex: 1; min-width: 20ch; font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+@media (max-width: 640px) {
+  .editor { margin: 0 var(--s-4) var(--s-3); }
+  .editorFields { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .addCost, .editIcon { transition: none; }
+  .editor { animation: none; }
 }

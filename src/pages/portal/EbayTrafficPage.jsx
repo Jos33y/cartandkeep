@@ -377,7 +377,7 @@ export function EbayTrafficPage() {
 
             {pulling && Array.from({ length: 6 }, (_, i) => <RowSkeleton key={`s${i}`} i={i} />)}
 
-            {!pulling && shown.slice(0, 200).map((r, i) => (
+            {!pulling && shown.map((r, i) => (
               <a key={r.listing_id} className={`${styles.row} ${i < 3 && r.stake > 0 ? styles.urgent : ''}`}
                 href={`https://www.ebay.co.uk/itm/${r.listing_id}`}
                 target="_blank" rel="noreferrer noopener">
@@ -419,12 +419,6 @@ export function EbayTrafficPage() {
 
             {shown.length === 0 && (
               <p className={styles.quiet}>Nothing matches that.</p>
-            )}
-
-            {shown.length > 200 && (
-              <p className={styles.quiet}>
-                First <span data-num>200</span> of <span data-num>{shown.length}</span>.
-              </p>
             )}
           </div>
         </section>

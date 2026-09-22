@@ -123,5 +123,25 @@ export function useListings(tenantId) {
     return data;
   }, [tenantId]);
 
-  return { ...state, reload: load, addToShop };
+  // Revises the live listing in place from the portal's copy of the product.
+  const updateOnEbay = useCallback(async (item, { price, quantity }) => {
+    const { data, error } = await supabase.functions.invoke('ebay-list', {
+      body: {
+        tenant_id: tenantId,
+        candidate_id: item.candidateId,
+        update: true,
+        price: Number(price),
+        quantity: Number(quantity),
+      },
+    });
+    if (error || data?.error) throw new Error(data?.error ?? error.message);
+
+    setState((s) => ({
+      ...s,
+      items: s.items.map((i) => (i.key === item.key ? { ...i, ebay: data } : i)),
+    }));
+    return data;
+  }, [tenantId]);
+
+  return { ...state, reload: load, addToShop, updateOnEbay };
 }

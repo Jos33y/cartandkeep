@@ -7,6 +7,7 @@ import {
 } from '@hooks/useCatalogue';
 import { loadTenant } from '@lib/tenant';
 import styles from '@styles/pages/portal/products-page.module.css';
+import { PageSkeleton } from '@components/ui/portal/Skeleton';
 
 const FILTERS = [
   { key: 'ready', label: 'Ready' },
@@ -189,7 +190,7 @@ export function ProductsPage() {
   }
 
   if (tenant === undefined) {
-    return <p className={styles.status} role="status" aria-live="polite">Loading</p>;
+    return <PageSkeleton />;
   }
 
   if (status === 'error') {

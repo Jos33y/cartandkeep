@@ -4,18 +4,8 @@ import { channelLabel } from '@lib/channelImport';
 import { formatGbp } from '@utils/formatGbp';
 import styles from '@styles/ui/portal/channel-import.module.css';
 
-/*
- * Her eBay and TikTok Shop sales, from the exports both platforms already give
- * her.
- *
- * Not an API integration. eBay's would need her account authorised and a token
- * to keep alive, and it would still only answer the same question a file she
- * can download today already answers. When the volume makes downloading a file
- * every month annoying, that is the moment to build the integration, and not
- * before.
- */
+// eBay comes in through Pull eBay sales now, so exports are for TikTok Shop.
 const CHANNELS = [
-  { key: 'ebay', label: 'eBay', where: 'Seller Hub, then Orders, then Download report.' },
   { key: 'tiktok', label: 'TikTok Shop', where: 'Seller Centre, then Orders, then Export.' },
 ];
 
@@ -24,7 +14,7 @@ const day = (iso) => (iso
   : null);
 
 export function ChannelImport({ tenantId, onImported }) {
-  const [channel, setChannel] = useState('ebay');
+  const [channel, setChannel] = useState('tiktok');
   const input = useRef(null);
   const { preview, busy, failed, result, read, commit, discard } = useChannelSales(tenantId);
 
@@ -43,25 +33,27 @@ export function ChannelImport({ tenantId, onImported }) {
 
   return (
     <section className={styles.panel}>
-      <h2 className="micro">Sales from your other channels</h2>
+      <h2 className="micro">TikTok Shop sales</h2>
       <p className={styles.body}>
-        The shop records its own sales. eBay and TikTok Shop keep theirs, and this brings
-        them in so what you make on a product can be compared across all three.
+        Your shop records its own sales and eBay's come in with Pull eBay sales. TikTok Shop
+        sales come in from its export, so all three sit in the same figures.
       </p>
 
-      <div className={styles.pick}>
-        {CHANNELS.map((c) => (
-          <button
-            key={c.key}
-            type="button"
-            aria-pressed={channel === c.key}
-            className={`${styles.chip} ${channel === c.key ? styles.chipOn : ''}`}
-            onClick={() => { setChannel(c.key); discard(); }}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
+      {CHANNELS.length > 1 && (
+        <div className={styles.pick}>
+          {CHANNELS.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              aria-pressed={channel === c.key}
+              className={`${styles.chip} ${channel === c.key ? styles.chipOn : ''}`}
+              onClick={() => { setChannel(c.key); discard(); }}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <p className={styles.where}>{chosen.where}</p>
 
@@ -91,14 +83,7 @@ export function ChannelImport({ tenantId, onImported }) {
         </p>
       )}
 
-      {/*
-        * Shown before anything is written.
-        *
-        * A file with the wrong report selected reads perfectly and produces
-        * rows that match nothing, and by the time that is visible in a total it
-        * is a fortnight later. Sixty seconds of looking at what it found costs
-        * nothing and catches it.
-        */}
+      {/* Shown before anything is written: the wrong report reads fine and matches nothing. */}
       {preview && (
         <div className={styles.preview}>
           <h3 className={styles.previewTitle}>What that file has in it</h3>
@@ -121,17 +106,15 @@ export function ChannelImport({ tenantId, onImported }) {
 
           {preview.matched === 0 && (
             <p className={styles.warn}>
-              Nothing matched anything in your catalogue. These will still count towards what
-              each channel earns, and they cannot show a profit, because profit needs what the
-              product cost you and that lives on the product. Adding your eBay custom labels
-              as SKUs on the matching products fixes it for good.
+              Nothing matched a product in your shop. These still count towards what the channel
+              took, and you can add a cost to each on the Finance page once they are in.
             </p>
           )}
 
           {preview.unmatched > 0 && preview.matched > 0 && (
             <p className={styles.note}>
               <span data-num>{preview.unmatched}</span> did not match a product in your shop.
-              They count as revenue and cannot show a profit.
+              Add their costs on the Finance page to see what they kept.
             </p>
           )}
 

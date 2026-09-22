@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useFindability, monthName } from '@hooks/useFindability';
 import { loadTenant } from '@lib/tenant';
 import styles from '@styles/pages/portal/being-found-page.module.css';
+import { PageSkeleton } from '@components/ui/portal/Skeleton';
 
 /*
  * Being found.
@@ -76,7 +77,7 @@ export function BeingFoundPage() {
   } = useFindability(tenant?.id);
 
   if (tenant === undefined) {
-    return <p className={styles.status} role="status" aria-live="polite">Loading</p>;
+    return <PageSkeleton />;
   }
 
   if (status === 'error') {

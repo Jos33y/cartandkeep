@@ -7,26 +7,36 @@ import { Icon } from '@components/ui/icons';
 import { useFinance, CHANNEL_LABEL } from '@hooks/useFinance';
 import { loadTenant } from '@lib/tenant';
 import { formatGbp } from '@utils/formatGbp';
+import { portalPath } from '@utils/constants';
+import { Link } from 'react-router';
 import styles from '@styles/pages/portal/finance-page.module.css';
 
 const FEE_LABEL = { store: 'Card fees', ebay: 'eBay fees', tiktok: 'TikTok fees' };
 
-const monthName = (iso, short) => new Date(`${String(iso).slice(0, 7)}-01T00:00:00Z`)
-  .toLocaleDateString('en-GB', { month: short ? 'short' : 'long', year: 'numeric', timeZone: 'UTC' });
+const monthName = (iso, short) => (iso === 'all' ? 'All time'
+  : new Date(`${String(iso).slice(0, 7)}-01T00:00:00Z`)
+    .toLocaleDateString('en-GB', { month: short ? 'short' : 'long', year: short ? '2-digit' : 'numeric', timeZone: 'UTC' }));
+
+// What the board budgets on eBay: 12.8% plus 30p an order in fees, and 3% for
+// promoted listings, which eBay bills separately from the order fee.
+const BUDGET_FVF = 0.128;
+const BUDGET_FIXED = 0.3;
+const BUDGET_ADS = 0.03;
 
 export function FinancePage() {
   const [tenant, setTenant] = useState(undefined);
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
   const {
-    status, months, showing, setMonth, byChannel, totals, products, costs, saveCosts, reload,
+    status, months, showing, setMonth, byChannel, totals, products, series, costs, saveCosts, saveProductCost, reload,
     pullEbay, pulling, pulled,
   } = useFinance(tenant?.id);
   const [pullError, setPullError] = useState(null);
+  const [editing, setEditing] = useState(null);
 
   async function pull() {
     setPullError(null);
-    try { await pullEbay(90); } catch (e) { setPullError(e.message); }
+    try { await pullEbay(); } catch (e) { setPullError(e.message); }
   }
 
   const PullButton = ({ primary }) => (
@@ -39,7 +49,7 @@ export function FinancePage() {
   const pullNote = (pullError || pulled) && (
     <p className={pullError ? styles.pullFail : styles.pullOk} role="status">
       {pullError
-        ?? `${pulled.orders} ${pulled.orders === 1 ? 'order' : 'orders'} from the last 90 days, ${pulled.matched} matched to a product.`}
+        ?? `${pulled.orders} ${pulled.orders === 1 ? 'order' : 'orders'} since ${new Date(pulled.since).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}, ${pulled.matched} matched to a product.`}
     </p>
   );
 
@@ -123,6 +133,18 @@ export function FinancePage() {
 
   const coverage = totals.lines ? totals.covered / totals.lines : 0;
   const perSale = totals.net != null && totals.units ? totals.net / totals.units : null;
+  const feeRate = totals.revenue ? totals.fees / totals.revenue : null;
+  const ebay = byChannel.find((c) => c.channel === 'ebay');
+  const ebayRate = ebay?.revenue ? (ebay.fees + ebay.ads) / ebay.revenue : null;
+  const offShop = products.filter((p) => p.offShop).length;
+  const removed = products.filter((p) => p.removed).length;
+  // On the shop but uncosted: the one gap that can be closed today.
+  const costable = products.filter((p) => p.product_id && p.net == null).length;
+  const multi = byChannel.length > 1;
+  const first = series[0]?.month;
+  const period = showing === 'all' && first ? `Since ${monthName(first)}` : monthName(showing);
+  const budgetOf = (c) => (BUDGET_FVF * c.revenue + BUDGET_FIXED * c.units) / c.revenue;
+  const inLine = ebayRate != null && ebay.units >= 5 && Math.abs(ebay.fees / ebay.revenue - budgetOf(ebay)) < 0.005;
 
   return (
     <div className={styles.page}>
@@ -134,75 +156,113 @@ export function FinancePage() {
 
         <div className={styles.headActions}>
           <PullButton />
-        {months.length > 1 && (
-          <label className={styles.monthPick}>
-            <Icon name="IconChart" className={styles.monthIcon} />
-            <select value={showing} onChange={(e) => setMonth(e.target.value)} aria-label="Month">
-              {months.slice(0, 18).map((m) => <option key={m} value={m}>{monthName(m)}</option>)}
-            </select>
-          </label>
-        )}
+          <div className={styles.period} role="group" aria-label="Period">
+            <button type="button" aria-pressed={showing === 'all'}
+              className={`${styles.periodBtn} ${showing === 'all' ? styles.periodOn : ''}`}
+              onClick={() => setMonth(null)}>
+              All time
+            </button>
+            <label className={`${styles.periodPick} ${showing !== 'all' ? styles.periodOn : ''}`}>
+              <select value={showing === 'all' ? '' : showing}
+                onChange={(e) => setMonth(e.target.value || null)} aria-label="Month">
+                <option value="">Month</option>
+                {months.map((m) => <option key={m} value={m}>{monthName(m)}</option>)}
+              </select>
+            </label>
+          </div>
         </div>
       </header>
 
       {pullNote}
 
-      {/* Taken is certain. Kept is only as certain as the costs behind it, so
-          the coverage sits beside it rather than in a footnote. */}
       <div className={styles.stats}>
         <Card className={styles.stat}>
           <span className={styles.statLabel}>Taken</span>
           <span className={`figure ${styles.statValue}`}>{formatGbp(totals.revenue)}</span>
-          <span className={styles.statFoot}>{monthName(showing)}</span>
+          <span className={styles.statFoot}>{period}</span>
         </Card>
 
+        {/* Kept is only as certain as the costs behind it, so the coverage
+            meter lives inside it rather than in a card of its own. */}
         <Card className={styles.stat}>
           <span className={styles.statLabel}>Kept</span>
           <span className={`figure ${styles.statValue} ${totals.net == null ? styles.unknown : totals.net < 0 ? styles.bad : styles.good}`}>
             {totals.net == null ? 'Unknown' : formatGbp(totals.net)}
           </span>
-          <span className={styles.statFoot}>
-            {totals.net == null
-              ? 'No product sold this month has a cost recorded'
-              : totals.uncosted ? `Over ${totals.covered} of ${totals.lines} products` : 'After every cost'}
+          <span className={styles.meter} aria-hidden="true">
+            <span style={{ width: `${Math.max(coverage * 100, 2)}%` }} className={coverage === 1 ? styles.meterFull : ''} />
           </span>
+          <span className={styles.statFoot}>
+            {totals.covered} of {totals.lines} {totals.lines === 1 ? 'product' : 'products'} costed
+          </span>
+          {costable > 0 && (
+            <Link to={portalPath('/products')} className={styles.statLink}>
+              Cost {costable} on your shop
+            </Link>
+          )}
         </Card>
 
         <Card className={styles.stat}>
           <span className={styles.statLabel}>Units</span>
           <span className={`figure ${styles.statValue}`}>{totals.units}</span>
           <span className={styles.statFoot}>
-            {perSale != null ? `${formatGbp(perSale)} kept a unit` : 'across every channel'}
+            {perSale != null ? `${formatGbp(perSale)} kept a unit` : `${formatGbp(totals.units ? totals.revenue / totals.units : 0)} taken a unit`}
           </span>
         </Card>
 
         <Card className={styles.stat}>
-          <span className={styles.statLabel}>Costed</span>
-          <span className={`figure ${styles.statValue}`}>
-            {totals.covered}<span className={styles.of}>/{totals.lines}</span>
-          </span>
-          <span className={styles.meter} aria-hidden="true">
-            <span style={{ width: `${Math.max(coverage * 100, 2)}%` }} className={coverage === 1 ? styles.meterFull : ''} />
+          <span className={styles.statLabel}>Fees</span>
+          <span className={`figure ${styles.statValue}`}>{feeRate == null ? '--' : `${(feeRate * 100).toFixed(1)}%`}</span>
+          <span className={styles.statFoot}>
+            {formatGbp(totals.fees)} of what was taken{inLine ? ', in line with the board' : ''}
           </span>
         </Card>
       </div>
 
-      {totals.unmatched > 0 && (
+      {/* A real finding: what eBay charges against what every price on the
+          board assumes. Shown only once there is enough to trust it. */}
+      {/* Only worth a panel when the real fee and the budget disagree. */}
+      {ebayRate != null && ebay.units >= 5 && !inLine && (() => {
+        const budget = budgetOf(ebay);
+        return (
+          <p className={styles.insight}>
+            <Icon name="IconChart" className={styles.insightIcon} />
+            <span>
+              eBay's selling fees came to <strong>{(ebay.fees / ebay.revenue * 100).toFixed(1)}%</strong> across {ebay.units} sales,
+              against the {(budget * 100).toFixed(1)}% the board budgets for them.
+              Promoted listings are billed separately and aren't in that figure; the board budgets a further {(BUDGET_ADS * 100).toFixed(0)}%.
+            </span>
+          </p>
+        );
+      })()}
+
+      {series.length > 1 && (
+        <Card>
+          <CardHead title="Taken by month" note="Pick a month to see only that" />
+          <MonthBars series={series} showing={showing} onPick={(m) => setMonth(m === showing ? null : m)} />
+        </Card>
+      )}
+
+      {(offShop > 0 || removed > 0 || costable > 0) && (
         <p className={styles.notice}>
           <Icon name="IconInfo" className={styles.noticeIcon} />
-          {totals.unmatched} {totals.unmatched === 1 ? 'sale is' : 'sales are'} for products no longer in your shop,
-          so there is no cost to measure {totals.unmatched === 1 ? 'it' : 'them'} against. Revenue counts, profit cannot.
+          <span>
+            {costable > 0 && <>{costable} {costable === 1 ? 'product is' : 'products are'} on your shop with no cost yet; <Link to={portalPath('/products')} className={styles.inlineLink}>add {costable === 1 ? 'it' : 'them'} under Products</Link>. </>}
+            {offShop > 0 && <>{offShop} sold only on eBay; add {offShop === 1 ? 'its cost with the button beside it' : 'their costs with the button beside each one'} below. </>}
+            {removed > 0 && <>{removed} {removed === 1 ? 'was' : 'were'} removed from your shop. </>}
+          </span>
         </p>
       )}
 
       <div className={styles.channels}>
         {byChannel.map((c) => {
           const complete = c.net != null && c.uncosted === 0;
+          const rate = c.revenue ? (c.fees + c.ads) / c.revenue : null;
           return (
             <Card key={c.channel}>
               <CardHead
                 title={CHANNEL_LABEL[c.channel] ?? c.channel}
-                note={`${c.units} ${c.units === 1 ? 'unit' : 'units'} · ${formatGbp(c.revenue)} taken`}
+                note={`${c.units} ${c.units === 1 ? 'unit' : 'units'} · ${formatGbp(c.revenue)} taken${rate != null ? ` · ${(rate * 100).toFixed(1)}% fees` : ''}`}
                 aside={(
                   <span className={`figure ${styles.channelNet} ${c.net == null ? styles.unknown : c.net < 0 ? styles.bad : styles.good}`}>
                     {c.net == null ? 'Unknown' : formatGbp(c.net)}
@@ -223,8 +283,8 @@ export function FinancePage() {
                 <p className={styles.partial}>
                   <Icon name="IconInfo" className={styles.partialIcon} />
                   {c.netCovers
-                    ? `Kept is over ${c.netCovers} of ${c.netCovers + c.uncosted} products. The rest have no cost recorded.`
-                    : 'None of these products has a cost recorded, so what was kept cannot be worked out.'}
+                    ? `Kept covers ${c.netCovers} of ${c.netCovers + c.uncosted} products. The rest have no cost recorded.`
+                    : 'None of these products has a cost recorded, so what was kept cannot be worked out yet.'}
                 </p>
               )}
 
@@ -245,10 +305,10 @@ export function FinancePage() {
 
       <Card flush>
         <div className={styles.tableHead}>
-          <CardHead title="By product" note="Most taken first" />
+          <CardHead title="By product" note={`${period}, most taken first`} />
         </div>
 
-        <div className={styles.table}>
+        <div className={`${styles.table} ${multi ? '' : styles.oneChannel}`}>
           <div className={styles.headRow}>
             <span>Product</span>
             <span>Sold on</span>
@@ -257,12 +317,14 @@ export function FinancePage() {
             <span className={styles.num}>Kept</span>
           </div>
 
-          {products.slice(0, 60).map((p) => (
+          {products.slice(0, 80).map((p) => (
             <div key={p.key} className={styles.group}>
               <div className={styles.row}>
                 <span className={styles.product}>
-                  {p.title}
-                  {p.removed && <span className={styles.removed}>No longer in your shop</span>}
+                  <span className={styles.productName}>{p.title}</span>
+                  {p.removed && <span className={styles.tag}>Removed from your shop</span>}
+                  {p.offShop && <span className={styles.tag}>Not on your shop</span>}
+                  {p.product_id && p.net == null && <span className={`${styles.tag} ${styles.tagAction}`}>On your shop, no cost yet</span>}
                 </span>
                 <span className={styles.where}>
                   {p.byChannel.map((c) => (
@@ -273,10 +335,35 @@ export function FinancePage() {
                 </span>
                 <span className={styles.cell} data-num>{p.units}</span>
                 <span className={styles.cell} data-num>{formatGbp(p.revenue)}</span>
-                <span className={`${styles.cell} ${p.net == null ? styles.unknown : p.net < 0 ? styles.bad : styles.good}`} data-num>
-                  {p.net == null ? '—' : formatGbp(p.net)}
+                <span className={styles.keptCell}>
+                  {p.net == null ? (
+                    <button type="button" className={styles.addCost}
+                      onClick={() => setEditing(editing === p.key ? null : p.key)}>
+                      <Icon name="IconPlus" className={styles.addCostIcon} />
+                      Add cost
+                    </button>
+                  ) : (
+                    <button type="button"
+                      className={`${styles.keptValue} ${p.net < 0 ? styles.bad : styles.good}`}
+                      title="Change this product's cost"
+                      onClick={() => setEditing(editing === p.key ? null : p.key)}>
+                      <span data-num>{formatGbp(p.net)}</span>
+                      <Icon name="IconNote" className={styles.editIcon} />
+                    </button>
+                  )}
                 </span>
               </div>
+
+              {editing === p.key && (
+                <CostEditor
+                  product={p}
+                  onCancel={() => setEditing(null)}
+                  onSave={async (v) => {
+                    await saveProductCost({ productId: p.product_id, title: p.title, ...v });
+                    setEditing(null);
+                  }}
+                />
+              )}
 
               {p.byChannel.length > 1 && p.byChannel.map((c) => (
                 <div key={c.channel} className={styles.split}>
@@ -295,6 +382,73 @@ export function FinancePage() {
       </Card>
 
       <Setup tenantId={tenant?.id} costs={costs} onSave={saveCosts} onImported={reload} />
+    </div>
+  );
+}
+
+// One product's unit cost, applied to every sale of it, past and future.
+function CostEditor({ product, onCancel, onSave }) {
+  const [landed, setLanded] = useState(product.unitCost != null ? String(product.unitCost) : '');
+  const [postage, setPostage] = useState(product.unitPostage != null ? String(product.unitPostage) : '');
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(null);
+
+  async function save() {
+    setBusy(true);
+    setFailed(null);
+    try {
+      await onSave({ landed, postage });
+    } catch (e) {
+      setFailed(e.message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className={styles.editor}>
+      <div className={styles.editorFields}>
+        <Field label="Cost per unit" prefix="£" value={landed} onChange={setLanded}
+          hint="What you paid for one, delivered to you." />
+        <Field label="Postage per unit" prefix="£" value={postage} onChange={setPostage}
+          hint="What it costs you to send one." />
+      </div>
+      <div className={styles.editorFoot}>
+        <span className={styles.editorNote}>
+          {product.product_id
+            ? 'Saved on the shop product, so Products shows it too.'
+            : 'Applies to every sale of this product, past and future.'}
+        </span>
+        {failed && <span className={styles.failed} role="alert">{failed}</span>}
+        <button type="button" className={styles.ghost} onClick={onCancel}>Cancel</button>
+        <button type="button" className={styles.primary} disabled={busy || landed.trim() === ''} onClick={save}>
+          {busy ? 'Saving' : 'Save cost'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Taken per month. The picked month is solid, the rest recede.
+function MonthBars({ series, showing, onPick }) {
+  const top = Math.max(1, ...series.map((m) => m.revenue));
+  return (
+    <div className={styles.bars} role="group" aria-label="Taken by month">
+      {series.map((m) => {
+        const on = showing === m.month;
+        const faded = showing !== 'all' && !on;
+        return (
+          <button key={m.month} type="button" aria-pressed={on}
+            className={`${styles.bar} ${on ? styles.barOn : ''} ${faded ? styles.barFaded : ''}`}
+            onClick={() => onPick(m.month)}
+            title={`${monthName(m.month)}: ${formatGbp(m.revenue)} from ${m.units} units`}>
+            <span className={styles.barValue} data-num>{formatGbp(m.revenue)}</span>
+            <span className={styles.barTrack}>
+              <span className={styles.barFill} style={{ height: `${Math.max((m.revenue / top) * 100, 3)}%` }} />
+            </span>
+            <span className={styles.barLabel}>{monthName(m.month, true)}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

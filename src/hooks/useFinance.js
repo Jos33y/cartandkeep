@@ -55,15 +55,28 @@ export function useFinance(tenantId) {
     [state.rows],
   );
 
-  // Whatever month is showing, defaulting to the most recent with anything in
-  // it rather than to this calendar month, which on the 2nd is empty and reads
-  // as a business that has stopped.
-  const showing = month ?? months[0] ?? null;
+  // All time until a month is picked.
+  const showing = month ?? 'all';
 
   const inMonth = useMemo(
-    () => state.rows.filter((r) => r.month === showing),
+    () => (showing === 'all' ? state.rows : state.rows.filter((r) => r.month === showing)),
     [state.rows, showing],
   );
+
+  // Taken per month, for the bars. Always across every month, whatever is picked.
+  const series = useMemo(() => {
+    const at = new Map();
+    for (const r of state.rows) {
+      const m = at.get(r.month) ?? { month: r.month, revenue: 0, fees: 0, units: 0 };
+      m.revenue += Number(r.revenue ?? 0);
+      m.fees += Number(r.fees ?? 0) + Number(r.ads ?? 0);
+      m.units += Number(r.units ?? 0);
+      at.set(r.month, m);
+    }
+    return [...at.values()]
+      .map((m) => ({ ...m, revenue: round(m.revenue), fees: round(m.fees) }))
+      .sort((a, b) => String(a.month).localeCompare(String(b.month)));
+  }, [state.rows]);
 
   /*
    * Per channel, and the whole model rather than a headline.
@@ -117,6 +130,7 @@ export function useFinance(tenantId) {
       covered,
       lines: sum(byChannel, 'lines'),
       unmatched: sum(byChannel, 'unmatched'),
+      fees: round(sum(byChannel, 'fees') + sum(byChannel, 'ads')),
     };
   }, [byChannel]);
 
@@ -129,11 +143,14 @@ export function useFinance(tenantId) {
       const key = r.product_id ?? `t:${r.title}`;
       const at = rolled.get(key) ?? {
         key, title: r.title, product_id: r.product_id,
-        units: 0, revenue: 0, net: 0, costed: true, byChannel: [],
+        units: 0, revenue: 0, net: 0, costed: true, byChannel: [], channels: new Set(),
       };
+      at.channels.add(r.channel);
       at.units += Number(r.units ?? 0);
       at.revenue += Number(r.revenue ?? 0);
       at.net += Number(r.net ?? 0);
+      at.cogs = (at.cogs ?? 0) + Number(r.cost_of_goods ?? 0);
+      at.post = (at.post ?? 0) + Number(r.postage ?? 0);
       at.costed = at.costed && r.costed;
 
       /*
@@ -144,12 +161,21 @@ export function useFinance(tenantId) {
        * exactly when it is most useful. A channel that cannot report a total
        * because one other product has no cost should not take this with it.
        */
-      at.byChannel.push({
-        channel: r.channel,
-        units: Number(r.units ?? 0),
-        revenue: round(Number(r.revenue ?? 0)),
-        net: r.costed ? round(Number(r.net ?? 0)) : null,
-      });
+      // The view is per month, so a product selling in two months arrives as
+      // two rows. Merge by channel, or all time shows eBay twice.
+      const ch = at.byChannel.find((c) => c.channel === r.channel);
+      if (ch) {
+        ch.units += Number(r.units ?? 0);
+        ch.revenue = round(ch.revenue + Number(r.revenue ?? 0));
+        ch.net = ch.net != null && r.costed ? round(ch.net + Number(r.net ?? 0)) : null;
+      } else {
+        at.byChannel.push({
+          channel: r.channel,
+          units: Number(r.units ?? 0),
+          revenue: round(Number(r.revenue ?? 0)),
+          net: r.costed ? round(Number(r.net ?? 0)) : null,
+        });
+      }
 
       rolled.set(key, at);
     }
@@ -157,11 +183,14 @@ export function useFinance(tenantId) {
     return [...rolled.values()]
       .map((r) => ({
         ...r,
-        // No product id means the shop product is gone, so there is no cost
-        // to add. Telling her to add one under Products is not possible.
-        removed: r.product_id == null,
+        // No product on a shop sale means it was removed. On an eBay sale it
+        // usually means it was never on the shop at all.
+        removed: r.product_id == null && r.channels.has('store'),
+        offShop: r.product_id == null && !r.channels.has('store'),
         revenue: round(r.revenue),
         net: r.costed ? round(r.net) : null,
+        unitCost: r.costed && r.units ? round(r.cogs / r.units) : null,
+        unitPostage: r.units && r.post ? round(r.post / r.units) : null,
         byChannel: r.byChannel.sort((a, b) => (b.net ?? -1e9) - (a.net ?? -1e9)),
       }))
       .sort((a, b) => b.revenue - a.revenue);
@@ -193,11 +222,45 @@ export function useFinance(tenantId) {
     await load();
   }, [tenantId, load]);
 
+  // A unit cost for a product, however it sold. On the shop it lives on the
+  // product; anywhere else it lives in sale_costs, keyed by title.
+  const saveProductCost = useCallback(async ({ productId, title, landed, postage }) => {
+    const num = (v) => {
+      const s = String(v ?? '').trim();
+      if (s === '') return null;
+      const n = Number(s);
+      if (!Number.isFinite(n) || n < 0) throw new Error('Costs have to be numbers.');
+      return Math.round(n * 100) / 100;
+    };
+    const landed_cost = num(landed);
+    const postage_cost = num(postage);
+
+    const { error } = productId
+      ? await supabase.from('store_products')
+        .update({
+          landed_cost,
+          postage_cost,
+          cost_note: 'Entered on Finance',
+          cost_updated_at: new Date().toISOString(),
+        })
+        .eq('id', productId)
+        .eq('tenant_id', tenantId)
+      : await supabase.from('sale_costs')
+        .upsert(
+          { tenant_id: tenantId, title, landed_cost, postage_cost, updated_at: new Date().toISOString() },
+          { onConflict: 'tenant_id,title' },
+        );
+
+    if (error) throw new Error(error.message);
+    await load();
+  }, [tenantId, load]);
+
   const [pulling, setPulling] = useState(false);
   const [pulled, setPulled] = useState(null);
 
   // Her eBay orders with eBay's real fees, through the connection she approved.
-  const pullEbay = useCallback(async (days = 90) => {
+  // eBay keeps two years of orders; take all of it.
+  const pullEbay = useCallback(async (days = 730) => {
     setPulling(true);
     setPulled(null);
     try {
@@ -214,7 +277,7 @@ export function useFinance(tenantId) {
   }, [tenantId, load]);
 
   return {
-    ...state, months, showing, setMonth, byChannel, totals, products, saveCosts, reload: load,
+    ...state, months, showing, setMonth, byChannel, totals, products, series, saveCosts, saveProductCost, reload: load,
     pullEbay, pulling, pulled,
   };
 }

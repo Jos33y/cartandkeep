@@ -4,6 +4,7 @@ import { useBoundaries } from '@hooks/useBoundaries';
 import { loadTenant } from '@lib/tenant';
 import { matchBoundary, breadcrumb } from '@utils/category';
 import styles from '@styles/pages/portal/coverage-page.module.css';
+import { PageSkeleton } from '@components/ui/portal/Skeleton';
 
 const OUTCOME = {
   shortlisted: 'Reached the shortlist',
@@ -46,7 +47,7 @@ export function CoveragePage() {
   }, [rows, boundaries]);
 
   if (tenant === undefined || status === 'loading') {
-    return <p className={styles.status} role="status" aria-live="polite">Loading</p>;
+    return <PageSkeleton />;
   }
 
   if (status === 'ready' && rows.length === 0) {

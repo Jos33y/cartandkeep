@@ -4,6 +4,7 @@ import { useActivity } from '@hooks/useActivity';
 import { loadTenant } from '@lib/tenant';
 import { REJECTION_REASONS } from '@utils/constants';
 import styles from '@styles/pages/portal/activity-page.module.css';
+import { PageSkeleton } from '@components/ui/portal/Skeleton';
 
 const COLUMNS = [
   { key: 'when', label: 'When' },
@@ -36,7 +37,7 @@ export function ActivityPage() {
   const { status, rows } = useActivity(tenant?.id);
 
   if (tenant === undefined || status === 'loading') {
-    return <p className={styles.status} role="status" aria-live="polite">Loading</p>;
+    return <PageSkeleton />;
   }
 
   if (status === 'ready' && rows.length === 0) {

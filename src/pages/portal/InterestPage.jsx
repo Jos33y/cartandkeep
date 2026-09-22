@@ -3,6 +3,7 @@ import { useInterest, verdict, ENOUGH, CERTAIN } from '@hooks/useInterest';
 import { loadTenant } from '@lib/tenant';
 import { formatGbp } from '@utils/formatGbp';
 import styles from '@styles/pages/portal/interest-page.module.css';
+import { PageSkeleton } from '@components/ui/portal/Skeleton';
 
 /*
  * What people look at.
@@ -57,7 +58,7 @@ export function InterestPage() {
   );
 
   if (tenant === undefined) {
-    return <p className={styles.status} role="status" aria-live="polite">Loading</p>;
+    return <PageSkeleton />;
   }
 
   if (status === 'error') {

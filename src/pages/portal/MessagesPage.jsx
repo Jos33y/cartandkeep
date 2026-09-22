@@ -6,6 +6,7 @@ import { loadTenant } from '@lib/tenant';
 import { imageAt } from '@utils/categories';
 import { formatGbp } from '@utils/formatGbp';
 import styles from '@styles/pages/portal/messages-page.module.css';
+import { PageSkeleton } from '@components/ui/portal/Skeleton';
 
 /*
  * Conversations, waiting on her.
@@ -353,7 +354,7 @@ export function MessagesPage() {
   const median = replyTime && replyTime.answered >= 5 ? spoken(replyTime.median_seconds) : null;
 
   if (tenant === undefined) {
-    return <p className={styles.status} role="status" aria-live="polite">Loading</p>;
+    return <PageSkeleton />;
   }
 
   if (status === 'error') {

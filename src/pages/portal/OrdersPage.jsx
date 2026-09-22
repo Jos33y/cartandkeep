@@ -5,6 +5,7 @@ import { useOrders, usePublicCatalogue, isToSend, isSent } from '@hooks/useOrder
 import { loadTenant } from '@lib/tenant';
 import { formatGbp } from '@utils/formatGbp';
 import styles from '@styles/pages/portal/orders-page.module.css';
+import { PageSkeleton } from '@components/ui/portal/Skeleton';
 
 const FILTERS = [
   { key: 'to_send', label: 'To send' },
@@ -78,7 +79,7 @@ export function OrdersPage() {
 
   // undefined means still resolving. Only a settled null is an empty state.
   if (tenant === undefined) {
-    return <p className={styles.status} role="status" aria-live="polite">Loading</p>;
+    return <PageSkeleton />;
   }
 
   if (status === 'error') {

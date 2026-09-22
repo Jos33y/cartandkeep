@@ -62,7 +62,7 @@ export function ListingsPage() {
   const [tenant, setTenant] = useState(undefined);
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
-  const { status, items, window, error, addToShop } = useListings(tenant?.id);
+  const { status, items, window, error, addToShop, updateOnEbay } = useListings(tenant?.id);
   const [filter, setFilter] = useState('all');
   const [find, setFind] = useState('');
 
@@ -147,7 +147,7 @@ export function ListingsPage() {
 
       <div className={styles.list}>
         {shown.map((i) => (
-          <Listing key={i.key} item={i} fees={tenant?.fees} onShop={addToShop} />
+          <Listing key={i.key} item={i} fees={tenant?.fees} onShop={addToShop} onUpdate={updateOnEbay} />
         ))}
         {shown.length === 0 && <p className={styles.quiet}>Nothing here.</p>}
       </div>
@@ -165,8 +165,9 @@ function Stat({ icon, label, value, foot, tone }) {
   );
 }
 
-function Listing({ item, fees, onShop }) {
+function Listing({ item, fees, onShop, onUpdate }) {
   const [open, setOpen] = useState(false);
+  const [revising, setRevising] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
 
@@ -290,6 +291,18 @@ function Listing({ item, fees, onShop }) {
                     <Fact label="Listing" value={item.listingId} mono />
                     {item.ebay?.sku && <Fact label="Code" value={item.ebay.sku} mono />}
                   </dl>
+
+                  {item.origin === 'portal' && (
+                    revising
+                      ? <Revise item={item} onUpdate={onUpdate} onClose={() => setRevising(false)} />
+                      : (
+                        <button type="button" className={styles.revise} onClick={() => setRevising(true)}>
+                          <Icon name="IconRefresh" className={styles.btnIcon} />
+                          Update on eBay
+                          {item.ebay?.revised_at && <span className={styles.revisedAt}>last {ago(item.ebay.revised_at)}</span>}
+                        </button>
+                      )
+                  )}
                 </>
               ) : (
                 <p className={styles.empty}>Only on your shop.</p>
@@ -343,6 +356,72 @@ function Listing({ item, fees, onShop }) {
         </div>
       )}
     </article>
+  );
+}
+
+// Sends the portal's copy to the live listing. Anything changed on eBay since
+// is replaced, so price and quantity are asked for rather than assumed.
+function Revise({ item, onUpdate, onClose }) {
+  const [price, setPrice] = useState(String(item.ebay?.price ?? ''));
+  const [qty, setQty] = useState(String(item.ebay?.quantity ?? 1));
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [failed, setFailed] = useState(null);
+
+  async function send() {
+    setBusy(true);
+    setFailed(null);
+    try {
+      await onUpdate(item, { price, quantity: qty });
+      setDone(true);
+    } catch (e) {
+      setFailed(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (done) {
+    return (
+      <p className={styles.revised}>
+        <Icon name="IconCheck" className={styles.btnIcon} />
+        Updated on eBay. The same listing, with its sales and watchers kept.
+        <button type="button" className={styles.linkBtn} onClick={onClose}>Close</button>
+      </p>
+    );
+  }
+
+  return (
+    <div className={styles.revisePanel}>
+      <p className={styles.reviseWarn}>
+        <Icon name="IconInfo" className={styles.btnIcon} />
+        This replaces the title, description, photos, price and quantity on eBay with the portal's.
+        Changes made in Seller Hub since will be overwritten.
+      </p>
+      <div className={styles.reviseFields}>
+        <label className={styles.reviseField}>
+          <span>Price</span>
+          <span className={styles.reviseControl}>
+            <span className={styles.affix}>£</span>
+            <input inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} data-num />
+          </span>
+        </label>
+        <label className={styles.reviseField}>
+          <span>Quantity</span>
+          <span className={styles.reviseControl}>
+            <input inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} data-num />
+          </span>
+        </label>
+      </div>
+      {failed && <p className={styles.failed}>{failed}</p>}
+      <div className={styles.reviseActions}>
+        <button type="button" className={styles.ghostBtn} onClick={onClose}>Cancel</button>
+        <button type="button" className={styles.primary}
+          disabled={busy || !(Number(price) > 0) || !(Number(qty) >= 1)} onClick={send}>
+          {busy ? 'Updating eBay' : 'Update listing'}
+        </button>
+      </div>
+    </div>
   );
 }
 

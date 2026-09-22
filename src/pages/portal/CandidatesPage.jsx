@@ -7,6 +7,7 @@ import { loadTenant } from '@lib/tenant';
 import { matchBoundary } from '@utils/category';
 import { formatGbp } from '@utils/formatGbp';
 import styles from '@styles/pages/portal/candidates-page.module.css';
+import { PageSkeleton } from '@components/ui/portal/Skeleton';
 
 const FILTERS = [
   { key: 'pending', label: 'To review' },
@@ -135,7 +136,7 @@ export function CandidatesPage() {
   // undefined means still resolving. Only a settled null is an empty state.
   if (tenant === undefined || batch === undefined) {
     return (
-      <p className={styles.status} role="status" aria-live="polite">Loading</p>
+      <PageSkeleton />
     );
   }
 
