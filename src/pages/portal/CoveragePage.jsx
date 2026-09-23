@@ -62,6 +62,24 @@ const REASONS = {
     tip: 'No listing under 90 days old in the sample, so there is no evidence either way, and too many listings competing to find out cheaply. In a thinner market this would still be worth a try.',
     figure: (q) => (q.competitors != null ? `${n(q.competitors)} listings` : null),
   },
+  goods_high: {
+    short: 'Too dear to stock',
+    label: 'The goods cost more than we buy at today',
+    tip: 'The market works, but a unit would tie up more money than is being put into stock while nothing has sold yet.',
+    figure: (q) => (q.max_goods != null ? `buy under ${formatGbp(q.max_goods)}` : null),
+  },
+  goods_low: {
+    short: 'Must buy too cheaply',
+    label: 'The goods would have to cost almost nothing',
+    tip: 'What the market pays leaves so little that the product would have to be bought for a few pounds, which UK stock rarely is.',
+    figure: (q) => (q.max_goods != null ? `buy under ${formatGbp(q.max_goods)}` : null),
+  },
+  band_unsure: {
+    short: 'Postage not known',
+    label: 'Too big to cost as a standard parcel',
+    tip: 'At this price the product is unlikely to post as a 5kg parcel, and a postage figure that is wrong makes every other figure wrong. It is checked again once the real size is known.',
+    figure: (q) => (q.median_price != null ? `sells at ${formatGbp(q.median_price)}` : null),
+  },
   no_listings: {
     short: 'Nobody listing it',
     label: 'Nobody is listing it',
