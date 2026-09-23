@@ -1,4 +1,13 @@
-.page { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-4); }
+.page { display: flex; flex-direction: column; gap: var(--s-5); padding-bottom: var(--s-8); }
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-4);
+  padding: var(--s-6);
+  max-width: 720px;
+}
 
 .head { display: flex; align-items: center; gap: var(--s-4); }
 
@@ -24,18 +33,39 @@
 }
 
 .title { font-size: 1.75rem; font-weight: 560; letter-spacing: -0.03em; line-height: var(--lh-tight); }
-
 .body { font-size: var(--t-lead); line-height: var(--lh-snug); color: var(--c-ink-soft); max-width: 56ch; }
 
+.action {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 var(--s-5);
+  border-radius: var(--r-md);
+  background: var(--c-action);
+  color: var(--c-surface);
+  font-size: var(--t-label);
+  font-weight: 500;
+  text-decoration: none;
+  transition: background var(--dur) var(--ease);
+}
+
+.action:hover { background: var(--c-action-strong); }
+
+/* Quieter than the card above it: this is what the screen becomes, not what
+   the screen is. */
 .preview {
   width: 100%;
-  max-width: 640px;
-  margin-top: var(--s-2);
+  max-width: 720px;
   border: 1px solid var(--c-line);
-  background: var(--c-base);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  overflow: hidden;
 }
 
 .previewHead {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
   padding: var(--s-3) var(--s-4);
   border-bottom: 1px solid var(--c-line);
   background: var(--c-sunk);
@@ -46,6 +76,16 @@
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.tag {
+  margin-left: auto;
+  padding: 1px var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--c-base);
+  font-size: var(--t-micro);
+  font-weight: 600;
   color: var(--c-ink-faint);
 }
 
@@ -72,41 +112,43 @@
 .table tr:last-child td { border-bottom: 0; }
 
 .right { text-align: right; }
+.right .waiting { justify-content: flex-end; }
 
 .cell { display: inline-block; }
 
-/* The value is absent, not loading and not zero. A rule says that without
-   pretending to be a number. */
-.absent {
-  display: inline-block;
-  width: 28px;
-  height: 2px;
-  vertical-align: middle;
-  background: var(--c-line-mid);
-}
+/* The shape of the row that is coming, rather than a dash where a number will
+   be. A dash reads as a table that failed to load. */
+.waiting { display: flex; align-items: center; gap: var(--s-3); }
 
-.ruleRow td { border-top: 2px solid var(--c-ink); font-weight: 500; }
-
-.note { font-size: var(--t-body); color: var(--c-ink-soft); max-width: 56ch; line-height: var(--lh-snug); }
-
-.action {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--tap);
-  padding: 0 var(--s-4);
+.waitingThumb {
+  width: 32px;
+  height: 32px;
+  flex: none;
   border-radius: var(--r-sm);
-  background: var(--c-action-strong);
-  color: #fff;
-  font-size: var(--t-label);
-  font-weight: 500;
-  text-decoration: none;
+  background: var(--c-sunk);
 }
 
-.action:hover { filter: brightness(0.93); }
+.waitingLine {
+  height: 8px;
+  border-radius: var(--r-full);
+  background: var(--c-sunk);
+}
+
+.waitingMain .waitingLine { height: 10px; }
+
+.ruleRow td { border-top: 2px solid var(--c-line-strong); font-weight: 500; }
+
+.note {
+  max-width: 64ch;
+  font-size: var(--t-label);
+  line-height: var(--lh-body);
+  color: var(--c-ink-soft);
+}
 
 @media (max-width: 560px) {
   .table th:nth-child(n + 3),
   .table td:nth-child(n + 3) { display: none; }
+  .card { padding: var(--s-5); }
 }
 
 @media (min-width: 720px) {

@@ -2,25 +2,40 @@ import { Link } from 'react-router';
 import { Icon } from '@components/ui/icons';
 import styles from '@styles/ui/portal/empty-state.module.css';
 
-// A screen with no data still has a shape. Showing the real columns and line
-// items with the values marked absent tells her what this becomes, which is
-// more use than a blank panel and more honest than sample numbers.
+/*
+ * A screen with no data still has a shape.
+ *
+ * The first version printed a dash in every cell, which read as a table that
+ * had failed to load rather than one waiting to fill. This holds the shape of
+ * a real row instead: a thumbnail, a title, and figures in the columns that
+ * will carry them, drawn as the row itself rather than as punctuation.
+ *
+ * A caller that passes cells gets them, marked as an example so no figure on
+ * the screen can be mistaken for hers.
+ */
 export function EmptyState({ eyebrow, title, icon, body, columns, rows, note, action }) {
+  const sample = rows?.some((r) => r.cells?.some(Boolean));
+
   return (
     <div className={styles.page}>
-      <header className={styles.head}>
-        <span className={styles.badge}><Icon name={icon} className={styles.badgeIcon} /></span>
-        <div>
-          <p className={styles.eyebrow}>{eyebrow}</p>
-          <h1 className={styles.title}>{title}</h1>
-        </div>
-      </header>
+      <div className={`card ${styles.card}`}>
+        <header className={styles.head}>
+          <span className={styles.badge}><Icon name={icon} className={styles.badgeIcon} /></span>
+          <div>
+            <p className={styles.eyebrow}>{eyebrow}</p>
+            <h1 className={styles.title}>{title}</h1>
+          </div>
+        </header>
 
-      <p className={styles.body}>{body}</p>
+        <p className={styles.body}>{body}</p>
 
-      <div className={styles.preview}>
+        {action ? <Link to={action.to} className={styles.action}>{action.label}</Link> : null}
+      </div>
+
+      <div className={styles.preview} aria-hidden="true">
         <div className={styles.previewHead}>
           <span className={styles.previewLabel}>What appears here</span>
+          {sample ? <span className={styles.tag}>Example</span> : null}
         </div>
 
         <table className={styles.table}>
@@ -40,7 +55,9 @@ export function EmptyState({ eyebrow, title, icon, body, columns, rows, note, ac
                   const cell = row.cells?.[j];
                   return (
                     <td key={c.key} className={c.align === 'right' ? styles.right : undefined}>
-                      {cell ? <span className={styles.cell}>{cell}</span> : <Absent />}
+                      {cell
+                        ? <span className={styles.cell}>{cell}</span>
+                        : <Waiting first={j === 0} step={i} />}
                     </td>
                   );
                 })}
@@ -51,12 +68,19 @@ export function EmptyState({ eyebrow, title, icon, body, columns, rows, note, ac
       </div>
 
       {note ? <p className={styles.note}>{note}</p> : null}
-
-      {action ? <Link to={action.to} className={styles.action}>{action.label}</Link> : null}
     </div>
   );
 }
 
-function Absent() {
-  return <span className={styles.absent} aria-label="no value yet" />;
+// The shape of the row that is coming: a picture and a title on the left, a
+// figure on the right. Widths vary by row so it reads as content rather than
+// as a loading bar that never finishes.
+function Waiting({ first, step }) {
+  const width = first ? [72, 58, 66, 50][step % 4] : [46, 38, 42, 34][step % 4];
+  return (
+    <span className={`${styles.waiting} ${first ? styles.waitingMain : ''}`}>
+      {first ? <span className={styles.waitingThumb} /> : null}
+      <span className={styles.waitingLine} style={{ width: `${width}%` }} />
+    </span>
+  );
 }

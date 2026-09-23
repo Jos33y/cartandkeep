@@ -4,7 +4,7 @@ import { CandidateRow } from '@components/ui/portal/CandidateRow';
 import { Tip } from '@components/ui/portal/primitives';
 import { PageSkeleton, RowSkeleton } from '@components/ui/portal/Skeleton';
 import { Icon } from '@components/ui/icons';
-import { useCandidates, useBatches } from '@hooks/useCandidates';
+import { useCandidates, useBatches, groupBatches } from '@hooks/useCandidates';
 import { useSuppliers } from '@hooks/useSuppliers';
 import { loadTenant } from '@lib/tenant';
 import { assess } from '@lib/assess';
@@ -61,7 +61,7 @@ export function CandidatesPage() {
   const [tenant, setTenant] = useState(undefined);
   const [filter, setFilter] = useState('pending');
   const [find, setFind] = useState('');
-  const [batchId, setBatchId] = useState(null);
+  const [source, setSource] = useState(null);
   const [activeId, setActiveId] = useState(null);
   const [openId, setOpenId] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
@@ -71,9 +71,12 @@ export function CandidatesPage() {
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
   const batches = useBatches(tenant?.id);
-  const batch = batches === undefined ? undefined : (batches.find((b) => b.id === batchId) ?? batches[0] ?? null);
+  const groups = useMemo(() => (batches === undefined ? undefined : groupBatches(batches)), [batches]);
+  const group = groups === undefined
+    ? undefined
+    : (groups.find((g) => g.key === source) ?? groups[0] ?? null);
   const { suppliers, remember } = useSuppliers(tenant?.id);
-  const { status, rows, decide, clear, addNote, addSource } = useCandidates(batch?.id);
+  const { status, rows, decide, clear, addNote, addSource } = useCandidates(group?.ids ?? []);
 
   const assessed = useMemo(() => rows.map((row) => ({ row, a: assess(row) })), [rows]);
 
@@ -170,9 +173,9 @@ export function CandidatesPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [order, activeId, rejectingId, act, undo]);
 
-  if (tenant === undefined || batch === undefined) return <PageSkeleton />;
+  if (tenant === undefined || group === undefined) return <PageSkeleton />;
 
-  if (!batch) {
+  if (!group) {
     return (
       <div className={styles.page}>
         <div className={`card ${styles.blank}`}>
@@ -188,20 +191,20 @@ export function CandidatesPage() {
   const approved = assessed.filter(({ row }) => row.decision?.action === 'approve');
   const monthly = approved.reduce((s, { a }) => s + (a.month ?? 0), 0);
   const unproved = approved.filter(({ a }) => a.month == null).length;
-  const week = weekOf(batch.delivered_for);
+  const week = weekOf(group.latest);
   const total = rows.length || 1;
 
   return (
     <div className={styles.page}>
       <header className={styles.head}>
         <div>
-          <p className="micro">{week ? `Week of ${week}` : 'Latest batch'}</p>
+          <p className="micro">{group.label}{week ? `, to ${week}` : ''}</p>
           <h1 className={styles.title}>Candidates</h1>
         </div>
 
         <div className={styles.worth}>
           <span className={styles.worthLabel}>
-            Approved in this batch
+            Approved here
             <Tip side="end">What the approved rows would keep a month after goods, each at its proving seller&apos;s own price and rate. Rows without a proved rate are counted, not guessed.</Tip>
           </span>
           {monthly > 0 ? (
@@ -217,14 +220,14 @@ export function CandidatesPage() {
         </div>
       </header>
 
-      {batches.length > 1 && (
-        <div className={styles.batches} role="tablist" aria-label="Batch">
-          {batches.map((b) => (
-            <button key={b.id} type="button" role="tab" aria-selected={b.id === batch.id}
-              className={`${styles.batch} ${b.id === batch.id ? styles.batchOn : ''}`}
-              onClick={() => { setBatchId(b.id); setOpenId(null); setRejectingId(null); }}>
-              <span className={styles.batchName}>{b.category_label || weekOf(b.delivered_for) || 'Batch'}</span>
-              <span className={styles.batchCount} data-num>{b.candidate_count}</span>
+      {groups.length > 1 && (
+        <div className={styles.batches} role="tablist" aria-label="Where these came from">
+          {groups.map((g) => (
+            <button key={g.key} type="button" role="tab" aria-selected={g.key === group.key}
+              className={`${styles.batch} ${g.key === group.key ? styles.batchOn : ''}`}
+              onClick={() => { setSource(g.key); setOpenId(null); setRejectingId(null); }}>
+              <span className={styles.batchName}>{g.label}</span>
+              <span className={styles.batchCount} data-num>{g.count}</span>
             </button>
           ))}
         </div>
@@ -277,7 +280,7 @@ export function CandidatesPage() {
 
       {status === 'error' && (
         <div className={`card ${styles.blank}`} role="alert">
-          <h2 className={styles.blankTitle}>This batch did not load</h2>
+          <h2 className={styles.blankTitle}>These did not load</h2>
           <p className={styles.blankBody}>Reload the page. If it happens again, send me a note and I will look at it.</p>
         </div>
       )}
@@ -287,7 +290,7 @@ export function CandidatesPage() {
           {filter === 'pending' && !find.trim() ? (
             <>
               <span className={`${styles.blankIcon} ${styles.blankDone}`}><Icon name="IconCheck" className={styles.blankGlyph} /></span>
-              <h2 className={styles.blankTitle}>Every candidate in this batch is decided</h2>
+              <h2 className={styles.blankTitle}>Every candidate here is decided</h2>
               {counts.approve > 0 && (
                 <Link className={styles.blankAction} to={portalPath('/approved')}>
                   Price and list the {counts.approve} approved

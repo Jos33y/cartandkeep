@@ -25,7 +25,17 @@ const COLUMNS = [
   { key: 'keep', label: 'You keep', align: 'right' },
 ];
 
-const ROWS = [{}, {}, {}, {}];
+/*
+ * What an approved row reads like, taken from products the gate has actually
+ * passed rather than invented. Marked as an example on the screen, because a
+ * figure she cannot tell from her own is worse than no figure.
+ */
+const ROWS = [
+  { cells: ['Fairy Non Bio Washing Powder 4kg', '£32.31', '£8.60'] },
+  { cells: ['Body Fuel Whey Protein 1kg', '£28.93', '£8.75'] },
+  { cells: ['Sunrise Alarm Clock, wake up light', '£19.99', '£4.29'] },
+  { cells: [] },
+];
 
 const band = (b) => (b ?? '').replace(/_/g, ' ');
 
@@ -92,7 +102,7 @@ export function ApprovedPage() {
         body="What you have committed to, kept together so you can price it and write it before anything goes live."
         columns={COLUMNS}
         rows={ROWS}
-        note="Approve a few from the candidate queue and they appear here straight away."
+        note="Approving a candidate brings it here with the price a small seller is being paid and the most the goods can cost, so nothing is worked out twice. Fourteen are waiting to review."
         action={{ to: portalPath('/candidates'), label: 'Go to candidates' }}
       />
     );

@@ -57,11 +57,16 @@ function byWorkOrder(a, b) {
     || (b.margin?.net ?? b.margin?.max_goods_cost ?? 0) - (a.margin?.net ?? a.margin?.max_goods_cost ?? 0);
 }
 
+// One id or several. A shop delivers a batch a week and she works the shop,
+// not the week, so the page asks for every batch behind one tab at once.
 export function useCandidates(batchId) {
+  const ids = Array.isArray(batchId) ? batchId : (batchId ? [batchId] : []);
+  // A stable key, because a fresh array on every render would refetch forever.
+  const key = ids.join(',');
   const [state, setState] = useState({ status: 'loading', rows: [], error: null });
 
   const load = useCallback(async () => {
-    if (!batchId) return;
+    if (!key) return;
     setState((s) => ({ ...s, status: 'loading' }));
 
     const { data, error } = await supabase
@@ -86,11 +91,11 @@ export function useCandidates(batchId) {
           ships_from, transit_days, confirmed, quoted_on
         )
       `)
-      .eq('batch_id', batchId);
+      .in('batch_id', key.split(','));
 
     if (error) return setState({ status: 'error', rows: [], error });
     setState({ status: 'ready', rows: data.map(flatten).sort(byWorkOrder), error: null });
-  }, [batchId]);
+  }, [key]);
 
   useEffect(() => {
     load();
@@ -227,6 +232,30 @@ export function useBatches(tenantId) {
   }, [tenantId]);
 
   return batches;
+}
+
+/*
+ * One tab per shop rather than per delivery.
+ *
+ * Every weekly batch from Home Bargains showed as its own tab, so the same shop
+ * read as two sources of thirteen and five. The batches stay as they are, which
+ * is what Coverage and the delivery record are built on; only the tabs group.
+ */
+export function groupBatches(batches = []) {
+  const groups = new Map();
+  for (const b of batches) {
+    const label = (b.category_label || 'Candidates').trim();
+    if (!groups.has(label)) {
+      groups.set(label, { key: label, label, ids: [], count: 0, latest: b.delivered_for, terms: [] });
+    }
+    const g = groups.get(label);
+    g.ids.push(b.id);
+    g.count += b.candidate_count ?? 0;
+    if (b.term && !g.terms.includes(b.term)) g.terms.push(b.term);
+    // Batches arrive newest first, so the first date seen is the latest.
+    if (b.delivered_for > g.latest) g.latest = b.delivered_for;
+  }
+  return [...groups.values()];
 }
 
 export function useLatestBatch(tenantId) {
