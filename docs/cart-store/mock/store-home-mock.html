@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cart &amp; Keep</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --base:#FAF6EF; --ink:#2A2723; --ink-deep:#1E1C19;
+  --sage:#7A9575; --sage-deep:#5E7359; --sage-wash:#EEF2EC;
+  --terra:#C4674A; --terra-strong:#BA5A3D; --terra-text:#AD5438; --terra-wash:#FAEEE9;
+  --gold:#B08430;
+  --surface:#FFFFFF; --warm:#F4EFE5; --line:#E8E0D3; --line-mid:#D6CAB5;
+  --soft:#6B6459; --faint:#857D70;
+  --display:'Archivo',system-ui,sans-serif; --ui:'Inter',system-ui,sans-serif;
+  --max:1240px; --r:14px; --r-sm:9px; --ease:cubic-bezier(.22,.61,.36,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--base);color:var(--ink);font-family:var(--ui);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+img{display:block;max-width:100%}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+.wide{font-family:var(--display);font-variation-settings:'wdth' 118,'wght' 620;letter-spacing:-.02em;line-height:1.02}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 20px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+
+/* announcement */
+.ann{background:var(--ink-deep);color:#F3EEE5;font-size:12.5px;letter-spacing:.01em}
+.ann .wrap{display:flex;gap:22px;justify-content:center;align-items:center;height:38px;overflow:hidden;white-space:nowrap}
+.ann b{font-weight:500}
+.ann .dot{width:3px;height:3px;border-radius:50%;background:#6E675C}
+
+/* header */
+header{position:sticky;top:0;z-index:40;background:rgba(250,246,239,.86);backdrop-filter:saturate(140%) blur(12px);border-bottom:1px solid transparent;transition:border-color .2s}
+header.stuck{border-bottom-color:var(--line)}
+.bar{display:flex;align-items:center;gap:26px;height:70px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo svg{flex:none}
+.logo span{font-family:var(--display);font-variation-settings:'wdth' 112,'wght' 640;font-size:19px;letter-spacing:-.025em}
+nav.main{display:flex;gap:22px;font-size:14px;color:var(--soft)}
+nav.main a{padding:6px 0;border-bottom:1.5px solid transparent;transition:color .15s,border-color .15s}
+nav.main a:hover{color:var(--ink);border-bottom-color:var(--sage)}
+.tools{margin-left:auto;display:flex;align-items:center;gap:6px}
+.icobtn{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;color:var(--ink);transition:background .15s}
+.icobtn:hover{background:var(--warm)}
+.basket{position:relative}
+.pip{position:absolute;top:6px;right:5px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:var(--terra-strong);color:#fff;font-size:10.5px;font-weight:600;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+
+/* hero */
+.hero{padding:46px 0 30px}
+.hero-grid{display:grid;grid-template-columns:1.02fr .98fr;gap:40px;align-items:center}
+h1.hero-t{font-size:clamp(2.5rem,5.4vw,4.15rem)}
+h1.hero-t em{font-style:normal;color:var(--terra-text)}
+.hero p.sub{margin-top:16px;font-size:16.5px;color:var(--soft);max-width:34ch}
+.search{margin-top:26px;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line-mid);border-radius:999px;padding:5px 6px 5px 18px;max-width:430px;transition:border-color .15s,box-shadow .15s}
+.search:focus-within{border-color:var(--sage);box-shadow:0 0 0 4px var(--sage-wash)}
+.search input{flex:1;border:0;outline:0;background:none;font:inherit;font-size:15px;height:44px;color:var(--ink)}
+.search input::placeholder{color:var(--faint)}
+.search button{height:44px;padding:0 22px;border-radius:999px;background:var(--terra-strong);color:#fff;font-weight:500;font-size:14.5px;transition:transform .12s,background .15s}
+.search button:hover{background:#a94f34}
+.search button:active{transform:scale(.97)}
+.terms{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+.term{font-size:12.5px;color:var(--soft);border:1px solid var(--line);border-radius:999px;padding:5px 12px;background:var(--surface);transition:border-color .15s,color .15s}
+.term:hover{border-color:var(--sage);color:var(--ink)}
+
+.collage{position:relative;height:420px}
+.collage figure{position:absolute;border-radius:var(--r);overflow:hidden;background:var(--surface);border:1px solid var(--line);transition:transform .45s var(--ease)}
+.collage figure img{width:100%;height:100%;object-fit:cover}
+.c1{width:56%;height:64%;top:0;right:0;z-index:2}
+.c2{width:46%;height:52%;left:0;top:16%;z-index:3}
+.c3{width:42%;height:40%;right:8%;bottom:0;z-index:4}
+.collage:hover .c1{transform:translateY(-6px)}
+.collage:hover .c2{transform:translateY(4px)}
+.collage:hover .c3{transform:translateY(-3px)}
+.tag{position:absolute;z-index:6;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 13px;font-size:12.5px;display:flex;gap:7px;align-items:center;font-variant-numeric:tabular-nums}
+.tag b{font-family:var(--display);font-variation-settings:'wght' 620;font-size:13.5px}
+.t1{left:2%;bottom:9%}
+.t2{right:0;top:4%}
+
+/* trust */
+.trust{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--warm)}
+.trust .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding-top:16px;padding-bottom:16px}
+.tr{display:flex;gap:11px;align-items:flex-start}
+.tr svg{flex:none;margin-top:2px;color:var(--sage-deep)}
+.tr b{display:block;font-size:13.5px;font-weight:500}
+.tr span{font-size:12.5px;color:var(--faint)}
+
+/* section head */
+.sec{padding:52px 0 0}
+.sechead{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:22px}
+.sechead h2{font-size:clamp(1.35rem,2.4vw,1.85rem)}
+.sechead a{font-size:13.5px;color:var(--terra-text);display:flex;align-items:center;gap:5px;font-weight:500}
+.sechead a svg{transition:transform .18s var(--ease)}
+.sechead a:hover svg{transform:translateX(3px)}
+
+/* category tiles */
+.cats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.cat{position:relative;border-radius:var(--r);overflow:hidden;aspect-ratio:5/3.4;background:var(--sage-deep);isolation:isolate}
+.cat img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.62;transition:transform .5s var(--ease),opacity .3s}
+.cat:after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(30,28,25,.78),rgba(30,28,25,.05) 62%)}
+.cat:hover img{transform:scale(1.07);opacity:.72}
+.cat .lab{position:absolute;left:14px;right:14px;bottom:12px;z-index:2;color:#fff}
+.cat .lab b{display:block;font-family:var(--display);font-variation-settings:'wdth' 108,'wght' 600;font-size:15px;letter-spacing:-.01em;line-height:1.15}
+.cat .lab span{font-size:11.5px;opacity:.82;font-variant-numeric:tabular-nums}
+
+/* shelf */
+.shelf{display:grid;grid-template-columns:212px 1fr;gap:18px;align-items:stretch;margin-top:14px}
+.shelf-panel{background:var(--warm);border:1px solid var(--line);border-radius:var(--r);padding:20px 18px;display:flex;flex-direction:column;justify-content:space-between}
+.shelf-panel h3{font-family:var(--display);font-variation-settings:'wdth' 116,'wght' 620;font-size:23px;line-height:1.05;letter-spacing:-.02em}
+.shelf-panel .n{margin-top:8px;font-size:12.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+.shelf-panel .go{margin-top:18px;align-self:flex-start;display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:500;color:var(--ink);border-bottom:1.5px solid var(--sage);padding-bottom:3px}
+.rail{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px;scrollbar-width:none}
+.rail::-webkit-scrollbar{display:none}
+.rail>*{scroll-snap-align:start;flex:0 0 205px}
+
+/* product card */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;transition:border-color .18s,transform .22s var(--ease)}
+.card:hover{border-color:var(--line-mid);transform:translateY(-3px)}
+.shot{position:relative;aspect-ratio:1;overflow:hidden;background:var(--warm)}
+.shot img{width:100%;height:100%;object-fit:cover;transition:transform .5s var(--ease)}
+.card:hover .shot img{transform:scale(1.045)}
+.flag{position:absolute;top:9px;left:9px;background:var(--sage-wash);border:1px solid #CDD9C9;color:#3F5139;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:5px}
+.flag.sale{background:#F6EEDC;border-color:#E4CE9C;color:#6B4F14}
+.wish{position:absolute;top:7px;right:7px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.92);display:grid;place-items:center;color:var(--soft);opacity:0;transform:translateY(-4px);transition:opacity .18s,transform .18s}
+.card:hover .wish{opacity:1;transform:none}
+.wish:hover{color:var(--terra-text)}
+.add{position:absolute;left:9px;right:9px;bottom:9px;height:38px;border-radius:9px;background:var(--terra-strong);color:#fff;font-size:13.5px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:7px;opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s var(--ease)}
+.card:hover .add{opacity:1;transform:none}
+.add:active{transform:scale(.98)}
+.meta{padding:12px 13px 14px;display:flex;flex-direction:column;gap:3px}
+.meta .leaf{font-size:11.5px;color:var(--faint)}
+.meta .name{font-size:14px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.meta .row{margin-top:5px;display:flex;align-items:baseline;gap:8px}
+.meta .price{font-family:var(--display);font-variation-settings:'wght' 640;font-size:17px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.meta .was{font-size:12.5px;color:var(--faint);text-decoration:line-through;font-variant-numeric:tabular-nums}
+.stars{display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--faint);margin-top:2px}
+.stars svg{color:var(--gold)}
+
+/* grid section */
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+
+/* promise band */
+.band{margin-top:56px;background:var(--sage-deep);color:#fff;border-radius:var(--r)}
+.band .inner{display:grid;grid-template-columns:1.3fr 1fr;gap:30px;padding:38px 34px;align-items:center}
+.band h2{font-family:var(--display);font-variation-settings:'wdth' 116,'wght' 620;font-size:clamp(1.5rem,2.6vw,2rem);letter-spacing:-.02em;line-height:1.08}
+.band p{margin-top:12px;font-size:14.5px;opacity:.9;max-width:46ch}
+.nl{display:flex;gap:8px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:5px 5px 5px 16px}
+.nl input{flex:1;height:42px;border:0;outline:0;background:none;color:#fff;font:inherit;font-size:14.5px}
+.nl input::placeholder{color:rgba(255,255,255,.66)}
+.nl button{height:42px;padding:0 20px;border-radius:999px;background:#fff;color:var(--ink);font-weight:500;font-size:14px}
+.band small{display:block;margin-top:9px;font-size:11.5px;opacity:.72}
+
+/* footer */
+footer{margin-top:60px;background:var(--ink-deep);color:#CFC8BC}
+.fgrid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:34px;padding:52px 0 34px}
+footer h4{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#8B8375;margin-bottom:14px}
+footer ul{list-style:none;display:flex;flex-direction:column;gap:9px;font-size:13.5px}
+footer a:hover{color:#fff}
+.flogo{display:flex;align-items:center;gap:10px;color:#fff}
+.flogo span{font-family:var(--display);font-variation-settings:'wdth' 112,'wght' 640;font-size:18px;letter-spacing:-.025em}
+.fabout{margin-top:14px;font-size:13.5px;line-height:1.65;max-width:34ch;color:#A79F92}
+.social{margin-top:18px;display:flex;gap:8px}
+.social a{width:36px;height:36px;border-radius:50%;border:1px solid #3A3630;display:grid;place-items:center;color:#CFC8BC;transition:border-color .15s,color .15s}
+.social a:hover{border-color:#6E675C;color:#fff}
+.fbot{border-top:1px solid #322E29;padding:18px 0 30px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;font-size:12px;color:#8B8375}
+.pay{margin-left:auto;display:flex;gap:7px;align-items:center}
+.pay span{height:26px;padding:0 9px;border:1px solid #3A3630;border-radius:5px;display:grid;place-items:center;font-size:10.5px;letter-spacing:.06em;color:#A79F92}
+
+@media (max-width:1000px){
+  .hero-grid{grid-template-columns:1fr;gap:28px}
+  .collage{height:330px}
+  .cats{grid-template-columns:repeat(2,1fr)}
+  .grid4{grid-template-columns:repeat(2,1fr)}
+  .trust .wrap{grid-template-columns:repeat(2,1fr);gap:16px}
+  .shelf{grid-template-columns:1fr}
+  .band .inner{grid-template-columns:1fr}
+  .fgrid{grid-template-columns:1fr 1fr;gap:28px}
+  nav.main{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div class="ann"><div class="wrap">
+  <b>Free UK delivery over &pound;40</b><i class="dot"></i>
+  <span>Ordered before 2pm, sent the same day</span><i class="dot"></i>
+  <span>30 day returns</span>
+</div></div>
+
+<header id="hdr"><div class="wrap bar">
+  <a class="logo" href="#">
+    <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+      <path d="M5 10.5h20l-2 13.2a2 2 0 0 1-2 1.7H9a2 2 0 0 1-2-1.7L5 10.5Z" stroke="#2A2723" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="M10.6 10.5V8.2a4.4 4.4 0 0 1 8.8 0v2.3" stroke="#7A9575" stroke-width="1.7" stroke-linecap="round"/>
+      <path d="M12.2 17.4l2.1 2.1 4.3-4.3" stroke="#C4674A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>Cart &amp; Keep</span>
+  </a>
+  <nav class="main">
+    <a href="#">Home &amp; living</a><a href="#">Health &amp; beauty</a>
+    <a href="#">Pet</a><a href="#">Tools</a><a href="#">All departments</a>
+  </nav>
+  <div class="tools">
+    <button class="icobtn" aria-label="Search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg></button>
+    <button class="icobtn" aria-label="Saved"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+    <button class="icobtn basket" aria-label="Basket, 2 items"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 8h16l-1.6 11.2a2 2 0 0 1-2 1.8H7.6a2 2 0 0 1-2-1.8L4 8Z"/><path d="M8.6 8V6a3.4 3.4 0 0 1 6.8 0v2" stroke-linecap="round"/></svg><i class="pip">2</i></button>
+  </div>
+</div></header>
+
+<section class="hero"><div class="wrap hero-grid">
+  <div>
+    <p class="eyebrow" style="margin-bottom:14px">A general store, run properly</p>
+    <h1 class="wide hero-t">Everything for<br>the house.<br><em>Nothing you<br>have to hunt for.</em></h1>
+    <p class="sub">Eight departments, one basket, delivered from the UK. Pans to pet beds to the thing you forgot.</p>
+    <form class="search" onsubmit="return false">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#857D70" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+      <input placeholder="Try floor lamp, dog bed, saucepan" aria-label="Search products">
+      <button type="submit">Search</button>
+    </form>
+    <div class="terms">
+      <a class="term" href="#">Under &pound;20</a><a class="term" href="#">Kitchen</a>
+      <a class="term" href="#">New this week</a><a class="term" href="#">Pet</a>
+    </div>
+  </div>
+  <div class="collage">
+    <figure class="c1"><img src="https://i.ebayimg.com/images/g/P~gAAeSwgsZqdlab/s-l500.jpg" alt="Corner floor lamp"></figure>
+    <figure class="c2"><img src="https://i.ebayimg.com/images/g/dWoAAeSwYttqcQZ1/s-l500.jpg" alt="Saucepan set"></figure>
+    <figure class="c3"><img src="https://i.ebayimg.com/images/g/ZkEAAeSwwnxqc8bD/s-l500.jpg" alt="Raised dog bed"></figure>
+    <div class="tag t1"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5E7359" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.8"/><circle cx="17.5" cy="18" r="1.8"/></svg>Sent from <b>Essex</b></div>
+    <div class="tag t2"><b>78</b> products in stock</div>
+  </div>
+</div></section>
+
+<div class="trust"><div class="wrap">
+  <div class="tr"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.8"/><circle cx="17.5" cy="18" r="1.8"/></svg><div><b>Free delivery over &pound;40</b><span>&pound;3.95 below that, 2 to 3 days</span></div></div>
+  <div class="tr"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 1 2.6 5.9"/><path d="M4 19v-5h5"/></svg><div><b>30 day returns</b><span>Unused and in the box</span></div></div>
+  <div class="tr"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><div><b>Checkout as a guest</b><span>No account, no password</span></div></div>
+  <div class="tr"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-3 8-7 9-4-1-7-4.6-7-9V6l7-3Z"/><path d="M9 12l2 2 4-4"/></svg><div><b>Paid with Stripe</b><span>Card details never touch us</span></div></div>
+</div></div>
+
+<section class="sec"><div class="wrap">
+  <div class="sechead">
+    <h2 class="wide">Shop by department</h2>
+    <a href="#">All eight <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+  </div>
+  <div class="cats">
+    <a class="cat" href="#"><img src="https://i.ebayimg.com/images/g/dWoAAeSwYttqcQZ1/s-l500.jpg" alt=""><div class="lab"><b>Home, furniture<br>&amp; DIY</b><span>24 products</span></div></a>
+    <a class="cat" href="#"><img src="https://i.ebayimg.com/images/g/rrUAAeSwgxZqcdjm/s-l500.jpg" alt=""><div class="lab"><b>Health &amp; beauty</b><span>15 products</span></div></a>
+    <a class="cat" href="#"><img src="https://i.ebayimg.com/images/g/mWMAAeSwjWhqf4y1/s-l500.jpg" alt=""><div class="lab"><b>Vehicle parts<br>&amp; accessories</b><span>8 products</span></div></a>
+    <a class="cat" href="#"><img src="https://i.ebayimg.com/images/g/ysUAAeSwEi9qd98X/s-l500.jpg" alt=""><div class="lab"><b>Business, office<br>&amp; industrial</b><span>6 products</span></div></a>
+    <a class="cat" href="#"><img src="https://i.ebayimg.com/images/g/nagAAeSwk71qf4ve/s-l500.jpg" alt=""><div class="lab"><b>Sporting goods</b><span>6 products</span></div></a>
+    <a class="cat" href="#"><img src="https://i.ebayimg.com/images/g/bnUAAeSwMCBqdlkV/s-l500.jpg" alt=""><div class="lab"><b>Garden &amp; patio</b><span>4 products</span></div></a>
+    <a class="cat" href="#"><img src="https://i.ebayimg.com/images/g/4EkAAeSwyShqf4tm/s-l500.jpg" alt=""><div class="lab"><b>Pet supplies</b><span>4 products</span></div></a>
+    <a class="cat" href="#"><img src="https://i.ebayimg.com/images/g/XoEAAeSwG~Vqd-sq/s-l500.jpg" alt=""><div class="lab"><b>Everything else</b><span>11 products</span></div></a>
+  </div>
+</div></section>
+
+<section class="sec"><div class="wrap">
+  <div class="sechead"><h2 class="wide">New this week</h2><a href="#">See all <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+  <div class="grid4">
+    <a class="card" href="#"><div class="shot"><img src="https://i.ebayimg.com/images/g/P~gAAeSwgsZqdlab/s-l500.jpg" alt=""><i class="flag">New in</i><button class="wish" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button><button class="add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add to basket</button></div><div class="meta"><span class="leaf">Lamps</span><span class="name">Corner floor lamp, black LED warm white</span><div class="stars"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6.1L12 16.8 6.6 19.7l1.2-6.1L3.3 9.4l6.1-.8L12 3Z"/></svg>4.6 (38)</div><div class="row"><span class="price">&pound;48.01</span></div></div></a>
+    <a class="card" href="#"><div class="shot"><img src="https://i.ebayimg.com/images/g/XoEAAeSwG~Vqd-sq/s-l500.jpg" alt=""><button class="wish" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button><button class="add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add to basket</button></div><div class="meta"><span class="leaf">Storage boxes</span><span class="name">35L clear stackable storage boxes, 3 pack</span><div class="stars"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6.1L12 16.8 6.6 19.7l1.2-6.1L3.3 9.4l6.1-.8L12 3Z"/></svg>4.8 (112)</div><div class="row"><span class="price">&pound;47.50</span></div></div></a>
+    <a class="card" href="#"><div class="shot"><img src="https://i.ebayimg.com/images/g/ZkEAAeSwwnxqc8bD/s-l500.jpg" alt=""><i class="flag sale">Save &pound;6</i><button class="wish" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button><button class="add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add to basket</button></div><div class="meta"><span class="leaf">Pet beds</span><span class="name">Raised cooling dog bed, elevated breathable frame</span><div class="stars"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6.1L12 16.8 6.6 19.7l1.2-6.1L3.3 9.4l6.1-.8L12 3Z"/></svg>4.4 (26)</div><div class="row"><span class="price">&pound;43.78</span><span class="was">&pound;49.78</span></div></div></a>
+    <a class="card" href="#"><div class="shot"><img src="https://i.ebayimg.com/images/g/bnUAAeSwMCBqdlkV/s-l500.jpg" alt=""><button class="wish" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button><button class="add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add to basket</button></div><div class="meta"><span class="leaf">Artificial plants</span><span class="name">Artificial cypress trees, set of 2, indoor or outdoor</span><div class="stars"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6.1L12 16.8 6.6 19.7l1.2-6.1L3.3 9.4l6.1-.8L12 3Z"/></svg>4.7 (54)</div><div class="row"><span class="price">&pound;43.64</span></div></div></a>
+  </div>
+</div></section>
+
+<section class="sec"><div class="wrap">
+  <div class="sechead"><h2 class="wide">Every department, one scroll</h2></div>
+
+  <div class="shelf">
+    <div class="shelf-panel"><div><h3>Home,<br>furniture<br>&amp; DIY</h3><p class="n">24 products &middot; from &pound;16.81</p></div><a class="go" href="#">Browse all 24 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+    <div class="rail">
+      <a class="card" href="#"><div class="shot"><img src="https://i.ebayimg.com/images/g/dWoAAeSwYttqcQZ1/s-l500.jpg" alt=""><button class="add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add to basket</button></div><div class="meta"><span class="leaf">Pan sets</span><span class="name">5 piece non stick saucepan set with glass lids</span><div class="row"><span class="price">&pound;117.24</span></div></div></a>
+      <a class="card" href="#"><div class="shot"><img src="https://i.ebayimg.com/images/g/P~gAAeSwgsZqdlab/s-l500.jpg" alt=""><button class="add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add to basket</button></div><div class="meta"><span class="leaf">Lamps</span><span class="name">Corner floor lamp, black LED warm white</span><div class="row"><span class="price">&pound;48.01</span></div></div></a>
+      <a class="card" href="#"><div class="shot"><img src="https://i.ebayimg.com/images/g/XoEAAeSwG~Vqd-sq/s-l500.jpg" alt=""><button class="add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add to basket</button></div><div class="meta"><span class="leaf">Storage boxes</span><span class="name">35L clear stackable storage boxes, 3 pack</span><div class="row"><span class="price">&pound;47.50</span></div></div></a>
+      <a class="card" href="#"><div class="shot"><img src="https://i.ebayimg.com/images/g/bnUAAeSwMCBqdlkV/s-l500.jpg" alt=""><button class="add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add to basket</button></div><div class="meta"><span class="leaf">Artificial plants</span><span class="name">Artificial cypress trees, set of 2</span><div class="row"><span class="price">&pound;43.64</span></div></div></a>
+      <a class="card" href="#"><div class="shot"><img src="https://i.ebayimg.com/images/g/qdAAAeSwDO5qfR5J/s-l500.jpg" alt=""><button class="add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add to basket</button></div><div class="meta"><span class="leaf">Gift baskets</span><span class="name">Luxury pamper hamper, spa relaxation set</span><div class="row"><span class="price">&pound;42.71</span></div></div></a>
+    </div>
+  </div>
+
+  <div class="shelf" style="margin-top:18px">
+    <div class="shelf-panel"><div><h3>Pet<br>supplies</h3><p class="n">4 products &middot; from &pound;18.40</p></div><a class="go" href="#">Browse all 4 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+    <div class="rail">
+      <a class="card" href="#"><div class="shot"><img src="https://i.ebayimg.com/images/g/4EkAAeSwyShqf4tm/s-l500.jpg" alt=""><button class="add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add to basket</button></div><div class="meta"><span class="leaf">Cat health care</span><span class="name">Feliway classic refills, 3 x 30 day</span><div class="row"><span class="price">&pound;53.01</span></div></div></a>
+      <a class="card" href="#"><div class="shot"><img src="https://i.ebayimg.com/images/g/DNMAAeSwObdqcQuw/s-l500.jpg" alt=""><button class="add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add to basket</button></div><div class="meta"><span class="leaf">Bedding</span><span class="name">10kg paper wool kennel bedding, natural white</span><div class="row"><span class="price">&pound;50.63</span></div></div></a>
+      <a class="card" href="#"><div class="shot"><img src="https://i.ebayimg.com/images/g/ZkEAAeSwwnxqc8bD/s-l500.jpg" alt=""><button class="add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add to basket</button></div><div class="meta"><span class="leaf">Pet beds</span><span class="name">Raised cooling dog bed, elevated breathable frame</span><div class="row"><span class="price">&pound;43.78</span><span class="was">&pound;49.78</span></div></div></a>
+    </div>
+  </div>
+</div></section>
+
+<section class="wrap"><div class="band"><div class="inner">
+  <div>
+    <h2>Tell us what you need and we will find it</h2>
+    <p>We add products every Monday. Say what you are after and we will look for it before we buy anything else.</p>
+  </div>
+  <div>
+    <form class="nl" onsubmit="return false">
+      <input placeholder="you@example.com" aria-label="Email address">
+      <button type="submit">Keep me posted</button>
+    </form>
+    <small>One email a week at most. Leave whenever you like.</small>
+  </div>
+</div></div></section>
+
+<footer>
+  <div class="wrap">
+    <div class="fgrid">
+      <div>
+        <a class="flogo" href="#">
+          <svg width="28" height="28" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+            <path d="M5 10.5h20l-2 13.2a2 2 0 0 1-2 1.7H9a2 2 0 0 1-2-1.7L5 10.5Z" stroke="#EDE7DC" stroke-width="1.7" stroke-linejoin="round"/>
+            <path d="M10.6 10.5V8.2a4.4 4.4 0 0 1 8.8 0v2.3" stroke="#7A9575" stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M12.2 17.4l2.1 2.1 4.3-4.3" stroke="#C4674A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg><span>Cart &amp; Keep</span>
+        </a>
+        <p class="fabout">A general store for the house, run from the UK. Eight departments, one basket, and no account needed to buy anything.</p>
+        <div class="social">
+          <a href="#" aria-label="Instagram"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none"/></svg></a>
+          <a href="#" aria-label="TikTok"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M14 4v10.6a3.6 3.6 0 1 1-3-3.55"/><path d="M14 6.2A5 5 0 0 0 19 9.4"/></svg></a>
+          <a href="#" aria-label="Email"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M4 7.5l8 5.5 8-5.5"/></svg></a>
+        </div>
+      </div>
+      <div>
+        <h4>Shop</h4>
+        <ul>
+          <li><a href="#">Home, furniture &amp; DIY</a></li><li><a href="#">Health &amp; beauty</a></li>
+          <li><a href="#">Vehicle parts</a></li><li><a href="#">Sporting goods</a></li>
+          <li><a href="#">Pet supplies</a></li><li><a href="#">All departments</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Help</h4>
+        <ul>
+          <li><a href="#">Delivery</a></li><li><a href="#">Returns and refunds</a></li>
+          <li><a href="#">Track an order</a></li><li><a href="#">Contact us</a></li>
+          <li><a href="#">Frequently asked</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>About</h4>
+        <ul>
+          <li><a href="#">Our story</a></li><li><a href="#">Terms</a></li>
+          <li><a href="#">Privacy</a></li><li><a href="#">Cookies</a></li>
+          <li><a href="#">Modern slavery</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="fbot">
+      <span>&copy; 2026 Cart &amp; Keep</span>
+      <span>support@cartandkeep.com</span>
+      <div class="pay"><span>VISA</span><span>MASTERCARD</span><span>AMEX</span><span>APPLE PAY</span><span>KLARNA</span></div>
+    </div>
+  </div>
+</footer>
+
+<script>
+const h=document.getElementById('hdr');
+addEventListener('scroll',()=>h.classList.toggle('stuck',scrollY>10),{passive:true});
+document.querySelectorAll('.add').forEach(b=>b.addEventListener('click',e=>{
+  e.preventDefault();
+  const t=b.innerHTML; b.innerHTML='Added';
+  const p=document.querySelector('.pip'); p.textContent=+p.textContent+1;
+  setTimeout(()=>b.innerHTML=t,1100);
+}));
+</script>
+</body>
+</html>

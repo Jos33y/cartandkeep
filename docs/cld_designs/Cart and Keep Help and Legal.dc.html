@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900&family=Inter:wght@400..700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  body { margin: 0; background: #ece6db; color: #2a2723; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: #98432a; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:hover { color: #ba5a3d; }
+</style>
+</helmet>
+
+<section style="padding: 64px; display: flex; flex-direction: column; gap: 56px;">
+
+  <div style="display: flex; flex-direction: column; gap: 18px; max-width: 940px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #5f584d;">Turn 3 &middot; two pages that should never share a template</div>
+    <h1 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 118%; font-weight: 620; font-size: 60px; line-height: 1.02; letter-spacing: -0.025em;">One is a shop assistant. One is a reference document.</h1>
+    <p style="margin: 0; font-size: 18px; line-height: 1.6; color: #5f584d; max-width: 72ch; text-wrap: pretty;">Right now Terms, Privacy, Delivery, Returns and FAQ all render through the same shell, and only two of those five are legal documents. <a href="#3a">3a</a> is the help centre, built for 34 answers and designed to keep people out of Mrs Sowande's inbox. <a href="#3b">3b</a> is Terms, deliberately duller, deliberately denser, and built to be cited rather than browsed.</p>
+  </div>
+
+  <div style="display: flex; gap: 64px; align-items: flex-start; flex-wrap: wrap;">
+
+    <div id="3a" style="display: flex; flex-direction: column; gap: 22px; flex: none;">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; background: #2a2723; color: #faf6ef; padding: 4px 10px; border-radius: 6px;">3a</div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 34px; letter-spacing: -0.02em;">Help centre</div>
+        <div style="font-size: 15px; color: #5f584d;">34 answers, six groups, search first</div>
+      </div>
+
+      <div style="width: 1240px; background: #faf6ef; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(42,39,35,0.13);">
+        <div style="background: #1e1c19; padding: 11px 0; display: flex; align-items: center; justify-content: center; gap: 18px;">
+          <div style="font-size: 13px; color: rgba(250,246,239,0.82);">A small UK shop with a very large cupboard</div>
+          <div style="width: 1px; height: 12px; background: rgba(250,246,239,0.28);"></div>
+          <div style="font-size: 13px; font-weight: 600; color: #faf6ef;">Free delivery over &pound;40</div>
+        </div>
+        <div style="background: #faf6ef; border-bottom: 1px solid #e8e0d3; padding: 14px 40px; display: flex; align-items: center; gap: 32px;">
+          <div style="font-family: 'Archivo', sans-serif; font-stretch: 112%; font-weight: 640; font-size: 22px; letter-spacing: -0.02em;">Cart <span style="color: #5c7457;">&amp;</span> Keep</div>
+          <div style="display: flex; gap: 22px; font-size: 15px; color: #2a2723;">
+            <div>House</div><div>Body</div><div>Outdoors</div><div>Trade</div><div>Leisure</div><div>Pet</div>
+          </div>
+          <div style="margin-left: auto; font-size: 14px; color: #5f584d;">Basket &middot; 3</div>
+        </div>
+
+        <div style="background: #f4efe6; border-bottom: 1px solid #e8e0d3; padding: 44px 40px 34px; display: flex; gap: 56px; align-items: flex-end;">
+          <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 16px;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #5f584d;">Help</div>
+            <h2 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 118%; font-weight: 620; font-size: 56px; line-height: 0.98; letter-spacing: -0.028em;">What do you<br />need to know?</h2>
+          </div>
+          <div style="flex: 0 1 480px; display: flex; flex-direction: column; gap: 10px; padding-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 14px; background: #ffffff; border: 1.5px solid #2a2723; border-radius: 999px; padding: 17px 24px;">
+              <div style="font-size: 18px; color: #2a2723; font-weight: 500;">delivery to scotl</div>
+              <div style="width: 1.5px; height: 20px; background: #ba5a3d;"></div>
+              <div style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: #98432a;">4 answers</div>
+            </div>
+            <div style="font-size: 14px; line-height: 1.5; color: #5f584d;">Type and the list below narrows. Nothing loads, nothing navigates.</div>
+          </div>
+        </div>
+
+        <div style="padding: 26px 40px 0; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+          <div style="font-size: 14px; font-weight: 600; background: #2a2723; color: #faf6ef; padding: 9px 17px; border-radius: 999px;">All <span style="opacity: 0.62;">34</span></div>
+          <div style="font-size: 14px; font-weight: 500; background: #ffffff; border: 1px solid #d6cab5; padding: 9px 17px; border-radius: 999px;">Delivery <span style="color: #5f584d;">9</span></div>
+          <div style="font-size: 14px; font-weight: 500; background: #ffffff; border: 1px solid #d6cab5; padding: 9px 17px; border-radius: 999px;">Returns &amp; refunds <span style="color: #5f584d;">7</span></div>
+          <div style="font-size: 14px; font-weight: 500; background: #ffffff; border: 1px solid #d6cab5; padding: 9px 17px; border-radius: 999px;">Ordering <span style="color: #5f584d;">6</span></div>
+          <div style="font-size: 14px; font-weight: 500; background: #ffffff; border: 1px solid #d6cab5; padding: 9px 17px; border-radius: 999px;">Payment <span style="color: #5f584d;">5</span></div>
+          <div style="font-size: 14px; font-weight: 500; background: #ffffff; border: 1px solid #d6cab5; padding: 9px 17px; border-radius: 999px;">Products &amp; stock <span style="color: #5f584d;">4</span></div>
+          <div style="font-size: 14px; font-weight: 500; background: #ffffff; border: 1px solid #d6cab5; padding: 9px 17px; border-radius: 999px;">The shop itself <span style="color: #5f584d;">3</span></div>
+        </div>
+
+        <div style="padding: 34px 40px 40px; display: flex; gap: 44px; align-items: flex-start;">
+
+          <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;">
+
+            <div style="display: flex; align-items: baseline; gap: 14px; padding-bottom: 12px; border-bottom: 2px solid #2a2723;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 30px; letter-spacing: -0.02em;">Delivery</div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5f584d;">9 answers</div>
+              <div style="margin-left: auto; font-size: 14px; color: #5f584d;">Asked most this month</div>
+            </div>
+
+            <div style="padding: 22px 0 20px; border-bottom: 1px solid #e8e0d3; display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: flex; align-items: flex-start; gap: 18px;">
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; line-height: 1.25; letter-spacing: -0.012em; flex: 1 1 auto;">How long does delivery actually take?</div>
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; line-height: 1; color: #98432a; flex: none; padding-top: 4px;">&minus;</div>
+              </div>
+              <div style="font-size: 17px; line-height: 1.65; color: #2a2723; max-width: 66ch; text-wrap: pretty;">Two to four working days to most of the UK. Orders placed before 1pm go out the same day, Monday to Friday. The Highlands, the islands and Northern Ireland take a day or two longer, and you will see the honest estimate on the product page before you add anything to the basket.</div>
+              <div style="display: flex; align-items: center; gap: 20px; padding-top: 4px;">
+                <div style="font-size: 14px; font-weight: 600; color: #98432a;">Copy link to this answer</div>
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5f584d;">/help#delivery-how-long</div>
+                <div style="margin-left: auto; font-size: 14px; color: #5f584d;">Was this the answer? <span style="font-weight: 600; color: #2a2723;">Yes</span> <span style="color: #d6cab5;">/</span> <span style="font-weight: 600; color: #2a2723;">No</span></div>
+              </div>
+            </div>
+
+            <div style="padding: 22px 0 20px; border-bottom: 1px solid #e8e0d3; display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: flex; align-items: flex-start; gap: 18px;">
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; line-height: 1.25; letter-spacing: -0.012em; flex: 1 1 auto;">Do you deliver to the Scottish Highlands and islands?</div>
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; line-height: 1; color: #98432a; flex: none; padding-top: 4px;">&minus;</div>
+              </div>
+              <div style="font-size: 17px; line-height: 1.65; color: #2a2723; max-width: 66ch; text-wrap: pretty;">Yes, everywhere in the UK, at the same price. Some heavier items take four to six days to reach IV, KW, PA, PH, HS, ZE and BT postcodes. Nothing is surcharged and nothing is excluded.</div>
+              <div style="display: flex; align-items: center; gap: 20px; padding-top: 4px;">
+                <div style="font-size: 14px; font-weight: 600; color: #98432a;">Copy link to this answer</div>
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5f584d;">/help#delivery-highlands</div>
+              </div>
+            </div>
+
+            <div style="padding: 22px 0 20px; border-bottom: 1px solid #e8e0d3; display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: flex; align-items: flex-start; gap: 18px;">
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; line-height: 1.25; letter-spacing: -0.012em; flex: 1 1 auto;">When does delivery become free?</div>
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; line-height: 1; color: #98432a; flex: none; padding-top: 4px;">&minus;</div>
+              </div>
+              <div style="font-size: 17px; line-height: 1.65; color: #2a2723; max-width: 66ch; text-wrap: pretty;">At &pound;40. Below that it is a flat &pound;4.95 however much you buy. The basket tells you what is left to go, so you never have to work it out.</div>
+              <div style="display: flex; align-items: center; gap: 14px; padding: 4px 0 2px;">
+                <div style="flex: 0 1 300px; height: 8px; border-radius: 999px; background: #e8e0d3; overflow: hidden;">
+                  <div style="width: 47%; height: 100%; background: #5c7457;"></div>
+                </div>
+                <div style="font-size: 14px; font-weight: 500; color: #2a2723;">&pound;21.35 to go in your basket right now</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 20px; padding-top: 4px;">
+                <div style="font-size: 14px; font-weight: 600; color: #98432a;">Copy link to this answer</div>
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5f584d;">/help#delivery-free-threshold</div>
+              </div>
+            </div>
+
+            <div style="padding: 19px 0; border-bottom: 1px solid #e8e0d3; display: flex; align-items: center; gap: 18px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; line-height: 1.25; letter-spacing: -0.012em; flex: 1 1 auto;">Can I track my order without an account?</div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; line-height: 1; color: #5f584d; flex: none;">+</div>
+            </div>
+            <div style="padding: 19px 0; border-bottom: 1px solid #e8e0d3; display: flex; align-items: center; gap: 18px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; line-height: 1.25; letter-spacing: -0.012em; flex: 1 1 auto;">Who actually delivers it?</div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; line-height: 1; color: #5f584d; flex: none;">+</div>
+            </div>
+            <div style="padding: 19px 0; border-bottom: 1px solid #e8e0d3; display: flex; align-items: center; gap: 18px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; line-height: 1.25; letter-spacing: -0.012em; flex: 1 1 auto;">Nothing has arrived. What now?</div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; line-height: 1; color: #5f584d; flex: none;">+</div>
+            </div>
+            <div style="padding: 19px 0; border-bottom: 1px solid #e8e0d3; display: flex; align-items: center; gap: 18px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; line-height: 1.25; letter-spacing: -0.012em; flex: 1 1 auto;">Can I have it left with a neighbour?</div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; line-height: 1; color: #5f584d; flex: none;">+</div>
+            </div>
+
+            <div style="display: flex; align-items: baseline; gap: 14px; padding: 40px 0 12px; border-bottom: 2px solid #2a2723;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 30px; letter-spacing: -0.02em;">Returns &amp; refunds</div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5f584d;">7 answers</div>
+            </div>
+
+            <div style="padding: 22px 0 20px; border-bottom: 1px solid #e8e0d3; display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: flex; align-items: flex-start; gap: 18px;">
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; line-height: 1.25; letter-spacing: -0.012em; flex: 1 1 auto;">How do I send something back?</div>
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; line-height: 1; color: #98432a; flex: none; padding-top: 4px;">&minus;</div>
+              </div>
+              <div style="font-size: 17px; line-height: 1.65; color: #2a2723; max-width: 66ch; text-wrap: pretty;">Email the order reference and we will send a return label the same working day. You have 30 days from delivery, and you do not need a reason. Once it reaches us the refund goes back to the card within three working days.</div>
+              <div style="display: flex; align-items: center; gap: 20px; padding-top: 4px;">
+                <div style="font-size: 14px; font-weight: 600; color: #98432a;">Copy link to this answer</div>
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5f584d;">/help#returns-how</div>
+                <div style="margin-left: auto; font-size: 14px; color: #5f584d;">See also <span style="color: #98432a; font-weight: 600;">Terms, clause 7</span></div>
+              </div>
+            </div>
+
+            <div style="padding: 19px 0; border-bottom: 1px solid #e8e0d3; display: flex; align-items: center; gap: 18px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; line-height: 1.25; letter-spacing: -0.012em; flex: 1 1 auto;">Who pays the return postage?</div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; line-height: 1; color: #5f584d; flex: none;">+</div>
+            </div>
+            <div style="padding: 19px 0; border-bottom: 1px solid #e8e0d3; display: flex; align-items: center; gap: 18px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; line-height: 1.25; letter-spacing: -0.012em; flex: 1 1 auto;">It arrived damaged.</div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; line-height: 1; color: #5f584d; flex: none;">+</div>
+            </div>
+            <div style="padding: 19px 0; display: flex; align-items: center; gap: 18px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; line-height: 1.25; letter-spacing: -0.012em; flex: 1 1 auto;">Can I exchange rather than refund?</div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; line-height: 1; color: #5f584d; flex: none;">+</div>
+            </div>
+
+          </div>
+
+          <div style="flex: 0 0 296px; display: flex; flex-direction: column; gap: 16px; position: sticky; top: 24px;">
+            <div style="background: #2a2723; border-radius: 14px; padding: 24px; display: flex; flex-direction: column; gap: 14px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 104%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em; color: #faf6ef;">Still stuck?</div>
+              <div style="font-size: 15px; line-height: 1.6; color: rgba(250,246,239,0.78);">One person reads these and she replies herself, usually within a few hours on a weekday.</div>
+              <div style="font-size: 15px; font-weight: 600; background: #ba5a3d; color: #ffffff; padding: 13px 18px; border-radius: 9px; text-align: center; min-height: 44px; display: flex; align-items: center; justify-content: center;">Email the shop</div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.7; color: rgba(250,246,239,0.62);">Mon to Fri, 9 to 5<br />Usually replies same day</div>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #e8e0d3; border-radius: 14px; padding: 22px; display: flex; flex-direction: column; gap: 12px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 104%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">Find an order</div>
+              <div style="font-size: 15px; line-height: 1.55; color: #5f584d;">No account needed. The reference is in your confirmation email.</div>
+              <div style="border: 1px solid #9d8764; border-radius: 8px; padding: 13px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 14px; color: #5f584d; min-height: 44px; display: flex; align-items: center;">CK-</div>
+            </div>
+            <div style="border: 1px dashed #c7b89e; border-radius: 14px; padding: 22px; display: flex; flex-direction: column; gap: 10px;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d;">Legal, not help</div>
+              <div style="font-size: 15px; line-height: 1.6; color: #2a2723;">Terms, Privacy and Cookies live separately, in the reference set. They are not questions.</div>
+              <div style="font-size: 15px; font-weight: 600; color: #98432a;">Read the terms</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 24px; align-items: flex-start; padding-top: 8px;">
+        <div style="width: 375px; flex: none; background: #faf6ef; border-radius: 22px; overflow: hidden; box-shadow: 0 8px 28px rgba(42,39,35,0.12);">
+          <div style="background: #1e1c19; padding: 9px 14px; text-align: center; font-size: 12px; color: #faf6ef; font-weight: 600;">Free delivery over &pound;40</div>
+          <div style="padding: 16px 18px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #e8e0d3;">
+            <div style="font-family: 'Archivo', sans-serif; font-stretch: 112%; font-weight: 640; font-size: 19px; letter-spacing: -0.02em;">Cart <span style="color: #5c7457;">&amp;</span> Keep</div>
+            <div style="margin-left: auto; font-size: 13px; color: #5f584d;">Basket &middot; 3</div>
+          </div>
+          <div style="background: #f4efe6; padding: 24px 18px 20px; display: flex; flex-direction: column; gap: 14px; border-bottom: 1px solid #e8e0d3;">
+            <h3 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 118%; font-weight: 620; font-size: 36px; line-height: 0.98; letter-spacing: -0.028em;">What do you need to know?</h3>
+            <div style="display: flex; align-items: center; gap: 10px; background: #ffffff; border: 1.5px solid #2a2723; border-radius: 999px; padding: 14px 18px; min-height: 44px;">
+              <div style="font-size: 16px; color: #5f584d;">Search 34 answers</div>
+            </div>
+          </div>
+          <div style="padding: 16px 18px 0; display: flex; gap: 8px; overflow: hidden;">
+            <div style="font-size: 14px; font-weight: 600; background: #2a2723; color: #faf6ef; padding: 9px 15px; border-radius: 999px; white-space: nowrap; min-height: 40px; display: flex; align-items: center;">All 34</div>
+            <div style="font-size: 14px; font-weight: 500; background: #ffffff; border: 1px solid #d6cab5; padding: 9px 15px; border-radius: 999px; white-space: nowrap; min-height: 40px; display: flex; align-items: center;">Delivery 9</div>
+            <div style="font-size: 14px; font-weight: 500; background: #ffffff; border: 1px solid #d6cab5; padding: 9px 15px; border-radius: 999px; white-space: nowrap; min-height: 40px; display: flex; align-items: center;">Returns</div>
+          </div>
+          <div style="padding: 22px 18px 24px;">
+            <div style="display: flex; align-items: baseline; gap: 10px; padding-bottom: 10px; border-bottom: 2px solid #2a2723;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 24px; letter-spacing: -0.018em;">Delivery</div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #5f584d;">9</div>
+            </div>
+            <div style="padding: 16px 0 14px; border-bottom: 1px solid #e8e0d3; display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; align-items: flex-start; gap: 14px;">
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 19px; line-height: 1.25; flex: 1 1 auto;">How long does delivery actually take?</div>
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 20px; line-height: 1; color: #98432a; flex: none;">&minus;</div>
+              </div>
+              <div style="font-size: 16px; line-height: 1.6; color: #2a2723; padding-top: 10px;">Two to four working days to most of the UK. Before 1pm goes out the same day. Highlands and islands take a day or two longer.</div>
+              <div style="font-size: 14px; font-weight: 600; color: #98432a; padding-top: 10px;">Copy link</div>
+            </div>
+            <div style="padding: 17px 0; border-bottom: 1px solid #e8e0d3; display: flex; align-items: center; gap: 14px; min-height: 44px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 19px; line-height: 1.25; flex: 1 1 auto;">Do you deliver to the islands?</div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 20px; color: #5f584d; flex: none;">+</div>
+            </div>
+            <div style="padding: 17px 0; border-bottom: 1px solid #e8e0d3; display: flex; align-items: center; gap: 14px; min-height: 44px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 19px; line-height: 1.25; flex: 1 1 auto;">When does delivery become free?</div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 20px; color: #5f584d; flex: none;">+</div>
+            </div>
+            <div style="padding: 17px 0; display: flex; align-items: center; gap: 14px; min-height: 44px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 19px; line-height: 1.25; flex: 1 1 auto;">Can I track without an account?</div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 20px; color: #5f584d; flex: none;">+</div>
+            </div>
+          </div>
+          <div style="background: #2a2723; padding: 20px 18px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="font-family: 'Archivo', sans-serif; font-stretch: 104%; font-weight: 620; font-size: 20px; color: #faf6ef;">Still stuck?</div>
+            <div style="font-size: 15px; line-height: 1.55; color: rgba(250,246,239,0.78);">One person reads these and replies herself.</div>
+            <div style="font-size: 15px; font-weight: 600; background: #ba5a3d; color: #ffffff; padding: 13px 18px; border-radius: 9px; text-align: center; min-height: 44px; display: flex; align-items: center; justify-content: center;">Email the shop</div>
+          </div>
+        </div>
+        <div style="width: 300px; flex: none; display: flex; flex-direction: column; gap: 14px; padding-top: 12px;">
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d;">What makes this a help centre</div>
+          <div style="font-size: 15px; line-height: 1.6; color: #5f584d;">Search is the primary control, not decoration. Groups with counts so the shape is readable before you read a word. Three open on arrival, because a page of closed rows communicates nothing.</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d; padding-top: 8px;">Copy link, per answer</div>
+          <div style="font-size: 15px; line-height: 1.6; color: #5f584d;">The highest-value feature here and almost nobody builds it. Mrs Sowande pastes one link instead of retyping the answer. It is worth more to her than the whole visual pass.</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d; padding-top: 8px;">Live values inside answers</div>
+          <div style="font-size: 15px; line-height: 1.6; color: #5f584d;">The free-delivery answer shows the real gap in the reader's basket. A help page that knows your state stops being a document.</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d; padding-top: 8px;">Instrumented</div>
+          <div style="font-size: 15px; line-height: 1.6; color: #5f584d;">Yes and No on each answer, plus a log of searches that returned nothing. That list is next month's writing brief, which turns this page into a retainer line rather than a thing that ships once and rots.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="3b" style="display: flex; flex-direction: column; gap: 22px; flex: none;">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; background: #2a2723; color: #faf6ef; padding: 4px 10px; border-radius: 6px;">3b</div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 34px; letter-spacing: -0.02em;">Terms of sale</div>
+        <div style="font-size: 15px; color: #5f584d;">A reference document, and it should look like one</div>
+      </div>
+
+      <div style="width: 1240px; background: #faf6ef; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(42,39,35,0.13);">
+        <div style="background: #1e1c19; padding: 11px 0; display: flex; align-items: center; justify-content: center; gap: 18px;">
+          <div style="font-size: 13px; color: rgba(250,246,239,0.82);">A small UK shop with a very large cupboard</div>
+          <div style="width: 1px; height: 12px; background: rgba(250,246,239,0.28);"></div>
+          <div style="font-size: 13px; font-weight: 600; color: #faf6ef;">Free delivery over &pound;40</div>
+        </div>
+        <div style="background: #faf6ef; border-bottom: 1px solid #e8e0d3; padding: 14px 40px; display: flex; align-items: center; gap: 32px;">
+          <div style="font-family: 'Archivo', sans-serif; font-stretch: 112%; font-weight: 640; font-size: 22px; letter-spacing: -0.02em;">Cart <span style="color: #5c7457;">&amp;</span> Keep</div>
+          <div style="display: flex; gap: 22px; font-size: 15px; color: #2a2723;">
+            <div>House</div><div>Body</div><div>Outdoors</div><div>Trade</div><div>Leisure</div><div>Pet</div>
+          </div>
+          <div style="margin-left: auto; font-size: 14px; color: #5f584d;">Basket &middot; 3</div>
+        </div>
+
+        <div style="display: flex; align-items: stretch;">
+
+          <div style="flex: 0 0 300px; background: #f4efe6; border-right: 1px solid #e8e0d3; padding: 34px 26px 40px 40px; display: flex; flex-direction: column; gap: 26px;">
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #5f584d;">Reference</div>
+              <div style="display: flex; flex-direction: column; gap: 1px;">
+                <div style="font-size: 15px; font-weight: 600; color: #2a2723; padding: 9px 12px; background: #ffffff; border-radius: 6px;">Terms of sale</div>
+                <div style="font-size: 15px; color: #2a2723; padding: 9px 12px;">Privacy</div>
+                <div style="font-size: 15px; color: #2a2723; padding: 9px 12px;">Cookies</div>
+                <div style="font-size: 15px; color: #2a2723; padding: 9px 12px;">Accessibility</div>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #5f584d;">Clauses</div>
+              <div style="display: flex; flex-direction: column;">
+                <div style="display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid #e2d9c8;">
+                  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5f584d; width: 16px; flex: none;">1</div>
+                  <div style="font-size: 14px; line-height: 1.4; color: #2a2723;">Who we are</div>
+                </div>
+                <div style="display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid #e2d9c8;">
+                  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5f584d; width: 16px; flex: none;">2</div>
+                  <div style="font-size: 14px; line-height: 1.4; color: #2a2723;">These terms</div>
+                </div>
+                <div style="display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid #e2d9c8;">
+                  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5f584d; width: 16px; flex: none;">3</div>
+                  <div style="font-size: 14px; line-height: 1.4; color: #2a2723;">Placing an order</div>
+                </div>
+                <div style="display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid #e2d9c8; background: #ffffff; margin: 0 -12px; padding-left: 12px; padding-right: 12px; border-radius: 5px;">
+                  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: #98432a; width: 16px; flex: none;">4</div>
+                  <div style="font-size: 14px; line-height: 1.4; font-weight: 600; color: #2a2723;">Price and payment</div>
+                </div>
+                <div style="display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid #e2d9c8;">
+                  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5f584d; width: 16px; flex: none;">5</div>
+                  <div style="font-size: 14px; line-height: 1.4; color: #2a2723;">Delivery</div>
+                </div>
+                <div style="display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid #e2d9c8;">
+                  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5f584d; width: 16px; flex: none;">6</div>
+                  <div style="font-size: 14px; line-height: 1.4; color: #2a2723;">Product descriptions</div>
+                </div>
+                <div style="display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid #e2d9c8;">
+                  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5f584d; width: 16px; flex: none;">7</div>
+                  <div style="font-size: 14px; line-height: 1.4; color: #2a2723;">Your right to cancel</div>
+                </div>
+                <div style="display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid #e2d9c8;">
+                  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5f584d; width: 16px; flex: none;">8</div>
+                  <div style="font-size: 14px; line-height: 1.4; color: #2a2723;">Faulty goods</div>
+                </div>
+                <div style="display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid #e2d9c8;">
+                  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5f584d; width: 16px; flex: none;">9</div>
+                  <div style="font-size: 14px; line-height: 1.4; color: #2a2723;">Our liability</div>
+                </div>
+                <div style="display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid #e2d9c8;">
+                  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5f584d; width: 16px; flex: none;">10</div>
+                  <div style="font-size: 14px; line-height: 1.4; color: #2a2723;">Complaints</div>
+                </div>
+                <div style="display: flex; gap: 12px; padding: 7px 0;">
+                  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5f584d; width: 16px; flex: none;">11</div>
+                  <div style="font-size: 14px; line-height: 1.4; color: #2a2723;">Law and jurisdiction</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 4px;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #5f584d;">This version</div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.8; color: #2a2723;">v3 &middot; 18 Aug 2026<br />Supersedes v2, 4 Mar 2026</div>
+              <div style="font-size: 14px; font-weight: 600; color: #98432a; padding-top: 4px;">Download as PDF</div>
+              <div style="font-size: 14px; font-weight: 600; color: #98432a;">See what changed</div>
+            </div>
+          </div>
+
+          <div style="flex: 1 1 auto; min-width: 0; padding: 40px 40px 44px 44px; display: flex; flex-direction: column;">
+
+            <div style="display: flex; flex-direction: column; gap: 14px; padding-bottom: 24px; border-bottom: 2px solid #2a2723;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #5f584d;">Reference &middot; terms of sale &middot; v3</div>
+              <h2 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 42px; line-height: 1.04; letter-spacing: -0.022em;">Terms of sale</h2>
+              <div style="font-size: 17px; line-height: 1.6; color: #5f584d; max-width: 64ch;">The agreement between you and the shop when you buy something. Written to be read, but it is still a contract, so the wording is deliberately exact.</div>
+              <div style="display: flex; gap: 14px; padding-top: 6px; flex-wrap: wrap;">
+                <div style="font-size: 14px; background: #f4efe6; border: 1px solid #e2d9c8; padding: 8px 14px; border-radius: 6px; color: #2a2723;">Nothing here removes your statutory rights</div>
+                <div style="font-size: 14px; background: #f4efe6; border: 1px solid #e2d9c8; padding: 8px 14px; border-radius: 6px; color: #2a2723;">Governed by the law of England and Wales</div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 24px; padding: 30px 0 26px; border-bottom: 1px solid #e8e0d3;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 600; color: #98432a; width: 34px; flex: none; padding-top: 4px;">1</div>
+              <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">Who we are</div>
+                <div style="font-size: 16px; line-height: 1.7; color: #2a2723; max-width: 68ch; text-wrap: pretty;">Cart &amp; Keep is a trading name of a company registered in England and Wales. Our registered office and company number appear in the footer of every page. When these terms say we, us or the shop, they mean that company.</div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 24px; padding: 26px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 600; color: #98432a; width: 34px; flex: none; padding-top: 4px;">2</div>
+              <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">These terms</div>
+                <div style="font-size: 16px; line-height: 1.7; color: #2a2723; max-width: 68ch; text-wrap: pretty;">These are the terms on which we sell to you. Please read them before you order. The version that applies to your order is the one published on the day you placed it, and the version number and date sit at the top of this page.</div>
+                <div style="display: flex; flex-direction: column; gap: 7px; padding-top: 2px;">
+                  <div style="display: flex; gap: 14px;">
+                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #5f584d; flex: none; width: 30px;">2.1</div>
+                    <div style="font-size: 16px; line-height: 1.6; color: #2a2723; max-width: 62ch;">We may change these terms. Changes are not retrospective.</div>
+                  </div>
+                  <div style="display: flex; gap: 14px;">
+                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #5f584d; flex: none; width: 30px;">2.2</div>
+                    <div style="font-size: 16px; line-height: 1.6; color: #2a2723; max-width: 62ch;">Every past version stays available, so you can always read the one you agreed to.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 24px; padding: 26px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 600; color: #98432a; width: 34px; flex: none; padding-top: 4px;">3</div>
+              <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">Placing an order</div>
+                <div style="font-size: 16px; line-height: 1.7; color: #2a2723; max-width: 68ch; text-wrap: pretty;">Your order is an offer to buy. The contract begins when we email you to confirm it. If we cannot supply something, we will tell you and refund in full. You do not need an account to order, and we do not create one for you.</div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 24px; padding: 26px 0; border-bottom: 1px solid #e8e0d3; background: #f4efe6; margin: 0 -20px; padding-left: 44px; padding-right: 20px; border-radius: 8px;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 600; color: #98432a; width: 34px; flex: none; padding-top: 4px; margin-left: -24px;">4</div>
+              <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; align-items: baseline; gap: 14px;">
+                  <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">Price and payment</div>
+                  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #98432a;">linked from checkout</div>
+                </div>
+                <div style="font-size: 16px; line-height: 1.7; color: #2a2723; max-width: 68ch; text-wrap: pretty;">The price shown is the price you pay. It includes VAT where VAT applies. We do not show a struck-through was-price, we do not run countdown timers, and we do not raise a price in order to discount it later.</div>
+                <div style="display: flex; flex-direction: column; gap: 7px; padding-top: 2px;">
+                  <div style="display: flex; gap: 14px;">
+                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #5f584d; flex: none; width: 30px;">4.1</div>
+                    <div style="font-size: 16px; line-height: 1.6; color: #2a2723; max-width: 62ch;">Delivery is &pound;4.95, or free on baskets over &pound;40.</div>
+                  </div>
+                  <div style="display: flex; gap: 14px;">
+                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #5f584d; flex: none; width: 30px;">4.2</div>
+                    <div style="font-size: 16px; line-height: 1.6; color: #2a2723; max-width: 62ch;">Stripe takes the payment. We never see or store your card details.</div>
+                  </div>
+                  <div style="display: flex; gap: 14px;">
+                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #5f584d; flex: none; width: 30px;">4.3</div>
+                    <div style="font-size: 16px; line-height: 1.6; color: #2a2723; max-width: 62ch;">If a price is obviously wrong we will contact you before charging anything.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 24px; padding: 26px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 600; color: #98432a; width: 34px; flex: none; padding-top: 4px;">5</div>
+              <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">Delivery</div>
+                <div style="font-size: 16px; line-height: 1.7; color: #2a2723; max-width: 68ch; text-wrap: pretty;">We deliver anywhere in the UK at one price. Estimates are given in working days and shown before you pay. Risk passes to you on delivery, ownership on payment.</div>
+                <div style="display: flex; align-items: center; gap: 12px; padding-top: 4px;">
+                  <div style="font-size: 15px; color: #5f584d;">Practical questions about delivery are answered in</div>
+                  <div style="font-size: 15px; font-weight: 600; color: #98432a;">Help &middot; Delivery, 9 answers</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 24px; padding: 26px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 600; color: #98432a; width: 34px; flex: none; padding-top: 4px;">6</div>
+              <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">Product descriptions</div>
+                <div style="font-size: 16px; line-height: 1.7; color: #2a2723; max-width: 68ch; text-wrap: pretty;">Some product text is written by whoever supplied the item rather than by us, and it is labelled as theirs on the product page. Where a supplier claim and a legal requirement disagree, the legal requirement wins. Photographs are illustrative; sizes and quantities in the specification table are the ones that count.</div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 24px; padding: 26px 0 8px;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 600; color: #98432a; width: 34px; flex: none; padding-top: 4px;">7</div>
+              <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">Your right to cancel</div>
+                <div style="font-size: 16px; line-height: 1.7; color: #2a2723; max-width: 68ch; text-wrap: pretty;">Under the Consumer Contracts Regulations you may cancel within 14 days of delivery without giving a reason. We give you 30 days, which is longer than the law requires, and nothing in this clause reduces your rights under the Consumer Rights Act 2015.</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 24px; align-items: flex-start; padding-top: 8px;">
+        <div style="width: 375px; flex: none; background: #faf6ef; border-radius: 22px; overflow: hidden; box-shadow: 0 8px 28px rgba(42,39,35,0.12);">
+          <div style="background: #1e1c19; padding: 9px 14px; text-align: center; font-size: 12px; color: #faf6ef; font-weight: 600;">Free delivery over &pound;40</div>
+          <div style="padding: 16px 18px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #e8e0d3;">
+            <div style="font-family: 'Archivo', sans-serif; font-stretch: 112%; font-weight: 640; font-size: 19px; letter-spacing: -0.02em;">Cart <span style="color: #5c7457;">&amp;</span> Keep</div>
+            <div style="margin-left: auto; font-size: 13px; color: #5f584d;">Basket &middot; 3</div>
+          </div>
+          <div style="padding: 22px 18px 18px; display: flex; flex-direction: column; gap: 12px; border-bottom: 2px solid #2a2723;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #5f584d;">Reference &middot; v3 &middot; 18 Aug 2026</div>
+            <h3 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 32px; line-height: 1.04; letter-spacing: -0.022em;">Terms of sale</h3>
+            <div style="font-size: 16px; line-height: 1.6; color: #5f584d;">Written to be read, but it is still a contract.</div>
+          </div>
+          <div style="background: #f4efe6; border-bottom: 1px solid #e8e0d3; padding: 14px 18px; display: flex; align-items: center; gap: 12px; min-height: 44px;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d;">Jump to clause</div>
+            <div style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 14px; color: #2a2723;">1&ndash;11</div>
+          </div>
+          <div style="padding: 18px 18px 22px;">
+            <div style="display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 600; color: #98432a; width: 22px; flex: none;">1</div>
+              <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 8px;">
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 19px;">Who we are</div>
+                <div style="font-size: 16px; line-height: 1.65; color: #2a2723;">Cart &amp; Keep is a trading name of a company registered in England and Wales.</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 600; color: #98432a; width: 22px; flex: none;">2</div>
+              <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 8px;">
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 19px;">These terms</div>
+                <div style="font-size: 16px; line-height: 1.65; color: #2a2723;">The version that applies is the one published on the day you ordered. Changes are never retrospective.</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 14px; padding: 14px 0;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 600; color: #98432a; width: 22px; flex: none;">3</div>
+              <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 8px;">
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 19px;">Placing an order</div>
+                <div style="font-size: 16px; line-height: 1.65; color: #2a2723;">Your order is an offer. The contract begins when we confirm it by email.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="width: 300px; flex: none; display: flex; flex-direction: column; gap: 14px; padding-top: 12px;">
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d;">How it diverges from help</div>
+          <div style="font-size: 15px; line-height: 1.6; color: #5f584d;">No search, no accordion, nothing collapsed. Everything is visible because a contract you cannot read in full is not a contract. Numbered clauses and sub-clauses so it can be cited: <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px;">clause 4.2</span> is a thing you can point at.</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d; padding-top: 8px;">A rail, not a floating card</div>
+          <div style="font-size: 15px; line-height: 1.6; color: #5f584d;">The contents run the full height of the document in their own tinted column, which is what fixes the 500px empty gutter on the current page. It also carries the version block, so provenance sits beside the text rather than under it.</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d; padding-top: 8px;">Versioned, not "last reviewed"</div>
+          <div style="font-size: 15px; line-height: 1.6; color: #5f584d;">v3, superseding v2, with a diff and a PDF. A reviewed date tells a reader nothing. A version they can retrieve is the difference between a page and a record.</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d; padding-top: 8px;">Cross-linked both ways</div>
+          <div style="font-size: 15px; line-height: 1.6; color: #5f584d;">Clause 5 points at the nine delivery answers. The returns answer points back at clause 7. Help handles "how do I", terms handle "what am I owed", and neither pretends to be the other.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="padding: 34px 38px; border-radius: 14px; background: #2a2723; color: #faf6ef; display: flex; gap: 48px; flex-wrap: wrap; max-width: 1240px;">
+    <div style="flex: 1 1 400px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: rgba(250,246,239,0.55);">The decision underneath both</div>
+      <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 30px; line-height: 1.1; letter-spacing: -0.02em;">Five pages, two templates, not one.</div>
+      <div style="font-size: 15px; line-height: 1.6; color: rgba(250,246,239,0.72); max-width: 58ch;">Delivery and Returns move into the help centre as groups, where the questions already are. Terms, Privacy, Cookies and Accessibility stay in the reference set with the rail and the version block. That is one fewer template than exists today and it stops a contract and a shop assistant sharing a layout.</div>
+    </div>
+    <div style="flex: 0 1 300px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: rgba(250,246,239,0.55);">Open, needs your call</div>
+      <div style="font-size: 15px; line-height: 1.6; color: rgba(250,246,239,0.86);">One icon family, chosen once: Phosphor or Lucide. Everything I have built uses type and rules only, which is honest but thin. Search, chevrons, the basket and the delivery states all want a real glyph.</div>
+    </div>
+  </div>
+
+</section>
+
+</x-dc>
+</body>
+</html>

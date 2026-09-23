@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900&family=Inter:wght@400..700&display=swap" rel="stylesheet" />
+<style>
+  body { margin: 0; background: #faf6ef; color: #2a2723; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: #ad5438; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:hover { color: #ba5a3d; }
+  @keyframes ck-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+</style>
+</helmet>
+
+<div style="max-width: 1240px; margin: 0 auto; padding: 72px 40px 120px;">
+
+  <div style="display: flex; flex-direction: column; gap: 20px; max-width: 780px;">
+    <div style="font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #5f584d;">Cart &amp; Keep / foundations / 23 August 2026</div>
+    <h1 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 118%; font-weight: 620; font-size: 68px; line-height: 1.02; letter-spacing: -0.025em;">Fix the scale, then the card, then the colour.</h1>
+    <p style="margin: 0; font-size: 18px; line-height: 1.6; color: #6b6459; max-width: 62ch; text-wrap: pretty;">Three things in one piece of work, in that order. The scale unblocks every page. The card repeats several hundred times so it is the largest visual surface the shop owns. Department colour is what makes a general store legible and gives it the life it currently has none of.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1px; background: #e8e0d3; border: 1px solid #e8e0d3; border-radius: 10px; overflow: hidden; margin-top: 48px;">
+    <div style="background: #fffdfa; padding: 20px 22px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d;">Stock signal</div>
+      <div style="font-size: 15px; line-height: 1.45; color: #2a2723;">Shown only when genuinely under five. Uniform urgency reads as fabricated.</div>
+    </div>
+    <div style="background: #fffdfa; padding: 20px 22px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d;">Motion</div>
+      <div style="font-size: 15px; line-height: 1.45; color: #2a2723;">Meaningful only. Six pieces, all using tokens you already declared.</div>
+    </div>
+    <div style="background: #fffdfa; padding: 20px 22px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d;">Imagery</div>
+      <div style="font-size: 15px; line-height: 1.45; color: #2a2723;">Recanvassed on import. Anything with baked-in marketing text is rejected.</div>
+    </div>
+    <div style="background: #fffdfa; padding: 20px 22px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d;">References</div>
+      <div style="font-size: 15px; line-height: 1.45; color: #2a2723;">General-store retail and print catalogue. Price-forward, colour-coded, dense.</div>
+    </div>
+  </div>
+
+  <div style="height: 96px;"></div>
+
+  <div style="display: flex; align-items: baseline; gap: 16px; padding-bottom: 20px; border-bottom: 2px solid #2a2723;">
+    <div style="font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 13px; font-weight: 600; color: #ba5a3d;">01</div>
+    <h2 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 30px; line-height: 1.08; letter-spacing: -0.02em;">The type scale</h2>
+    <div style="margin-left: auto; font-size: 14px; color: #5f584d;">A 36px hole at the top, seven steps piled into six pixels at the bottom</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-top: 40px;">
+
+    <div style="display: flex; flex-direction: column; gap: 0;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #a3402c; padding-bottom: 14px;">Now</div>
+      <div style="display: flex; align-items: baseline; gap: 14px; padding: 10px 0; border-top: 1px solid #e8e0d3;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759; width: 42px; flex: none;">66</div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 118%; font-weight: 620; font-size: 42px; line-height: 1; letter-spacing: -0.025em; overflow: hidden; white-space: nowrap;">Everything</div>
+      </div>
+      <div style="border-top: 1px dashed #d6cab5; border-bottom: 1px dashed #d6cab5; background: #faeee9; padding: 22px 14px; display: flex; align-items: center; gap: 10px;">
+        <div style="width: 8px; height: 8px; border-radius: 999px; background: #a3402c; flex: none;"></div>
+        <div style="font-size: 14px; color: #a3402c; line-height: 1.4;">Nothing between 30 and 66. No element can be moderately important, so every page reads flat.</div>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 14px; padding: 10px 0; border-top: 1px solid #e8e0d3;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759; width: 42px; flex: none;">30</div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 30px; line-height: 1.1;">Section head</div>
+      </div>
+      <div style="border-top: 1px solid #e8e0d3; padding: 14px 0 4px;">
+        <div style="font-size: 12px; color: #a3402c; padding-bottom: 8px;">Seven steps in a six-pixel band</div>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="display: flex; align-items: baseline; gap: 14px;"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759; width: 42px; flex: none;">17</div><div style="font-size: 17px;">Lead paragraph</div></div>
+          <div style="display: flex; align-items: baseline; gap: 14px;"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759; width: 42px; flex: none;">15</div><div style="font-size: 15px;">Body copy</div></div>
+          <div style="display: flex; align-items: baseline; gap: 14px;"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759; width: 42px; flex: none;">14</div><div style="font-size: 14px;">Product title</div></div>
+          <div style="display: flex; align-items: baseline; gap: 14px;"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759; width: 42px; flex: none;">13</div><div style="font-size: 13px;">Label</div></div>
+          <div style="display: flex; align-items: baseline; gap: 14px;"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759; width: 42px; flex: none;">12</div><div style="font-size: 12px;">Caption</div></div>
+          <div style="display: flex; align-items: baseline; gap: 14px;"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759; width: 42px; flex: none;">11.5</div><div style="font-size: 11.5px;">Leaf category</div></div>
+          <div style="display: flex; align-items: baseline; gap: 14px;"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759; width: 42px; flex: none;">11</div><div style="font-size: 11px;">Micro</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 0;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #4e7849; padding-bottom: 14px;">Proposed</div>
+      <div style="display: flex; align-items: baseline; gap: 14px; padding: 10px 0; border-top: 1px solid #e8e0d3;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759; width: 52px; flex: none;">68</div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 118%; font-weight: 620; font-size: 42px; line-height: 1; letter-spacing: -0.025em; overflow: hidden; white-space: nowrap;">Everything</div>
+        <div style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759; flex: none;">hero</div>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 14px; padding: 10px 0; border-top: 1px solid #e8e0d3; background: #f6eedc;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #85601c; width: 52px; flex: none; padding-left: 8px;">46</div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 34px; line-height: 1.04; letter-spacing: -0.022em;">Department</div>
+        <div style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #85601c; flex: none; padding-right: 8px;">new</div>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 14px; padding: 10px 0; border-top: 1px solid #e8e0d3;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759; width: 52px; flex: none;">30</div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 30px; line-height: 1.1;">Section head</div>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 14px; padding: 10px 0; border-top: 1px solid #e8e0d3; background: #f6eedc;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #85601c; width: 52px; flex: none; padding-left: 8px;">28</div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 28px; letter-spacing: -0.01em; font-variant-numeric: tabular-nums;">&pound;26.17</div>
+        <div style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #85601c; flex: none; padding-right: 8px;">new, PDP price</div>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 14px; padding: 10px 0; border-top: 1px solid #e8e0d3; background: #f6eedc;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #85601c; width: 52px; flex: none; padding-left: 8px;">22</div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">Subsection</div>
+        <div style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #85601c; flex: none; padding-right: 8px;">new</div>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 14px; padding: 10px 0; border-top: 1px solid #e8e0d3;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759; width: 52px; flex: none;">19</div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">&pound;26.17</div>
+        <div style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759; flex: none;">card price, was 17</div>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 14px; padding: 10px 0; border-top: 1px solid #e8e0d3;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759; width: 52px; flex: none;">18</div>
+        <div style="font-size: 18px; line-height: 1.5;">Lead paragraph</div>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 14px; padding: 10px 0; border-top: 1px solid #e8e0d3;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759; width: 52px; flex: none;">15</div>
+        <div style="font-size: 15px; font-weight: 500;">Product title and body</div>
+        <div style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759; flex: none;">merged, was 15 and 14</div>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 14px; padding: 10px 0; border-top: 1px solid #e8e0d3;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759; width: 52px; flex: none;">12</div>
+        <div style="font-size: 12px;">Leaf category, caption</div>
+        <div style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759; flex: none;">merged, was 13, 12, 11.5</div>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 14px; padding: 10px 0; border-top: 1px solid #e8e0d3; border-bottom: 1px solid #e8e0d3;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759; width: 52px; flex: none;">11</div>
+        <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d;">Micro label</div>
+      </div>
+      <div style="padding-top: 16px; font-size: 14px; color: #6b6459; line-height: 1.55;">Eleven steps become nine, three of them new in the range where hierarchy is actually read. The bottom four collapse into two. Nothing else in the system moves.</div>
+    </div>
+
+  </div>
+
+  <div style="height: 112px;"></div>
+
+  <div style="display: flex; align-items: baseline; gap: 16px; padding-bottom: 20px; border-bottom: 2px solid #2a2723;">
+    <div style="font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 13px; font-weight: 600; color: #ba5a3d;">02</div>
+    <h2 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 30px; line-height: 1.08; letter-spacing: -0.02em;">Department colour</h2>
+    <div style="margin-left: auto; font-size: 14px; color: #5f584d;">Eight hues, one lightness, one chroma. Wayfinding, not decoration.</div>
+  </div>
+
+  <p style="margin: 28px 0 0; font-size: 18px; line-height: 1.6; color: #6b6459; max-width: 68ch; text-wrap: pretty;">Every hue sits at <span style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; background: #f4efe6; padding: 1px 6px; border-radius: 4px;">oklch(0.55 0.11 H)</span> so they read as one family rather than eight decisions. The discipline that keeps the accent working: department colour only ever appears as a filled field, a tab or a rule. It never lands on a control. Terracotta still means act and nothing else. Gold still means reduced and nothing else.</p>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 36px;">
+    <div style="border-radius: 12px; overflow: hidden; border: 1px solid #e8e0d3; background: #fffdfa;">
+      <div style="height: 84px; background: oklch(0.55 0.11 70);"></div>
+      <div style="height: 26px; background: oklch(0.955 0.022 70);"></div>
+      <div style="padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-size: 15px; font-weight: 560; line-height: 1.3;">Home, Furniture &amp; DIY</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">H 70 &middot; ochre</div>
+      </div>
+    </div>
+    <div style="border-radius: 12px; overflow: hidden; border: 1px solid #e8e0d3; background: #fffdfa;">
+      <div style="height: 84px; background: oklch(0.55 0.11 350);"></div>
+      <div style="height: 26px; background: oklch(0.955 0.022 350);"></div>
+      <div style="padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-size: 15px; font-weight: 560; line-height: 1.3;">Health &amp; Beauty</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">H 350 &middot; rose</div>
+      </div>
+    </div>
+    <div style="border-radius: 12px; overflow: hidden; border: 1px solid #e8e0d3; background: #fffdfa;">
+      <div style="height: 84px; background: oklch(0.55 0.11 250);"></div>
+      <div style="height: 26px; background: oklch(0.955 0.022 250);"></div>
+      <div style="padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-size: 15px; font-weight: 560; line-height: 1.3;">Vehicle Parts &amp; Accessories</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">H 250 &middot; steel</div>
+      </div>
+    </div>
+    <div style="border-radius: 12px; overflow: hidden; border: 1px solid #e8e0d3; background: #fffdfa;">
+      <div style="height: 84px; background: oklch(0.55 0.11 285);"></div>
+      <div style="height: 26px; background: oklch(0.955 0.022 285);"></div>
+      <div style="padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-size: 15px; font-weight: 560; line-height: 1.3;">Business, Office &amp; Industrial</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">H 285 &middot; violet</div>
+      </div>
+    </div>
+    <div style="border-radius: 12px; overflow: hidden; border: 1px solid #e8e0d3; background: #fffdfa;">
+      <div style="height: 84px; background: oklch(0.55 0.11 200);"></div>
+      <div style="height: 26px; background: oklch(0.955 0.022 200);"></div>
+      <div style="padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-size: 15px; font-weight: 560; line-height: 1.3;">Sporting Goods</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">H 200 &middot; teal</div>
+      </div>
+    </div>
+    <div style="border-radius: 12px; overflow: hidden; border: 1px solid #e8e0d3; background: #fffdfa;">
+      <div style="height: 84px; background: oklch(0.55 0.11 145);"></div>
+      <div style="height: 26px; background: oklch(0.955 0.022 145);"></div>
+      <div style="padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-size: 15px; font-weight: 560; line-height: 1.3;">Garden &amp; Patio</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">H 145 &middot; ties to the sage</div>
+      </div>
+    </div>
+    <div style="border-radius: 12px; overflow: hidden; border: 1px solid #e8e0d3; background: #fffdfa;">
+      <div style="height: 84px; background: oklch(0.55 0.11 320);"></div>
+      <div style="height: 26px; background: oklch(0.955 0.022 320);"></div>
+      <div style="padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-size: 15px; font-weight: 560; line-height: 1.3;">Pet Supplies</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">H 320 &middot; plum</div>
+      </div>
+    </div>
+    <div style="border-radius: 12px; overflow: hidden; border: 1px solid #e8e0d3; background: #fffdfa;">
+      <div style="height: 84px; background: oklch(0.45 0.012 80);"></div>
+      <div style="height: 26px; background: oklch(0.955 0.006 80);"></div>
+      <div style="padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-size: 15px; font-weight: 560; line-height: 1.3;">Everything else</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">neutral, deliberately</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 0; margin-top: 12px; border-radius: 999px; overflow: hidden; height: 10px;">
+    <div style="flex: 1; background: oklch(0.55 0.11 70);"></div>
+    <div style="flex: 1; background: oklch(0.55 0.11 350);"></div>
+    <div style="flex: 1; background: oklch(0.55 0.11 250);"></div>
+    <div style="flex: 1; background: oklch(0.55 0.11 285);"></div>
+    <div style="flex: 1; background: oklch(0.55 0.11 200);"></div>
+    <div style="flex: 1; background: oklch(0.55 0.11 145);"></div>
+    <div style="flex: 1; background: oklch(0.55 0.11 320);"></div>
+    <div style="flex: 1; background: oklch(0.45 0.012 80);"></div>
+  </div>
+
+  <div style="height: 112px;"></div>
+
+  <div style="display: flex; align-items: baseline; gap: 16px; padding-bottom: 20px; border-bottom: 2px solid #2a2723;">
+    <div style="font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 13px; font-weight: 600; color: #ba5a3d;">03</div>
+    <h2 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 30px; line-height: 1.08; letter-spacing: -0.02em;">The product card</h2>
+    <div style="margin-left: auto; font-size: 14px; color: #5f584d;">Two treatments. Pick one and I roll it everywhere.</div>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 40px; margin-top: 40px; align-items: flex-start;">
+
+    <div id="1a" style="flex: 1 1 400px; min-width: 340px; display: flex; flex-direction: column; gap: 18px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; background: #2a2723; color: #faf6ef; padding: 3px 9px; border-radius: 5px;">1a</div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">Catalogue</div>
+      </div>
+      <p style="margin: 0; font-size: 15px; line-height: 1.55; color: #6b6459;">Department colour as a tab on the top edge, the way a printed catalogue divides its sections. Dense, quiet, price-forward. Survives a mixed grid where every row is a different department.</p>
+
+      <div style="width: 268px; background: #ffffff; border: 1px solid #e8e0d3; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(42,39,35,0.04);">
+        <div style="height: 4px; background: oklch(0.55 0.11 285);"></div>
+        <div style="padding: 14px 14px 0;">
+          <div style="aspect-ratio: 1 / 1; border-radius: 9px; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.05) 0 1px, transparent 1px 9px); display: flex; align-items: center; justify-content: center; padding: 18px;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; line-height: 1.5; color: #6f6759; text-align: center;">product cutout<br />recanvassed 1:1<br />82% frame inset</div>
+          </div>
+        </div>
+        <div style="padding: 14px; display: flex; flex-direction: column; gap: 7px;">
+          <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: oklch(0.48 0.1 285);">Screwdrivers</div>
+          <div style="font-size: 15px; font-weight: 500; line-height: 1.35; color: #2a2723;">Cordless electric screwdriver, 24 bits</div>
+          <sc-if value="{{ showRaw }}" hint-placeholder-val="{{ true }}">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; line-height: 1.45; color: #a3402c; background: #faeee9; padding: 6px 8px; border-radius: 5px;">was: WORKPRO 3.6V Electric Screwdriver Set with Offset Drive, 24-Piece Cordless</div>
+          </sc-if>
+          <div style="display: flex; align-items: flex-end; justify-content: space-between; padding-top: 4px;">
+            <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; letter-spacing: -0.01em; font-variant-numeric: tabular-nums;">&pound;26.17</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="1b" style="flex: 1 1 400px; min-width: 340px; display: flex; flex-direction: column; gap: 18px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; background: #2a2723; color: #faf6ef; padding: 3px 9px; border-radius: 5px;">1b</div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">Shopfront</div>
+      </div>
+      <p style="margin: 0; font-size: 15px; line-height: 1.55; color: #6b6459;">The image sits on the department wash instead of white, so the inconsistent supplier cutouts read as deliberate. No border, price in a solid block. Louder, closer to a real general store shelf.</p>
+
+      <div style="width: 268px; background: #fffdfa; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 10px rgba(42,39,35,0.07);">
+        <div style="background: oklch(0.955 0.022 285); padding: 20px; display: flex; align-items: center; justify-content: center;">
+          <div style="aspect-ratio: 1 / 1; width: 100%; background: repeating-linear-gradient(135deg, rgba(42,39,35,0.05) 0 1px, transparent 1px 9px); display: flex; align-items: center; justify-content: center;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; line-height: 1.5; color: #5f584d; text-align: center;">product cutout<br />recanvassed 1:1<br />on department wash</div>
+          </div>
+        </div>
+        <div style="padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: oklch(0.48 0.1 285);">Screwdrivers</div>
+          <div style="font-size: 15px; font-weight: 500; line-height: 1.35; color: #2a2723;">Cordless electric screwdriver, 24 bits</div>
+          <sc-if value="{{ showRaw }}" hint-placeholder-val="{{ true }}">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; line-height: 1.45; color: #a3402c; background: #faeee9; padding: 6px 8px; border-radius: 5px;">was: WORKPRO 3.6V Electric Screwdriver Set with Offset Drive, 24-Piece Cordless</div>
+          </sc-if>
+          <div style="display: flex; align-items: center; gap: 10px; padding-top: 2px;">
+            <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; background: #2a2723; color: #faf6ef; padding: 4px 10px; border-radius: 7px;">&pound;26.17</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1px; background: #e8e0d3; border: 1px solid #e8e0d3; border-radius: 10px; overflow: hidden; margin-top: 48px;">
+    <div style="background: #fffdfa; padding: 18px 20px; display: flex; flex-direction: column; gap: 5px;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d;">Price outranks title</div>
+      <div style="font-size: 14px; line-height: 1.5; color: #2a2723;">19px display face against a 15px title. In a general store the price is the pitch.</div>
+    </div>
+    <div style="background: #fffdfa; padding: 18px 20px; display: flex; flex-direction: column; gap: 5px;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d;">Titles get written</div>
+      <div style="font-size: 14px; line-height: 1.5; color: #2a2723;">Object, then the one qualifier that matters. No keyword strings, no pipes, no ellipsis.</div>
+    </div>
+    <div style="background: #fffdfa; padding: 18px 20px; display: flex; flex-direction: column; gap: 5px;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d;">Fixed frame inset</div>
+      <div style="font-size: 14px; line-height: 1.5; color: #2a2723;">A screwdriver and a saucepan occupy the same share of the frame, so the grid settles.</div>
+    </div>
+    <div style="background: #fffdfa; padding: 18px 20px; display: flex; flex-direction: column; gap: 5px;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5f584d;">One signal per card</div>
+      <div style="font-size: 14px; line-height: 1.5; color: #2a2723;">Under five shows a count. Nothing shows on the rest, so the badge means something when it appears.</div>
+    </div>
+  </div>
+
+  <div style="height: 112px;"></div>
+
+  <div style="display: flex; align-items: baseline; gap: 16px; padding-bottom: 20px; border-bottom: 2px solid #2a2723;">
+    <div style="font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 13px; font-weight: 600; color: #ba5a3d;">04</div>
+    <h2 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 30px; line-height: 1.08; letter-spacing: -0.02em;">A real department, four across</h2>
+    <div style="margin-left: auto; font-size: 14px; color: #5f584d;">Four across, filling two whole rows. Three at tablet, two on a phone.</div>
+  </div>
+
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-top: 36px; padding: 28px 32px; border-radius: 14px 14px 0 0; background: oklch(0.48 0.11 285);">
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #ffffff;">Department 04 of 08</div>
+      <h3 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 112%; font-weight: 620; font-size: 46px; line-height: 1.02; letter-spacing: -0.022em; color: #ffffff;">Business, Office<br />&amp; Industrial</h3>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px; text-align: right; padding-bottom: 6px;">
+      <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 28px; color: #ffffff; font-variant-numeric: tabular-nums;">&pound;18.23 to &pound;82.09</div>
+      <div style="font-size: 14px; font-weight: 500; color: #ffffff;">8 products</div>
+    </div>
+  </div>
+
+  <div style="background: oklch(0.955 0.022 285); padding: 24px 32px 32px; border-radius: 0 0 14px 14px;">
+    <div style="display: flex; align-items: center; gap: 16px; padding-bottom: 22px; flex-wrap: wrap;">
+      <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: oklch(0.42 0.08 285);">Refine</div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <div style="font-size: 13px; font-weight: 500; background: #ffffff; border: 1px solid oklch(0.86 0.04 285); padding: 7px 14px; border-radius: 999px; color: #2a2723;">Under &pound;20 <span style="color: #6f6759;">3</span></div>
+        <div style="font-size: 13px; font-weight: 500; background: #ffffff; border: 1px solid oklch(0.86 0.04 285); padding: 7px 14px; border-radius: 999px; color: #2a2723;">&pound;20 to &pound;50 <span style="color: #6f6759;">1</span></div>
+        <div style="font-size: 13px; font-weight: 500; background: #ffffff; border: 1px solid oklch(0.86 0.04 285); padding: 7px 14px; border-radius: 999px; color: #2a2723;">Over &pound;50 <span style="color: #6f6759;">2</span></div>
+        <div style="font-size: 13px; font-weight: 500; background: #ffffff; border: 1px solid oklch(0.86 0.04 285); padding: 7px 14px; border-radius: 999px; color: #2a2723;">In stock <span style="color: #6f6759;">8</span></div>
+      </div>
+      <div style="margin-left: auto; font-size: 13px; color: oklch(0.42 0.08 285);">Sort: most useful first</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+
+      <div style="background: #ffffff; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(42,39,35,0.05);">
+        <div style="height: 4px; background: oklch(0.55 0.11 285);"></div>
+        <div style="padding: 14px 14px 0;">
+          <div style="aspect-ratio: 1 / 1; border-radius: 9px; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.05) 0 1px, transparent 1px 9px); display: flex; align-items: center; justify-content: center;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">screwdriver set</div>
+          </div>
+        </div>
+        <div style="padding: 14px; display: flex; flex-direction: column; gap: 7px;">
+          <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: oklch(0.48 0.1 285);">Screwdrivers</div>
+          <div style="font-size: 15px; font-weight: 500; line-height: 1.35;">Cordless electric screwdriver, 24 bits</div>
+          <div style="display: flex; align-items: flex-end; justify-content: space-between; padding-top: 4px;">
+            <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">&pound;26.17</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(42,39,35,0.05);">
+        <div style="height: 4px; background: oklch(0.55 0.11 285);"></div>
+        <div style="padding: 14px 14px 0;">
+          <div style="aspect-ratio: 1 / 1; border-radius: 9px; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.05) 0 1px, transparent 1px 9px); display: flex; align-items: center; justify-content: center;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">auger adapter</div>
+          </div>
+        </div>
+        <div style="padding: 14px; display: flex; flex-direction: column; gap: 7px;">
+          <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: oklch(0.48 0.1 285);">Augers</div>
+          <div style="font-size: 15px; font-weight: 500; line-height: 1.35;">SDS auger adapter set, 2 bolt</div>
+          <div style="display: flex; align-items: flex-end; justify-content: space-between; padding-top: 4px;">
+            <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">&pound;82.09</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(42,39,35,0.05);">
+        <div style="height: 4px; background: oklch(0.55 0.11 285);"></div>
+        <div style="padding: 14px 14px 0;">
+          <div style="aspect-ratio: 1 / 1; border-radius: 9px; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.05) 0 1px, transparent 1px 9px); display: flex; align-items: center; justify-content: center;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">wasp killer powder</div>
+          </div>
+        </div>
+        <div style="padding: 14px; display: flex; flex-direction: column; gap: 7px;">
+          <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: oklch(0.48 0.1 285);">Pest control</div>
+          <div style="font-size: 15px; font-weight: 500; line-height: 1.35;">Wasp and nest killer powder, 300g</div>
+          <div style="display: flex; align-items: flex-end; justify-content: space-between; padding-top: 4px;">
+            <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">&pound;19.88</div>
+            <div style="font-size: 12px; color: #966828; font-weight: 500;">3 left</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(42,39,35,0.05);">
+        <div style="height: 4px; background: oklch(0.55 0.11 285);"></div>
+        <div style="padding: 14px 14px 0;">
+          <div style="aspect-ratio: 1 / 1; border-radius: 9px; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.05) 0 1px, transparent 1px 9px); display: flex; align-items: center; justify-content: center;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">nappy bin refills</div>
+          </div>
+        </div>
+        <div style="padding: 14px; display: flex; flex-direction: column; gap: 7px;">
+          <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: oklch(0.48 0.1 285);">Bin liners</div>
+          <div style="font-size: 15px; font-weight: 500; line-height: 1.35;">Nappy bin refill bags, 8 pack</div>
+          <div style="display: flex; align-items: flex-end; justify-content: space-between; padding-top: 4px;">
+            <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">&pound;18.86</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(42,39,35,0.05);">
+        <div style="height: 4px; background: oklch(0.55 0.11 285);"></div>
+        <div style="padding: 14px 14px 0;">
+          <div style="aspect-ratio: 1 / 1; border-radius: 9px; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.05) 0 1px, transparent 1px 9px); display: flex; align-items: center; justify-content: center;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">pressure sprayer</div>
+          </div>
+        </div>
+        <div style="padding: 14px; display: flex; flex-direction: column; gap: 7px;">
+          <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: oklch(0.48 0.1 285);">Sprayers</div>
+          <div style="font-size: 15px; font-weight: 500; line-height: 1.35;">Spear &amp; Jackson pressure sprayer, 5 litre</div>
+          <div style="display: flex; align-items: flex-end; justify-content: space-between; padding-top: 4px;">
+            <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">&pound;18.60</div>
+            <div style="font-size: 12px; color: #966828; font-weight: 500;">2 left</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(42,39,35,0.05);">
+        <div style="height: 4px; background: oklch(0.55 0.11 285);"></div>
+        <div style="padding: 14px 14px 0;">
+          <div style="aspect-ratio: 1 / 1; border-radius: 9px; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.05) 0 1px, transparent 1px 9px); display: flex; align-items: center; justify-content: center;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">drain unblocker</div>
+          </div>
+        </div>
+        <div style="padding: 14px; display: flex; flex-direction: column; gap: 7px;">
+          <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: oklch(0.48 0.1 285);">Drain cleaning</div>
+          <div style="font-size: 15px; font-weight: 500; line-height: 1.35;">Mr Muscle drain unblocker, 500ml</div>
+          <div style="display: flex; align-items: flex-end; justify-content: space-between; padding-top: 4px;">
+            <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">&pound;18.23</div>
+          </div>
+        </div>
+      </div>
+      <div style="background: #ffffff; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(42,39,35,0.05);">
+        <div style="height: 4px; background: oklch(0.48 0.11 250);"></div>
+        <div style="padding: 14px 14px 0;">
+          <div style="aspect-ratio: 1 / 1; border-radius: 9px; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.05) 0 1px, transparent 1px 9px); display: flex; align-items: center; justify-content: center;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">labelling</div>
+          </div>
+        </div>
+        <div style="padding: 14px; display: flex; flex-direction: column; gap: 7px;">
+          <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: oklch(0.44 0.09 250);">Labelling</div>
+          <div style="font-size: 15px; font-weight: 500; line-height: 1.35;">Thermal label printer rolls, 12 pack</div>
+          <div style="display: flex; align-items: flex-end; justify-content: space-between; padding-top: 4px;">
+            <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">&pound;31.40</div>
+            
+          </div>
+        </div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(42,39,35,0.05);">
+        <div style="height: 4px; background: oklch(0.48 0.11 250);"></div>
+        <div style="padding: 14px 14px 0;">
+          <div style="aspect-ratio: 1 / 1; border-radius: 9px; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.05) 0 1px, transparent 1px 9px); display: flex; align-items: center; justify-content: center;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">storage</div>
+          </div>
+        </div>
+        <div style="padding: 14px; display: flex; flex-direction: column; gap: 7px;">
+          <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: oklch(0.44 0.09 250);">Storage</div>
+          <div style="font-size: 15px; font-weight: 500; line-height: 1.35;">Stackable parts organiser, 24 bin</div>
+          <div style="display: flex; align-items: flex-end; justify-content: space-between; padding-top: 4px;">
+            <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">&pound;54.66</div>
+            <div style="font-size: 12px; color: #7a5510; font-weight: 500;">4 left</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 20px; padding: 22px 26px; border-radius: 12px; background: #ffffff; border: 1px dashed oklch(0.80 0.05 285); flex-wrap: wrap;">
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">That is all eight. Want something else in here?</div>
+        <div style="font-size: 14px; color: #6b6459;">Tell us what it is and what you pay for it now. One person reads these.</div>
+      </div>
+      <div style="font-size: 15px; font-weight: 600; background: #ba5a3d; color: #ffffff; padding: 12px 20px; border-radius: 9px;">Ask us for it</div>
+    </div>
+  </div>
+
+  <p style="margin: 20px 0 0; font-size: 14px; line-height: 1.6; color: #6b6459; max-width: 74ch;">The end of a short department becomes the request prompt instead of 400px of dead cream. Every thin category gets a purpose while the catalogue grows to 200 and then 1000. Note the prices: <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px;">.17 .09 .88 .86 .60 .23</span> are cost-plus-margin outputs and no shop prices like that. Rounding rules are a separate half-hour conversation with Mrs Sowande.</p>
+
+  <div style="height: 112px;"></div>
+
+  <div style="display: flex; align-items: baseline; gap: 16px; padding-bottom: 20px; border-bottom: 2px solid #2a2723;">
+    <div style="font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 13px; font-weight: 600; color: #ba5a3d;">05</div>
+    <h2 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 30px; line-height: 1.08; letter-spacing: -0.02em;">375</h2>
+    <div style="margin-left: auto; font-size: 14px; color: #5f584d;">Where she will actually review it, and where most of the orders will come from</div>
+  </div>
+
+  <div style="display: flex; gap: 48px; margin-top: 40px; flex-wrap: wrap; align-items: flex-start;">
+    <div style="width: 375px; flex: none; background: #faf6ef; border: 1px solid #d6cab5; border-radius: 22px; overflow: hidden; box-shadow: 0 8px 28px rgba(42,39,35,0.09);">
+      <div style="background: oklch(0.48 0.11 285); padding: 18px 18px 20px;">
+        <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #ffffff; padding-bottom: 6px;">Department 04 of 08</div>
+        <h3 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 112%; font-weight: 620; font-size: 30px; line-height: 1.04; letter-spacing: -0.02em; color: #ffffff;">Business, Office &amp; Industrial</h3>
+        <div style="display: flex; align-items: baseline; gap: 10px; padding-top: 10px;">
+          <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; color: #ffffff; font-variant-numeric: tabular-nums;">&pound;18.23 to &pound;82.09</div>
+          <div style="font-size: 13px; font-weight: 500; color: #ffffff;">8 products</div>
+        </div>
+      </div>
+      <div style="background: oklch(0.955 0.022 285); padding: 14px;">
+        <div style="display: flex; gap: 8px; overflow: hidden; padding-bottom: 14px;">
+          <div style="font-size: 13px; font-weight: 500; background: #ffffff; border: 1px solid oklch(0.86 0.04 285); padding: 8px 14px; border-radius: 999px; white-space: nowrap;">Under &pound;20</div>
+          <div style="font-size: 13px; font-weight: 500; background: #ffffff; border: 1px solid oklch(0.86 0.04 285); padding: 8px 14px; border-radius: 999px; white-space: nowrap;">&pound;20 to &pound;50</div>
+          <div style="font-size: 13px; font-weight: 500; background: #ffffff; border: 1px solid oklch(0.86 0.04 285); padding: 8px 14px; border-radius: 999px; white-space: nowrap;">Over &pound;50</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+            <div style="height: 3px; background: oklch(0.55 0.11 285);"></div>
+            <div style="padding: 10px 10px 0;">
+              <div style="aspect-ratio: 1 / 1; border-radius: 8px; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.05) 0 1px, transparent 1px 9px);"></div>
+            </div>
+            <div style="padding: 10px; display: flex; flex-direction: column; gap: 5px;">
+              <div style="font-size: 15px; font-weight: 500; line-height: 1.3;">Cordless electric screwdriver, 24 bits</div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">&pound;26.17</div>
+            </div>
+          </div>
+          <div style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+            <div style="height: 3px; background: oklch(0.55 0.11 285);"></div>
+            <div style="padding: 10px 10px 0;">
+              <div style="aspect-ratio: 1 / 1; border-radius: 8px; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.05) 0 1px, transparent 1px 9px);"></div>
+            </div>
+            <div style="padding: 10px; display: flex; flex-direction: column; gap: 5px;">
+              <div style="font-size: 15px; font-weight: 500; line-height: 1.3;">SDS auger adapter set, 2 bolt</div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">&pound;82.09</div>
+            </div>
+          </div>
+          <div style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+            <div style="height: 3px; background: oklch(0.55 0.11 285);"></div>
+            <div style="padding: 10px 10px 0;">
+              <div style="aspect-ratio: 1 / 1; border-radius: 8px; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.05) 0 1px, transparent 1px 9px);"></div>
+            </div>
+            <div style="padding: 10px; display: flex; flex-direction: column; gap: 5px;">
+              <div style="font-size: 15px; font-weight: 500; line-height: 1.3;">Wasp and nest killer powder, 300g</div>
+              <div style="display: flex; align-items: baseline; gap: 8px;">
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">&pound;19.88</div>
+                <div style="font-size: 12px; color: #966828; font-weight: 500;">3 left</div>
+              </div>
+            </div>
+          </div>
+          <div style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+            <div style="height: 3px; background: oklch(0.55 0.11 285);"></div>
+            <div style="padding: 10px 10px 0;">
+              <div style="aspect-ratio: 1 / 1; border-radius: 8px; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.05) 0 1px, transparent 1px 9px);"></div>
+            </div>
+            <div style="padding: 10px; display: flex; flex-direction: column; gap: 5px;">
+              <div style="font-size: 15px; font-weight: 500; line-height: 1.3;">Nappy bin refill bags, 8 pack</div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">&pound;18.86</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="background: #ffffff; border-top: 1px solid #e8e0d3; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="font-size: 13px; color: #6b6459;">&pound;21.35 to free delivery</div>
+        <div style="font-size: 15px; font-weight: 600; color: #ffffff; background: #ba5a3d; padding: 11px 18px; border-radius: 9px; min-height: 44px; display: flex; align-items: center;">Basket &middot; 3</div>
+      </div>
+    </div>
+
+    <div style="flex: 1 1 340px; min-width: 300px; display: flex; flex-direction: column; gap: 22px;">
+      <div style="display: flex; flex-direction: column; gap: 6px; padding-bottom: 18px; border-bottom: 1px solid #e8e0d3;">
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">Two up, not one</div>
+        <div style="font-size: 15px; line-height: 1.55; color: #6b6459;">A single column at 375 turns 78 products into an endless scroll. Two up with the price at 19px still reads at arm's length.</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; padding-bottom: 18px; border-bottom: 1px solid #e8e0d3;">
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">The delivery bar earns its place</div>
+        <div style="font-size: 15px; line-height: 1.55; color: #6b6459;">A persistent strip showing the gap to the &pound;40 threshold. It is the single highest-value piece of motion in the shop, because it moves every time something goes in the basket, and it lifts basket value honestly rather than by pressure.</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">Colour does the wayfinding</div>
+        <div style="font-size: 15px; line-height: 1.55; color: #6b6459;">On a phone there is no breadcrumb worth reading. The department field at the top and the tab on every card tell you where you are without a word.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="height: 112px;"></div>
+
+  <div style="display: flex; align-items: baseline; gap: 16px; padding-bottom: 20px; border-bottom: 2px solid #2a2723;">
+    <div style="font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 13px; font-weight: 600; color: #ba5a3d;">06</div>
+    <h2 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 30px; line-height: 1.08; letter-spacing: -0.02em;">Six pieces of motion</h2>
+    <div style="margin-left: auto; font-size: 14px; color: #5f584d;">All of it on tokens you already declared and never used</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1px; background: #e8e0d3; border: 1px solid #e8e0d3; border-radius: 12px; overflow: hidden; margin-top: 36px;">
+    <div style="background: #fffdfa; padding: 22px 24px; display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px;">Add to basket</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">dur-settle</div>
+      </div>
+      <div style="font-size: 15px; line-height: 1.55; color: #6b6459;">Optimistic. The count changes before the request returns, the item rises into the header, the delivery bar fills. Reverts with an apology if it fails.</div>
+    </div>
+    <div style="background: #fffdfa; padding: 22px 24px; display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px;">Card to product</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">view-transition</div>
+      </div>
+      <div style="font-size: 15px; line-height: 1.55; color: #6b6459;">The product image persists from the grid into the PDP instead of the page blinking. Native, cheap, and it will still look right in 2032.</div>
+    </div>
+    <div style="background: #fffdfa; padding: 22px 24px; display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px;">Free delivery bar</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">dur-settle</div>
+      </div>
+      <div style="font-size: 15px; line-height: 1.55; color: #6b6459;">Fills toward &pound;40 and lands on a plain sentence when it arrives. The only persuasion the shop needs and the only one it has promised to use.</div>
+    </div>
+    <div style="background: #fffdfa; padding: 22px 24px; display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px;">Card hover</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">dur 120ms</div>
+      </div>
+      <div style="font-size: 15px; line-height: 1.55; color: #6b6459;">Two pixels of lift, the shadow deepens one step, quick view fades in. Currently nothing happens at all, which is why the grid feels dead.</div>
+    </div>
+    <div style="background: #fffdfa; padding: 22px 24px; display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px;">Skeletons, not pop-in</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">dur-settle</div>
+      </div>
+      <div style="font-size: 15px; line-height: 1.55; color: #6b6459;">Filter and sort redraw the grid in place at the same card dimensions. Nothing jumps, nothing reflows.</div>
+    </div>
+    <div style="background: #fffdfa; padding: 22px 24px; display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 620; font-size: 22px;">Search as you type</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">dur 120ms</div>
+      </div>
+      <div style="font-size: 15px; line-height: 1.55; color: #6b6459;">Results narrow live, on the PLP and in the help centre. At 1000 products this stops being a nicety and becomes the shop.</div>
+    </div>
+  </div>
+
+  <div style="margin-top: 72px; padding: 34px 38px; border-radius: 14px; background: #2a2723; color: #faf6ef; display: flex; gap: 40px; flex-wrap: wrap; align-items: flex-start;">
+    <div style="flex: 1 1 380px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: rgba(250,246,239,0.55);">Next, once you pick 1a or 1b</div>
+      <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 30px; line-height: 1.1; letter-spacing: -0.02em;">Two hero directions, then the PDP, then the help centre.</div>
+      <div style="font-size: 15px; line-height: 1.6; color: rgba(250,246,239,0.72); max-width: 56ch;">The hero is the loudest failure so it goes next, and it will not depend on photography you do not have. The PDP needs the attributes pulled out of the feed rather than a design pass. The help centre is a different template from the legal pages, as you said.</div>
+    </div>
+    <div style="flex: 0 1 260px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: rgba(250,246,239,0.55);">Still open</div>
+      <div style="font-size: 15px; line-height: 1.55; color: rgba(250,246,239,0.86);">The store codebase is not connected, so this is built from your tokens rather than your components. Connect it and everything after this lands as real code.</div>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showRawTitles&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Card specimens&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return { showRaw: this.props.showRawTitles ?? true };
+  }
+}
+</script>
+</body>
+</html>

@@ -4,7 +4,7 @@ import { Tip } from '@components/ui/portal/primitives';
 import { CoverageFlow } from '@components/ui/portal/CoverageFlow';
 import { PageSkeleton } from '@components/ui/portal/Skeleton';
 import { Icon } from '@components/ui/icons';
-import { useBatches } from '@hooks/useCandidates';
+import { useBatches, groupBatches } from '@hooks/useCandidates';
 import { useQueryCoverage } from '@hooks/useQueryCoverage';
 import { loadTenant } from '@lib/tenant';
 import { formatGbp } from '@utils/formatGbp';
@@ -124,7 +124,13 @@ export function CoveragePage() {
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
   const batches = useBatches(tenant?.id);
-  const scope = useMemo(() => (batches ?? []).filter((b) => !only || b.id === only).map((b) => b.id), [batches, only]);
+  // One tab per shop, as on Candidates. Two deliveries from the same shop were
+  // showing as two tabs both reading H & B.
+  const groups = useMemo(() => groupBatches(batches ?? []), [batches]);
+  const scope = useMemo(
+    () => groups.filter((g) => !only || g.key === only).flatMap((g) => g.ids),
+    [groups, only],
+  );
   const { status, queries, candidates } = useQueryCoverage(batches === undefined ? null : scope);
 
   const funnel = useMemo(() => {
@@ -199,17 +205,17 @@ export function CoveragePage() {
         <h1 className={styles.title}>What was checked</h1>
       </header>
 
-      {batches.length > 1 && (
-        <div className={styles.scope} role="tablist" aria-label="Batch">
+      {groups.length > 1 && (
+        <div className={styles.scope} role="tablist" aria-label="Where these came from">
           <button type="button" role="tab" aria-selected={!only}
             className={`${styles.chip} ${!only ? styles.chipOn : ''}`} onClick={() => { setOnly(null); setOpen(null); }}>
-            Every current batch
+            Everything checked
           </button>
-          {batches.map((b) => (
-            <button key={b.id} type="button" role="tab" aria-selected={only === b.id}
-              className={`${styles.chip} ${only === b.id ? styles.chipOn : ''}`}
-              onClick={() => { setOnly(b.id); setOpen(null); }}>
-              {b.category_label}
+          {groups.map((g) => (
+            <button key={g.key} type="button" role="tab" aria-selected={only === g.key}
+              className={`${styles.chip} ${only === g.key ? styles.chipOn : ''}`}
+              onClick={() => { setOnly(g.key); setOpen(null); }}>
+              {g.label}
             </button>
           ))}
         </div>

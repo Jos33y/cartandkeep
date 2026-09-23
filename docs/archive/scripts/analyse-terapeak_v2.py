@@ -1,0 +1,678 @@
+#!/usr/bin/env python3
+"""
+Reads Terapeak sold-listing scrapes across several windows and works out which
+products keep selling, which only sell in season, and which are fading.
+
+Identity comes from the eBay item ID in the listing URL, which is stable across
+windows. That is what turns four separate scrapes into a history rather than
+four unrelated lists.
+
+Files must be named  {term}_{YYYY-MM}.csv  so the window is read from the name:
+
+    drops/terapeak/dog-bowl_2025-08.csv
+    drops/terapeak/dog-bowl_2025-09.csv
+    drops/terapeak/dog-bowl_2026-06.csv
+    drops/terapeak/dog-bowl_2026-07.csv
+
+Strip figures live in {term}_strips.csv, because sell-through and seller count
+appear nowhere in the row export and are half the answer:
+
+    window,avg_price,price_min,price_max,avg_postage,free_postage,sell_through,sellers
+    2025-08,9.56,0.99,207.67,3.02,94,9.15,1239
+
+Usage:  python analyse-terapeak.py drops/terapeak/dog-bowl_*.csv
+        python analyse-terapeak.py --slow --record drops/terapeak/dog-bowl_*.csv
+"""
+
+import csv
+import glob
+import os
+import re
+import sys
+import time
+from collections import Counter, defaultdict
+
+if os.name == "nt":
+    os.system("")
+
+_COLOUR = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+_PACE = 0.0
+_LOG = None
+_write = print
+
+_ANSI = re.compile(r"\033\[[\d;]*m")
+
+
+def print(*args, **kwargs):
+    _write(*args, **kwargs)
+    sys.stdout.flush()
+    if _LOG:
+        _LOG.write(_ANSI.sub("", " ".join(str(a) for a in args)) + "\n")
+    if _PACE:
+        time.sleep(_PACE)
+
+
+def _c(code):
+    return (lambda t: f"\033[{code}m{t}\033[0m") if _COLOUR else (lambda t: str(t))
+
+
+SAGE = _c("38;5;108")
+TERRA = _c("38;5;173")
+CREAM = _c("38;5;230")
+DIM = _c("38;5;244")
+BOLD = _c("1")
+HEAD = _c("1;38;5;230")
+GOOD = _c("38;5;114")
+WARN = _c("38;5;179")
+BAD = _c("38;5;167")
+
+
+def rule(title):
+    if _PACE:
+        time.sleep(_PACE * 6)
+    print(f"\n{HEAD(title)} {DIM('─' * max(4, 66 - len(title)))}")
+
+
+def bar(share, width=20):
+    filled = int(round(min(share, 100) / 100 * width))
+    return SAGE("█" * filled) + DIM("░" * (width - filled))
+
+
+# The scrape layout is not stable. Across the files seen so far there were 10
+# and 14 column variants, with the title repeated and junk fields interleaved.
+# So every field is identified by what it holds, never by where it sits.
+
+RE_MONEY = re.compile(r"^£\s*[\d,]+\.\d{2}$")
+RE_INT = re.compile(r"^\d[\d,]*$")
+RE_ITEM = re.compile(r"/itm/(\d+)")
+
+# What eBay actually means by the strip figures, per its own tooltips:
+#   avg sold price  excludes postage and Buyer Protection fees, so it is the
+#                   seller's line rather than what the buyer paid
+#   avg postage     the average charged, and it EXCLUDES free postage listings.
+#                   At 92% free postage it describes the 8% who charge, and
+#                   says nothing about what postage costs the other 92%.
+#   sell-through    percentage of similar items that sold. This is a listing
+#                   hit rate, NOT sold divided by active listings, so it is a
+#                   different metric from gates.str_min in the pipeline and the
+#                   two must not be fed into each other.
+
+# Cost lines from tenants.scoring.costs, for the headroom estimate below.
+# The absolute margin gate. Below this the picking, packing and support time
+# is not covered whatever the volume, so it is the line for listability.
+GATE_ABS = 4.00
+
+# A product selling well now matters more than one that merely persisted. In a
+# category churning as fast as raised feeders, requiring presence in every
+# window selects old listings rather than good products.
+MIN_RECENT = 15
+
+# Several sellers listing near-identical titles means a supplier SKU is in
+# circulation, so it can be sourced. One seller with a private arrangement
+# cannot be copied whatever its volume.
+MIN_SELLERS = 3
+
+EBAY_PCT, EBAY_FIXED = 0.128, 0.30
+ADS_PCT = 0.06
+PACKAGING = 0.40
+BANDS = {"large_letter": 2.85, "small_parcel": 3.65}
+RE_WINDOW = re.compile(r"_(\d{4}-\d{2})\.csv$", re.I)
+
+JUNK = ("preview", "[object", "Sell similar", "Item ID ")
+
+# Screens from category-research.md, applied before anything is measured.
+EXCLUSIONS = {
+    "electrical": re.compile(
+        r"\b(electric|rechargeable|cordless|batter(y|ies)|led|lamp|bulb|charger|"
+        r"usb|plug|mains|powered|heater|fountain|pump|automatic feeder)\b", re.I),
+    "cosmetic": re.compile(
+        r"\b(serum|cream|lotion|shampoo|lipstick|mascara|nail polish|perfume|spf)\b", re.I),
+    "ingestible": re.compile(
+        r"\b(supplement|vitamin|tablet|capsule|treats?|food pouch|dental stick|"
+        r"kibble|feed|pellets)\b", re.I),
+    "sized": re.compile(
+        r"\b(harness|collar|coat|jumper|jacket|boots?|size [smlx]|xs|xxl)\b", re.I),
+}
+
+# "Branded" covers four different situations and only two are disqualifying.
+# Lumping them threw away the own-label candidates, which are the whole reason
+# the custom store exists.
+
+# Licensed character IP. Never, at any margin. This is what ends accounts.
+LICENSED = re.compile(
+    r"\b(disney|marvel|pixar|nintendo|pokemon|barbie|peppa|bluey|paw patrol|"
+    r"harry potter|star wars|hello kitty|stitch|minecraft|premier league)\b", re.I)
+
+# Third-party brands with no authorised supply route. VeRO exposure.
+THIRD_PARTY = {
+    "kong", "petsafe", "ancol", "rosewood", "trixie", "catit", "pawise",
+    "bunty", "hownd", "sureflap", "mason cash", "zeus", "dekton", "goodyear",
+    "bauer", "me & my", "dogit", "skylos",
+}
+
+# Made to order per customer. Not a dropship product whatever the margin.
+BESPOKE = re.compile(r"\b(personalised|personalized|custom name|bespoke|engraved)\b", re.I)
+
+TRADEMARK = re.compile(r"[®™©]")
+
+
+def money(value):
+    try:
+        return float(re.sub(r"[£,\s]", "", str(value)))
+    except (TypeError, ValueError):
+        return None
+
+
+def whole(value):
+    try:
+        return int(re.sub(r"[,\s]", "", str(value)))
+    except (TypeError, ValueError):
+        return None
+
+
+def classify_row(fields):
+    """Pull one listing out of a row without relying on column order."""
+    item_id = None
+    values = []
+
+    for field in fields:
+        value = (field or "").strip()
+        if not value:
+            continue
+        if value.startswith("http"):
+            found = RE_ITEM.search(value)
+            if found:
+                item_id = item_id or found.group(1)
+            continue
+        if any(j in value for j in JUNK):
+            continue
+        values.append(value)
+
+    if not item_id:
+        return None
+
+    monies = [money(v) for v in values if RE_MONEY.match(v)]
+    ints = [whole(v) for v in values if RE_INT.match(v)]
+    title = next((v for v in values
+                  if len(v) > 12 and not RE_MONEY.match(v) and not RE_INT.match(v)
+                  and "postage" not in v.lower()), None)
+
+    # price, postage, revenue in that order; the largest integer is units sold.
+    if len(monies) < 3 or not ints or not title:
+        return None
+
+    return {
+        "item_id": item_id,
+        "title": title,
+        "price": monies[0],
+        "postage": monies[1],
+        "revenue": monies[-1],
+        "sold": max(ints),
+    }
+
+
+NOISE = {"the", "and", "for", "with", "set", "pack", "new", "uk", "pcs", "pc",
+         "of", "in", "to", "large", "small", "double", "single", "pet", "dog",
+         "cat", "puppy", "food", "water", "bowl", "bowls"}
+
+
+def fingerprint(title):
+    """Loose product identity from a title, for spotting the same SKU."""
+    words = re.sub(r"[^a-z0-9\s]", " ", title.lower()).split()
+    keep = [w for w in words if len(w) > 3 and w not in NOISE and not w.isdigit()]
+    return " ".join(sorted(set(keep))[:6])
+
+
+def screen(title):
+    hits = [name for name, pattern in EXCLUSIONS.items() if pattern.search(title)]
+    lower = title.lower()
+    if LICENSED.search(title):
+        hits.append("licensed")
+    match = next((b for b in THIRD_PARTY if b in lower), None)
+    if match:
+        hits.append(f"brand:{match}")
+    elif TRADEMARK.search(title):
+        hits.append("trademark")
+    if BESPOKE.search(title):
+        hits.append("bespoke")
+    return hits
+
+
+def headroom(price, band="small_parcel"):
+    """
+    What is left of the sold price once the seller has paid the platform, the
+    ads, the postage and the packaging. Before goods cost. Postage is charged
+    to the seller because 90%+ of sales in these categories are free postage.
+    """
+    if not price:
+        return None
+    return round(price - (price * EBAY_PCT + EBAY_FIXED)
+                 - price * ADS_PCT - BANDS[band] - PACKAGING, 2)
+
+
+def read_window(path):
+    window = RE_WINDOW.search(os.path.basename(path))
+    if not window:
+        return None, []
+    rows = []
+    with open(path, newline="", encoding="utf-8-sig") as handle:
+        for raw in csv.reader(handle):
+            if len(raw) < 6:
+                continue
+            row = classify_row(raw)
+            if row:
+                rows.append(row)
+    return window.group(1), rows
+
+
+def read_strips(paths):
+    """Strip figures sit in a companion file because they are not in the rows."""
+    folder = os.path.dirname(paths[0]) or "."
+    term = re.sub(r"_\d{4}-\d{2}\.csv$", "", os.path.basename(paths[0]))
+    candidate = os.path.join(folder, f"{term}_strips.csv")
+    if not os.path.exists(candidate):
+        return {}
+    strips = {}
+    with open(candidate, newline="", encoding="utf-8-sig") as handle:
+        for row in csv.DictReader(handle):
+            key = (row.get("window") or "").strip()
+            if key:
+                strips[key] = {k: (v or "").strip() for k, v in row.items()}
+    return strips
+
+
+def classify_pattern(series, windows):
+    """
+    series: {window: units}. Absence means the product was not in the scraped
+    top N for that window, which is not the same as zero sales. Stated in the
+    output so the distinction survives.
+    """
+    present = [w for w in windows if series.get(w)]
+    if not present:
+        return "absent"
+
+    first_half = windows[: len(windows) // 2]
+    second_half = windows[len(windows) // 2:]
+    early = sum(series.get(w, 0) for w in first_half)
+    late = sum(series.get(w, 0) for w in second_half)
+
+    if len(present) == len(windows):
+        volumes = [series[w] for w in windows]
+        # Selling in every window and never collapsing is the only thing that
+        # earns a store page, since SEO takes longer to pay back than a season.
+        if min(volumes) >= max(volumes) * 0.25:
+            return "evergreen"
+        return "erratic"
+
+    if not early and late:
+        return "new"
+    if early and not late:
+        return "gone"
+    if late > early * 1.5:
+        return "rising"
+    if early > late * 1.5:
+        return "fading"
+    return "intermittent"
+
+
+PATTERN_COLOUR = {
+    "evergreen": GOOD,
+    "rising": SAGE,
+    "intermittent": WARN,
+    "erratic": WARN,
+    "new": CREAM,
+    "fading": TERRA,
+    "gone": BAD,
+}
+
+
+def main(argv):
+    global _PACE, _LOG
+
+    if len(argv) < 2:
+        print(__doc__)
+        return 1
+
+    flags = [a for a in argv[1:] if a.startswith("--")]
+    args = [a for a in argv[1:] if not a.startswith("--")]
+
+    for flag in flags:
+        if flag == "--slow":
+            _PACE = 0.09
+        elif flag.startswith("--slow="):
+            _PACE = max(0.0, float(flag.split("=", 1)[1]))
+
+    paths = []
+    for arg in args:
+        paths.extend(sorted(glob.glob(os.path.join(arg, "*.csv"))
+                            if os.path.isdir(arg) else glob.glob(arg)))
+    paths = [p for p in paths if RE_WINDOW.search(os.path.basename(p))]
+
+    if not paths:
+        print("No files matching {term}_{YYYY-MM}.csv matched.")
+        return 1
+
+    if "--record" in flags:
+        os.makedirs("records", exist_ok=True)
+        from datetime import datetime
+        stamp = datetime.now().strftime("%Y-%m-%d_%H%M")
+        _LOG = open(os.path.join("records", f"terapeak_{stamp}.txt"),
+                    "w", encoding="utf-8")
+        _LOG.write(f"analyse-terapeak.py\n{datetime.now():%Y-%m-%d %H:%M}\n"
+                   f"files: {', '.join(os.path.basename(p) for p in paths)}\n")
+
+    # --- load ---
+    by_window = {}
+    products = defaultdict(lambda: {"title": None, "series": {}, "prices": {}})
+
+    for path in paths:
+        window, rows = read_window(path)
+        by_window[window] = rows
+        for row in rows:
+            entry = products[row["item_id"]]
+            # Titles get edited, so keep the most recent rather than the first.
+            entry["title"] = row["title"]
+            entry["series"][window] = row["sold"]
+            entry["prices"][window] = row["price"]
+
+    windows = sorted(by_window)
+    term = re.sub(r"_\d{4}-\d{2}\.csv$", "", os.path.basename(paths[0]))
+
+    rule(f"{term.upper()}, {len(windows)} WINDOWS")
+    for window in windows:
+        rows = by_window[window]
+        units = sum(r["sold"] for r in rows)
+        revenue = sum(r["revenue"] for r in rows)
+        wavg = revenue / units if units else 0
+        print(f"  {CREAM(window)}  {len(rows):>4} listings  "
+              f"{CREAM(f'{units:>6,}')} units  £{revenue:>9,.0f}  "
+              f"{DIM(f'avg £{wavg:.2f}')}")
+
+    # --- strip figures, if the companion file exists ---
+    strips = read_strips(paths)
+    if strips:
+        rule("CATEGORY STRIP")
+        print(DIM("  window     avg   charged   free   sold-rate    sellers"))
+        for window in windows:
+            s = strips.get(window)
+            if not s:
+                continue
+            print(f"  {CREAM(window)}  £{s.get('avg_price',''):>6}  "
+                  f"£{s.get('avg_postage',''):>6}  {s.get('free_postage',''):>4}%  "
+                  f"{GOOD(f'{s.get(chr(115)+chr(101)+chr(108)+chr(108)+chr(95)+chr(116)+chr(104)+chr(114)+chr(111)+chr(117)+chr(103)+chr(104),chr(48)):>8}')}%  "
+                  f"{s.get('sellers',''):>8}")
+        print(f"\n  {DIM('charged postage excludes free-postage listings, so at ' )}")
+        print(f"  {DIM('90%+ free it describes a small minority and not the real cost.')}")
+        print(f"  {DIM('sold-rate is eBay percentage of similar items that sold, which')}")
+        print(f"  {DIM('is not the same metric as sell-through in the pipeline gates.')}")
+
+        # Postage is absorbed into the price on almost every sale, so the
+        # question is what is left of the average price once it is paid.
+        rule("HEADROOM AT CATEGORY AVERAGE")
+        print(DIM("  before goods cost, postage absorbed by the seller"))
+        for window in windows:
+            s_row = strips.get(window)
+            if not s_row:
+                continue
+            price = money(s_row.get("avg_price"))
+            if not price:
+                continue
+            for band, postage in BANDS.items():
+                left = round(price - (price * EBAY_PCT + EBAY_FIXED)
+                             - price * ADS_PCT - postage - PACKAGING, 2)
+                tint = GOOD if left >= 4 else (WARN if left >= 2 else BAD)
+                print(f"  {CREAM(window)}  £{price:>5.2f}  {band:<13} "
+                      f"{tint(f'£{left:>5.2f} left')}")
+    else:
+        print(f"\n  {DIM('No ' + term + '_strips.csv found. Sold rate and seller')}")
+        print(f"  {DIM('count are not in the row export, so they are missing here.')}")
+
+    # --- where the sales actually sit by price ---
+    # This is the category verdict. Volume tells you people are buying; the
+    # band tells you whether a UK seller can be one of the sellers.
+    rule("WHERE THE SALES SIT, BY PRICE BAND")
+    print(DIM("  head = headroom before goods cost at the band midpoint, small parcel"))
+    bands = [(0, 4), (4, 6), (6, 8), (8, 10), (10, 12), (12, 15), (15, 20),
+             (20, 30), (30, 10**6)]
+    all_rows = [r for rows in by_window.values() for r in rows]
+    grand_units = sum(r["sold"] for r in all_rows) or 1
+
+    print(DIM("  band        " + "".join(f"{w[2:]:>9}" for w in windows)
+              + "     total   share    head"))
+    for low, high in bands:
+        label = f"£{low}-{high}" if high < 10**6 else f"£{low}+"
+        per_window = []
+        for window in windows:
+            per_window.append(sum(r["sold"] for r in by_window[window]
+                                  if low <= r["price"] < high))
+        total = sum(per_window)
+        if not total:
+            continue
+        share = total / grand_units * 100
+        mid = (low + high) / 2 if high < 10**6 else low * 1.3
+        head = headroom(mid)
+        tint = GOOD if head >= 4 else (WARN if head >= 2 else BAD)
+        cells = "".join(f"{n:>9,}" for n in per_window)
+        print(f"  {CREAM(f'{label:<10}')}{cells}  {total:>8,}  "
+              f"{share:>5.1f}%  {tint(f'£{head:>6.2f}')}")
+
+    viable_units = sum(r["sold"] for r in all_rows if (headroom(r["price"]) or 0) >= 4)
+    print(f"\n  {BOLD('Units at prices that can clear the £4 gate:')} "
+          f"{GOOD(f'{viable_units:,}')} of {grand_units:,} "
+          f"({viable_units / grand_units * 100:.1f}%)")
+    print(f"  {DIM('Everything below that line loses money before goods cost.')}")
+
+    # --- pattern across windows ---
+    patterns = defaultdict(list)
+    for item_id, entry in products.items():
+        pattern = classify_pattern(entry["series"], windows)
+        entry["pattern"] = pattern
+        entry["screens"] = screen(entry["title"])
+        entry["total"] = sum(entry["series"].values())
+        patterns[pattern].append(item_id)
+
+    total_units = sum(e["total"] for e in products.values())
+
+    rule("PATTERN ACROSS WINDOWS")
+    order = ["evergreen", "rising", "intermittent", "erratic", "new", "fading", "gone"]
+    for pattern in order:
+        ids = patterns.get(pattern)
+        if not ids:
+            continue
+        units = sum(products[i]["total"] for i in ids)
+        share = units / total_units * 100 if total_units else 0
+        tint = PATTERN_COLOUR.get(pattern, DIM)
+        print(f"  {tint(f'{pattern:<13}')} {bar(share)} {CREAM(f'{share:>5.1f}%')}  "
+              f"{len(ids):>4} products  {units:>6,} units")
+
+    print(f"\n  {DIM('Absent from a window means outside the scraped top N,')}")
+    print(f"  {DIM('which is not the same as zero sales.')}")
+
+    # --- the shortlist ---
+    rule("EVERGREEN, UNSCREENED, BY HEADROOM")
+    print(DIM("  headroom is what is left before goods cost, small parcel band"))
+    shortlist = []
+    for item_id in patterns.get("evergreen", []):
+        entry = products[item_id]
+        if entry["screens"]:
+            continue
+        price = entry["prices"].get(windows[-1]) or list(entry["prices"].values())[-1]
+        entry["price"] = price
+        entry["headroom"] = headroom(price)
+        shortlist.append(entry)
+    shortlist.sort(key=lambda e: -(e["headroom"] or 0))
+
+    if not shortlist:
+        print(DIM("  Nothing sold in every window and cleared the screens."))
+    print(DIM("   head   price   units  " + " ".join(f"{w[2:]:>6}" for w in windows) + "  title"))
+    for entry in shortlist[:25]:
+        series = " ".join(
+            f"{entry['series'].get(w, 0):>6}" if entry["series"].get(w)
+            else DIM(f"{chr(45):>6}")
+            for w in windows
+        )
+        head = entry["headroom"]
+        # The £4 absolute gate is the line. Below it the product cannot pay for
+        # the picking, packing and support time whatever its volume.
+        tint = GOOD if head >= 4 else (WARN if head >= 2 else BAD)
+        print(f"  {tint(f'£{head:>5.2f}')}  £{entry[chr(112)+chr(114)+chr(105)+chr(99)+chr(101)]:>6.2f}  "
+              f"{CREAM(f'{entry[chr(116)+chr(111)+chr(116)+chr(97)+chr(108)]:>5,}')}  "
+              f"{series}  {entry['title'][:40]}")
+
+    viable = [e for e in shortlist if (e["headroom"] or 0) >= 4]
+    print(f"\n  {BOLD('Clearing the £4 gate:')} "
+          f"{GOOD(f'{len(viable)} of {len(shortlist)}')} evergreen products")
+
+    # --- what the screens removed from the evergreen set ---
+    removed = [products[i] for i in patterns.get("evergreen", []) if products[i]["screens"]]
+    if removed:
+        rule("EVERGREEN BUT SCREENED OUT")
+        for entry in sorted(removed, key=lambda e: -e["total"])[:12]:
+            print(f"  {DIM(f'{entry[chr(116)+chr(111)+chr(116)+chr(97)+chr(108)]:>5,}')}  "
+                  f"{TERRA('|'.join(entry['screens'])):<28}  {entry['title'][:44]}")
+
+    # --- output ---
+    # Output belongs next to the data it came from, not in the repo root.
+    out_dir = os.environ.get("MERGED_DIR", "drops/merged")
+    os.makedirs(out_dir, exist_ok=True)
+    out = os.path.join(out_dir, f"{term}_merged.csv")
+    with open(out, "w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["item_id", "title", "pattern", "screens",
+                         "last_price", "headroom_small_parcel",
+                         "headroom_large_letter", "total_units"]
+                        + [f"units_{w}" for w in windows]
+                        + [f"price_{w}" for w in windows]
+                        + ["item_url"])
+        for item_id, entry in sorted(products.items(), key=lambda kv: -kv[1]["total"]):
+            last = entry["prices"].get(windows[-1]) or next(
+                iter(reversed(list(entry["prices"].values()))), None)
+            writer.writerow(
+                [item_id, entry["title"], entry["pattern"],
+                 "|".join(entry["screens"]), last or "",
+                 headroom(last) if last else "",
+                 headroom(last, "large_letter") if last else "",
+                 entry["total"]]
+                + [entry["series"].get(w, "") for w in windows]
+                + [entry["prices"].get(w, "") for w in windows]
+                + [f"https://www.ebay.co.uk/itm/{item_id}"]
+            )
+
+    # --- how many distinct sellers list the same product ---
+    by_print = defaultdict(set)
+    for item_id, entry in products.items():
+        by_print[fingerprint(entry["title"])].add(item_id)
+    for item_id, entry in products.items():
+        entry["same_sku"] = len(by_print[fingerprint(entry["title"])])
+
+    # --- candidates on any of three grounds, not persistence alone ---
+    latest = windows[-1]
+    previous = windows[-2] if len(windows) > 1 else None
+
+    rule("LISTABLE, ANY ROUTE")
+    print(DIM(f"  head >= £{GATE_ABS:.2f} and one of: sold in every window, "
+              f"{MIN_RECENT}+ units in {latest}, {MIN_SELLERS}+ sellers"))
+
+    candidates = []
+    for item_id, entry in products.items():
+        price = entry["prices"].get(latest) or list(entry["prices"].values())[-1]
+        head = headroom(price)
+        if entry["screens"] or not head or head < GATE_ABS:
+            continue
+        recent = entry["series"].get(latest, 0)
+        prior = entry["series"].get(previous, 0) if previous else 0
+        routes = []
+        if entry["pattern"] == "evergreen":
+            routes.append("proven")
+        if recent >= MIN_RECENT:
+            routes.append("selling")
+        if entry["same_sku"] >= MIN_SELLERS:
+            routes.append("sourceable")
+        if not routes:
+            continue
+        entry.update(item_id=item_id, price=price, headroom=head,
+                     recent=recent, routes=routes,
+                     momentum=round(recent / prior, 1) if prior else None)
+        candidates.append(entry)
+
+    candidates.sort(key=lambda e: -(e["recent"] * (e["headroom"] or 0)))
+
+    if not candidates:
+        print(DIM("  Nothing cleared the gate on any route."))
+    print(DIM("   head   price   now   mom  sku  routes                title"))
+    for entry in candidates[:25]:
+        mom = f"{entry['momentum']:>4.1f}" if entry["momentum"] else DIM("   -")
+        tint = GOOD if entry["recent"] >= MIN_RECENT else WARN
+        print(f"  {GOOD(f'£{entry[chr(104)+chr(101)+chr(97)+chr(100)+chr(114)+chr(111)+chr(111)+chr(109)]:>5.2f}')}  "
+              f"£{entry['price']:>6.2f}  {tint(f'{entry[chr(114)+chr(101)+chr(99)+chr(101)+chr(110)+chr(116)]:>4}')}  "
+              f"{mom}  {entry['same_sku']:>3}  {SAGE(f'{chr(43).join(entry[chr(114)+chr(111)+chr(117)+chr(116)+chr(101)+chr(115)]):<21}')} "
+              f"{entry['title'][:38]}")
+
+    # --- the running shortlist ---
+    # Every search adds to one file rather than rebuilding it, because the
+    # useful artefact is the accumulation across terms, not one category's run.
+    short_path = os.path.join(out_dir, "shortlist.csv")
+    columns = ["item_id", "term", "title", "price", "headroom", "recent_units",
+               "momentum", "same_sku_sellers", "routes", "total_units",
+               "windows_present", "windows_total", "pattern", "item_url",
+               "first_added", "last_seen"]
+
+    existing = {}
+    if os.path.exists(short_path):
+        with open(short_path, newline="", encoding="utf-8-sig") as handle:
+            for row in csv.DictReader(handle):
+                existing[row["item_id"]] = row
+
+    from datetime import date
+    today = date.today().isoformat()
+    added, refreshed = 0, 0
+
+    for entry in candidates:
+        item_id = entry["item_id"]
+        row = {
+            "item_id": item_id,
+            "term": term,
+            "title": entry["title"],
+            "price": entry["price"],
+            "headroom": entry["headroom"],
+            "total_units": entry["total"],
+            "recent_units": entry["recent"],
+            "momentum": entry["momentum"] or "",
+            "same_sku_sellers": entry["same_sku"],
+            "routes": "+".join(entry["routes"]),
+            "windows_present": len(entry["series"]),
+            "windows_total": len(windows),
+            "pattern": entry["pattern"],
+            "item_url": f"https://www.ebay.co.uk/itm/{item_id}",
+            "first_added": existing.get(item_id, {}).get("first_added", today),
+            "last_seen": today,
+        }
+        if item_id in existing:
+            refreshed += 1
+        else:
+            added += 1
+        existing[item_id] = row
+
+    with open(short_path, "w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=columns, extrasaction="ignore")
+        writer.writeheader()
+        for row in sorted(
+                existing.values(),
+                key=lambda r: -(float(r.get("recent_units") or 0)
+                                * float(r.get("headroom") or 0))):
+            writer.writerow(row)
+
+    rule("OUTPUT")
+    print(f"  {GOOD(out)}   {len(products)} products across {len(windows)} windows")
+    print(f"  {GOOD(short_path)}   {len(existing)} listable in total, "
+          f"{added} new from this run, {refreshed} refreshed")
+    if _LOG:
+        print(f"  {GOOD(_LOG.name)}   run recorded")
+    print()
+    if _LOG:
+        _LOG.close()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

@@ -1,0 +1,214 @@
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cart &amp; Keep, loading states</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+--c-base:#faf6ef;--c-ink:#2a2723;--c-brand:#7a9575;--c-warm:#f4efe5;
+--c-surface:#fff;--c-line:#e8e0d3;--c-ink-soft:#6b6459;--c-ink-deep:#1e1c19;
+--c-sage-deep:#5e7359;--r-card:14px;--r-control:9px;--r-full:999px;--tap:44px;
+--s-1:.25rem;--s-2:.5rem;--s-3:.75rem;--s-4:1rem;--s-5:1.5rem;--s-6:2rem;--s-7:3rem;--s-8:4.5rem;
+--t-label:.8125rem;--ease:cubic-bezier(.22,.61,.36,1);--store-max:1240px;
+--font-display:'Archivo Variable',system-ui,sans-serif;
+}
+body{background:var(--c-base);color:var(--c-ink);font-family:'Inter Variable',system-ui,sans-serif;margin:0;padding:32px 20px 80px}
+.page{max-width:var(--store-max);margin:0 auto}
+h2{font-family:var(--font-display);font-stretch:118%;font-weight:620;letter-spacing:-.02em;font-size:1.5rem;margin:0 0 6px}
+p.note{color:var(--c-ink-soft);font-size:.875rem;margin:0 0 22px;max-width:62ch}
+hr{border:0;border-top:1px solid var(--c-line);margin:52px 0}
+/* The sweep is her palette, not the grey shimmer every template ships. Warm to
+   a lighter warm, one pass every 1.4s, at 100 degrees so it reads as light
+   crossing a surface rather than a bar sliding down a track.
+
+   Two colours, no white. A white band on a cream page is the tell. */
+
+.block {
+  display: block;
+  background:
+    linear-gradient(100deg,
+      var(--c-warm) 0%,
+      var(--c-warm) 38%,
+      #fbf8f2 50%,
+      var(--c-warm) 62%,
+      var(--c-warm) 100%);
+  background-size: 280% 100%;
+  border-radius: var(--r-control);
+  animation: sweep 1.4s linear infinite;
+}
+
+@keyframes sweep {
+  from { background-position: 180% 0; }
+  to   { background-position: -80% 0; }
+}
+
+/* Geometry copied from product-card.module.css. If that file changes, this one
+   changes with it, or the grid jumps at the moment products arrive, which is
+   the only thing this component exists to prevent. */
+.card {
+  display: flex;
+  flex-direction: column;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  overflow: hidden;
+}
+
+.shot { aspect-ratio: 1; width: 100%; border-radius: 0; }
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-top: 1px solid var(--c-line);
+}
+
+.leaf { width: 42%; height: 9px; }
+.line { width: 100%; height: 12px; }
+/* Short, because two full width bars read as a table rather than a title that
+   wrapped. */
+.lineShort { width: 64%; height: 12px; }
+.price { width: 34%; height: 17px; margin-top: var(--s-2); }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+@media (min-width: 620px) {
+  .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-4); }
+}
+
+@media (min-width: 900px) {
+  .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.nav {
+  display: flex;
+  gap: var(--s-2);
+  padding-bottom: var(--s-3);
+  margin-bottom: var(--s-5);
+  border-bottom: 1px solid var(--c-line);
+  overflow: hidden;
+}
+
+.chip { height: var(--tap); border-radius: var(--r-full); flex: none; }
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Motion off means the sweep stops, not that it speeds up. The blocks stay,
+   because the layout they hold is the point and the animation never was. */
+@media (prefers-reduced-motion: reduce) {
+  .block { animation: none; background: var(--c-warm); }
+}
+.wrap {
+  min-height: 60dvh;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--s-4);
+}
+
+.mark { overflow: visible; }
+
+/* pathLength="1" normalises both paths to a length of one, so the dash is the
+   same duration on each and neither has to be measured. */
+.body,
+.handle {
+  fill: none;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw 1.5s var(--ease) infinite;
+}
+
+.body { stroke: var(--c-ink); }
+.handle { stroke: var(--c-brand); animation-delay: 0.12s; }
+
+/* The ampersand is a fill, so it arrives rather than draws. It waits for the
+   basket to be most of the way round, which is what makes the sequence read as
+   one movement instead of three things happening at once. */
+.amp {
+  fill: var(--c-ink);
+  transform-origin: 15px 19px;
+  animation: arrive 1.5s var(--ease) infinite;
+}
+
+@keyframes draw {
+  0%   { stroke-dashoffset: 1; }
+  45%  { stroke-dashoffset: 0; }
+  85%  { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+@keyframes arrive {
+  0%, 40% { opacity: 0; transform: scale(0.86); }
+  58%     { opacity: 1; transform: scale(1); }
+  85%     { opacity: 1; transform: scale(1); }
+  100%    { opacity: 0; transform: scale(1); }
+}
+
+.label {
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+}
+
+/* Motion off gets the finished mark, held. Not a faster loop. */
+@media (prefers-reduced-motion: reduce) {
+  .body, .handle, .amp { animation: none; stroke-dashoffset: 0; opacity: 1; transform: none; }
+}
+
+.wrap{min-height:auto;padding:40px 0}
+</style></head><body><div class="page">
+
+<h2>The app boot</h2>
+<p class="note">Shown once, while the shop chunk arrives. The basket strokes on, the ampersand lands. It replaces a grey "Loading" that told a first time visitor nothing about whose shop they had opened. The portal and the status page keep the plain one.</p>
+<div class="wrap" role="status">
+  <svg class="mark" viewBox="0 0 30 30" width="56" height="56" fill="none" aria-hidden="true">
+    <path d="M5 10.5h20l-2 13.2a2 2 0 0 1-2 1.7H9a2 2 0 0 1-2-1.7L5 10.5Z" pathLength="1" class="body" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M10.6 10.5V8.2a4.4 4.4 0 0 1 8.8 0v2.3" pathLength="1" class="handle" stroke-width="1.9" stroke-linecap="round"/>
+    <path d="M14.185 23Q13.319 23 12.69 22.685Q12.06 22.37 11.723 21.842Q11.386 21.314 11.386 20.667Q11.386 20.161 11.585 19.779Q11.785 19.397 12.142 19.074Q12.499 18.751 12.965 18.43L14.562 17.373Q14.736 17.261 14.876 17.118Q15.017 16.974 15.098 16.809Q15.18 16.643 15.18 16.452Q15.18 16.165 14.978 15.963Q14.775 15.76 14.399 15.76Q14.151 15.76 13.966 15.856Q13.78 15.951 13.679 16.126Q13.578 16.3 13.578 16.536Q13.578 16.811 13.716 17.084Q13.853 17.357 14.095 17.655Q14.337 17.952 14.652 18.318L18.614 22.876H16.838L13.539 19.183Q13.196 18.784 12.87 18.38Q12.544 17.975 12.33 17.517Q12.116 17.059 12.116 16.519Q12.116 15.918 12.4 15.437Q12.684 14.956 13.196 14.678Q13.707 14.4 14.387 14.4Q15.056 14.4 15.54 14.667Q16.023 14.934 16.287 15.381Q16.551 15.828 16.551 16.373Q16.551 16.761 16.414 17.104Q16.276 17.447 16.029 17.739Q15.781 18.031 15.438 18.284L13.73 19.515Q13.387 19.768 13.21 20.018Q13.033 20.268 13.033 20.6Q13.033 20.915 13.184 21.151Q13.336 21.387 13.606 21.513Q13.876 21.64 14.236 21.64Q14.696 21.64 15.132 21.437Q15.568 21.235 15.925 20.861Q16.282 20.487 16.492 19.968Q16.703 19.448 16.703 18.818H18.114Q18.114 19.594 17.945 20.204Q17.777 20.813 17.484 21.258Q17.192 21.702 16.821 21.983L16.388 22.264Q15.927 22.64 15.337 22.82Q14.747 23 14.185 23Z" class="amp"/>
+  </svg>
+  <p class="label">Opening the shop</p>
+</div>
+
+<hr>
+
+<h2>The catalogue, loading</h2>
+<p class="note">Exact geometry of what is coming: same square, same padding, same two title lines, same price height, same gutters, same breakpoints. Nothing moves when the products land. The sweep is warm to a lighter warm at 100 degrees, so it reads as light crossing a surface rather than a bar sliding along a track. No white band, because a white band on a cream page is the tell.</p>
+<div class="nav"><span class="block chip" style="width:96px"></span><span class="block chip" style="width:148px"></span><span class="block chip" style="width:132px"></span><span class="block chip" style="width:108px"></span><span class="block chip" style="width:120px"></span></div>
+<div class="grid" role="status" aria-label="Loading products">
+<div class="card"><span class="block shot"></span><span class="body">
+<span class="block leaf"></span><span class="block line"></span><span class="block lineShort"></span><span class="block price"></span>
+</span></div><div class="card"><span class="block shot"></span><span class="body">
+<span class="block leaf"></span><span class="block line"></span><span class="block lineShort"></span><span class="block price"></span>
+</span></div><div class="card"><span class="block shot"></span><span class="body">
+<span class="block leaf"></span><span class="block line"></span><span class="block lineShort"></span><span class="block price"></span>
+</span></div><div class="card"><span class="block shot"></span><span class="body">
+<span class="block leaf"></span><span class="block line"></span><span class="block lineShort"></span><span class="block price"></span>
+</span></div><div class="card"><span class="block shot"></span><span class="body">
+<span class="block leaf"></span><span class="block line"></span><span class="block lineShort"></span><span class="block price"></span>
+</span></div><div class="card"><span class="block shot"></span><span class="body">
+<span class="block leaf"></span><span class="block line"></span><span class="block lineShort"></span><span class="block price"></span>
+</span></div><div class="card"><span class="block shot"></span><span class="body">
+<span class="block leaf"></span><span class="block line"></span><span class="block lineShort"></span><span class="block price"></span>
+</span></div><div class="card"><span class="block shot"></span><span class="body">
+<span class="block leaf"></span><span class="block line"></span><span class="block lineShort"></span><span class="block price"></span>
+</span></div>
+</div>
+
+<hr>
+<h2>Motion off</h2>
+<p class="note">With prefers-reduced-motion the sweep stops and the blocks stay, because the layout they hold is the point and the animation never was. The mark holds its finished state rather than looping faster. Turn it on in your OS settings and reload to check.</p>
+</div></body></html>

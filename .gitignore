@@ -1,35 +1,33 @@
+# Dependencies and build output
 node_modules
 dist
+coverage/
+
+# Secrets. The example stays, since it documents what is needed.
 .env
 .env.local
 .env.example
-drops/
-drops/README.md
 *.local
-.DS_Store
 .cj-token.json
-cartandkeep.txt
-*.log
-docs/
-coverage/
-scripts/
-supabase/
+
+# Research data: produced by the scripts, re-creatable by running them, and
+# large. The scripts themselves are tracked, which is the point: everything
+# under research/ can be rebuilt, and nothing under scripts/ can.
+research/
+drops/
 records/
 backups/
+.gate/
 *.zip
-*.ps1
-.gate
-gate-hb-1.csv
-gate-hb-2.csv
-gate-refresh-2026-09-16.csv
-gate-refresh-2026-09-17.csv
-audit.csv
-gate-az-1.csv
-gate-clock.csv
-gate-ejeas.csv
-gate-ejeas2.csv
-gate-hb-evri5-1.csv
-scan-1.csv
-scan-az-1.csv
-scan-evri15-1.csv
-scan-evri5-1.csv
+
+# Working files
+cartandkeep.txt
+*.log
+.DS_Store
+
+# Anything a run drops in the root before it is tidied away
+/scan-*.csv
+/gate-*.csv
+/audit.csv
+/sweep.csv
+/ck-*.csv

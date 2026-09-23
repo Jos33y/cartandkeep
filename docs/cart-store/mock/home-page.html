@@ -1,0 +1,966 @@
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Cart &amp; Keep</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>:root{--c-base:#faf6ef;--c-ink:#2a2723;--c-brand:#7a9575;--c-brand-mid:#cdd9c9;--c-warm:#f4efe5;
+--c-surface:#fff;--c-line:#e8e0d3;--c-line-mid:#d6cab5;--c-ink-soft:#6b6459;--c-faint:#857d70;
+--c-sage-deep:#5e7359;--c-sage-wash:#eef2ec;--c-gold-wash:#f6eedc;--c-gold-line:#e4ce9c;
+--c-action-strong:#ba5a3d;--c-action-text:#ad5438;--c-ink-deep:#1e1c19;
+--r-card:14px;--r-control:9px;--r-full:999px;--tap:44px;
+--s-1:.25rem;--s-2:.5rem;--s-3:.75rem;--s-4:1rem;--s-5:1.5rem;--s-6:2rem;--s-7:3rem;--s-8:4.5rem;
+--t-micro:.6875rem;--t-caption:.75rem;--t-label:.8125rem;--t-body:.9375rem;--t-lead:1.0625rem;
+--ts-hero:clamp(2.5rem,5.4vw,4.15rem);--ts-section:clamp(1.35rem,2.4vw,1.85rem);
+--ts-title:.875rem;--ts-leaf:.71875rem;--ts-price:1.0625rem;--lh-body:1.6;
+--wide:118%;--wide-tight:108%;--ease:cubic-bezier(.22,.61,.36,1);--store-max:1240px;
+--font-display:'Archivo Variable',system-ui,sans-serif;--font-data:ui-monospace,monospace;}
+.wide{font-family:var(--font-display);font-stretch:var(--wide);font-weight:620;letter-spacing:-.02em;line-height:1.04}
+[data-price]{font-family:var(--font-display);font-stretch:100%;font-weight:640;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--c-base);color:var(--c-ink);font-family:'Inter Variable',system-ui,sans-serif;font-size:15px}
+a{text-decoration:none;color:inherit}button{border:0;background:none;font:inherit;cursor:pointer}
+ul{list-style:none}img{display:block;max-width:100%}
+.hero {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--s-6);
+  align-items: center;
+  padding: var(--s-6) 0 var(--s-5);
+}
+
+@media (min-width: 900px) {
+  .hero { grid-template-columns: 1.02fr 0.98fr; gap: var(--s-7); padding: var(--s-7) 0 var(--s-6); }
+}
+
+.eyebrow {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-faint);
+  margin-bottom: var(--s-4);
+}
+
+.title { font-size: var(--ts-hero); color: var(--c-ink); }
+.em { font-style: normal; color: var(--c-action-text); }
+
+.sub {
+  margin-top: var(--s-4);
+  font-size: 1.03125rem;
+  line-height: var(--lh-body);
+  color: var(--c-ink-soft);
+  max-width: 34ch;
+}
+
+/* The one terracotta above the fold, on the one control that matters. */
+.search {
+  margin-top: var(--s-5);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  max-width: 430px;
+  padding: 0 var(--s-2) 0 var(--s-4);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-full);
+  color: var(--c-faint);
+  transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease);
+}
+
+.search:focus-within {
+  border-color: var(--c-brand);
+  box-shadow: 0 0 0 4px var(--c-sage-wash);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 52px;
+  border: 0;
+  outline: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.96875rem;
+  color: var(--c-ink);
+}
+
+.input::placeholder { color: var(--c-faint); }
+.input::-webkit-search-cancel-button { display: none; }
+
+.clear {
+  height: 38px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-full);
+  background: var(--c-warm);
+  color: var(--c-ink-soft);
+  font-size: var(--t-label);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.terms { margin-top: var(--s-3); display: flex; gap: var(--s-2); flex-wrap: wrap; }
+
+.term {
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-full);
+  padding: 7px 13px;
+  cursor: pointer;
+  transition: border-color 150ms var(--ease), color 150ms var(--ease);
+}
+
+.term:hover { border-color: var(--c-brand); color: var(--c-ink); }
+
+/* Three of her own products at different scales. Not a stock photograph: a
+   general store has nothing to say with a lifestyle shot and everything to say
+   with its range. */
+.collage { position: relative; height: 300px; }
+
+@media (min-width: 900px) { .collage { height: 420px; } }
+
+.pane {
+  position: absolute;
+  margin: 0;
+  border-radius: var(--r-card);
+  overflow: hidden;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  transition: transform 450ms var(--ease);
+}
+
+.pane img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.pane1 { width: 56%; height: 64%; top: 0; right: 0; z-index: 2; }
+.pane2 { width: 46%; height: 52%; left: 0; top: 16%; z-index: 3; }
+.pane3 { width: 42%; height: 40%; right: 8%; bottom: 0; z-index: 4; }
+
+.collage:hover .pane1 { transform: translateY(-6px); }
+.collage:hover .pane2 { transform: translateY(4px); }
+.collage:hover .pane3 { transform: translateY(-3px); }
+
+.tag {
+  position: absolute;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-full);
+  padding: 7px 13px;
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+}
+
+.tag svg { color: var(--c-sage-deep); }
+.tag strong { font-size: 0.84375rem; color: var(--c-ink); }
+.tagOne { left: 2%; bottom: 8%; }
+.tagTwo { right: 0; top: 3%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pane, .search, .term { transition: none; }
+  .collage:hover .pane1,
+  .collage:hover .pane2,
+  .collage:hover .pane3 { transform: none; }
+}
+.strip {
+  border-top: 1px solid var(--c-line);
+  border-bottom: 1px solid var(--c-line);
+  background: var(--c-warm);
+}
+
+.inner {
+  max-width: var(--store-max);
+  margin: 0 auto;
+  padding: var(--s-4) var(--s-4);
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-4) var(--s-3);
+}
+
+@media (min-width: 900px) {
+  .inner { grid-template-columns: repeat(4, 1fr); padding: var(--s-4) var(--s-5); }
+}
+
+.item { display: flex; gap: var(--s-3); align-items: flex-start; }
+.item svg { flex: none; margin-top: 2px; color: var(--c-sage-deep); }
+.item > span { display: block; min-width: 0; }
+
+.title { display: block; font-size: 0.84375rem; font-weight: 500; color: var(--c-ink); }
+.note { display: block; font-size: var(--t-caption); color: var(--c-faint); }
+.section { padding: var(--s-7) 0 0; }
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-bottom: var(--s-4);
+}
+
+.heading { font-size: var(--ts-section); }
+.count { font-size: var(--t-caption); color: var(--c-faint); }
+
+.tiles {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+@media (min-width: 620px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-4); } }
+@media (min-width: 900px) { .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+.tile {
+  position: relative;
+  display: block;
+  aspect-ratio: 5 / 3.4;
+  border-radius: var(--r-card);
+  overflow: hidden;
+  background: var(--c-sage-deep);
+  isolation: isolate;
+}
+
+/* The photograph sits under a sage wash and a foot gradient, so a white
+   background product shot still reads as a department rather than as a cut
+   out floating on nothing. */
+.image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.62;
+  transition: transform 500ms var(--ease), opacity 300ms var(--ease);
+}
+
+.tile::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(30, 28, 25, 0.8), rgba(30, 28, 25, 0.06) 62%);
+}
+
+.tile:hover .image { transform: scale(1.07); opacity: 0.72; }
+
+.label {
+  position: absolute;
+  left: var(--s-3);
+  right: var(--s-3);
+  bottom: var(--s-3);
+  z-index: 2;
+  color: #fff;
+}
+
+.name {
+  display: block;
+  font-family: var(--font-display);
+  font-stretch: var(--wide-tight);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  letter-spacing: -0.01em;
+  line-height: 1.18;
+}
+
+.n { display: block; margin-top: 3px; font-size: var(--t-caption); opacity: 0.84; }
+
+@media (prefers-reduced-motion: reduce) {
+  .image { transition: none; }
+  .tile:hover .image { transform: none; }
+}
+/* The panel holds still while the goods move past it. That is the whole idea,
+   and it is why the name does not scroll away with the rail. */
+
+.shelf {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--s-3);
+}
+
+@media (min-width: 900px) {
+  .shelf { grid-template-columns: 212px 1fr; gap: var(--s-4); align-items: stretch; }
+}
+
+.panel {
+  background: var(--c-warm);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  padding: var(--s-4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+
+@media (min-width: 900px) {
+  .panel { flex-direction: column; align-items: flex-start; padding: var(--s-5) var(--s-4); }
+}
+
+.name { font-size: 1.25rem; line-height: 1.08; }
+@media (min-width: 900px) { .name { font-size: 1.4375rem; } }
+
+.meta { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--c-faint); }
+
+.go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-ink);
+  text-decoration: none;
+  border-bottom: 1.5px solid var(--c-brand);
+  padding-bottom: 2px;
+  align-self: flex-start;
+}
+
+.go svg { transition: transform 180ms var(--ease); }
+.go:hover svg { transform: translateX(3px); }
+
+.rail {
+  list-style: none;
+  padding: 0 var(--s-4) var(--s-2) 0;
+  margin: 0;
+  display: flex;
+  gap: var(--s-3);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  /* Bleeds past the container on a phone so the next card is visibly cut off,
+     which is the only reliable way to say "this scrolls" without an arrow. */
+  margin-right: calc(var(--s-4) * -1);
+}
+
+.rail::-webkit-scrollbar { display: none; }
+
+@media (min-width: 900px) {
+  .rail { margin-right: 0; padding-right: 0; gap: var(--s-4); }
+}
+
+.cell { flex: 0 0 176px; scroll-snap-align: start; }
+@media (min-width: 620px) { .cell { flex-basis: 205px; } }
+
+.rest {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: var(--s-1);
+  height: 100%;
+  min-height: 260px;
+  padding: var(--s-4);
+  background: var(--c-sage-wash);
+  border: 1px dashed var(--c-brand-mid);
+  border-radius: var(--r-card);
+  color: var(--c-ink);
+  text-decoration: none;
+  transition: border-color 180ms var(--ease);
+}
+
+.rest:hover { border-color: var(--c-brand); }
+.restN { font-size: 1.75rem; color: var(--c-sage-deep); }
+.restLabel { font-size: var(--t-label); color: var(--c-ink-soft); line-height: 1.3; }
+.rest svg { margin-top: var(--s-2); color: var(--c-sage-deep); }
+
+@media (prefers-reduced-motion: reduce) {
+  .go svg, .rest { transition: none; }
+}
+.page { display: flex; flex-direction: column; }
+
+.wrap {
+  width: 100%;
+  max-width: var(--store-max);
+  margin: 0 auto;
+  padding: 0 var(--s-4);
+}
+
+@media (min-width: 900px) { .wrap { padding: 0 var(--s-5); } }
+
+.heading { font-size: var(--ts-section); }
+.plainTitle { font-size: var(--ts-section); margin: var(--s-7) 0 var(--s-3); }
+
+.shelvesHead { padding: var(--s-7) 0 var(--s-4); }
+.shelves { display: flex; flex-direction: column; gap: var(--s-5); padding-bottom: var(--s-6); }
+
+.resultsHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  padding: var(--s-6) 0 var(--s-4);
+}
+
+.back {
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-action-text);
+  cursor: pointer;
+  min-height: var(--tap);
+}
+
+.empty {
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  background: var(--c-surface);
+  padding: var(--s-6) var(--s-5);
+  margin-bottom: var(--s-7);
+}
+
+.emptyLead { font-size: var(--t-lead); font-weight: 500; }
+.emptyBody {
+  margin-top: var(--s-2);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  color: var(--c-ink-soft);
+  max-width: 52ch;
+}
+
+.notice { font-size: var(--t-body); color: var(--c-ink-soft); padding-bottom: var(--s-7); }
+.noticeDetail { font-family: var(--font-data); font-size: var(--t-caption); color: var(--c-faint); }
+/* Geometry here is mirrored by skeleton.module.css. If this file changes and
+   that one does not, the grid jumps at the moment products land, which is the
+   one fault the skeleton exists to prevent. */
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 200ms var(--ease),
+    transform 220ms var(--ease);
+}
+
+.card:hover {
+  border-color: var(--c-line-mid);
+  transform: translateY(-3px);
+}
+
+/* The frame is a fixed square. Her photographs come from dozens of sellers at
+   whatever size they uploaded, and a grid that reflows as each one lands is
+   the single most feed-like thing a shop can do. */
+.frame {
+  position: relative;
+  aspect-ratio: 1;
+  background: var(--c-warm);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+
+/* cover, not contain, and no padding. The first version floated every
+   photograph in a white box like a scraped feed. */
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 500ms var(--ease);
+}
+
+.card:hover .image { transform: scale(1.045); }
+
+.noImage {
+  font-size: var(--t-caption);
+  color: var(--c-faint);
+}
+
+.flag {
+  position: absolute;
+  top: var(--s-2);
+  left: var(--s-2);
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: var(--c-sage-wash);
+  border: 1px solid var(--c-brand-mid);
+  color: #3f5139;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Gold, so a price reduction never borrows terracotta. Terracotta means the
+   buy action and has to keep meaning only that. */
+.flagSale {
+  background: var(--c-gold-wash);
+  border-color: var(--c-gold-line);
+  color: #6b4f14;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.6875rem;
+}
+
+/* A sale flag and a sample flag would sit on top of each other. Sample is
+   build scaffolding, so it gives way. */
+.flagSale ~ .flag { top: calc(var(--s-2) + 26px); }
+
+.save {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--c-ink-soft);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: opacity 180ms var(--ease), transform 180ms var(--ease), color 150ms;
+}
+
+.save:hover { color: var(--c-action-text); }
+
+.add {
+  position: absolute;
+  left: var(--s-2);
+  right: var(--s-2);
+  bottom: var(--s-2);
+  height: 38px;
+  border-radius: var(--r-control);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: 0.84375rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: opacity 200ms var(--ease), transform 200ms var(--ease), background 150ms;
+}
+
+.add:active { transform: scale(0.985); }
+.add[data-added] { background: var(--c-sage-deep); }
+
+/* Revealed on hover only where hover exists. On a touch screen there is no
+   hover, so both controls are always there: a button a phone can never reach
+   is a button that does not exist. */
+@media (hover: hover) and (pointer: fine) {
+  .save, .add { opacity: 0; }
+  .save { transform: translateY(-4px); }
+  .add { transform: translateY(6px); }
+  .card:hover .save,
+  .card:hover .add,
+  .card:focus-within .save,
+  .card:focus-within .add { opacity: 1; transform: none; }
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-3);
+  border-top: 1px solid var(--c-line);
+}
+
+/* Two lines, then clipped. These are supplier feed titles and some run past
+   eighty characters, so three lines is a paragraph and it buries the price. */
+.title {
+  font-size: var(--ts-title);
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--c-ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Below the title and quiet. All caps micro tracking is a data label, and it
+   was shouting on a shop. */
+.leaf {
+  font-size: var(--ts-leaf);
+  color: var(--c-faint);
+}
+
+.priceRow {
+  margin-top: var(--s-2);
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+
+/* The face and the tabular figures come from [data-price] in store-tokens.css.
+   Only the size lives here. */
+.price {
+  font-size: var(--ts-price);
+  color: var(--c-ink);
+}
+
+.was {
+  font-size: var(--t-caption);
+  font-weight: 400;
+  color: var(--c-faint);
+  text-decoration: line-through;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .image, .save, .add { transition: none; }
+  .card:hover { transform: none; }
+  .card:hover .image { transform: none; }
+}
+/* Two columns on a phone. One column of a seventy eight product catalogue is a
+   very long scroll, and she shops and reviews on a phone. */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Top, not stretch. A card is content height, so a short title must make a
+     shorter card rather than a card with a hole in it. */
+  align-items: start;
+  gap: var(--s-3);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.cell { display: flex; }
+.cell > * { width: 100%; }
+
+@media (min-width: 620px) {
+  .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-4); }
+}
+
+@media (min-width: 900px) {
+  .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* First grid of the session only, set by the component. Six tiles rise 8px,
+   40ms apart. The delay is capped at eight steps so the fortieth tile does not
+   wait one and a half seconds, and anything past the cap arrives together,
+   which is correct because it is below the fold anyway. */
+.grid[data-animate] .cell {
+  opacity: 0;
+  animation: rise 320ms var(--ease) forwards;
+  animation-delay: calc(min(var(--i, 0), 8) * 40ms);
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grid[data-animate] .cell { opacity: 1; animation: none; }
+}
+</style></head><body>
+<div class="page">
+<div class="wrap"><section class="hero"><div class="copy">
+<p class="eyebrow">A general store, run properly</p>
+<h1 class="title wide">Everything for<br>the house.<br><em class="em">Nothing you<br>have to hunt for.</em></h1>
+<p class="sub">78 products across eight departments, one basket, delivered from the UK.</p>
+<div class="search"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg><input class="input" type="search" placeholder="Try floor lamp, dog bed, saucepan" aria-label="Search the shop"></div>
+<div class="terms"><button class="term">Pan sets</button><button class="term">Lamps</button><button class="term">Beds</button><button class="term">Balls</button></div>
+</div>
+<div class="collage">
+<figure class="pane pane1"><img src="https://i.ebayimg.com/images/g/dWoAAeSwYttqcQZ1/s-l500.jpg" alt=""></figure>
+<figure class="pane pane2"><img src="https://i.ebayimg.com/images/g/2QIAAeSwU21qf4uj/s-l500.jpg" alt=""></figure>
+<figure class="pane pane3"><img src="https://i.ebayimg.com/images/g/4EkAAeSwyShqf4tm/s-l500.jpg" alt=""></figure>
+<span class="tag tagOne"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.8"/><circle cx="17.5" cy="18" r="1.8"/></svg> Sent from the UK</span>
+<span class="tag tagTwo"><strong data-price>78</strong> in stock</span>
+</div></section></div>
+
+<section class="strip"><ul class="inner">
+<li class="item"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.8"/><circle cx="17.5" cy="18" r="1.8"/></svg><span><b class="title">Free delivery over £40</b><span class="note">£3.95 below that, 2 to 3 days</span></span></li>
+<li class="item"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 1 2.6 5.9"/><path d="M4 19v-5h5"/></svg><span><b class="title">30 day returns</b><span class="note">Unused and in the box</span></span></li>
+<li class="item"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span><b class="title">Checkout as a guest</b><span class="note">No account, no password</span></span></li>
+<li class="item"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-3 8-7 9-4-1-7-4.6-7-9V6l7-3Z"/><path d="M9 12l2 2 4-4"/></svg><span><b class="title">Paid with Stripe</b><span class="note">Card details never touch us</span></span></li>
+</ul></section>
+
+<div class="wrap"><section class="section"><div class="head">
+<h2 class="heading wide">Shop by department</h2><p class="count">8 departments</p></div>
+<ul class="tiles"><li><a class="tile" href="#"><img class="image" src="https://i.ebayimg.com/images/g/P3IAAeSwnQxqcdJz/s-l500.jpg" alt="">
+<span class="label"><b class="name">Home, Furniture &amp; DIY</b><span class="n" data-price>24 products</span></span></a></li><li><a class="tile" href="#"><img class="image" src="https://i.ebayimg.com/images/g/nagAAeSwk71qf4ve/s-l500.jpg" alt="">
+<span class="label"><b class="name">Health &amp; Beauty</b><span class="n" data-price>15 products</span></span></a></li><li><a class="tile" href="#"><img class="image" src="https://i.ebayimg.com/images/g/LGgAAeSw6fRqf4tL/s-l500.jpg" alt="">
+<span class="label"><b class="name">Vehicle Parts &amp; Accessories</b><span class="n" data-price>8 products</span></span></a></li><li><a class="tile" href="#"><img class="image" src="https://i.ebayimg.com/images/g/9RkAAeSwFkJqf4u~/s-l500.jpg" alt="">
+<span class="label"><b class="name">Business, Office &amp; Industrial</b><span class="n" data-price>6 products</span></span></a></li><li><a class="tile" href="#"><img class="image" src="https://i.ebayimg.com/images/g/mWMAAeSwjWhqf4y1/s-l500.jpg" alt="">
+<span class="label"><b class="name">Sporting Goods</b><span class="n" data-price>6 products</span></span></a></li><li><a class="tile" href="#"><img class="image" src="https://i.ebayimg.com/images/g/DNMAAeSwObdqcQuw/s-l500.jpg" alt="">
+<span class="label"><b class="name">Garden &amp; Patio</b><span class="n" data-price>4 products</span></span></a></li><li><a class="tile" href="#"><img class="image" src="https://i.ebayimg.com/images/g/XoEAAeSwG~Vqd-sq/s-l500.jpg" alt="">
+<span class="label"><b class="name">Pet Supplies</b><span class="n" data-price>4 products</span></span></a></li><li><a class="tile" href="#"><img class="image" src="https://i.ebayimg.com/images/g/bnUAAeSwMCBqdlkV/s-l500.jpg" alt="">
+<span class="label"><b class="name">Everything else</b><span class="n" data-price>11 products</span></span></a></li></ul></section></div>
+
+<div class="wrap"><div class="shelvesHead"><h2 class="heading wide">Every department, one scroll</h2></div>
+<div class="shelves"><section class="shelf"><div class="panel"><div>
+<h2 class="name wide">Home, Furniture &amp; DIY</h2><p class="meta">24 products &middot; from <span data-price>£66.89</span></p></div>
+<a class="go" href="#">Browse all 24 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+<ul class="rail"><li class="cell" style="--i:0"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/P3IAAeSwnQxqcdJz/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">WINMAU Plasma Dartboard Light with Pro-Line Surround –Available in Black or Ice</h3><p class="leaf">Pan sets</p>
+<p class="priceRow"><span class="price" data-price>£119.16</span></p></div></a></li><li class="cell" style="--i:1"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/dWoAAeSwYttqcQZ1/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">5 Piece Non Stick Saucepan Set with Glass Lids | Induction &amp; Gas Cooking Pots</h3><p class="leaf">Pan sets</p>
+<p class="priceRow"><span class="price" data-price>£117.24</span></p></div></a></li><li class="cell" style="--i:2"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/nagAAeSwk71qf4ve/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">WILSON Evolution Indoor Game Basketballs - Size 5, Size 6 and Size 7</h3><p class="leaf">Pan sets</p>
+<p class="priceRow"><span class="price" data-price>£82.34</span></p></div></a></li><li class="cell" style="--i:3"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/PJ8AAeSw1Ktqf4w3/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">WERHE Adapter Set for Earth Auger, SDS Plus/sds Max Rotary Hammer, 2 Bolt</h3><p class="leaf">Pan sets</p>
+<p class="priceRow"><span class="price" data-price>£82.09</span></p></div></a></li><li class="cell" style="--i:4"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/LGgAAeSw6fRqf4tL/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Loctite Mini Trio Power Gel, Strong Super Glue Gel for Repairs, All Purpose</h3><p class="leaf">Pan sets</p>
+<p class="priceRow"><span class="price" data-price>£80.11</span></p></div></a></li><li class="cell" style="--i:5"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/uwQAAeSwe41qcl-P/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Heavy Duty Rubber Gym Floor Mat Tiles 1M x 1M Anti Slip Noise Reduction 30mm</h3><p class="leaf">Pan sets</p>
+<p class="priceRow"><span class="price" data-price>£66.89</span></p></div></a></li><li class="cell"><a class="rest" href="#"><span class="restN" data-price>+18</span>
+<span class="restLabel">more in Home, Furniture &amp; DIY</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></li></ul></section><section class="shelf"><div class="panel"><div>
+<h2 class="name wide">Health &amp; Beauty</h2><p class="meta">15 products &middot; from <span data-price>£48.01</span></p></div>
+<a class="go" href="#">Browse all 15 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+<ul class="rail"><li class="cell" style="--i:0"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/9RkAAeSwFkJqf4u~/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">STARBUCKS Espresso Roast, Dark Roast, Whole Bean Coffee 450g (Pack of 4)</h3><p class="leaf">Make-up mirrors</p>
+<p class="priceRow"><span class="price" data-price>£64.72</span></p></div></a></li><li class="cell" style="--i:1"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/2QIAAeSwU21qf4uj/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Wilson Evolution EMEA Basketball</h3><p class="leaf">Make-up mirrors</p>
+<p class="priceRow"><span class="price" data-price>£62.61</span></p></div></a></li><li class="cell" style="--i:2"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/mWMAAeSwjWhqf4y1/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">COR Surf Aero Roof Rack Pads &amp; Tie-Down Straps Combo - 2 Roof Bar Pads &amp; 2</h3><p class="leaf">Make-up mirrors</p>
+<p class="priceRow"><span class="price" data-price>£59.87</span></p></div></a></li><li class="cell" style="--i:3"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/4EkAAeSwyShqf4tm/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Feliway Classic 3 x 30 Day Cat Calming Odourless Refills for Pheromone Diffuser</h3><p class="leaf">Make-up mirrors</p>
+<p class="priceRow"><span class="price" data-price>£53.01</span></p></div></a></li><li class="cell" style="--i:4"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/DNMAAeSwObdqcQuw/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">10kg Dog Puppy Bedding Natural White Paper Wool Kennel Crate Small Animal Bed</h3><p class="leaf">Make-up mirrors</p>
+<p class="priceRow"><span class="price" data-price>£50.63</span></p></div></a></li><li class="cell" style="--i:5"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/P~gAAeSwgsZqdlab/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Corner Floor Lamp Black LED Warm White Modern Living Room Bedroom</h3><p class="leaf">Make-up mirrors</p>
+<p class="priceRow"><span class="price" data-price>£48.01</span></p></div></a></li><li class="cell"><a class="rest" href="#"><span class="restN" data-price>+9</span>
+<span class="restLabel">more in Health &amp; Beauty</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></li></ul></section><section class="shelf"><div class="panel"><div>
+<h2 class="name wide">Vehicle Parts &amp; Accessories</h2><p class="meta">8 products &middot; from <span data-price>£40.00</span></p></div>
+<a class="go" href="#">Browse all 8 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+<ul class="rail"><li class="cell" style="--i:0"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/XoEAAeSwG~Vqd-sq/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">3 Pack 35L Plastic Storage Boxes Clear Stackable Organiser Containers</h3><p class="leaf">Ratchets</p>
+<p class="priceRow"><span class="price" data-price>£47.50</span></p></div></a></li><li class="cell" style="--i:1"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/ZkEAAeSwwnxqc8bD/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Raised Cooling Dog Bed Elevated Breathable Pet Bed Large Grey 130 x 80cm</h3><p class="leaf">Ratchets</p>
+<p class="priceRow"><span class="price" data-price>£43.78</span></p></div></a></li><li class="cell" style="--i:2"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/bnUAAeSwMCBqdlkV/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Artificial Cypress Trees Set of 2 Faux Greenery Indoor Outdoor Plants</h3><p class="leaf">Ratchets</p>
+<p class="priceRow"><span class="price" data-price>£43.64</span></p></div></a></li><li class="cell" style="--i:3"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/qdAAAeSwDO5qfR5J/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Birthday Gifts for Women - Luxury Pamper Hamper Spa Bath Gift Set for Her | Pamp</h3><p class="leaf">Ratchets</p>
+<p class="priceRow"><span class="price" data-price>£42.71</span></p></div></a></li><li class="cell" style="--i:4"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/ysUAAeSwEi9qd98X/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">126pc Tool Kit with 8V Cordless Drill DIY Home Repair Set Tool Box</h3><p class="leaf">Ratchets</p>
+<p class="priceRow"><span class="price" data-price>£41.25</span></p></div></a></li><li class="cell" style="--i:5"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/F-sAAeSwsehqb~vC/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Deep Kneading Neck and Shoulder Massager Shawl – 3-Speed Modes.</h3><p class="leaf">Ratchets</p>
+<p class="priceRow"><span class="price" data-price>£40.00</span></p></div></a></li><li class="cell"><a class="rest" href="#"><span class="restN" data-price>+2</span>
+<span class="restLabel">more in Vehicle Parts &amp; Accessories</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></li></ul></section><section class="shelf"><div class="panel"><div>
+<h2 class="name wide">Business, Office &amp; Industrial</h2><p class="meta">6 products &middot; from <span data-price>£37.32</span></p></div>
+<a class="go" href="#">Browse all 6 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+<ul class="rail"><li class="cell" style="--i:0"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/rrUAAeSwgxZqcdjm/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">LED Makeup Mirror with Lights 10X Magnifying Vanity Mirror 3 Light Modes White</h3><p class="leaf">Augers</p>
+<p class="priceRow"><span class="price" data-price>£39.22</span></p></div></a></li><li class="cell" style="--i:1"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/4sQAAeSwIDhqf4w0/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Replacement Battery Compatible with BOBO VR B100, Compatible with BOBO VR S3</h3><p class="leaf">Augers</p>
+<p class="priceRow"><span class="price" data-price>£38.65</span></p></div></a></li><li class="cell" style="--i:2"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/1n0AAeSwYVRqfSbV/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Luxury Pamper Gift Set for Her Women Birthday Spa Bath Relaxation Self Care Gift</h3><p class="leaf">Augers</p>
+<p class="priceRow"><span class="price" data-price>£38.65</span></p></div></a></li><li class="cell" style="--i:3"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/AHAAAeSwMeVqf4vH/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Greadio Portable CD Player with Bluetooth, CD Players for Home | Desktop CD</h3><p class="leaf">Augers</p>
+<p class="priceRow"><span class="price" data-price>£38.47</span></p></div></a></li><li class="cell" style="--i:4"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/4n0AAeSwbiNqf43k/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Vax Ultra+ 4L Carpet Cleaner Solution, Stain Remover Shampoo, Rose Burst Scent</h3><p class="leaf">Augers</p>
+<p class="priceRow"><span class="price" data-price>£37.41</span></p></div></a></li><li class="cell" style="--i:5"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/zYMAAeSwyJFqfSRU/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Luxury Pamper Gift Set for Her Women Birthday Spa Bath Relaxation Self Care Gift</h3><p class="leaf">Augers</p>
+<p class="priceRow"><span class="price" data-price>£37.32</span></p></div></a></li></ul></section><section class="shelf"><div class="panel"><div>
+<h2 class="name wide">Sporting Goods</h2><p class="meta">6 products &middot; from <span data-price>£33.03</span></p></div>
+<a class="go" href="#">Browse all 6 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+<ul class="rail"><li class="cell" style="--i:0"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/ttcAAeSwtD9qcd3l/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Robert Greene – The Modern Machiavellian Series 5 Books Collection Set</h3><p class="leaf">Balls</p>
+<p class="priceRow"><span class="price" data-price>£37.10</span></p></div></a></li><li class="cell" style="--i:1"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/TQAAAeSwtcBqcgFQ/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">BRITA MAXTRA PRO Pure Performance Water Filter 6 Pack Original Refill</h3><p class="leaf">Balls</p>
+<p class="priceRow"><span class="price" data-price>£34.70</span></p></div></a></li><li class="cell" style="--i:2"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/IAQAAeSw-V9qf4xw/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Behringer UCA222 USB Audio Interface, 2x2 RCA to USB Converter for</h3><p class="leaf">Balls</p>
+<p class="priceRow"><span class="price" data-price>£34.67</span></p></div></a></li><li class="cell" style="--i:3"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/6u0AAeSwOwdqf4vg/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">ASelected Washing Up Bowl, 304 Stainless Steel Large Rectangular 10 Litre</h3><p class="leaf">Balls</p>
+<p class="priceRow"><span class="price" data-price>£34.35</span></p></div></a></li><li class="cell" style="--i:4"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/ikUAAeSwR01qeGhZ/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">45L Foldable Shopping Trolley with Lid Wheels 30KG Pink Utility Cart</h3><p class="leaf">Balls</p>
+<p class="priceRow"><span class="price" data-price>£33.14</span></p></div></a></li><li class="cell" style="--i:5"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/NAoAAeSwrJFqf4yQ/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">HIGH5 Energy Drink - Electrolytes Sport Energy Drink Powder - Isotonic Drink</h3><p class="leaf">Balls</p>
+<p class="priceRow"><span class="price" data-price>£33.03</span></p></div></a></li></ul></section><section class="shelf"><div class="panel"><div>
+<h2 class="name wide">Garden &amp; Patio</h2><p class="meta">4 products &middot; from <span data-price>£28.62</span></p></div>
+<a class="go" href="#">Browse all 4 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+<ul class="rail"><li class="cell" style="--i:0"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/QQMAAeSwt99qdlhb/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Black Tree Floor Lamp LED 3 Light Adjustable Industrial Standing Lamp</h3><p class="leaf">Artificial plants</p>
+<p class="priceRow"><span class="price" data-price>£32.41</span></p></div></a></li><li class="cell" style="--i:1"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/3z8AAeSwhKZqf4vp/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">#winning Coin Slot Machine Desktop One Armed Bandit Vegas Style Fruit Machine</h3><p class="leaf">Artificial plants</p>
+<p class="priceRow"><span class="price" data-price>£32.36</span></p></div></a></li><li class="cell" style="--i:2"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/m~0AAeSwqvlqfSLv/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Birthday Pamper Gifts for Women, Unique Self Care Package Relaxation Spa Ba KXXP</h3><p class="leaf">Artificial plants</p>
+<p class="priceRow"><span class="price" data-price>£32.13</span></p></div></a></li><li class="cell" style="--i:3"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/2IUAAeSwiodqf4yg/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Thermalright Assassin Spirit 120 Vision ARGB White CPU Air Cooler, PC Cooling</h3><p class="leaf">Artificial plants</p>
+<p class="priceRow"><span class="price" data-price>£31.17</span></p></div></a></li><li class="cell" style="--i:4"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/GW0AAeSwlP5qf4tE/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Always Discreet Pants Plus XL 7CT CSx3</h3><p class="leaf">Artificial plants</p>
+<p class="priceRow"><span class="price" data-price>£31.17</span></p></div></a></li><li class="cell" style="--i:5"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/O9MAAeSwXI1qf4zH/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Rootblast | Super Strength Concentrated Total Weed Killer - Super Strength</h3><p class="leaf">Artificial plants</p>
+<p class="priceRow"><span class="price" data-price>£28.62</span></p></div></a></li></ul></section><section class="shelf"><div class="panel"><div>
+<h2 class="name wide">Pet Supplies</h2><p class="meta">4 products &middot; from <span data-price>£24.08</span></p></div>
+<a class="go" href="#">Browse all 4 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+<ul class="rail"><li class="cell" style="--i:0"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/-8kAAeSwy0Vqf4up/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">JOOLA Match Pro ITTF Approved Allround Competition Table Tennis Bat 4 Stars</h3><p class="leaf">Beds</p>
+<p class="priceRow"><span class="price" data-price>£26.22</span></p></div></a></li><li class="cell" style="--i:1"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/anIAAeSw8Chqf41q/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">WORKPRO 3.6V Electric Screwdriver Set with Offset Drive, 24-Piece Cordless</h3><p class="leaf">Beds</p>
+<p class="priceRow"><span class="price" data-price>£26.17</span></p></div></a></li><li class="cell" style="--i:2"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/~uMAAeSwH-Nqf4un/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Extra Strong Hemp Cream 250ml | Ideal for Back, Knees, Feet, Hands &amp; Joints</h3><p class="leaf">Beds</p>
+<p class="priceRow"><span class="price" data-price>£26.12</span></p></div></a></li><li class="cell" style="--i:3"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/T20AAeSwkB5qcARK/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Ergonomic Pillow Cervical Neck Memory Foam Orthopedic Shoulder Pain Relief</h3><p class="leaf">Beds</p>
+<p class="priceRow"><span class="price" data-price>£25.97</span></p></div></a></li><li class="cell" style="--i:4"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/ON0AAeSwXI1qf4x7/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Salter Mechanical Bathroom Scale – Premium Analogue Body Weight Scale with Large</h3><p class="leaf">Beds</p>
+<p class="priceRow"><span class="price" data-price>£24.92</span></p></div></a></li><li class="cell" style="--i:5"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/70AAAeSw8vxqf4wk/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Pack of 352 Waterproof Car Connectors 1/2/3/4 Pin Quick Connector Cable</h3><p class="leaf">Beds</p>
+<p class="priceRow"><span class="price" data-price>£24.08</span></p></div></a></li></ul></section><section class="shelf"><div class="panel"><div>
+<h2 class="name wide">Everything else</h2><p class="meta">11 products &middot; from <span data-price>£22.43</span></p></div>
+<a class="go" href="#">Browse all 11 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+<ul class="rail"><li class="cell" style="--i:0"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/hdEAAeSwgYVqf4tx/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Pet Corrector Dog Trainer, Help Stop Unwanted Dog Behaviour | 200 ml | Stops</h3><p class="leaf">Coffee beans</p>
+<p class="priceRow"><span class="price" data-price>£23.68</span></p></div></a></li><li class="cell" style="--i:1"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/bwoAAeSwXudqd-YP/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Kids 3 Piece Cotton Christmas Pyjamas Set Unisex Holiday Sleepwear</h3><p class="leaf">Coffee beans</p>
+<p class="priceRow"><span class="price" data-price>£23.58</span></p></div></a></li><li class="cell" style="--i:2"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/3LsAAeSwBJRqfO9l/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Bed Rails for Elderly Adults Adjustable Bed Assist Rail Safety Handle Seniors</h3><p class="leaf">Coffee beans</p>
+<p class="priceRow"><span class="price" data-price>£23.41</span></p></div></a></li><li class="cell" style="--i:3"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/MmMAAeSwPZVqf4x4/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">Grupo Erik Photo Album Self Adhesive - Wild Flowers, 9x12 in - 24x32 cm | 15</h3><p class="leaf">Coffee beans</p>
+<p class="priceRow"><span class="price" data-price>£23.04</span></p></div></a></li><li class="cell" style="--i:4"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/53gAAeSwxkhqf4uL/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">CB FUELS 2 X 60L GROWMOOR MULTI-PURPOSE COMPOST</h3><p class="leaf">Coffee beans</p>
+<p class="priceRow"><span class="price" data-price>£22.80</span></p></div></a></li><li class="cell" style="--i:5"><a class="card" href="#"><div class="frame">
+<img class="image" src="https://i.ebayimg.com/images/g/CPkAAeSwsqlqf4zJ/s-l500.jpg" alt=""><span class="flag">Sample</span>
+<button class="save" aria-label="Save"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z"/></svg></button>
+<button class="add" aria-label="Add to basket"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add to basket</span></button></div>
+<div class="body"><h3 class="title">SZMP Solar Fountain with 2000mAh Battery Backup Works in Cloudy, 2026 Upgrade</h3><p class="leaf">Coffee beans</p>
+<p class="priceRow"><span class="price" data-price>£22.43</span></p></div></a></li><li class="cell"><a class="rest" href="#"><span class="restN" data-price>+5</span>
+<span class="restLabel">more in Everything else</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></li></ul></section></div></div>
+</div></body></html>

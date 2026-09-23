@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900&family=Inter:wght@400..700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  body { margin: 0; background: #ece6db; color: #2a2723; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: #98432a; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:hover { color: #ba5a3d; }
+</style>
+</helmet>
+
+<section style="padding: 64px; display: flex; flex-direction: column; gap: 56px;">
+
+  <div style="display: flex; flex-direction: column; gap: 18px; max-width: 900px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #5f584d;">Turn 2 &middot; hero directions &middot; none depends on photography you do not have</div>
+    <h1 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 118%; font-weight: 620; font-size: 60px; line-height: 1.02; letter-spacing: -0.025em;">Three heroes. Structure, colour, or price.</h1>
+    <p style="margin: 0; font-size: 18px; line-height: 1.6; color: #6b6459; max-width: 70ch; text-wrap: pretty;">Each one is a different answer to the same problem: a general store with strong words, weak supplier imagery and a catalogue on its way to a thousand lines. <a href="#2a">2a</a> makes the shop's structure the hero. <a href="#2b">2b</a> makes colour the hero. <a href="#2c">2c</a> makes the price the hero. Desktop first, then the same direction at 375, because that is where the orders will come from.</p>
+  </div>
+
+  <div style="background: #faf6ef; border: 1px solid #d6cab5; border-radius: 14px; padding: 30px 34px; display: flex; flex-direction: column; gap: 22px; max-width: 1240px;">
+    <div style="display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;">
+      <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 30px; letter-spacing: -0.02em;">Six groups, three tones, eighteen departments</div>
+      <div style="font-size: 14px; color: #5f584d;">The answer to growth. Colour codes the group, never the department.</div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px;">
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; flex-direction: column; border-radius: 10px; overflow: hidden;">
+          <div style="height: 34px; background: oklch(0.62 0.105 70);"></div>
+          <div style="height: 34px; background: oklch(0.55 0.11 70);"></div>
+          <div style="height: 34px; background: oklch(0.48 0.10 70);"></div>
+        </div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">House</div>
+        <div style="font-size: 13px; line-height: 1.5; color: #6b6459;">Home, Furniture &amp; DIY. Kitchen. Storage. Cleaning.</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">H 70</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; flex-direction: column; border-radius: 10px; overflow: hidden;">
+          <div style="height: 34px; background: oklch(0.62 0.105 355);"></div>
+          <div style="height: 34px; background: oklch(0.55 0.11 355);"></div>
+          <div style="height: 34px; background: oklch(0.48 0.10 355);"></div>
+        </div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">Body</div>
+        <div style="font-size: 13px; line-height: 1.5; color: #6b6459;">Health &amp; Beauty. Baby. Daily living aids.</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">H 355</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; flex-direction: column; border-radius: 10px; overflow: hidden;">
+          <div style="height: 34px; background: oklch(0.62 0.105 145);"></div>
+          <div style="height: 34px; background: oklch(0.55 0.11 145);"></div>
+          <div style="height: 34px; background: oklch(0.48 0.10 145);"></div>
+        </div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">Outdoors</div>
+        <div style="font-size: 13px; line-height: 1.5; color: #6b6459;">Garden &amp; Patio. Camping. Pest control.</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">H 145, ties to the sage</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; flex-direction: column; border-radius: 10px; overflow: hidden;">
+          <div style="height: 34px; background: oklch(0.62 0.105 250);"></div>
+          <div style="height: 34px; background: oklch(0.55 0.11 250);"></div>
+          <div style="height: 34px; background: oklch(0.48 0.10 250);"></div>
+        </div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">Trade</div>
+        <div style="font-size: 13px; line-height: 1.5; color: #6b6459;">Vehicle Parts. Business, Office &amp; Industrial. Tools.</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">H 250</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; flex-direction: column; border-radius: 10px; overflow: hidden;">
+          <div style="height: 34px; background: oklch(0.62 0.105 200);"></div>
+          <div style="height: 34px; background: oklch(0.55 0.11 200);"></div>
+          <div style="height: 34px; background: oklch(0.48 0.10 200);"></div>
+        </div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">Leisure</div>
+        <div style="font-size: 13px; line-height: 1.5; color: #6b6459;">Sporting Goods. Toys. Media. Stationery.</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">H 200</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; flex-direction: column; border-radius: 10px; overflow: hidden;">
+          <div style="height: 34px; background: oklch(0.62 0.105 300);"></div>
+          <div style="height: 34px; background: oklch(0.55 0.11 300);"></div>
+          <div style="height: 34px; background: oklch(0.48 0.10 300);"></div>
+        </div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 22px; letter-spacing: -0.015em;">Pet</div>
+        <div style="font-size: 13px; line-height: 1.5; color: #6b6459;">Pet Supplies. Aquatics. Wild bird.</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6f6759;">H 300</div>
+      </div>
+
+    </div>
+    <div style="font-size: 14px; line-height: 1.6; color: #6b6459; max-width: 84ch; padding-top: 4px; border-top: 1px solid #e8e0d3;">Six hues at roughly equal spacing, all at one chroma. Departments take a tone step inside their group, so twelve or eighteen departments still read as six places. Terracotta stays out of the set entirely, so it keeps meaning act and nothing else. One measured rule that comes out of building this: any field carrying text below 16px uses the <strong style="font-weight: 600;">deep</strong> tone at 0.48, not the mid tone. White small text on 0.55 lands between 3.0 and 4.0 to one and fails AA on every hue. On 0.48 it clears.</div>
+  </div>
+
+  <div style="display: flex; gap: 64px; align-items: flex-start; flex-wrap: wrap;">
+
+    <div id="2a" style="display: flex; flex-direction: column; gap: 22px; flex: none;">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; background: #2a2723; color: #faf6ef; padding: 4px 10px; border-radius: 6px;">2a</div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 34px; letter-spacing: -0.02em;">The Index</div>
+      </div>
+      <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #6b6459; max-width: 62ch;">The shop's structure is the hero. Argos front-of-catalogue logic: no imagery at all, just the whole shop laid out as a numbered index with counts and a price from. It is the only direction that gets <em>better</em> as the catalogue grows to a thousand, and the only one that is honest about having 78 lines today.</p>
+
+      <div style="width: 1240px; background: #faf6ef; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(42,39,35,0.13);">
+        <div style="background: #1e1c19; padding: 11px 0; display: flex; align-items: center; justify-content: center; gap: 18px;">
+          <div style="font-size: 13px; color: rgba(250,246,239,0.82);">A small UK shop with a very large cupboard</div>
+          <div style="width: 1px; height: 12px; background: rgba(250,246,239,0.28);"></div>
+          <div style="font-size: 13px; font-weight: 600; color: #faf6ef;">Free delivery over &pound;40</div>
+        </div>
+        <div style="background: #faf6ef; border-bottom: 1px solid #e8e0d3; padding: 14px 40px; display: flex; align-items: center; gap: 32px;">
+          <div style="font-family: 'Archivo', sans-serif; font-stretch: 112%; font-weight: 640; font-size: 22px; letter-spacing: -0.02em;">Cart <span style="color: #7a9575;">&amp;</span> Keep</div>
+          <div style="display: flex; gap: 22px; font-size: 15px; color: #2a2723;">
+            <div>House</div><div>Body</div><div>Outdoors</div><div>Trade</div><div>Leisure</div><div>Pet</div>
+          </div>
+          <div style="margin-left: auto; font-size: 14px; color: #6b6459;">Basket &middot; 3</div>
+        </div>
+
+        <div style="padding: 56px 40px 20px; display: flex; gap: 56px; align-items: flex-end;">
+          <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 18px;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #6f6759;">78 lines &middot; six groups &middot; one basket &middot; one delivery</div>
+            <h2 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 118%; font-weight: 620; font-size: 68px; line-height: 0.98; letter-spacing: -0.03em;">Everything for<br />the house.</h2>
+          </div>
+          <div style="flex: 0 1 430px; display: flex; flex-direction: column; gap: 12px; padding-bottom: 6px;">
+            <div style="display: flex; align-items: center; gap: 12px; background: #ffffff; border: 1px solid #9d8764; border-radius: 999px; padding: 16px 22px;">
+              <div style="width: 15px; height: 15px; border: 1.8px solid #6b6459; border-radius: 999px; flex: none;"></div>
+              <div style="font-size: 17px; color: #6b6459;">Search 78 products</div>
+              <div style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759;">/</div>
+            </div>
+            <div style="font-size: 14px; line-height: 1.55; color: #6b6459;">Pans, pet beds, floor lamps, drain unblocker. If it belongs in a house it is probably in here somewhere.</div>
+          </div>
+        </div>
+
+        <div style="padding: 30px 40px 0;">
+          <div style="display: flex; align-items: baseline; gap: 12px; padding-bottom: 12px; border-bottom: 2px solid #2a2723;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #2a2723;">The whole shop</div>
+            <div style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759;">updated every Monday</div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 48px;">
+
+            <div style="display: flex; align-items: center; gap: 16px; padding: 15px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6f6759; width: 22px; flex: none;">01</div>
+              <div style="width: 5px; height: 30px; border-radius: 3px; background: oklch(0.55 0.11 70); flex: none;"></div>
+              <div style="font-size: 19px; font-weight: 500; letter-spacing: -0.01em;">Home, Furniture &amp; DIY</div>
+              <div style="margin-left: auto; display: flex; align-items: baseline; gap: 18px; flex: none;">
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6f6759;">24</div>
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">from &pound;16.81</div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px; padding: 15px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6f6759; width: 22px; flex: none;">02</div>
+              <div style="width: 5px; height: 30px; border-radius: 3px; background: oklch(0.55 0.11 355); flex: none;"></div>
+              <div style="font-size: 19px; font-weight: 500; letter-spacing: -0.01em;">Health &amp; Beauty</div>
+              <div style="margin-left: auto; display: flex; align-items: baseline; gap: 18px; flex: none;">
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6f6759;">15</div>
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">from &pound;17.96</div>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 16px; padding: 15px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6f6759; width: 22px; flex: none;">03</div>
+              <div style="width: 5px; height: 30px; border-radius: 3px; background: oklch(0.55 0.11 250); flex: none;"></div>
+              <div style="font-size: 19px; font-weight: 500; letter-spacing: -0.01em;">Vehicle Parts &amp; Accessories</div>
+              <div style="margin-left: auto; display: flex; align-items: baseline; gap: 18px; flex: none;">
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6f6759;">8</div>
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">from &pound;18.87</div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px; padding: 15px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6f6759; width: 22px; flex: none;">04</div>
+              <div style="width: 5px; height: 30px; border-radius: 3px; background: oklch(0.48 0.10 250); flex: none;"></div>
+              <div style="font-size: 19px; font-weight: 500; letter-spacing: -0.01em;">Business, Office &amp; Industrial</div>
+              <div style="margin-left: auto; display: flex; align-items: baseline; gap: 18px; flex: none;">
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6f6759;">6</div>
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">from &pound;18.23</div>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 16px; padding: 15px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6f6759; width: 22px; flex: none;">05</div>
+              <div style="width: 5px; height: 30px; border-radius: 3px; background: oklch(0.55 0.11 200); flex: none;"></div>
+              <div style="font-size: 19px; font-weight: 500; letter-spacing: -0.01em;">Sporting Goods</div>
+              <div style="margin-left: auto; display: flex; align-items: baseline; gap: 18px; flex: none;">
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6f6759;">6</div>
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">from &pound;19.88</div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px; padding: 15px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6f6759; width: 22px; flex: none;">06</div>
+              <div style="width: 5px; height: 30px; border-radius: 3px; background: oklch(0.55 0.11 145); flex: none;"></div>
+              <div style="font-size: 19px; font-weight: 500; letter-spacing: -0.01em;">Garden &amp; Patio</div>
+              <div style="margin-left: auto; display: flex; align-items: baseline; gap: 18px; flex: none;">
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6f6759;">4</div>
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">from &pound;17.32</div>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 16px; padding: 15px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6f6759; width: 22px; flex: none;">07</div>
+              <div style="width: 5px; height: 30px; border-radius: 3px; background: oklch(0.55 0.11 300); flex: none;"></div>
+              <div style="font-size: 19px; font-weight: 500; letter-spacing: -0.01em;">Pet Supplies</div>
+              <div style="margin-left: auto; display: flex; align-items: baseline; gap: 18px; flex: none;">
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6f6759;">4</div>
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">from &pound;23.68</div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px; padding: 15px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6f6759; width: 22px; flex: none;">08</div>
+              <div style="width: 5px; height: 30px; border-radius: 3px; background: oklch(0.45 0.012 80); flex: none;"></div>
+              <div style="font-size: 19px; font-weight: 500; letter-spacing: -0.01em;">Everything else</div>
+              <div style="margin-left: auto; display: flex; align-items: baseline; gap: 18px; flex: none;">
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6f6759;">11</div>
+                <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 19px; font-variant-numeric: tabular-nums;">from &pound;19.12</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div style="padding: 26px 40px 34px; display: flex; align-items: center; gap: 22px; flex-wrap: wrap;">
+          <div style="font-size: 15px; font-weight: 600; background: #ba5a3d; color: #ffffff; padding: 13px 22px; border-radius: 9px;">Everything in the shop</div>
+          <div style="font-size: 15px; color: #6b6459;">Or tell us what is missing and we will price it up.</div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 24px; align-items: flex-start; padding-top: 8px;">
+        <div style="width: 375px; flex: none; background: #faf6ef; border-radius: 22px; overflow: hidden; box-shadow: 0 8px 28px rgba(42,39,35,0.12);">
+          <div style="background: #1e1c19; padding: 9px 14px; text-align: center; font-size: 12px; color: #faf6ef; font-weight: 600;">Free delivery over &pound;40</div>
+          <div style="padding: 16px 18px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #e8e0d3;">
+            <div style="font-family: 'Archivo', sans-serif; font-stretch: 112%; font-weight: 640; font-size: 19px; letter-spacing: -0.02em;">Cart <span style="color: #7a9575;">&amp;</span> Keep</div>
+            <div style="margin-left: auto; font-size: 13px; color: #6b6459;">Basket &middot; 3</div>
+          </div>
+          <div style="padding: 26px 18px 20px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #6f6759;">78 lines &middot; six groups</div>
+            <h3 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 118%; font-weight: 620; font-size: 40px; line-height: 0.98; letter-spacing: -0.028em;">Everything for the house.</h3>
+            <div style="display: flex; align-items: center; gap: 10px; background: #ffffff; border: 1px solid #9d8764; border-radius: 999px; padding: 14px 18px; min-height: 44px;">
+              <div style="width: 14px; height: 14px; border: 1.8px solid #6b6459; border-radius: 999px; flex: none;"></div>
+              <div style="font-size: 16px; color: #6b6459;">Search 78 products</div>
+            </div>
+          </div>
+          <div style="padding: 6px 18px 20px;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #2a2723; padding-bottom: 10px; border-bottom: 2px solid #2a2723;">The whole shop</div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="width: 4px; height: 26px; border-radius: 2px; background: oklch(0.55 0.11 70); flex: none;"></div>
+              <div style="font-size: 16px; font-weight: 500;">Home, Furniture &amp; DIY</div>
+              <div style="margin-left: auto; font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 16px; font-variant-numeric: tabular-nums; flex: none;">&pound;16.81</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="width: 4px; height: 26px; border-radius: 2px; background: oklch(0.55 0.11 355); flex: none;"></div>
+              <div style="font-size: 16px; font-weight: 500;">Health &amp; Beauty</div>
+              <div style="margin-left: auto; font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 16px; font-variant-numeric: tabular-nums; flex: none;">&pound;17.96</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="width: 4px; height: 26px; border-radius: 2px; background: oklch(0.55 0.11 250); flex: none;"></div>
+              <div style="font-size: 16px; font-weight: 500;">Vehicle Parts</div>
+              <div style="margin-left: auto; font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 16px; font-variant-numeric: tabular-nums; flex: none;">&pound;18.87</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="width: 4px; height: 26px; border-radius: 2px; background: oklch(0.48 0.10 250); flex: none;"></div>
+              <div style="font-size: 16px; font-weight: 500;">Business &amp; Industrial</div>
+              <div style="margin-left: auto; font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 16px; font-variant-numeric: tabular-nums; flex: none;">&pound;18.23</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 13px 0;">
+              <div style="width: 4px; height: 26px; border-radius: 2px; background: oklch(0.55 0.11 200); flex: none;"></div>
+              <div style="font-size: 16px; font-weight: 500;">Sporting Goods</div>
+              <div style="margin-left: auto; font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 16px; font-variant-numeric: tabular-nums; flex: none;">&pound;19.88</div>
+            </div>
+          </div>
+        </div>
+        <div style="width: 300px; flex: none; display: flex; flex-direction: column; gap: 14px; padding-top: 12px;">
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #6f6759;">Why it works on a phone</div>
+          <div style="font-size: 15px; line-height: 1.6; color: #6b6459;">The index is a list, and a list is what a phone is good at. No carousel to swipe, no image to wait for, the whole shop reachable inside one thumb-scroll. Price from does the merchandising that photography cannot.</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #6f6759; padding-top: 8px;">Motion</div>
+          <div style="font-size: 15px; line-height: 1.6; color: #6b6459;">Rows stagger in at 45ms each. The colour bar draws from zero height. On tap the row's colour floods the page as the department loads, so the transition and the wayfinding are the same gesture.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="2b" style="display: flex; flex-direction: column; gap: 22px; flex: none;">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; background: #2a2723; color: #faf6ef; padding: 4px 10px; border-radius: 6px;">2b</div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 34px; letter-spacing: -0.02em;">The Colour Shelf</div>
+      </div>
+      <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #6b6459; max-width: 62ch;">Flying Tiger and Monoprix energy. Six colour fields standing side by side like a shelf wall, group name set in wide Archivo, count underneath. The loudest of the three and the most alive. Panels widen on hover to show their departments, and the whole thing is built from flat colour, so it costs nothing to render and dates slowly.</p>
+
+      <div style="width: 1240px; background: #faf6ef; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(42,39,35,0.13);">
+        <div style="background: #1e1c19; padding: 11px 0; display: flex; align-items: center; justify-content: center; gap: 18px;">
+          <div style="font-size: 13px; color: rgba(250,246,239,0.82);">A small UK shop with a very large cupboard</div>
+          <div style="width: 1px; height: 12px; background: rgba(250,246,239,0.28);"></div>
+          <div style="font-size: 13px; font-weight: 600; color: #faf6ef;">Free delivery over &pound;40</div>
+        </div>
+        <div style="background: #faf6ef; padding: 14px 40px; display: flex; align-items: center; gap: 32px;">
+          <div style="font-family: 'Archivo', sans-serif; font-stretch: 112%; font-weight: 640; font-size: 22px; letter-spacing: -0.02em;">Cart <span style="color: #7a9575;">&amp;</span> Keep</div>
+          <div style="display: flex; gap: 22px; font-size: 15px; color: #2a2723;">
+            <div>House</div><div>Body</div><div>Outdoors</div><div>Trade</div><div>Leisure</div><div>Pet</div>
+          </div>
+          <div style="margin-left: auto; font-size: 14px; color: #6b6459;">Basket &middot; 3</div>
+        </div>
+
+        <div style="display: flex; align-items: stretch;">
+          <div style="flex: 0 0 356px; min-width: 0; padding: 44px 32px 44px 40px; display: flex; flex-direction: column; gap: 20px; justify-content: center;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #6f6759;">Six groups, one basket</div>
+            <h2 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 118%; font-weight: 620; font-size: 46px; line-height: 0.98; letter-spacing: -0.03em;">Pick a<br />cupboard.</h2>
+            <div style="font-size: 16px; line-height: 1.6; color: #6b6459;">Pans, pet beds, floor lamps, drain unblocker. If it belongs in a house it is probably in here somewhere.</div>
+            <div style="display: flex; align-items: center; gap: 12px; background: #ffffff; border: 1px solid #9d8764; border-radius: 999px; padding: 15px 20px;">
+              <div style="width: 15px; height: 15px; border: 1.8px solid #6b6459; border-radius: 999px; flex: none;"></div>
+              <div style="font-size: 16px; color: #6b6459;">Or search 78 products</div>
+            </div>
+          </div>
+
+          <div style="flex: 1 1 auto; min-width: 0; display: flex; align-items: stretch; height: 470px;">
+            <div style="flex: 1; min-width: 0; background: oklch(0.48 0.11 70); padding: 24px 16px; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: #ffffff;">01</div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 88%; font-weight: 620; font-size: 22px; line-height: 0.98; letter-spacing: -0.015em; color: #ffffff;">House</div>
+              <div style="font-size: 13px; font-weight: 500; color: #ffffff;">24 products<br />from &pound;16.81</div>
+            </div>
+            <div style="flex: 1.6; min-width: 0; background: oklch(0.48 0.11 355); padding: 24px 20px; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: #ffffff;">02</div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 104%; font-weight: 620; font-size: 28px; line-height: 0.98; letter-spacing: -0.02em; color: #ffffff;">Body</div>
+              <div style="display: flex; flex-direction: column; gap: 5px; padding-top: 2px;">
+                <div style="font-size: 14px; color: #ffffff; padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.34);">Health &amp; Beauty <span style="font-weight: 600;">15</span></div>
+                <div style="font-size: 14px; color: #ffffff; padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.34);">Baby <span style="font-weight: 600;">6</span></div>
+                <div style="font-size: 14px; color: #ffffff;">Daily living <span style="font-weight: 600;">4</span></div>
+              </div>
+              <div style="font-size: 13px; font-weight: 500; color: #ffffff; padding-top: 4px;">from &pound;17.96</div>
+            </div>
+            <div style="flex: 1; min-width: 0; background: oklch(0.48 0.11 145); padding: 24px 16px; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: #ffffff;">03</div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 88%; font-weight: 620; font-size: 22px; line-height: 0.98; letter-spacing: -0.015em; color: #ffffff;">Outdoors</div>
+              <div style="font-size: 13px; font-weight: 500; color: #ffffff;">4 products<br />from &pound;17.32</div>
+            </div>
+            <div style="flex: 1; min-width: 0; background: oklch(0.48 0.11 250); padding: 24px 16px; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: #ffffff;">04</div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 88%; font-weight: 620; font-size: 22px; line-height: 0.98; letter-spacing: -0.015em; color: #ffffff;">Trade</div>
+              <div style="font-size: 13px; font-weight: 500; color: #ffffff;">14 products<br />from &pound;18.23</div>
+            </div>
+            <div style="flex: 1; min-width: 0; background: oklch(0.48 0.11 200); padding: 24px 16px; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: #ffffff;">05</div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 88%; font-weight: 620; font-size: 22px; line-height: 0.98; letter-spacing: -0.015em; color: #ffffff;">Leisure</div>
+              <div style="font-size: 13px; font-weight: 500; color: #ffffff;">6 products<br />from &pound;19.88</div>
+            </div>
+            <div style="flex: 1; min-width: 0; background: oklch(0.48 0.11 300); padding: 24px 16px; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: #ffffff;">06</div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 88%; font-weight: 620; font-size: 22px; line-height: 0.98; letter-spacing: -0.015em; color: #ffffff;">Pet</div>
+              <div style="font-size: 13px; font-weight: 500; color: #ffffff;">4 products<br />from &pound;23.68</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: #f4efe6; border-top: 1px solid #e8e0d3; padding: 18px 40px; display: flex; align-items: center; gap: 40px;">
+          <div style="font-size: 15px; color: #2a2723;"><strong style="font-weight: 600;">30 days</strong> to change your mind</div>
+          <div style="font-size: 15px; color: #2a2723;"><strong style="font-weight: 600;">No account</strong>, ever</div>
+          <div style="font-size: 15px; color: #2a2723;"><strong style="font-weight: 600;">Stripe</strong> takes the payment</div>
+          <div style="font-size: 15px; color: #2a2723;"><strong style="font-weight: 600;">A person</strong> answers</div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 24px; align-items: flex-start; padding-top: 8px;">
+        <div style="width: 375px; flex: none; background: #faf6ef; border-radius: 22px; overflow: hidden; box-shadow: 0 8px 28px rgba(42,39,35,0.12);">
+          <div style="background: #1e1c19; padding: 9px 14px; text-align: center; font-size: 12px; color: #faf6ef; font-weight: 600;">Free delivery over &pound;40</div>
+          <div style="padding: 16px 18px; display: flex; align-items: center; gap: 14px;">
+            <div style="font-family: 'Archivo', sans-serif; font-stretch: 112%; font-weight: 640; font-size: 19px; letter-spacing: -0.02em;">Cart <span style="color: #7a9575;">&amp;</span> Keep</div>
+            <div style="margin-left: auto; font-size: 13px; color: #6b6459;">Basket &middot; 3</div>
+          </div>
+          <div style="padding: 14px 18px 20px; display: flex; flex-direction: column; gap: 14px;">
+            <h3 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 118%; font-weight: 620; font-size: 42px; line-height: 0.96; letter-spacing: -0.03em;">Pick a cupboard.</h3>
+            <div style="display: flex; align-items: center; gap: 10px; background: #ffffff; border: 1px solid #9d8764; border-radius: 999px; padding: 14px 18px; min-height: 44px;">
+              <div style="width: 14px; height: 14px; border: 1.8px solid #6b6459; border-radius: 999px; flex: none;"></div>
+              <div style="font-size: 16px; color: #6b6459;">Search 78 products</div>
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 0 2px 2px;">
+            <div style="background: oklch(0.48 0.11 70); padding: 18px 16px; min-height: 118px; display: flex; flex-direction: column; justify-content: flex-end; gap: 5px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 96%; font-weight: 620; font-size: 28px; line-height: 0.96; color: #ffffff; letter-spacing: -0.02em;">House</div>
+              <div style="font-size: 12px; font-weight: 500; color: #ffffff;">24 &middot; from &pound;16.81</div>
+            </div>
+            <div style="background: oklch(0.48 0.11 355); padding: 18px 16px; min-height: 118px; display: flex; flex-direction: column; justify-content: flex-end; gap: 5px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 96%; font-weight: 620; font-size: 28px; line-height: 0.96; color: #ffffff; letter-spacing: -0.02em;">Body</div>
+              <div style="font-size: 12px; font-weight: 500; color: #ffffff;">25 &middot; from &pound;17.96</div>
+            </div>
+            <div style="background: oklch(0.48 0.11 145); padding: 18px 16px; min-height: 118px; display: flex; flex-direction: column; justify-content: flex-end; gap: 5px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 96%; font-weight: 620; font-size: 28px; line-height: 0.96; color: #ffffff; letter-spacing: -0.02em;">Outdoors</div>
+              <div style="font-size: 12px; font-weight: 500; color: #ffffff;">4 &middot; from &pound;17.32</div>
+            </div>
+            <div style="background: oklch(0.48 0.11 250); padding: 18px 16px; min-height: 118px; display: flex; flex-direction: column; justify-content: flex-end; gap: 5px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 96%; font-weight: 620; font-size: 28px; line-height: 0.96; color: #ffffff; letter-spacing: -0.02em;">Trade</div>
+              <div style="font-size: 12px; font-weight: 500; color: #ffffff;">14 &middot; from &pound;18.23</div>
+            </div>
+            <div style="background: oklch(0.48 0.11 200); padding: 18px 16px; min-height: 118px; display: flex; flex-direction: column; justify-content: flex-end; gap: 5px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 96%; font-weight: 620; font-size: 28px; line-height: 0.96; color: #ffffff; letter-spacing: -0.02em;">Leisure</div>
+              <div style="font-size: 12px; font-weight: 500; color: #ffffff;">6 &middot; from &pound;19.88</div>
+            </div>
+            <div style="background: oklch(0.48 0.11 300); padding: 18px 16px; min-height: 118px; display: flex; flex-direction: column; justify-content: flex-end; gap: 5px;">
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 96%; font-weight: 620; font-size: 28px; line-height: 0.96; color: #ffffff; letter-spacing: -0.02em;">Pet</div>
+              <div style="font-size: 12px; font-weight: 500; color: #ffffff;">4 &middot; from &pound;23.68</div>
+            </div>
+          </div>
+        </div>
+        <div style="width: 300px; flex: none; display: flex; flex-direction: column; gap: 14px; padding-top: 12px;">
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #6f6759;">Why it works on a phone</div>
+          <div style="font-size: 15px; line-height: 1.6; color: #6b6459;">Six large colour targets, all well over 44px, all reachable without precision. This is the direction that feels most like walking into a shop, and the one that survives being viewed at arm's length on a bus.</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #6f6759; padding-top: 8px;">Motion</div>
+          <div style="font-size: 15px; line-height: 1.6; color: #6b6459;">Panels rise in sequence on load, wide type expanding from 88% to 104% width axis as each lands. Tapping one expands it to fill and carries its colour into the department page. This is where expressive earns its keep.</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #a3402c; padding-top: 8px;">The risk</div>
+          <div style="font-size: 15px; line-height: 1.6; color: #6b6459;">Loud enough that it needs the rest of the shop to hold the line. If the PLP and PDP stay quiet it reads as one great screen followed by a different website.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="2c" style="display: flex; flex-direction: column; gap: 22px; flex: none;">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; background: #2a2723; color: #faf6ef; padding: 4px 10px; border-radius: 6px;">2c</div>
+        <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 34px; letter-spacing: -0.02em;">The Price Board</div>
+      </div>
+      <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #6b6459; max-width: 62ch;">Market stall and print catalogue. The price is the largest thing on the screen at 46px, the image is demoted to a small square, and the whole hero is a board of what is in the shop today. It solves the imagery problem by refusing to depend on it, and it puts the actual proposition, honest prices on dull useful things, at the top of the page.</p>
+
+      <div style="width: 1240px; background: #faf6ef; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(42,39,35,0.13);">
+        <div style="background: #1e1c19; padding: 11px 0; display: flex; align-items: center; justify-content: center; gap: 18px;">
+          <div style="font-size: 13px; color: rgba(250,246,239,0.82);">A small UK shop with a very large cupboard</div>
+          <div style="width: 1px; height: 12px; background: rgba(250,246,239,0.28);"></div>
+          <div style="font-size: 13px; font-weight: 600; color: #faf6ef;">Free delivery over &pound;40</div>
+        </div>
+        <div style="background: #faf6ef; border-bottom: 1px solid #e8e0d3; padding: 14px 40px; display: flex; align-items: center; gap: 32px;">
+          <div style="font-family: 'Archivo', sans-serif; font-stretch: 112%; font-weight: 640; font-size: 22px; letter-spacing: -0.02em;">Cart <span style="color: #7a9575;">&amp;</span> Keep</div>
+          <div style="display: flex; gap: 22px; font-size: 15px; color: #2a2723;">
+            <div>House</div><div>Body</div><div>Outdoors</div><div>Trade</div><div>Leisure</div><div>Pet</div>
+          </div>
+          <div style="margin-left: auto; font-size: 14px; color: #6b6459;">Basket &middot; 3</div>
+        </div>
+
+        <div style="padding: 46px 40px 26px; display: flex; align-items: flex-end; gap: 48px;">
+          <h2 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 118%; font-weight: 620; font-size: 62px; line-height: 0.96; letter-spacing: -0.03em; flex: 1 1 auto;">What things<br />cost here.</h2>
+          <div style="flex: 0 1 400px; display: flex; flex-direction: column; gap: 12px; padding-bottom: 6px;">
+            <div style="font-size: 16px; line-height: 1.55; color: #6b6459;">No account, no was-price, no timer. The number on the shelf is the number you pay, and delivery is free once the basket passes &pound;40.</div>
+            <div style="display: flex; align-items: center; gap: 12px; background: #ffffff; border: 1px solid #9d8764; border-radius: 999px; padding: 14px 20px;">
+              <div style="width: 15px; height: 15px; border: 1.8px solid #6b6459; border-radius: 999px; flex: none;"></div>
+              <div style="font-size: 16px; color: #6b6459;">Search 78 products</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding: 0 40px;">
+          <div style="display: flex; align-items: baseline; gap: 14px; padding-bottom: 10px; border-bottom: 2px solid #2a2723;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #2a2723;">Today in the shop</div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759;">78 lines &middot; new stock every Monday</div>
+            <div style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6f6759;">23 August 2026</div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 44px;">
+
+            <div style="display: flex; align-items: center; gap: 16px; padding: 18px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="width: 54px; height: 54px; border-radius: 8px; flex: none; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.06) 0 1px, transparent 1px 8px); border-left: 4px solid oklch(0.48 0.10 250);"></div>
+              <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+                <div style="font-size: 15px; font-weight: 500; line-height: 1.3;">Cordless electric screwdriver, 24 bits</div>
+                <div style="font-size: 12px; color: #6f6759;">Trade &middot; Screwdrivers</div>
+              </div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 34px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; flex: none;">&pound;26.17</div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 16px; padding: 18px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="width: 54px; height: 54px; border-radius: 8px; flex: none; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.06) 0 1px, transparent 1px 8px); border-left: 4px solid oklch(0.55 0.11 70);"></div>
+              <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+                <div style="font-size: 15px; font-weight: 500; line-height: 1.3;">Non-stick saucepan set, 5 piece</div>
+                <div style="font-size: 12px; color: #6f6759;">House &middot; Pan sets</div>
+              </div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 34px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; flex: none;">&pound;117.24</div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 16px; padding: 18px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="width: 54px; height: 54px; border-radius: 8px; flex: none; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.06) 0 1px, transparent 1px 8px); border-left: 4px solid oklch(0.55 0.11 300);"></div>
+              <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+                <div style="font-size: 15px; font-weight: 500; line-height: 1.3;">Raised cooling dog bed, breathable</div>
+                <div style="font-size: 12px; color: #6f6759;">Pet &middot; Beds</div>
+              </div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 34px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; flex: none;">&pound;43.78</div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 16px; padding: 18px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="width: 54px; height: 54px; border-radius: 8px; flex: none; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.06) 0 1px, transparent 1px 8px); border-left: 4px solid oklch(0.55 0.11 145);"></div>
+              <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+                <div style="font-size: 15px; font-weight: 500; line-height: 1.3;">Wasp and nest killer powder, 300g</div>
+                <div style="font-size: 12px; color: #6f6759;">Outdoors &middot; Pest control</div>
+              </div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 34px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; flex: none;">&pound;19.88</div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 16px; padding: 18px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="width: 54px; height: 54px; border-radius: 8px; flex: none; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.06) 0 1px, transparent 1px 8px); border-left: 4px solid oklch(0.55 0.11 355);"></div>
+              <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+                <div style="font-size: 15px; font-weight: 500; line-height: 1.3;">Neck and shoulder massager shawl</div>
+                <div style="font-size: 12px; color: #6f6759;">Body &middot; Massagers</div>
+              </div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 34px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; flex: none;">&pound;40.00</div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 16px; padding: 18px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="width: 54px; height: 54px; border-radius: 8px; flex: none; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.06) 0 1px, transparent 1px 8px); border-left: 4px solid oklch(0.55 0.11 200);"></div>
+              <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+                <div style="font-size: 15px; font-weight: 500; line-height: 1.3;">Indoor game basketball, size 5</div>
+                <div style="font-size: 12px; color: #6f6759;">Leisure &middot; Balls</div>
+              </div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 34px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; flex: none;">&pound;82.34</div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 16px; padding: 18px 0;">
+              <div style="width: 54px; height: 54px; border-radius: 8px; flex: none; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.06) 0 1px, transparent 1px 8px); border-left: 4px solid oklch(0.55 0.11 70);"></div>
+              <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+                <div style="font-size: 15px; font-weight: 500; line-height: 1.3;">Corner floor lamp, black LED</div>
+                <div style="font-size: 12px; color: #6f6759;">House &middot; Lamps</div>
+              </div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 34px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; flex: none;">&pound;48.01</div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 16px; padding: 18px 0;">
+              <div style="width: 54px; height: 54px; border-radius: 8px; flex: none; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.06) 0 1px, transparent 1px 8px); border-left: 4px solid oklch(0.48 0.10 250);"></div>
+              <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+                <div style="font-size: 15px; font-weight: 500; line-height: 1.3;">Mr Muscle drain unblocker, 500ml</div>
+                <div style="font-size: 12px; color: #6f6759;">Trade &middot; Drain cleaning</div>
+              </div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 34px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; flex: none;">&pound;18.23</div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 16px; padding: 18px 0;">
+              <div style="width: 54px; height: 54px; border-radius: 8px; flex: none; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.06) 0 1px, transparent 1px 8px); border-left: 4px solid oklch(0.45 0.012 80);"></div>
+              <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+                <div style="font-size: 15px; font-weight: 500; line-height: 1.3;">Super strength glue gel, mini trio</div>
+                <div style="font-size: 12px; color: #6f6759;">Everything else &middot; Glues</div>
+              </div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 34px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; flex: none;">&pound;80.11</div>
+            </div>
+
+          </div>
+        </div>
+
+        <div style="padding: 24px 40px 34px; display: flex; align-items: center; gap: 22px; border-top: 1px solid #e8e0d3; margin-top: 16px; flex-wrap: wrap;">
+          <div style="font-size: 15px; font-weight: 600; background: #ba5a3d; color: #ffffff; padding: 13px 22px; border-radius: 9px;">See all 78</div>
+          <div style="font-size: 15px; color: #6b6459;">Sorted by what people keep buying. Nothing here is boosted or sponsored.</div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 24px; align-items: flex-start; padding-top: 8px;">
+        <div style="width: 375px; flex: none; background: #faf6ef; border-radius: 22px; overflow: hidden; box-shadow: 0 8px 28px rgba(42,39,35,0.12);">
+          <div style="background: #1e1c19; padding: 9px 14px; text-align: center; font-size: 12px; color: #faf6ef; font-weight: 600;">Free delivery over &pound;40</div>
+          <div style="padding: 16px 18px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #e8e0d3;">
+            <div style="font-family: 'Archivo', sans-serif; font-stretch: 112%; font-weight: 640; font-size: 19px; letter-spacing: -0.02em;">Cart <span style="color: #7a9575;">&amp;</span> Keep</div>
+            <div style="margin-left: auto; font-size: 13px; color: #6b6459;">Basket &middot; 3</div>
+          </div>
+          <div style="padding: 24px 18px 18px; display: flex; flex-direction: column; gap: 14px;">
+            <h3 style="margin: 0; font-family: 'Archivo', sans-serif; font-stretch: 118%; font-weight: 620; font-size: 42px; line-height: 0.96; letter-spacing: -0.03em;">What things cost here.</h3>
+            <div style="display: flex; align-items: center; gap: 10px; background: #ffffff; border: 1px solid #9d8764; border-radius: 999px; padding: 14px 18px; min-height: 44px;">
+              <div style="width: 14px; height: 14px; border: 1.8px solid #6b6459; border-radius: 999px; flex: none;"></div>
+              <div style="font-size: 16px; color: #6b6459;">Search 78 products</div>
+            </div>
+          </div>
+          <div style="padding: 4px 18px 22px;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #2a2723; padding-bottom: 10px; border-bottom: 2px solid #2a2723;">Today in the shop</div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="width: 46px; height: 46px; border-radius: 7px; flex: none; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.06) 0 1px, transparent 1px 8px); border-left: 3px solid oklch(0.48 0.10 250);"></div>
+              <div style="flex: 1 1 auto; min-width: 0; font-size: 15px; font-weight: 500; line-height: 1.3;">Cordless electric screwdriver, 24 bits</div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 24px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; flex: none;">&pound;26.17</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="width: 46px; height: 46px; border-radius: 7px; flex: none; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.06) 0 1px, transparent 1px 8px); border-left: 3px solid oklch(0.55 0.11 70);"></div>
+              <div style="flex: 1 1 auto; min-width: 0; font-size: 15px; font-weight: 500; line-height: 1.3;">Corner floor lamp, black LED</div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 24px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; flex: none;">&pound;48.01</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid #e8e0d3;">
+              <div style="width: 46px; height: 46px; border-radius: 7px; flex: none; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.06) 0 1px, transparent 1px 8px); border-left: 3px solid oklch(0.55 0.11 145);"></div>
+              <div style="flex: 1 1 auto; min-width: 0; font-size: 15px; font-weight: 500; line-height: 1.3;">Wasp and nest killer powder, 300g</div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 24px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; flex: none;">&pound;19.88</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 14px 0;">
+              <div style="width: 46px; height: 46px; border-radius: 7px; flex: none; background: #f4efe6 repeating-linear-gradient(135deg, rgba(42,39,35,0.06) 0 1px, transparent 1px 8px); border-left: 3px solid oklch(0.55 0.11 300);"></div>
+              <div style="flex: 1 1 auto; min-width: 0; font-size: 15px; font-weight: 500; line-height: 1.3;">Raised cooling dog bed</div>
+              <div style="font-family: 'Archivo', sans-serif; font-stretch: 100%; font-weight: 640; font-size: 24px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; flex: none;">&pound;43.78</div>
+            </div>
+          </div>
+        </div>
+        <div style="width: 300px; flex: none; display: flex; flex-direction: column; gap: 14px; padding-top: 12px;">
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #6f6759;">Why it works on a phone</div>
+          <div style="font-size: 15px; line-height: 1.6; color: #6b6459;">A price list is the most phone-native layout there is. Rows, no cropping, no swipe, and the number readable without looking closely. It also fills honestly at 78 lines and at 1000.</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #6f6759; padding-top: 8px;">Motion</div>
+          <div style="font-size: 15px; line-height: 1.6; color: #6b6459;">Prices count up from zero on first paint, once. Rows stagger. The board reshuffles with a FLIP transition when sorted, so you watch the shop reorder itself rather than blink.</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #a3402c; padding-top: 8px;">The risk</div>
+          <div style="font-size: 15px; line-height: 1.6; color: #6b6459;">It leads on price, and these prices are cost-plus-margin oddities. The direction needs the rounding conversation settled first or it puts a spotlight on the weakest data in the shop.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="padding: 34px 38px; border-radius: 14px; background: #2a2723; color: #faf6ef; display: flex; gap: 48px; flex-wrap: wrap; max-width: 1240px;">
+    <div style="flex: 1 1 420px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: rgba(250,246,239,0.55);">If you want my pick</div>
+      <div style="font-family: 'Archivo', sans-serif; font-stretch: 108%; font-weight: 620; font-size: 30px; line-height: 1.1; letter-spacing: -0.02em;"><a href="#2b" style="color: #faf6ef;">2b</a> for the homepage, <a href="#2a" style="color: #faf6ef;">2a</a> as the department hero.</div>
+      <div style="font-size: 15px; line-height: 1.6; color: rgba(250,246,239,0.72); max-width: 58ch;">They are not really competing. The Colour Shelf answers "where am I and what is here", which is the homepage job. The Index answers "show me all of it", which is what a department page and the all-departments page need. <a href="#2c" style="color: #faf6ef;">2c</a> is the most distinctive of the three and the one I would come back to once prices are rounded, as a recurring band further down the homepage rather than the hero itself.</div>
+    </div>
+    <div style="flex: 0 1 300px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: rgba(250,246,239,0.55);">Motion tokens to add</div>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.9; color: rgba(250,246,239,0.86);">--dur-large: 420ms<br />--dur-page: 520ms<br />--stagger: 45ms<br />--ease-spring: 0.34, 1.4, 0.64, 1<br />--ease-exit: 0.4, 0, 1, 1</div>
+      <div style="font-size: 14px; line-height: 1.55; color: rgba(250,246,239,0.72);">Expressive needs five more than you have. All of it collapses to a 120ms fade under reduced-motion.</div>
+    </div>
+  </div>
+
+</section>
+
+</x-dc>
+</body>
+</html>
