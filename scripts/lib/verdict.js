@@ -5,7 +5,7 @@
  * behaviour: the file it came from now imports them.
  */
 
-import { D, bandOf, unitsNeeded, priceFloor } from './cost.js';
+import { D, bandOf, unitsNeeded, priceFloor, maxGoodsCost } from './cost.js';
 
 // ------------------------------------------------------------------- verdict
 
@@ -38,9 +38,40 @@ export function verdict(r, c = D) {
   // It costs real evidence. A 99 feedback seller taking 50 units in 20 days
   // sits in a market of 615 and is refused here. Raise --max-listings and
   // raise adRate together, or not at all.
+  /*
+   * Over the ceiling, but selling well enough to argue with.
+   *
+   * The ceiling counts listings and ignores whether any of them sell. Flexitol
+   * heel balm came back at 273 listings moving 133 a month, one sale for every
+   * two listings, with a 156 feedback seller taking 45 in 18 days. That was
+   * refused while thinner markets at 150 listings and 20 sales a month passed.
+   *
+   * So a crowded market where a small seller is proved to be selling is set
+   * aside with its figures rather than refused: she sees the crowding stated
+   * and decides whether to pay for visibility there.
+   *
+   * Three bands. Up to 250 it passes on its own merits. Between 250 and 600,
+   * entry proved sets it aside. Over 600 it fails however well it sells.
+   *
+   * A turnover ratio was tried first and dropped: it was a second test of a
+   * question entry proved already answers, and it was set where almost nothing
+   * cleared it. Persil capsules had a 4 feedback seller selling in a market of
+   * 393 listings, which is the strongest evidence there is that crowding does
+   * not prevent entry, and the ratio refused it at 0.05.
+   */
   if (r.competitors > c.maxListings) {
-    hard.push('crowded', `${r.competitors} live listings, over the ${c.maxListings} ceiling. `
-      + `Page one here costs more than the ${Math.round(c.adRate * 100)}% ad rate allows`);
+    const busy = `${r.competitors} live listings, over the ${c.maxListings} ceiling. `
+      + `Page one here costs more than the ${Math.round(c.adRate * 100)}% ad rate allows`;
+
+    if (r.entry?.proved && r.competitors <= c.crowdedMaxListings) {
+      policy.push(`${busy}. Set aside rather than refused: a ${r.entry.sellerFeedback} `
+        + `feedback seller has sold ${r.entry.soldLifetime} in `
+        + `${Math.round(r.entry.ageDays)} days here, so the crowding is a cost to weigh `
+        + 'rather than a wall');
+      codes.push('crowded_but_selling');
+    } else {
+      hard.push('crowded', busy);
+    }
   }
 
   // Competitor count is deliberately not a veto. A live run found a 628
@@ -130,6 +161,28 @@ export function verdict(r, c = D) {
   }
 
   const outcome = market.length ? 'fail' : (policy.length ? 'review' : 'pass');
+
+  /*
+   * A set aside only stands if nothing else refused the row.
+   *
+   * The crowding decision is made before the market tests run, so a row can be
+   * held for crowding and then fail for being too small. It then carried
+   * crowded_but_selling at the head of its codes, and Coverage read the
+   * refusal as a set aside. Crowding was a refusal on that row, so it is
+   * recorded as one.
+   */
+  if (outcome === 'fail') {
+    const i = codes.indexOf('crowded_but_selling');
+    if (i !== -1) {
+      codes.splice(i, 1);
+      if (!codes.includes('crowded')) codes.unshift('crowded');
+      const j = policy.findIndex((t) => t.includes('Set aside rather than refused'));
+      if (j !== -1) {
+        market.unshift(policy[j].split('. Set aside rather than refused')[0]);
+        policy.splice(j, 1);
+      }
+    }
+  }
 
   return {
     outcome,

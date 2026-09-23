@@ -62,6 +62,12 @@ const REASONS = {
     tip: 'No listing under 90 days old in the sample, so there is no evidence either way, and too many listings competing to find out cheaply. In a thinner market this would still be worth a try.',
     figure: (q) => (q.competitors != null ? `${n(q.competitors)} listings` : null),
   },
+  crowded_but_selling: {
+    short: 'Crowded, but selling',
+    label: 'Crowded, and the shelves are turning anyway',
+    tip: 'Over the 250 listing ceiling, so reaching page one costs more in promoted listings than the pricing allows. It is here rather than refused because a seller your size is selling and the market moves enough to argue with.',
+    figure: (q) => (q.competitors != null ? `${n(q.competitors)} listings` : null),
+  },
   goods_high: {
     short: 'Too dear to stock',
     label: 'The goods cost more than we buy at today',

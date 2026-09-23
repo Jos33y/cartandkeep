@@ -63,16 +63,25 @@ export function parseCsv(text) {
  */
 export function readShelf(path) {
   if (!path) return new Map();
-  if (!fs.existsSync(path)) {
-    console.error(`\n  ${path} not found. Importing without shelf prices.\n`);
-    return new Map();
-  }
   const map = new Map();
+  for (const file of String(path).split(',').map((f) => f.trim()).filter(Boolean)) {
+    if (!fs.existsSync(file)) {
+      console.error(`\n  ${file} not found. Importing without its shelf prices.\n`);
+      continue;
+    }
+    readShelfInto(map, file);
+  }
+  return map;
+}
+
+// Several maps can price the same query; the cheaper shelf is the one to buy from.
+function readShelfInto(map, path) {
   for (const r of parseCsv(fs.readFileSync(path, 'utf8'))) {
     const q = (r.query || '').trim();
     if (!q) continue;
     const price = Number(r.shelf);
     if (!Number.isFinite(price) || price <= 0) continue;
+    if (map.has(q) && map.get(q).price <= price) continue;
     map.set(q, {
       price,
       url: (r.url || '').trim() || null,
@@ -80,7 +89,6 @@ export function readShelf(path) {
       shop: shopFromUrl(r.url),
     });
   }
-  return map;
 }
 
 /*

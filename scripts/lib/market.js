@@ -5,7 +5,7 @@
  * behaviour: the file it came from now imports them.
  */
 
-import { D, stats, bandOf, headroomAt, maxGoodsCost } from './cost.js';
+import { D, stats, bandOf, headroomAt, maxGoodsCost, unitsNeeded } from './cost.js';
 import { search, getItem } from './ebay.js';
 import { readSeller, readBrand, routeOf, readSold, readAge } from './listing.js';
 

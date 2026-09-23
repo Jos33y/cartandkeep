@@ -10,6 +10,7 @@
 // caps at a handful per customer, which cannot be restocked.
 //
 //   node scripts/shelf-queries.js --csv=scripts/shelf-hb.csv --out=scripts/queries-hb
+//   node scripts/shelf-queries.js --csv=research/shelf/shelf-qdstores.csv,research/shelf/shelf-savers.csv --out=research/queries/queries-shops
 //   node scripts/shelf-queries.js --csv=scripts/shelf-hb-seasonal.csv \\
 //     --done=scripts/shelf-hb.csv --done-map=scripts/queries-hb-map.csv \\
 //     --out=scripts/queries-hb-seasonal
@@ -36,14 +37,9 @@ const MIN_QTY = Number(args['min-qty'] || 4)
 // is a market; the first is a supermarket aisle.
 const ORDER = String(args.order || 'price')
 
-// Food, drink and clothing. Perishable, heavy for the money, or sized, and
-// every one of them is a market of supermarkets. --all keeps them.
-const SKIP_CATEGORY = /chocolate|sweets|crisps|biscuit|snack|treats|groceries|drinks|baking|confection|clothing|nightwear|socks|fashion|baby food|toddler food/i
-
-// Everyday branded toiletries, where Boots and the supermarkets set the price
-// and an eBay listing competes with a shelf down the road. --toiletries keeps
-// them.
-const SKIP_TOILETRIES = /shampoo|conditioner|toothpaste|toothbrush|deodorant|anti-perspirant|shower gel|body wash|bubble bath|hand wash|soap|skin care|face|lip care|hand cream|shaving|razor|sanitary|tampon|hair dye|hair treat|mouthwash|floss|make up|nails|body mist|body spray/i
+// Sizing is the one thing the gate cannot see. Food and toiletries used to be
+// cut here too; Dentastix and Flexitol came from exactly those. --all keeps these.
+const SIZED = /clothing|nightwear|socks|fashion|footwear|shoes|slippers|lingerie|underwear/i
 
 /*
  * The postage band, from the category and the name.
@@ -91,6 +87,41 @@ function readCsv (path) {
   })
 }
 
+/*
+ * Every shelf in the Home Bargains shape the rest of this file reads.
+ * Shopify rows carry variant_id and available; page-data rows carry availability
+ * and a breadcrumb that ends with the product itself.
+ */
+function normalise (r, fileShop) {
+  if ('in_stock' in r && 'id' in r) return { ...r, shop: r.shop || fileShop }
+  const shop = r.shop || fileShop
+  const inStock = 'available' in r
+    ? (r.available === 'false' ? 'no' : 'yes')
+    : (/OutOfStock|SoldOut|Discontinued/i.test(r.availability || '') ? 'no' : 'yes')
+  let category = r.category || ''
+  if (category.includes(' > ')) category = category.split(' > ').filter(c => c !== 'Home' && c !== r.name).join(' > ')
+  if (r.tags) category = [category, r.tags.replace(/\|/g, ', ')].filter(Boolean).join(', ')
+  return {
+    id: `${shop}:${r.variant_id || r.sku || r.url}`,
+    name: r.name || '',
+    price: r.price,
+    unit_price: r.unit_price || '',
+    brand: r.brand || '',
+    max_qty: '',
+    in_stock: inStock,
+    category,
+    url: r.url,
+    shop
+  }
+}
+
+function readShelves (list) {
+  return String(list).split(',').map(s => s.trim()).filter(Boolean).flatMap(file => {
+    const fileShop = (file.match(/shelf-([^\\/]+?)\.csv$/i) || [])[1] || 'shop'
+    return readCsv(file).map(r => normalise(r, fileShop))
+  })
+}
+
 const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`
 
 function writeFiles (rows) {
@@ -117,7 +148,7 @@ function writeFiles (rows) {
     }
   }
 
-  const cols = ['query', 'band', 'brand', 'shelf', 'unit_price', 'max_qty', 'name', 'category', 'url']
+  const cols = ['query', 'band', 'brand', 'shelf', 'unit_price', 'max_qty', 'shop', 'name', 'category', 'url']
   writeFileSync(`${OUT}-map.csv`, [cols.join(','), ...rows.map(r => cols.map(c => esc(r[c])).join(','))].join('\n'))
   console.log(`${OUT}-map.csv  ${live.length} live of ${rows.length} rows`)
   return live
@@ -149,21 +180,21 @@ if (args['from-map']) {
  * category.
  */
 const doneIds = new Set(
-  (args.done ? readCsv(String(args.done)) : []).map(r => r.id).filter(Boolean)
+  (args.done ? readShelves(args.done) : []).map(r => r.id).filter(Boolean)
 )
 const doneQueries = new Set(
-  (args['done-map'] ? readCsv(String(args['done-map'])) : [])
+  (args['done-map'] ? String(args['done-map']).split(',').map(f => f.trim()).filter(Boolean).flatMap(f => readCsv(f)) : [])
     .map(r => (r.query || '').trim()).filter(Boolean)
 )
 
-const rows = readCsv(args.csv || 'scripts/shelf-hb.csv')
+const rows = readShelves(args.csv || 'scripts/shelf-hb.csv')
 if (!rows.length || !('price' in rows[0])) {
   console.error('\n  That file does not look like a collected shelf. Expected a price column.\n')
   process.exit(1)
 }
 
 // Everything from the first size token onwards is size and variant.
-const SIZE = /\b(\d+(\.\d+)?\s?(ml|l|g|kg|cm|mm|litre|litres)|\d+\s?(s|pk|pack|pads|tabs|tablets|washes|sheets|wipes|pouches|rolls|capsules|pods)|x\s?\d+|\d+\s?x\s?\d+)\b/i
+const SIZE = /\b(\d+(\.\d+)?\s?(ml|l|g|kg|cm|mm|litre|litres)|\d+\s?(s|pk|pack|pads|tabs|tablets|washes|sheets|wipes|pouches|rolls|capsules|pods|sticks|chews|pcs|pieces|count|sachets)|x\s?\d+|\d+\s?x\s?\d+)\b/i
 const JOINERS = new Set(['and', 'the', 'with', 'for', 'of', 'in', 'to', 'a', 'an', 'plus'])
 
 function words (name) {
@@ -175,7 +206,7 @@ function words (name) {
     .filter(w => !JOINERS.has(w))
 }
 
-const refused = { done: 0, category: 0, toiletries: 0, price: 0, capped: 0, stock: 0, short: 0 }
+const refused = { done: 0, sized: 0, price: 0, capped: 0, stock: 0, short: 0 }
 const drafted = new Map()
 
 for (const r of rows) {
@@ -183,8 +214,7 @@ for (const r of rows) {
   const cap = r.max_qty === '' ? null : Number(r.max_qty)
 
   if (doneIds.has(r.id)) { refused.done++; continue }
-  if (!args.all && SKIP_CATEGORY.test(r.category || '')) { refused.category++; continue }
-  if (!args.toiletries && !args.all && SKIP_TOILETRIES.test(r.category || '')) { refused.toiletries++; continue }
+  if (!args.all && SIZED.test(r.category || '')) { refused.sized++; continue }
   if (!Number.isFinite(price) || price < MIN || price > MAX) { refused.price++; continue }
   if (r.in_stock === 'no') { refused.stock++; continue }
   // A shop that sells one person three of something cannot restock a listing.
@@ -204,8 +234,13 @@ for (const r of rows) {
   const core = body.slice(-WORDS).join(' ')
   if (core.split(' ').length < 2) { refused.short++; continue }
 
-  for (const q of brand ? [core, `${brand} ${core}`] : [core]) {
-    if (drafted.has(q) || doneQueries.has(q)) continue
+  // A brand missing from the title is the shop's own label, and nobody searches eBay for "b m sideboard".
+  const named = brand && ` ${w.join(' ')} `.includes(` ${brand} `)
+  for (const q of named ? [core, `${brand} ${core}`] : [core]) {
+    if (doneQueries.has(q)) continue
+    // The same product on two shelves drafts one query, priced at the cheaper shop.
+    const prev = drafted.get(q)
+    if (prev && prev.sort <= price) continue
     drafted.set(q, {
       query: q,
       band: bandOf(r),
@@ -213,6 +248,7 @@ for (const r of rows) {
       shelf: price.toFixed(2),
       unit_price: r.unit_price,
       max_qty: r.max_qty,
+      shop: r.shop,
       name: r.name,
       category: r.category,
       url: r.url,
@@ -228,8 +264,7 @@ console.log(`\n${rows.length} shelf products`)
 if (doneIds.size || doneQueries.size) {
   console.log(`  ${refused.done} already scanned, from ${doneIds.size} products and ${doneQueries.size} queries done before`)
 }
-console.log(`  ${refused.category} in a department we do not sell into`)
-console.log(`  ${refused.toiletries} everyday toiletries, priced by the supermarkets`)
+console.log(`  ${refused.sized} sized, clothing or footwear`)
 console.log(`  ${refused.price} priced outside £${MIN} to £${MAX}`)
 console.log(`  ${refused.stock} out of stock, ${refused.capped} capped under ${MIN_QTY} a customer`)
 console.log(`  ${refused.short} with nothing left after the brand and the size\n`)
@@ -238,4 +273,4 @@ writeFiles(all)
 
 console.log('\nThese are a draft. Correct the query column, blank a row to drop it,')
 console.log(`then rerun with --from-map=${OUT}-map.csv\n`)
-all.slice(0, 30).forEach(r => console.log(`  ${r.query.padEnd(34)} ${String(r.shelf).padStart(6)}  ${r.name.slice(0, 48)}`))
+all.slice(0, 30).forEach(r => console.log(`  ${r.query.padEnd(34)} ${String(r.shelf).padStart(6)}  ${String(r.shop).padEnd(10)} ${r.name.slice(0, 40)}`))

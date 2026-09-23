@@ -76,6 +76,7 @@ async function main() {
   const shelfPath = arg('shelf');
   const productsPath = arg('products');
   const noShops = args.includes('--no-shops');
+  const allowDuplicates = args.includes('--allow-duplicates');
 
   if (!fs.existsSync(csv)) {
     console.error(`\n  ${csv} not found. Run the gate first.\n`);
@@ -300,6 +301,32 @@ async function main() {
     process.exit(1);
   }
 
+  // A query already in another batch is the same card twice in her queue.
+  // This batch's own rows are kept, so a re-import still refreshes them.
+  if (!allowDuplicates) {
+    const { data: prior, error: pErr } = await db
+      .from('candidates')
+      .select('external_ref, batch_id')
+      .eq('tenant_id', tenant.id)
+      .in('external_ref', rows.map((r) => r.external_ref));
+    if (pErr) {
+      console.error(`Duplicate check failed, nothing imported: ${pErr.message}\n`);
+      process.exit(1);
+    }
+    const elsewhere = new Set((prior ?? []).filter((c) => c.batch_id !== existing?.id).map((c) => c.external_ref));
+    if (elsewhere.size) {
+      console.log(`  ${elsewhere.size} already in another batch, not imported again:`);
+      for (const ref of elsewhere) console.log(`    ${ref}`);
+      for (const c of coverage) if (elsewhere.has(c.query)) c.outcome = 'duplicate';
+      rows.splice(0, rows.length, ...rows.filter((r) => !elsewhere.has(r.external_ref)));
+      console.log();
+    }
+    if (!rows.length) {
+      console.error('Everything that passed is already in her queue. Batch not created.\n');
+      process.exit(1);
+    }
+  }
+
   const { data: batch, error: bErr } = await db
     .from('batches')
     .upsert(
@@ -332,6 +359,17 @@ async function main() {
     process.exit(1);
   }
 
+  // A second import into the same date adds to the batch, so the count is read back, not assumed.
+  const { count: total, error: nErr } = await db
+    .from('candidates')
+    .select('external_ref', { count: 'exact', head: true })
+    .eq('batch_id', batch.id);
+  if (nErr) console.error(`Candidate count not refreshed: ${nErr.message}`);
+  else if (total !== rows.length) {
+    const { error: uErr } = await db.from('batches').update({ candidate_count: total }).eq('id', batch.id);
+    if (uErr) console.error(`Candidate count not refreshed: ${uErr.message}`);
+  }
+
   await writeCoverage(db, tenant.id, batch.id, coverage);
 
   const { error: sErr, count } = await db
@@ -343,7 +381,7 @@ async function main() {
   if (sErr) console.error(`Source status not recorded: ${sErr.message}`);
   else if (!count) console.error('No ebay_browse row in tenant_sources. Source panel will read Not run.');
 
-  console.log(`Batch ${deliveredFor} delivered with ${rows.length} candidates.\n`);
+  console.log(`Batch ${deliveredFor} delivered: ${rows.length} imported this run, ${total ?? rows.length} in the batch.\n`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

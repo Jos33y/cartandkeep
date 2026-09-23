@@ -24,7 +24,7 @@ one call to refuse what the gate would spend twenty one on.
 | shelf-hb.js | Collects a shop's whole catalogue: price, unit price, brand, quantity cap |
 | shelf-queries.js | Drafts eBay queries from a shelf, split by postage band, skipping what is already scanned |
 | scan.js | One call per phrase. Refuses over 250 listings, under £3 of goods, over £40, and prices the fee stack eats |
-| gate.js | Samples the live listings and refuses: no small seller converting, market under 10 a month, nothing selling |
+| gate.js | Samples the live listings and refuses: no small seller converting, market under 10 a month, nothing selling. Over 250 listings with entry proved is set aside, not refused, up to 600 |
 | import-gate.js | Puts what passed in front of her with its shelf price, buying ceiling and evidence |
 | import-coverage.js | Writes what was checked and why the rest stopped |
 | refresh-queries.js | Rebuilds a query file from the undecided rows in the database |
@@ -56,6 +56,31 @@ re-exports everything the other scripts import from it.
 | shops.js | Which shops might carry a product |
 | persist.js | Refreshing a live batch and writing its coverage |
 
+## Crowding, in three bands
+
+The 250 listing ceiling is ours, not eBay's: past it, reaching page one costs
+more in promoted listings than the 3% the pricing allows. It counts listings
+and cannot see whether any of them sell, so it is not a wall on its own.
+
+| Listings | Treatment |
+|---|---|
+| up to 250 | judged on its own merits |
+| 250 to 600, entry proved | set aside, with the crowding and the seller stated |
+| 250 to 600, entry not proved | refused |
+| over 600 | refused, however well it sells |
+
+Persil capsules is why. A 4 feedback seller had sold 3 in 28 days in a market
+of 393 listings, which is the strongest evidence there is that crowding does
+not prevent entry, and a straight ceiling refused it.
+
+A turnover ratio was tried first and dropped. It was a second test of a
+question entry proved already answers, and it was set where almost nothing
+cleared it.
+
+**The scan still refuses at 250**, so the middle band only reaches the gate
+when a scan is run with `--max-listings=600`. Raising it sends more phrases to
+the gate at seven calls each, which is a budget decision rather than a rule.
+
 ## Changing a threshold costs nothing
 
 Both the scan and the gate can re-judge what they already measured, so moving a
@@ -69,6 +94,23 @@ node scripts/gate.js --from-snapshot=.gate/<file>.json --band=<band> --csv=<same
 The gate needs the band passed, because a row does not carry its own and every
 ceiling depends on it. Neither writes a new snapshot: a second file at today's
 timestamp would make the next run compare a market with itself.
+
+Pass the thresholds you want tested, not the ones you want to bypass. Running
+the gate at `--max-listings=600` moves the ceiling itself, so crowded markets
+pass silently and the set aside never fires. Leave it at 250 and let the band
+do its work.
+
+## After changing anything under lib/
+
+Run one real query before anything else:
+
+```
+node scripts/gate.js "bed rail for elderly" --sample=6
+```
+
+Seven calls, and it exercises search, sample, read, verdict and worth in one
+go. The split on 23 September passed a module load and a re-judge and still
+shipped two missing imports, because neither path calls assess.
 
 ## probes/
 

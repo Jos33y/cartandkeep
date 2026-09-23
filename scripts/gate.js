@@ -63,7 +63,7 @@ function parseArgs(argv) {
       marketplace: get('marketplace', D.marketplace),
       sample: Number(get('sample', D.sample)),
       maxFeedback: Number(get('max-feedback', D.maxFeedback)),
-      minProfit: Number(get('profit', D.minProfit)),
+      minProfit: Number(get('profit', get('min-profit', D.minProfit))),
       maxListings: Number(get('max-listings', D.maxListings)),
       minMarketPerMonth: Number(get('min-market', D.minMarketPerMonth)),
       minEntrySold: Number(get('min-entry-sold', D.minEntrySold)),
@@ -77,7 +77,6 @@ function parseArgs(argv) {
       youngDays: Number(get('young-days', D.youngDays)),
       minAgeDays: Number(get('min-age', D.minAgeDays)),
       band: get('band', D.band),
-      minProfit: Number(get('min-profit', D.minProfit)),
       categoryIds: get('category', null),
     },
   };
@@ -220,11 +219,14 @@ async function main() {
 
   console.log(`\n${queries.length} queries, ${a.cfg.marketplace}, sampling ${a.cfg.sample} listings each\n`);
 
-  for (const q of queries) {
+  let limited = null;
+  for (const [i, q] of queries.entries()) {
     let r;
     try {
       r = await assess({ access, marketplace: a.cfg.marketplace, q, cfg: a.cfg, probe: a.probe });
     } catch (e) {
+      // Every call after a 429 is refused too, and carrying on left those queries silently ungated.
+      if (/\b429\b/.test(e.message)) { limited = { at: i, message: e.message }; break; }
       console.log(`  ERROR  ${q}  ${e.message}`);
       continue;
     }
@@ -300,6 +302,16 @@ async function main() {
   console.log(`\n${n('pass')} passed, ${n('review')} set aside, ${n('fail')} failed, of ${results.length}. `
     + `Snapshot in ${SNAP_DIR}/${name}\n`);
   console.log('Nothing here is sourced. A pass means she can rank and somebody is buying.\n');
+
+  if (limited) {
+    const rest = queries.slice(limited.at);
+    const restFile = `${String(a.file || 'queries').replace(/\.txt$/i, '')}-rest.txt`;
+    await writeFile(restFile, rest.join('\n') + '\n');
+    console.error(`eBay refused at query ${limited.at + 1} of ${queries.length}: ${limited.message}`);
+    console.error(`That is the daily limit. ${rest.length} not gated, written to ${restFile}.`);
+    console.error('Gate that file after the reset, with a different --csv so this one is kept.\n');
+    process.exit(2);
+  }
 }
 
 // Comparing import.meta.url to a raw argv path is a Windows trap: file:///C:/...

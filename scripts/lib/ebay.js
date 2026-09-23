@@ -57,6 +57,8 @@ export async function search({ access, marketplace, q, limit, categoryIds, filte
 export async function getItem({ access, marketplace, itemId }) {
   const url = new URL(`${BROWSE}/item/${encodeURIComponent(itemId)}`);
   const res = await paced(() => fetch(url, { headers: authHeaders(access, marketplace) }));
+  // A 429 mid-query would otherwise judge the query on the listings read before it.
+  if (res.status === 429) throw new Error(`browse item 429 for ${itemId}`);
   if (!res.ok) return { error: `${res.status}` };
   return res.json();
 }

@@ -7,6 +7,7 @@
 
 export const REFUSAL_TEXT = [
   ['no_listings', /nobody is listing this/],
+  ['crowded_but_selling', /Set aside rather than refused: a \d+ /],
   ['crowded', /live listings, over the \d+ ceiling/],
   ['young_not_selling', /recent listings in the sample and none of them are selling/],
   ['nothing_sold', /nothing has sold on any of the sampled listings/],

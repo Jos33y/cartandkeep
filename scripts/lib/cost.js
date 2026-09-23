@@ -16,7 +16,11 @@ export const D = {
   untestedMaxListings: 60, // with no proof either way, only a thin market is worth a try
   minSellingPrices: 3, // fewer than this and the median falls back to the whole field
   youngDays: 90,       // a listing newer than this is a recent entrant
-  maxListings: 250,    // above this, page one costs more than the 3% ad rate
+  maxListings: 250,        // above this, page one costs more than the 3% ad rate
+  // Over the ceiling, up to here, a proved entry is set aside rather than
+  // refused. Beyond it nothing is: a market of two thousand listings can turn
+  // beautifully and still be one she will never be found in.
+  crowdedMaxListings: 600,
   minEntrySold: 2,     // at a month or older. Under a month, one will do
   minEntryPerMonth: 1, // and the target is one to two sales a month per listing
   minMarketPerMonth: 10, // under this the shelf space costs more than it returns
