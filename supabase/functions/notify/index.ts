@@ -710,7 +710,9 @@ Deno.serve(async (req) => {
 
     const providerId = await send(mail.to, mail.subject, mail.html, replyTo);
 
-    await db.from('order_emails').insert({
+    // Upsert, so a success after an earlier failed attempt replaces that row rather than
+    // colliding with it, and the result is read: an unrecorded send is sent again next time.
+    const { error: recordError } = await db.from('order_emails').upsert({
       tenant_id: order.tenant_id,
       order_id: order.id,
       kind,
@@ -719,7 +721,9 @@ Deno.serve(async (req) => {
       identity_complete: identityComplete(trader),
       provider_id: providerId,
       status: 'sent',
-    });
+      error: null,
+    }, { onConflict: 'order_id,kind' });
+    if (recordError) console.error('[notify] sent but not recorded', kind, orderId, recordError.message);
 
     return json({ sent: kind, id: providerId }, 200, origin);
   } catch (err) {

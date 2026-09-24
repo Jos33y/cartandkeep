@@ -1,6 +1,88 @@
 import { useEffect, useId, useState } from 'react';
 import { useStoreSettings, traderGaps, ZONES } from '@hooks/useStoreSettings';
+import { formatGbp } from '@utils/formatGbp';
 import styles from '@styles/pages/portal/settings-page.module.css';
+
+const hour = (h) => {
+  const n = Number(h);
+  if (!Number.isFinite(n) || h === '') return null;
+  return n === 12 ? 'midday' : n < 12 ? `${n}am` : `${n - 12}pm`;
+};
+
+// What the bottom of every receipt carries, drawn from the fields as she types.
+function ReceiptPreview({ t }) {
+  const line = (value, missing) => (value?.trim()
+    ? <span>{value}</span>
+    : <span className={styles.previewMissing}>{missing}</span>);
+  return (
+    <figure className={styles.preview}>
+      <figcaption className={styles.previewLabel}>At the foot of every receipt</figcaption>
+      <div className={styles.paperSlip}>
+        <b>{t.legal_name?.trim() || <span className={styles.previewMissing}>Trading name needed</span>}</b>
+        {t.trading_as?.trim() && t.trading_as !== t.legal_name && <span>trading as {t.trading_as}</span>}
+        {line(t.address, 'Address needed')}
+        {t.company_number?.trim() && <span>Company number <span data-num>{t.company_number}</span></span>}
+        {t.email?.trim() && <span>{t.email}</span>}
+        {t.complaints_url?.trim() && <span>Complaints: {t.complaints_url}</span>}
+        {!t.complaints_url?.trim() && t.email?.trim() && <span>Complaints: {t.email}</span>}
+      </div>
+    </figure>
+  );
+}
+
+// The promise the shop makes, and what a basket of any size would pay.
+function DeliveryPreview({ d }) {
+  const free = Number(d.free_over);
+  const post = Number(d.postage);
+  const [basket, setBasket] = useState(() => (Number.isFinite(free) && free > 0 ? Math.max(5, Math.round(free * 0.8)) : 30));
+  const hasFree = Number.isFinite(free) && free > 0;
+  const pays = hasFree && basket >= free ? 0 : (Number.isFinite(post) ? post : 0);
+  const cut = hour(d.cutoff_hour);
+  const max = Math.max(60, hasFree ? Math.ceil(free * 1.6) : 60);
+
+  return (
+    <figure className={styles.preview}>
+      <figcaption className={styles.previewLabel}>What customers are told</figcaption>
+      <div className={styles.promise}>
+        <p className={styles.promiseMain}>
+          {hasFree ? <>Free UK delivery over <b data-num>{formatGbp(free)}</b></> : <>UK delivery <b data-num>{formatGbp(post || 0)}</b></>}
+        </p>
+        <p className={styles.promiseSub}>
+          {cut ? <>Order by {cut} and it goes out that day. </> : null}
+          {d.transit_max ? <>Arrives in {d.transit_min && d.transit_min !== d.transit_max ? `${d.transit_min} to ` : ''}{d.transit_max} working days.</> : null}
+        </p>
+      </div>
+      <div className={styles.sim}>
+        <label className={styles.simLabel} htmlFor="basket-sim">
+          A basket of <b data-num>{formatGbp(basket)}</b> pays <b data-num data-free={pays === 0 || undefined}>{pays === 0 ? 'nothing' : formatGbp(pays)}</b> for delivery
+        </label>
+        <input id="basket-sim" className={styles.slider} type="range" min="1" max={max} step="1" value={basket}
+          onChange={(e) => setBasket(Number(e.target.value))}
+          style={{ '--fill': `${(basket / max) * 100}%`, '--mark': hasFree ? `${(free / max) * 100}%` : '200%' }} />
+        {hasFree && basket < free && <p className={styles.simNote}><span data-num>{formatGbp(free - basket)}</span> more and delivery is free</p>}
+      </div>
+    </figure>
+  );
+}
+
+function VoicePreview({ v }) {
+  return (
+    <figure className={styles.preview}>
+      <figcaption className={styles.previewLabel}>The top of the home page</figcaption>
+      <div className={styles.heroPreview}>
+        {v.hero_title?.trim()
+          ? <p className={styles.heroTitle}>{v.hero_title}</p>
+          : <p className={styles.heroEmpty}>The shop&apos;s standard headline shows here until you write one.</p>}
+        {v.hero_em?.trim() && <p className={styles.heroEm}>{v.hero_em}</p>}
+        <p className={styles.heroTag}>{v.tagline?.trim() || 'Your tagline'}</p>
+        <p className={styles.heroSocials}>
+          {v.instagram?.trim() && <span>@{v.instagram} on Instagram</span>}
+          {v.tiktok?.trim() && <span>@{v.tiktok} on TikTok</span>}
+        </p>
+      </div>
+    </figure>
+  );
+}
 
 /*
  * The shop half of Settings.
@@ -48,9 +130,9 @@ export function StoreSettings({ tenantId }) {
  * the same idea as the shelf panel on the shop, and it is the reason this reads
  * as a considered screen rather than a stack of boxes.
  */
-function Section({ title, note, state, stateTone, children }) {
+function Section({ title, note, state, stateTone, preview, children }) {
   return (
-    <section className={styles.block}>
+    <section className={styles.block} data-preview={preview ? '' : undefined}>
       <div className={styles.aside}>
         <h2 className={styles.blockLabel}>{title}</h2>
         {note ? <p className={styles.blockNote}>{note}</p> : null}
@@ -59,6 +141,7 @@ function Section({ title, note, state, stateTone, children }) {
         ) : null}
       </div>
       <div className={styles.body}>{children}</div>
+      {preview && <div className={styles.previewCol}>{preview}</div>}
     </section>
   );
 }
@@ -150,6 +233,7 @@ function Trader({ initial, onSave }) {
       note="Your identity as a trader. It appears on your legal pages and on every order confirmation."
       state={gaps.length ? `${gaps.length} missing` : null}
       stateTone="stateMissing"
+      preview={<ReceiptPreview t={s.draft} />}
     >
       {/*
         * Said in the words of the consequence rather than the words of the
@@ -199,11 +283,11 @@ function Trader({ initial, onSave }) {
         {/* Schedule 2 item k, and only if she has one. An invented complaints
             procedure is a term she would then be held to. */}
         <Field
-          label="Complaints page"
-          type="url"
+          label="Where complaints go"
           value={s.draft.complaints_url}
           onChange={s.set('complaints_url')}
-          placeholder="Only if you have one"
+          placeholder="Optional"
+          hint="A page on your site or an email address. Leave empty and complaints go to your support email."
         />
       </div>
 
@@ -217,6 +301,22 @@ function Trader({ initial, onSave }) {
   );
 }
 
+const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
+const DAYS = [1, 2, 3, 4, 5, 6, 7, 10];
+
+function Choice({ label, hint, options, ...rest }) {
+  const id = useId();
+  return (
+    <div className={styles.field}>
+      <label className={styles.label} htmlFor={id}>{label}</label>
+      <select id={id} className={styles.select} {...rest}>
+        {options.map(([v, text]) => <option key={v} value={v}>{text}</option>)}
+      </select>
+      {hint ? <p className={styles.hint}>{hint}</p> : null}
+    </div>
+  );
+}
+
 function Delivery({ initial, onSave }) {
   const s = useSection(initial);
 
@@ -224,6 +324,7 @@ function Delivery({ initial, onSave }) {
     <Section
       title="Delivery"
       note="Read by the basket, the checkout and the confirmation email from the same place, so they cannot disagree."
+      preview={<DeliveryPreview d={s.draft} />}
     >
       <div className={styles.fields}>
         <Field
@@ -244,34 +345,28 @@ function Delivery({ initial, onSave }) {
           onChange={s.set('postage')}
         />
 
-        <Field
-          label="Cutoff"
-          suffix=":00"
-          num
-          inputMode="numeric"
+        <Choice
+          label="Order by"
           value={s.draft.cutoff_hour}
           onChange={s.set('cutoff_hour')}
-          hint="Orders paid before this go out the same day, so make it a time you can reach the post office."
+          options={HOURS.map((h) => [String(h), hour(h)])}
+          hint="Paid before this, it goes out the same day. Pick a time you can reach the post office."
         />
-
-        <Field
-          label="Quickest"
-          suffix="days"
-          num
-          inputMode="numeric"
-          value={s.draft.transit_min}
-          onChange={s.set('transit_min')}
-        />
-
-        <Field
-          label="Longest"
-          suffix="days"
-          num
-          inputMode="numeric"
-          value={s.draft.transit_max}
-          onChange={s.set('transit_max')}
-          hint="This is the one quoted to a customer, because a date that is beaten is better than one that is missed."
-        />
+        <div className={styles.field}>
+          <span className={styles.label}>Arrives in</span>
+          <span className={styles.range}>
+            <select className={styles.select} aria-label="Quickest, in working days" value={s.draft.transit_min} onChange={s.set('transit_min')}>
+              {DAYS.map((d) => <option key={d} value={String(d)}>{d}</option>)}
+            </select>
+            <span>to</span>
+            <select className={styles.select} aria-label="Longest, in working days" value={s.draft.transit_max} onChange={s.set('transit_max')}>
+              {DAYS.map((d) => <option key={d} value={String(d)}>{d}</option>)}
+            </select>
+            <span>working days</span>
+          </span>
+          <p className={styles.hint}>The longer figure is the one quoted: a date beaten is better than one missed.</p>
+          {Number(s.draft.transit_min) > Number(s.draft.transit_max) && <p className={styles.failed}>The quickest is later than the longest.</p>}
+        </div>
       </div>
 
       <Save section={s} onSave={onSave} label="Save delivery" />
@@ -318,8 +413,8 @@ function Zones({ initial, onSave }) {
     <Section
       title="Where it costs more"
       note="Most carriers charge extra for these postcodes and Royal Mail is the exception rather than the rule."
-      state={set === 0 ? 'All zero' : `${set} set`}
-      stateTone={set === 0 ? 'stateMissing' : 'stateSaved'}
+      state={set === 0 ? 'No surcharges set' : `${set} ${set === 1 ? 'surcharge' : 'surcharges'} set`}
+      stateTone={set === 0 ? 'stateNeutral' : 'stateSaved'}
     >
       <div className={styles.rates}>
         {priced.map((z) => (
@@ -380,6 +475,7 @@ function Voice({ initial, onSave }) {
     <Section
       title="What the shop says"
       note="The lines a stranger reads first, and where to find you."
+      preview={<VoicePreview v={s.draft} />}
     >
       <div className={styles.fields}>
         <Field

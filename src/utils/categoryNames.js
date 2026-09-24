@@ -38,8 +38,9 @@ export function resolveName(path, names) {
  * today. An absent mapping is the current behaviour exactly, which is what
  * makes this safe to ship against a live catalogue.
  */
+// Exact match only, so a department's name never spills onto the shelves under it.
 export function displayName(path, names) {
-  const hers = resolveName(path, names);
+  const hers = (names ?? []).find((n) => n.path === path);
   if (hers?.name) return hers.name;
 
   const segments = String(path ?? '').split('|').filter(Boolean);

@@ -62,10 +62,12 @@ export function Facts({ items }) {
   );
 }
 
-export function Tip({ children, label = 'What this means', side }) {
+// place="below" for a tip near the top of a clipped container, where opening upwards would be cut off.
+// tone="light" for a tip sitting on a dark panel, where the ink icon would vanish on hover.
+export function Tip({ children, label = 'What this means', side, place, tone }) {
   const id = useId();
   return (
-    <span className={styles.tip} data-side={side}>
+    <span className={styles.tip} data-side={side} data-place={place} data-tone={tone}>
       <button type="button" className={styles.tipButton} aria-label={label} aria-describedby={id}>
         <Icon name="IconInfo" className={styles.tipIcon} width="14" height="14" />
       </button>

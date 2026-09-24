@@ -116,11 +116,17 @@ Deno.serve(async (req) => {
 
     // A date, not a delete. The record of having left is what stops an import
     // adding them back and is the only evidence the opt out worked.
-    await db.from('store_subscribers')
+    const { error: offError } = await db.from('store_subscribers')
       .update({ unsubscribed_at: new Date().toISOString() })
       .eq('tenant_id', tenant.id)
       .eq('email', email)
       .is('unsubscribed_at', null);
+
+    // Telling somebody they are off the list when the write failed is the one thing this cannot say.
+    if (offError) {
+      console.error('[subscribe] unsubscribe', offError.message);
+      return json({ error: 'That did not go through. Try the link again in a minute.' }, 500, origin);
+    }
 
     // Said the same way whether or not a row moved. Somebody clicking twice
     // should be told they are off the list, not that nothing happened.

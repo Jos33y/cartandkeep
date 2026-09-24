@@ -23,7 +23,7 @@ import { parseEnv, loadEnvFiles, pickCredentials } from './lib/env.js';
 import { token, search, getItem } from './lib/ebay.js';
 import { readSeller, readBrand, brandIsOpen, routeOf, readSold, readAge } from './lib/listing.js';
 import { verdict, worthOf } from './lib/verdict.js';
-import { assess } from './lib/market.js';
+import { assess, entryOf } from './lib/market.js';
 import { SNAP_DIR, priorSnapshot, deltas } from './lib/snapshot.js';
 
 /*
@@ -114,6 +114,10 @@ async function writeCsv(csvPath, results, cfg) {
       JSON.stringify(r.verdict.reasons.join('; ')),
       cell(r.entry?.title), cfg.maxFeedback, r.verdict.codes.join('|'),
       cell(JSON.stringify((r.listings ?? []).map((l) => ({
+        item_id: l.itemId,
+        title: l.title,
+        brand: l.brand,
+        gtin: l.gtin ?? null,
         price: l.priceGbp,
         per_month: l.rateTrusted && l.soldPerDay != null ? Math.round(l.soldPerDay * 300) / 10 : null,
         sold: l.soldLifetime,
@@ -159,7 +163,9 @@ async function main() {
   if (a.fromSnapshot) {
     const snap = JSON.parse(await readFile(a.fromSnapshot, 'utf8'));
     const was = snap.cfg ?? {};
-    const rows = (snap.results ?? []).map((r) => {
+    const rows = (snap.results ?? []).map((saved) => {
+      // Entry is worked out again from the listings the snapshot kept, under today's rules.
+      const r = saved.listings?.length ? { ...saved, entry: entryOf(saved.listings, a.cfg) } : saved;
       const v = verdict(r, a.cfg);
       return { ...r, verdict: v, worth: worthOf(r, a.cfg) };
     });
@@ -220,7 +226,16 @@ async function main() {
   console.log(`\n${queries.length} queries, ${a.cfg.marketplace}, sampling ${a.cfg.sample} listings each\n`);
 
   let limited = null;
+  // Ctrl+C used to throw the whole run away, calls and all. The first press now finishes the
+  // query in hand and saves; a second one quits outright.
+  let interrupted = false;
+  process.on('SIGINT', () => {
+    if (interrupted) process.exit(130);
+    interrupted = true;
+    console.log('\n  Stopping after this query and saving what is done. Ctrl+C again to quit without saving.');
+  });
   for (const [i, q] of queries.entries()) {
+    if (interrupted) { limited = { at: i, message: 'stopped with Ctrl+C', byHand: true }; break; }
     let r;
     try {
       r = await assess({ access, marketplace: a.cfg.marketplace, q, cfg: a.cfg, probe: a.probe });
@@ -307,9 +322,14 @@ async function main() {
     const rest = queries.slice(limited.at);
     const restFile = `${String(a.file || 'queries').replace(/\.txt$/i, '')}-rest.txt`;
     await writeFile(restFile, rest.join('\n') + '\n');
-    console.error(`eBay refused at query ${limited.at + 1} of ${queries.length}: ${limited.message}`);
-    console.error(`That is the daily limit. ${rest.length} not gated, written to ${restFile}.`);
-    console.error('Gate that file after the reset, with a different --csv so this one is kept.\n');
+    if (limited.byHand) {
+      console.error(`Stopped at query ${limited.at + 1} of ${queries.length}. ${rest.length} not gated, written to ${restFile}.`);
+      console.error('Gate that file when ready, with a different --csv so this one is kept.\n');
+    } else {
+      console.error(`eBay refused at query ${limited.at + 1} of ${queries.length}: ${limited.message}`);
+      console.error(`That is the daily limit. ${rest.length} not gated, written to ${restFile}.`);
+      console.error('Gate that file after the reset, with a different --csv so this one is kept.\n');
+    }
     process.exit(2);
   }
 }

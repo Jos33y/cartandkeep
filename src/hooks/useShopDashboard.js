@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@lib/supabase';
-import { blockers, checksUnread, isLive } from '@hooks/useCatalogue';
+import { blockers, checksUnread, isLive, isArchived } from '@hooks/useCatalogue';
+import { summarise } from '@lib/readiness';
 
 /*
  * The screen she opens.
@@ -71,7 +72,11 @@ const EMPTY = {
   jobs: [],
   money: { today: 0, month: 0, lastSameDay: 0, byChannel: [], everSold: false },
   funnel: { looked: 0, saved: 0, basket: 0, bought: 0, lookedLastWeek: 0 },
+  pulse: [],
+  readiness: null,
 };
+
+const PULSE_DAYS = 14;
 
 export function useShopDashboard(tenantId) {
   const [state, setState] = useState(EMPTY);
@@ -84,6 +89,7 @@ export function useShopDashboard(tenantId) {
     const thisWeek = weekStart(today);
     const lastWeek = shiftDays(thisWeek, -7);
     const month = `${today.slice(0, 7)}-01`;
+    const from = shiftDays(today, -(PULSE_DAYS - 1));
 
     const [catalogue, orders, profit, events] = await Promise.all([
       /*
@@ -95,7 +101,7 @@ export function useShopDashboard(tenantId) {
        * Products page already has.
        */
       supabase.from('store_products')
-        .select('id, title, price, image_url, status, is_sample, stock, description, availability, hazard, derived_fields')
+        .select('id, title, price, image_url, images, status, is_sample, stock, description, availability, hazard, derived_fields, category_path, section, landed_cost, returns_class, store_variants ( id, stock, availability )')
         .eq('tenant_id', tenantId),
 
       supabase.from('orders')
@@ -114,7 +120,7 @@ export function useShopDashboard(tenantId) {
       supabase.from('store_events')
         .select('event, created_at')
         .eq('tenant_id', tenantId)
-        .gte('created_at', `${lastWeek}T00:00:00Z`),
+        .gte('created_at', `${from < lastWeek ? from : lastWeek}T00:00:00Z`),
     ]);
 
     const error = catalogue.error ?? orders.error ?? profit.error ?? events.error;
@@ -259,8 +265,25 @@ export function useShopDashboard(tenantId) {
     const rowsThis = (events.data ?? []).filter(inWeek(thisWeek, null));
     const count = (list, name) => list.filter((e) => e.event === name).length;
 
+    const pulse = Array.from({ length: PULSE_DAYS }, (_, i) => {
+      const day = shiftDays(from, i);
+      const on = (e) => londonDay(new Date(e.created_at)) === day;
+      const dayEvents = (events.data ?? []).filter(on);
+      const sold = paid.filter((o) => o.paid_at && londonDay(new Date(o.paid_at)) === day);
+      return {
+        day,
+        looked: count(dayEvents, 'view_product'),
+        basket: count(dayEvents, 'add_to_basket'),
+        sold: sold.length,
+        takings: money(sold.reduce((n, o) => n + Number(o.total ?? 0), 0)),
+        today: day === today,
+      };
+    });
+
     setState({
       status: 'ready',
+      pulse,
+      readiness: summarise(rows.filter((p) => !isArchived(p))),
       error: null,
       live: liveRows.slice(0, 7).map((p) => ({ id: p.id, title: p.title, image_url: p.image_url })),
       split: {

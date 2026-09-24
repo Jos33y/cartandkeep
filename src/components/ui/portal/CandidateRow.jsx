@@ -60,7 +60,21 @@ function evidenceOf(a) {
   if (e.proved) {
     return { icon: 'IconCheck', tone: 'warning', text: `A ${fb(e.seller_feedback)} seller is converting at ${formatGbp(e.price)}, listed at the median` };
   }
+  if (a.entryThin) {
+    return { icon: 'IconInfo', tone: 'warning', text: `A ${fb(e.seller_feedback)} seller has sold ${e.sold_lifetime ?? 'a few'} in ${e.age_days} days, not yet one a month` };
+  }
   return { icon: 'IconInfo', tone: 'warning', text: `Only large accounts selling, smallest ${fb(e.seller_feedback)}` };
+}
+
+// How the shelf product compares with the listing proving the market.
+function matchPill(match) {
+  if (!match) return null;
+  if (match.level === 'same_product_same_pack') return { tone: 'positive', text: 'Same pack as eBay' };
+  if (match.level === 'same_product_different_pack' && match.shelf && match.ebay) {
+    return { tone: 'warning', text: `Shelf ${match.shelf.n}, eBay ${match.ebay.n}` };
+  }
+  if (match.level === 'different_product') return { tone: 'warning', text: 'Different product on eBay' };
+  return null;
 }
 
 export function CandidateRow({
@@ -77,6 +91,7 @@ export function CandidateRow({
   const ev = evidenceOf(a);
   const search = encodeURIComponent(c.title);
   const shelf = a.m.shelf ?? null;
+  const pill = matchPill(a.match);
 
   async function run(fn) {
     setBusy(true);
@@ -121,11 +136,12 @@ export function CandidateRow({
               {ev.text}
             </span>
             {a.packCheck && <span className="pill pill-warning">Check pack size</span>}
+            {pill && <span className={`pill pill-${pill.tone}`}>{pill.text}</span>}
             {c.routes === 'branded' && <span className="pill pill-quiet">Branded</span>}
             {c.routes === 'china' && <span className="pill pill-quiet">Open market</span>}
-            {shelf?.price != null && (
+            {(shelf?.price != null || shelf?.url) && (
               <span className={styles.shelf}>
-                {shelf.shop ?? 'Shelf'} <span data-num>{formatGbp(shelf.price)}</span>
+                {a.shelfIsCost ? '' : 'Seen at '}{shelf.shop ?? 'Shelf'}{shelf.price != null && <> <span data-num>{formatGbp(shelf.price)}</span></>}
               </span>
             )}
           </span>
@@ -170,6 +186,11 @@ export function CandidateRow({
             <>
               <span className={`${styles.none} ${styles.loses}`}>Loses money</span>
               <span className={styles.figFoot}>at <span data-num>{formatGbp(a.entry.price)}</span></span>
+            </>
+          ) : a.entry?.proved && a.goods == null ? (
+            <>
+              <span className={styles.none}>Needs a cost</span>
+              {a.perMonth != null && <span className={styles.figFoot}>{rate(a.perMonth)}</span>}
             </>
           ) : (
             <span className={styles.none}>Not proved</span>
@@ -271,7 +292,7 @@ export function CandidateRow({
               <a className={styles.seen} href={shelf.url} target="_blank" rel="noreferrer noopener">
                 <span className={styles.seenShop}>{shelf.shop ?? 'The shop'}</span>
                 <span className={styles.seenProduct}>{shelf.product}</span>
-                <span className={`figure ${styles.seenPrice}`}>{formatGbp(shelf.price)}</span>
+                {shelf.price != null && <span className={`figure ${styles.seenPrice}`}>{formatGbp(shelf.price)}</span>}
               </a>
             )}
             {a.m.shops?.length > 0 && (
@@ -329,15 +350,22 @@ function Proof({ value, label }) {
 }
 
 function Split({ a }) {
-  if (a.price == null || a.keep == null || a.goods == null || a.fees == null) {
-    return <p className={styles.quietText}>Needs a goods cost and a price.</p>;
+  if (a.price == null || a.fees == null) {
+    return <p className={styles.quietText}>Needs a price.</p>;
   }
+  // With no cost yet, the split is drawn at the most the goods can cost.
+  const costed = a.goods != null && a.keep != null;
+  if (!costed && a.maxGoods == null) {
+    return <p className={styles.quietText}>Needs a goods cost.</p>;
+  }
+  const goods = costed ? a.goods : Math.max(0, a.maxGoods);
+  const keep = costed ? a.keep : Math.round((a.price - a.fees - a.postage - goods) * 100) / 100;
 
   const parts = [
     { key: 'fees', label: 'eBay fees', value: a.fees },
     { key: 'post', label: 'Postage, packing, returns', value: a.postage },
-    { key: 'goods', label: 'Goods', value: a.goods },
-    { key: 'keep', label: 'You keep', value: Math.max(0, a.keep) },
+    { key: 'goods', label: costed ? 'Goods' : 'Goods, at most', value: goods },
+    { key: 'keep', label: 'You keep', value: Math.max(0, keep) },
   ];
   const total = parts.reduce((s, p) => s + p.value, 0) || 1;
 

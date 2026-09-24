@@ -79,16 +79,59 @@ function readShelfInto(map, path) {
   for (const r of parseCsv(fs.readFileSync(path, 'utf8'))) {
     const q = (r.query || '').trim();
     if (!q) continue;
-    const price = Number(r.shelf);
-    if (!Number.isFinite(price) || price <= 0) continue;
-    if (map.has(q) && map.get(q).price <= price) continue;
+    const raw = Number(r.shelf);
+    // A shelf known only by name is still a lead with a link; it just has no price to show.
+    const price = Number.isFinite(raw) && raw > 0 ? raw : null;
+    if (price == null && !(r.url || '').trim()) continue;
+    const prior = map.get(q);
+    if (prior && (price == null || (prior.price != null && prior.price <= price))) continue;
     map.set(q, {
       price,
       url: (r.url || '').trim() || null,
       product: (r.name || '').trim() || null,
+      category: (r.category || '').trim() || null,
+      brand: (r.brand || '').trim() || null,
+      gtin: (r.gtin || '').replace(/\D/g, '') || null,
       shop: shopFromUrl(r.url),
     });
   }
+}
+
+const words = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter((w) => w.length > 1);
+
+// Whole shelves, for a query the map no longer holds because the shelf was re-drafted since.
+export function readShelfProducts(path) {
+  if (!path) return [];
+  return String(path).split(',').map((f) => f.trim()).filter(Boolean).flatMap((file) => {
+    if (!fs.existsSync(file)) {
+      console.error(`\n  ${file} not found. Skipped.\n`);
+      return [];
+    }
+    return parseCsv(fs.readFileSync(file, 'utf8')).map((r) => {
+      const name = (r.name || '').trim();
+      return {
+        product: name,
+        price: Number(r.price) > 0 ? Number(r.price) : null,
+        url: (r.url || '').trim() || null,
+        category: (r.category || '').trim() || null,
+        brand: (r.brand || '').trim() || null,
+        gtin: (r.gtin || '').replace(/\D/g, '') || null,
+        shop: shopFromUrl(r.url),
+        tokens: new Set(words(`${name} ${r.brand || ''}`)),
+        squashed: words(`${name} ${r.brand || ''}`).join(''),
+      };
+    }).filter((p) => p.product && (p.price != null || p.url));
+  });
+}
+
+// Every word of the query in the product name, closest name first, then cheapest.
+export function shelfFor(query, products) {
+  const q = words(query);
+  if (!q.length) return null;
+  const hits = products.filter((p) => q.every((w) => p.tokens.has(w) || p.squashed.includes(w)));
+  hits.sort((a, b) => (a.tokens.size - b.tokens.size) || ((a.price ?? Infinity) - (b.price ?? Infinity)));
+  const best = hits[0];
+  return best ? { price: best.price, url: best.url, product: best.product, category: best.category, brand: best.brand, gtin: best.gtin, shop: best.shop } : null;
 }
 
 /*

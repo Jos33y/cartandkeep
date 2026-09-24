@@ -29,8 +29,9 @@ const args = Object.fromEntries(
 const OUT = args.out || 'scripts/queries-hb'
 const WORDS = Number(args.words || 3)
 const PER_DAY = Number(args['per-day'] || 450)
-const MIN = Number(args.min || 3)
-const MAX = Number(args.max || 40)
+// The shelf price is a lead, not a cost, so it does not decide which products get a query.
+const MIN = Number(args.min || 0)
+const MAX = Number(args.max || Infinity)
 const MIN_QTY = Number(args['min-qty'] || 4)
 // Dearest first. The fee stack takes about £3.62 before a penny of goods, so a
 // £3 product needs the market to pay £10 and a £20 one needs £28. The second
@@ -39,7 +40,11 @@ const ORDER = String(args.order || 'price')
 
 // Sizing is the one thing the gate cannot see. Food and toiletries used to be
 // cut here too; Dentastix and Flexitol came from exactly those. --all keeps these.
-const SIZED = /clothing|nightwear|socks|fashion|footwear|shoes|slippers|lingerie|underwear/i
+const SIZED = /clothing|nightwear|socks|fashion|footwear|shoes|slippers|lingerie|underwear|workwear/i
+// Anything worn because of a need, not a fashion, is a care product first: diabetic slippers,
+// gripper socks, compression stockings, knee supports. Sizing never cuts these.
+const AID = /\b(aids?|mobility|care|elderly|disabled|disability|orthopaedic|orthopedic|diabetic|wide fit|extra wide|swollen|oedema|edema|compression|gripper|non[- ]?slip|anti[- ]?slip|hospital|post[- ]?op|surgical|incontinence|arthritis|arthritic|supports?|braces?|bariatric|daily living|bed socks|dementia|plantar|bunion|pressure relief)\b/i
+const SIZED_NAME = /\b(hoodie|sweatshirt|jacket|trousers|jeans|pyjamas?|pajamas|leggings|nightie|nightdress|onesie|knickers|briefs|boxers|bra|slippers|socks|trainers|size \d+)\b/i
 
 /*
  * The postage band, from the category and the name.
@@ -107,6 +112,7 @@ function normalise (r, fileShop) {
     price: r.price,
     unit_price: r.unit_price || '',
     brand: r.brand || '',
+    gtin: r.gtin || '',
     max_qty: '',
     in_stock: inStock,
     category,
@@ -148,7 +154,7 @@ function writeFiles (rows) {
     }
   }
 
-  const cols = ['query', 'band', 'brand', 'shelf', 'unit_price', 'max_qty', 'shop', 'name', 'category', 'url']
+  const cols = ['query', 'band', 'brand', 'shelf', 'unit_price', 'max_qty', 'shop', 'gtin', 'name', 'category', 'url']
   writeFileSync(`${OUT}-map.csv`, [cols.join(','), ...rows.map(r => cols.map(c => esc(r[c])).join(','))].join('\n'))
   console.log(`${OUT}-map.csv  ${live.length} live of ${rows.length} rows`)
   return live
@@ -193,9 +199,25 @@ if (!rows.length || !('price' in rows[0])) {
   process.exit(1)
 }
 
+// A part or model number: letters with digits (507A, UCA222) or a long number (46580000), never a size like 350ml or 18V.
+const UNIT = /^\d+(\.\d+)?(mm|cm|m|m2|v|w|kw|l|ml|g|kg|pk|pc|pcs|x|in|ft|mah|ah|hz|psi|bar)$/i
+const AMPS = /^\d{1,2}a$/i
+function modelOf (name) {
+  const hits = String(name || '').match(/\b[A-Za-z0-9][A-Za-z0-9-]{2,}\b/g) || []
+  const hit = hits.find(t => {
+    const bare = t.replace(/-/g, '')
+    if (UNIT.test(bare) || AMPS.test(bare)) return false
+    return (/\d/.test(t) && /[A-Za-z]/.test(t) && t.length >= 4) || /^\d{5,10}$/.test(t)
+  })
+  // Region suffixes narrow the eBay search to one seller's listing.
+  return hit ? hit.replace(/-(gb|uk|eu)$/i, '') : null
+}
+
 // Everything from the first size token onwards is size and variant.
 const SIZE = /\b(\d+(\.\d+)?\s?(ml|l|g|kg|cm|mm|litre|litres)|\d+\s?(s|pk|pack|pads|tabs|tablets|washes|sheets|wipes|pouches|rolls|capsules|pods|sticks|chews|pcs|pieces|count|sachets)|x\s?\d+|\d+\s?x\s?\d+)\b/i
 const JOINERS = new Set(['and', 'the', 'with', 'for', 'of', 'in', 'to', 'a', 'an', 'plus'])
+// A colour narrows eBay's match to one seller's listing and says nothing about the market.
+const COLOURS = new Set(['black', 'white', 'grey', 'gray', 'navy', 'blue', 'red', 'pink', 'green', 'beige', 'cream', 'brown', 'silver', 'gold', 'purple', 'yellow', 'orange', 'charcoal', 'teal'])
 
 function words (name) {
   return name.split(SIZE)[0]
@@ -203,7 +225,7 @@ function words (name) {
     .replace(/[^a-z0-9 ]+/g, ' ')
     .split(/\s+/)
     .filter(Boolean)
-    .filter(w => !JOINERS.has(w))
+    .filter(w => !JOINERS.has(w) && !COLOURS.has(w))
 }
 
 const refused = { done: 0, sized: 0, price: 0, capped: 0, stock: 0, short: 0 }
@@ -214,12 +236,16 @@ for (const r of rows) {
   const cap = r.max_qty === '' ? null : Number(r.max_qty)
 
   if (doneIds.has(r.id)) { refused.done++; continue }
-  if (!args.all && SIZED.test(r.category || '')) { refused.sized++; continue }
+  // The name as well: Home Bargains filed ladies pyjamas somewhere that never said clothing.
+  const aid = AID.test(`${r.name || ''} ${r.category || ''}`)
+  if (!args.all && !aid && (SIZED.test(r.category || '') || SIZED_NAME.test(r.name || ''))) { refused.sized++; continue }
   if (!Number.isFinite(price) || price < MIN || price > MAX) { refused.price++; continue }
   if (r.in_stock === 'no') { refused.stock++; continue }
   // A shop that sells one person three of something cannot restock a listing.
   if (cap != null && cap < MIN_QTY) { refused.capped++; continue }
 
+  // Sellers' notes in a title are not the product: "Eligible for VAT relief".
+  r.name = String(r.name || '').replace(/[-/]?\s*(not\s+)?eligible for vat relief/ig, '').replace(/\s{2,}/g, ' ').trim()
   const w = words(r.name)
   // The shelf gives the brand, so it is removed rather than detected.
   const brand = (r.brand || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').trim()
@@ -231,24 +257,36 @@ for (const r of rows) {
   if (!body.length) { refused.short++; continue }
 
   // The product noun ends a retailer title, so it is read from the end.
-  const core = body.slice(-WORDS).join(' ')
-  if (core.split(' ').length < 2) { refused.short++; continue }
+  // An aid's need words lead its name ("diabetic wide fit slippers"), so keep one more.
+  const core = body.slice(-(aid ? WORDS + 1 : WORDS)).join(' ')
+  // One word is too loose on its own, but with a named brand it is the product: "comfycrutch pair".
+  const oneWord = core.split(' ').length < 2
+  if (oneWord && !(brand && ` ${w.join(' ')} `.includes(` ${brand} `))) { refused.short++; continue }
 
   // A brand missing from the title is the shop's own label, and nobody searches eBay for "b m sideboard".
   const named = brand && ` ${w.join(' ')} `.includes(` ${brand} `)
-  for (const q of named ? [core, `${brand} ${core}`] : [core]) {
+  // Forced search is typed as brand and model: "dewalt dch133p1", not "sds hammer drill".
+  const model = modelOf(r.name)
+  // Names read off a sitemap carry no brand field; the first word of a trade name is nearly always it.
+  const lead = named ? brand : (!brand && model ? words(r.name)[0] : null)
+  const extra = model && lead && lead !== model.toLowerCase() ? [`${lead} ${model.toLowerCase()}`] : []
+  const plain = oneWord ? [`${brand} ${core}`] : (named ? [core, `${brand} ${core}`] : [core])
+  for (const q of [...plain, ...extra]) {
     if (doneQueries.has(q)) continue
     // The same product on two shelves drafts one query, priced at the cheaper shop.
     const prev = drafted.get(q)
-    if (prev && prev.sort <= price) continue
+    // A priced shelf beats one known only by name.
+    const rank = (v) => (v > 0 ? v : Infinity)
+    if (prev && rank(prev.sort) <= rank(price)) continue
     drafted.set(q, {
       query: q,
       band: bandOf(r),
       brand: brand && q.startsWith(brand) ? brand : '',
-      shelf: price.toFixed(2),
+      shelf: price > 0 ? price.toFixed(2) : '',
       unit_price: r.unit_price,
       max_qty: r.max_qty,
       shop: r.shop,
+      gtin: r.gtin || '',
       name: r.name,
       category: r.category,
       url: r.url,
@@ -258,14 +296,18 @@ for (const r of rows) {
 }
 
 const all = [...drafted.values()]
-if (ORDER === 'price') all.sort((a, b) => b.sort - a.sort)
+// Nothing is cut on price, but it is scanned in order of how likely it is to be bought: the £3 to £60
+// band first, dearest first, then names with no price, then the rest. A £2,700 boiler fails the goods
+// ceiling at the gate; it should not spend the first calls of the night.
+const tier = (p) => (p >= 3 && p <= 60 ? 0 : p > 0 && p < 3 ? 2 : p > 60 ? 3 : 1)
+if (ORDER === 'price') all.sort((a, b) => tier(a.sort) - tier(b.sort) || b.sort - a.sort)
 
 console.log(`\n${rows.length} shelf products`)
 if (doneIds.size || doneQueries.size) {
   console.log(`  ${refused.done} already scanned, from ${doneIds.size} products and ${doneQueries.size} queries done before`)
 }
 console.log(`  ${refused.sized} sized, clothing or footwear`)
-console.log(`  ${refused.price} priced outside £${MIN} to £${MAX}`)
+console.log(`  ${refused.price} ${MIN || Number.isFinite(MAX) ? `priced outside £${MIN} to £${MAX}` : 'with no price'}`)
 console.log(`  ${refused.stock} out of stock, ${refused.capped} capped under ${MIN_QTY} a customer`)
 console.log(`  ${refused.short} with nothing left after the brand and the size\n`)
 

@@ -100,11 +100,25 @@ function deepMerge(base, patch) {
   return out;
 }
 
+// The row stores free_over, cutoff_hour, transit_min and transit_max, the names the checkout charges by.
+// The shop reads them under its own names, so both always see the same figures.
+function fromStored(store) {
+  const d = store?.delivery;
+  if (!d || typeof d !== 'object') return store;
+  const delivery = { ...d };
+  const names = { free_over: 'freeOver', cutoff_hour: 'cutoffHour', transit_min: 'transitMin', transit_max: 'transitMax' };
+  for (const [stored, used] of Object.entries(names)) {
+    if (d[stored] !== undefined && d[stored] !== null) delivery[used] = Number(d[stored]);
+    delete delivery[stored];
+  }
+  return { ...store, delivery };
+}
+
 export async function loadStoreConfig() {
   if (loaded) return config;
   try {
     const tenant = await loadTenant();
-    config = deepMerge(DEFAULTS, tenant?.store);
+    config = deepMerge(DEFAULTS, fromStored(tenant?.store));
     // These two end up in structured data and in mailto links, so an empty
     // column would produce a shop that emails nobody.
     if (!config.email) config.email = DEFAULTS.email;

@@ -20,6 +20,10 @@ import { D, bandOf, unitsNeeded, priceFloor, maxGoodsCost } from './cost.js';
 //
 // A rule we picked ourselves is not allowed to look like a fact about the world.
 export function verdict(r, c = D) {
+  // An old snapshot may carry entry proved under a looser feedback ceiling. Today's ceiling decides.
+  if (r.entry?.proved && r.entry.sellerFeedback != null && r.entry.sellerFeedback > c.maxFeedback) {
+    r = { ...r, entry: { ...r.entry, proved: false } };
+  }
   const market = [];
   const policy = [];
   const notes = [];
@@ -85,6 +89,16 @@ export function verdict(r, c = D) {
       + `${Math.round(r.entry.ageDays)} days, where ${unitsNeeded(r.entry.ageDays, c)} `
       + 'would be one a month. Somebody bought it, nobody is buying it';
     if (c.requireEntry) hard.push('entry_thin', line); else notes.push(line);
+  } else if (r.entry?.early) {
+    // One or two sales in a listing's first week: too new to prove anything, and too new to refuse on.
+    // Treated like untested: worth a try in a thin market, not in a deep one.
+    const line = `a ${Math.round(r.entry.ageDays)} day old listing from a ${r.entry.sellerFeedback} feedback seller `
+      + `has sold ${r.entry.soldLifetime} already, too new to call`;
+    if (c.requireEntry && r.competitors > c.untestedMaxListings) {
+      hard.push('entry_untested', `${line}, so entry is untested here, against ${r.competitors} listings`);
+    } else {
+      notes.push(line);
+    }
   } else if (r.entry?.sellerFeedback != null) {
     // Somebody recent is selling and they are too big for it to say anything
     // about a hundred feedback account. This is what filled a review queue with
@@ -144,13 +158,17 @@ export function verdict(r, c = D) {
       hard.push('goods_high', `the goods would cost up to £${r.maxGoods.toFixed(2)}, over the `
         + `£${c.goodsCeiling.toFixed(2)} a product is bought at today`);
     } else if (r.maxGoods > 0 && r.maxGoods < c.goodsFloor) {
-      hard.push('goods_low', `the goods would have to cost under £${r.maxGoods.toFixed(2)}, `
-        + `which UK stock rarely does`);
+      // A guess about stock, not a fact about the market: Poundland is full of £1 lines.
+      notes.push(`the goods would have to cost under £${r.maxGoods.toFixed(2)}, cheap stock needed`);
     }
-    if (r.maxGoods <= 0) {
+    if (r.maxGoods + c.minProfit <= 0) {
+      hard.push('below_cost', `at the median of £${r.price.median.toFixed(2)} a sale loses money even with the goods free`);
+    } else if (r.maxGoods <= 0) {
       const floor = priceFloor(c);
-      hard.push('below_cost', `the median price of £${r.price.median.toFixed(2)} does not cover the cost base. `
-        + `As ${bandOf(c).label} it needs £${floor?.toFixed(2)} to leave £${c.minProfit.toFixed(2)}`);
+      // Short of our £2 target, not of the market. Set aside with the figure, never dropped.
+      policy.push(`at the median of £${r.price.median.toFixed(2)} a sale keeps £${(r.maxGoods + c.minProfit).toFixed(2)} `
+        + `before the goods, under the £${c.minProfit.toFixed(2)} target. `
+        + `As ${bandOf(c).label} it needs about £${floor?.toFixed(2)} plus the goods to reach it`);
     } else {
       notes.push(`pay up to £${r.maxGoods.toFixed(2)} for the goods at £${r.price.median.toFixed(2)}, `
         + `${r.price.basis === 'selling'
@@ -161,28 +179,6 @@ export function verdict(r, c = D) {
   }
 
   const outcome = market.length ? 'fail' : (policy.length ? 'review' : 'pass');
-
-  /*
-   * A set aside only stands if nothing else refused the row.
-   *
-   * The crowding decision is made before the market tests run, so a row can be
-   * held for crowding and then fail for being too small. It then carried
-   * crowded_but_selling at the head of its codes, and Coverage read the
-   * refusal as a set aside. Crowding was a refusal on that row, so it is
-   * recorded as one.
-   */
-  if (outcome === 'fail') {
-    const i = codes.indexOf('crowded_but_selling');
-    if (i !== -1) {
-      codes.splice(i, 1);
-      if (!codes.includes('crowded')) codes.unshift('crowded');
-      const j = policy.findIndex((t) => t.includes('Set aside rather than refused'));
-      if (j !== -1) {
-        market.unshift(policy[j].split('. Set aside rather than refused')[0]);
-        policy.splice(j, 1);
-      }
-    }
-  }
 
   return {
     outcome,

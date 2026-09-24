@@ -122,7 +122,13 @@ export function useStoreSettings(tenantId) {
     await load();
   }, [tenantId, load]);
 
-  const saveTrader = useCallback((t) => save({
+  const saveTrader = useCallback((t) => {
+    // A link or an address someone can write to; anything else prints on a receipt as nonsense.
+    const complaints = String(t.complaints_url ?? '').trim();
+    if (complaints && !/^https?:\/\/\S+$/i.test(complaints) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(complaints)) {
+      return Promise.reject(new Error('Where complaints go has to be a web address or an email address.'));
+    }
+    return save({
     trader: {
       legal_name: orNull(t.legal_name),
       trading_as: orNull(t.trading_as),
@@ -131,7 +137,8 @@ export function useStoreSettings(tenantId) {
       email: orNull(t.email),
       complaints_url: orNull(t.complaints_url),
     },
-  }), [save]);
+    });
+  }, [save]);
 
   const saveDelivery = useCallback((d) => save({
     delivery: {

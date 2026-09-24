@@ -1,174 +1,179 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { NewProduct } from '@components/ui/portal/NewProduct';
 import { ProductRow } from '@components/ui/portal/ProductRow';
+import { ProductSheet } from '@components/ui/portal/product/ProductSheet';
+import { StepMark } from '@components/ui/portal/product/StepMark';
+import { PageSkeleton } from '@components/ui/portal/Skeleton';
+import { Tip } from '@components/ui/portal/primitives';
+import { Icon } from '@components/ui/icons';
 import {
   useCatalogue, categoryCounts, isLive, isReady, isBlocked, isArchived,
 } from '@hooks/useCatalogue';
+import { stepsFor, columnsFor, isOpen } from '@lib/readiness';
+import { useCategoryNames } from '@hooks/useCategoryNames';
+import { sectionOf } from '@utils/categories';
 import { loadTenant } from '@lib/tenant';
 import styles from '@styles/pages/portal/products-page.module.css';
-import { PageSkeleton } from '@components/ui/portal/Skeleton';
 
 const FILTERS = [
-  { key: 'ready', label: 'Ready' },
-  { key: 'blocked', label: 'Blocked' },
-  { key: 'live', label: 'Live' },
+  { key: 'ready', label: 'Ready', tone: 'info' },
+  { key: 'blocked', label: 'Blocked', tone: 'negative' },
+  { key: 'live', label: 'Live', tone: 'positive' },
   { key: 'all', label: 'All' },
-  // Last, and only when there is something in it. A chip reading zero
-  // forever on a shop that has never archived anything is furniture.
   { key: 'archived', label: 'Archived' },
 ];
 
+const MATCH = { live: isLive, archived: isArchived, blocked: isBlocked, ready: isReady, all: () => true };
+
+// What the biggest gap card says, per step.
+const GAP = {
+  photo: { all: 'No product has a photograph', one: 'has no photograph', many: 'have no photograph', body: 'Nothing goes live without one.', go: 'Add a photograph to' },
+  price: { all: 'No product has a price', one: 'has no price', many: 'have no price', body: 'Nothing goes live without one.', go: 'Price' },
+  returns: { all: 'Every product has returns to confirm', one: 'has returns to confirm', many: 'have returns to confirm', body: 'A script guessed them, and the customer email quotes the answer.', go: 'Confirm returns on' },
+  checks: { all: 'Every product has contradictions to read', one: 'has supplier contradictions to read', many: 'have supplier contradictions to read', body: 'They cannot go live until someone has read them.', go: 'Read the checks on' },
+  hazard: { all: 'Every product needs its label warning', one: 'needs its label warning', many: 'need their label warning', body: 'The warning on the bottle has to show next to the price.', go: 'Add the warning to' },
+  stock: { all: 'Everything is off sale', one: 'is off sale', many: 'are off sale', body: 'Marked unavailable, or none left.', go: 'Check stock on' },
+  description: { all: 'No product has a description', one: 'has no description', many: 'have no description', body: 'Google will not list a product without one.', go: 'Write one for' },
+  section: { all: 'No product is in a section', one: 'is not in a section', many: 'are not in a section', body: 'They sit in Everything else until you place them.', go: 'Place' },
+  cost: { all: 'No product has a cost', one: 'has no cost', many: 'have no cost', body: 'Without it nothing here can say what a sale earns you.', go: 'Add a cost to' },
+};
+
+// First words of a title, enough to recognise it on a button.
+function shortName(title = '') {
+  const out = [];
+  for (const w of String(title).split(/\s+/)) {
+    if (out.join(' ').length + w.length > 20 && out.length) break;
+    out.push(w.replace(/,$/, ''));
+  }
+  return out.join(' ');
+}
+
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
 export function ProductsPage() {
   const [tenant, setTenant] = useState(undefined);
-  /*
-   * The filter lives in the address, not only in state.
-   *
-   * Every line on the dashboard is a count with a destination, and a link that
-   * lands on the default tab makes her filter again by hand, which is the work
-   * the count was supposed to save. Unknown values fall back to ready rather
-   * than showing an empty screen, because a typed address should not be able to
-   * produce a page that looks broken.
-   */
   const [params, setParams] = useSearchParams();
   const requested = params.get('filter');
   const filter = FILTERS.some((f) => f.key === requested) ? requested : 'ready';
+  const gapKey = params.get('gap');
 
-  const setFilter = (key) => setParams(
-    key === 'ready' ? {} : { filter: key },
-    { replace: true },
-  );
   const [picked, setPicked] = useState(() => new Set());
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(null);
   const [adding, setAdding] = useState(false);
-  // null when nothing is running. A count while it is, so the bar can say where
-  // it has got to rather than sitting on a spinner for four minutes.
   const [drafting, setDrafting] = useState(null);
+  const [open, setOpen] = useState(null);
 
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
-  const {
-    status, rows, counts, reload, publish, unpublish, confirmReturns, saveHazard,
-    saveDescription, saveDetails, saveImages, removeImage, create, saveStock,
-    saveRecord, saveCost, draftCopy, draftMany, discardDraft, acknowledgeChecks,
-    addVariant, saveVariant, removeVariant,
-    // Renamed on the way in, because `archive` alone reads like a noun at the
-    // call site and this page already has a filter called archived.
-    archive: archiveProduct, unarchive: unarchiveProduct,
-  } = useCatalogue(tenant?.id);
+  const catalogue = useCatalogue(tenant?.id);
+  const { status, rows, counts, reload, publish, unpublish, create, draftMany } = catalogue;
+
+  const setView = (next) => {
+    const merged = { filter, gap: gapKey, ...next };
+    const out = {};
+    if (merged.filter && merged.filter !== 'ready') out.filter = merged.filter;
+    if (merged.gap) out.gap = merged.gap;
+    setParams(out, { replace: true });
+  };
 
   const byCategory = useMemo(() => categoryCounts(rows), [rows]);
+  const columns = useMemo(() => columnsFor(rows), [rows]);
+  const working = useMemo(() => rows.filter((r) => !isArchived(r)), [rows]);
 
-  /*
-   * The sections the catalogue actually has, rather than a list somebody typed.
-   * Counted over everything rather than only what is live, because when she is
-   * filing a new product what she wants to know is where its neighbours are.
-   */
-  const categories = useMemo(() => {
-    const seen = new Map();
-    for (const r of rows) {
-      const path = r.category_path;
-      if (!path) continue;
-      const label = String(path).split('|')[0].trim();
-      const entry = seen.get(path) ?? { path, label, count: 0 };
-      entry.count += 1;
-      seen.set(path, entry);
+  const sections = useCategoryNames(tenant?.id);
+  // Departments as the shop sees them, including sections she made that are still empty.
+  const categories = useMemo(() => sections.departments
+    .map((d) => ({ path: d.path, label: d.label, count: d.live })), [sections.departments]);
+  const labels = useMemo(() => new Map(categories.map((c) => [c.path, c.label])), [categories]);
+
+  const tally = useMemo(() => {
+    const t = { done: 0, wait: 0, check: 0, missing: 0 };
+    const byStep = Object.fromEntries(columns.map((c) => [c.key, { done: 0, open: 0, first: null, firstLive: null }]));
+    for (const r of working) {
+      for (const s of stepsFor(r, columns)) {
+        if (s.state === 'none') continue;
+        t[s.state] += 1;
+        const b = byStep[s.key];
+        if (s.state === 'done') b.done += 1;
+        else {
+          b.open += 1;
+          if (!isLive(r) && !b.first) b.first = r.id;
+          if (!b.firstLive) b.firstLive = r.id;
+        }
+      }
     }
-    return [...seen.values()].sort((a, b) => a.label.localeCompare(b.label));
-  }, [rows]);
+    return { ...t, total: t.done + t.wait + t.check + t.missing, byStep };
+  }, [working, columns]);
 
-  /*
-   * Ticked rows that have no draft yet.
-   *
-   * Read off the rows rather than tracked separately, so it corrects itself
-   * when the batch reloads the catalogue and needs nothing remembered between
-   * a run and the screen.
-   */
-  const undrafted = useMemo(
-    () => rows.filter((r) => picked.has(r.id) && !r.derived_fields?.draft),
-    [rows, picked],
-  );
+  // A gate step blocking a draft beats a bigger gap on something already live.
+  const gap = useMemo(() => {
+    const blocking = columns.find((c) => c.gate && tally.byStep[c.key]?.first);
+    if (blocking) return { ...blocking, ...tally.byStep[blocking.key], go: tally.byStep[blocking.key].first };
+    const widest = [...columns].sort((a, b) => tally.byStep[b.key].open - tally.byStep[a.key].open)[0];
+    const s = widest && tally.byStep[widest.key];
+    return s?.open ? { ...widest, ...s, go: s.firstLive } : null;
+  }, [columns, tally]);
 
   const visible = useMemo(() => {
-    if (filter === 'all') return rows;
-    if (filter === 'live') return rows.filter(isLive);
-    if (filter === 'archived') return rows.filter(isArchived);
-    if (filter === 'blocked') return rows.filter(isBlocked);
-    return rows.filter(isReady);
-  }, [rows, filter]);
+    const inFilter = rows.filter(MATCH[filter]);
+    if (!gapKey) return inFilter;
+    return inFilter.filter((r) => isOpen(stepsFor(r, columns).find((s) => s.key === gapKey)?.state));
+  }, [rows, filter, gapKey, columns]);
 
-  /*
-   * A selection carried in from the dashboard.
-   *
-   * "Draft all 69" is a count on another screen, so it arrives here with the
-   * rows already ticked rather than asking her to find them again. Runs once
-   * per arrival: the parameter is dropped immediately, so ticking something off
-   * afterwards is not undone by a re-render.
-   */
+  const shown = useMemo(() => {
+    const out = Object.fromEntries(columns.map((c) => [c.key, { done: 0, open: 0 }]));
+    for (const r of visible) {
+      for (const st of stepsFor(r, columns)) {
+        if (st.state === 'none') continue;
+        if (st.state === 'done') out[st.key].done += 1; else out[st.key].open += 1;
+      }
+    }
+    return out;
+  }, [visible, columns]);
+
+  const undrafted = useMemo(
+    () => rows.filter((r) => picked.has(r.id) && !r.description?.trim() && !r.derived_fields?.draft),
+    [rows, picked],
+  );
+
+  // A selection carried in from the dashboard's "Draft all" count.
   useEffect(() => {
     if (params.get('select') !== 'nocopy' || rows.length === 0) return;
-    setPicked(new Set(rows
-      .filter((r) => !r.description?.trim() && !r.derived_fields?.draft)
-      .map((r) => r.id)));
-    setParams({ filter: 'all' }, { replace: true });
+    setPicked(new Set(rows.filter((r) => !r.description?.trim() && !r.derived_fields?.draft).map((r) => r.id)));
+    setParams({ filter: 'all', ...(gapKey ? { gap: gapKey } : {}) }, { replace: true });
+  }, [params, rows, setParams, gapKey]);
+
+  // Other pages link straight to a product and a step with ?open=<id>&step=<key>.
+  useEffect(() => {
+    const id = params.get('open');
+    if (!id || rows.length === 0) return;
+    if (rows.some((r) => r.id === id)) setOpen({ id, step: params.get('step') });
+    const rest = Object.fromEntries([...params.entries()].filter(([k]) => k !== 'open' && k !== 'step'));
+    setParams(rest, { replace: true });
   }, [params, rows, setParams]);
 
-  // Cleared on every filter change. A selection that survives a filter is a
-  // selection that publishes something she cannot see.
-  useEffect(() => { setPicked(new Set()); }, [filter]);
+  // A selection that survives a filter change publishes things she cannot see.
+  useEffect(() => { setPicked(new Set()); }, [filter, gapKey]);
 
-  function select(id, on) {
-    setPicked((current) => {
-      const next = new Set(current);
-      if (on) next.add(id); else next.delete(id);
-      return next;
-    });
-  }
+  const select = (id, on) => setPicked((current) => {
+    const next = new Set(current);
+    if (on) next.add(id); else next.delete(id);
+    return next;
+  });
 
-  /*
-   * Everything visible, live included.
-   *
-   * Live rows were excluded here and their tick box was disabled, so the Live
-   * tab had no bar at all and pulling a batch of products off sale meant
-   * opening every row. Taking something down is as much a bulk action as
-   * putting it up, and it is the one you want most when something is wrong.
-   */
-  const selectable = visible;
+  const pickedLive = rows.filter((r) => picked.has(r.id) && isLive(r));
+  const pickedDraft = rows.filter((r) => picked.has(r.id) && !isLive(r) && !isArchived(r));
+  const allPicked = visible.length > 0 && visible.every((p) => picked.has(p.id));
 
-  // Split at the point of acting rather than at the point of ticking, so a
-  // mixed selection does the right thing with each half instead of refusing.
-  const pickedLive = useMemo(
-    () => rows.filter((r) => picked.has(r.id) && isLive(r)),
-    [rows, picked],
-  );
-  const pickedDraft = useMemo(
-    () => rows.filter((r) => picked.has(r.id) && !isLive(r)),
-    [rows, picked],
-  );
-  const allPicked = selectable.length > 0 && selectable.every((p) => picked.has(p.id));
-
-  /*
-   * Drafting a selection, which is not shaped like the other bulk actions.
-   *
-   * `go` clears the selection on success and reports one failure. This runs for
-   * minutes, partly succeeds by design, and the rows it worked on are worth
-   * keeping ticked so she can go straight to reading them. So it keeps the
-   * selection and reports the failures by product name.
-   */
   async function runDrafts() {
-    // Only the ones without a draft. Running over a row that already has one
-    // would replace something she may have read, silently, and the button gave
-    // no way to tell the two apart.
     const ids = undrafted.map((p) => p.id);
     setFailed(null);
     setDrafting({ done: 0, total: ids.length });
-
     try {
       const failures = await draftMany(ids, (done, total) => setDrafting({ done, total }));
-      if (failures.length) {
-        setFailed(`${failures.length} of ${ids.length} did not draft. ${failures.join(' · ')}`);
-      }
+      if (failures.length) setFailed(`${failures.length} of ${ids.length} did not draft: ${failures.join(', ')}`);
     } catch (e) {
       setFailed(e?.message ?? 'The drafts did not run.');
     } finally {
@@ -189,226 +194,290 @@ export function ProductsPage() {
     }
   }
 
-  if (tenant === undefined) {
-    return <PageSkeleton />;
-  }
+  const openSheet = useCallback((id, step = null) => setOpen({ id, step }), []);
+  const reloadSections = sections.reload;
+  const closeSheet = useCallback(() => { setOpen(null); reloadSections(); }, [reloadSections]);
+  const openProduct = open && rows.find((r) => r.id === open.id);
+
+  if (tenant === undefined) return <PageSkeleton />;
 
   if (status === 'error') {
     return (
-      <div className={styles.empty}>
-        <h1 className={styles.emptyTitle}>The catalogue did not load</h1>
-        <p className={styles.emptyBody}>Reload the page. If it happens again, send me a note.</p>
-        <button type="button" className={styles.retry} onClick={reload}>Try again</button>
+      <div className={styles.failure}>
+        <h1 className={styles.failureTitle}>The catalogue did not load</h1>
+        <p className={styles.failureBody}>Reload the page. If it happens again, send me a note.</p>
+        <button type="button" className={styles.quiet} onClick={reload}>Try again</button>
       </div>
     );
   }
+
+  const gate = columns.filter((c) => c.gate);
+  const rest = columns.filter((c) => !c.gate);
+  const left = tally.total - tally.done;
+  const pct = (n) => `${tally.total ? (n / tally.total) * 100 : 0}%`;
+  const filters = FILTERS.filter((f) => f.key !== 'archived' || counts.archived > 0);
+  const gapCopy = gap && GAP[gap.key];
+
+  const header = (c) => {
+    const s = shown[c.key];
+    const n = s.done + s.open;
+    const on = gapKey === c.key;
+    return (
+      <button key={c.key} type="button" className={styles.col} data-gap={s.open > 0 || undefined}
+        aria-pressed={on} onClick={() => setView({ gap: on ? null : c.key })}
+        title={s.open ? `Show the ${s.open} missing ${c.label.toLowerCase()}` : `${c.label}: all done`}>
+        <span className={styles.colLabel}>{c.label}</span>
+        {n > 0 && (
+          <>
+            <span className={styles.colTrack}><i style={{ width: `${(s.done / n) * 100}%` }} /></span>
+            <span className={styles.colCount} data-num>{s.done}/{n}</span>
+          </>
+        )}
+      </button>
+    );
+  };
 
   return (
     <div className={styles.page}>
       <header className={styles.head}>
         <div>
-          <p className="micro">Your shop</p>
           <h1 className={styles.title}>Products</h1>
+          <p className={styles.sub}>
+            {status === 'loading' ? 'Reading the catalogue'
+              : `${counts.live} on the shop${counts.ready ? `, ${counts.ready} ready to go live` : ''}${counts.blocked ? `, ${counts.blocked} blocked` : ''}. `}
+            {status === 'ready' && (left
+              ? <><span data-num>{left}</span> {left === 1 ? 'step' : 'steps'} from complete.</>
+              : 'Every step is done.')}
+          </p>
         </div>
-
-        <div className={styles.headRight}>
-          <dl className={styles.stats}>
-            <Stat label="Live" value={counts.live} />
-            <Stat label="Ready" value={counts.ready} />
-            <Stat label="Blocked" value={counts.blocked} />
-          </dl>
-
-          <button type="button" className={styles.add} onClick={() => setAdding((v) => !v)}>
-            {adding ? 'Close' : 'Add a product'}
-          </button>
-        </div>
+        <button type="button" className={styles.quiet} onClick={() => setAdding(true)}>
+          <Icon name="IconPlus" width="16" height="16" />
+          Add a product
+        </button>
       </header>
 
       {adding && (
         <NewProduct
           categories={categories}
+          columns={columns}
           onCancel={() => setAdding(false)}
           onCreate={async (fields) => {
-            await create(fields);
+            const id = await create(fields);
             setAdding(false);
-            // Straight to where it landed, which is Blocked with no photograph.
-            setFilter('blocked');
+            setView({ filter: 'blocked', gap: null });
+            if (id) openSheet(id, 'photo');
           }}
         />
       )}
 
-      {counts.live === 0 && (
-        <p className={styles.lead}>
-          Nothing is public yet, so the shop is empty to anyone who is not signed in.
-          Everything under Ready can go live now. Blocked means something on the product
-          would be a claim we cannot stand behind, and the row says which.
-        </p>
+      {status === 'loading' && (
+        <div className={styles.summary} aria-hidden="true">
+          <div className={styles.progress}>
+            <span className={`skeleton ${styles.skFigure}`} />
+            <span className={`skeleton ${styles.skMeter}`} />
+            <span className={`skeleton skeleton-line ${styles.skLegend}`} />
+          </div>
+          <div className={styles.next}>
+            <span className="skeleton skeleton-line" />
+            <span className="skeleton skeleton-line" />
+            <span className={`skeleton ${styles.skButton}`} />
+          </div>
+        </div>
       )}
 
-      <div className={styles.filters} role="group" aria-label="Filter products">
-        {FILTERS.map((f) => (
-          <button key={f.key} type="button" aria-pressed={filter === f.key}
-            className={`${styles.chip} ${filter === f.key ? styles.chipOn : ''}`}
-            onClick={() => setFilter(f.key)}>
-            {f.label}
-            <span className={styles.chipCount} data-num>{counts[f.key]}</span>
-          </button>
-        ))}
+      {status === 'ready' && tally.total > 0 && (
+        <section className={styles.summary} aria-label="How complete the catalogue is">
+          <div className={styles.progress}>
+            <p className={styles.progressLine}>
+              <span className={styles.progressFigure} data-num>{tally.done}<small> of {tally.total}</small></span>
+              <span className={styles.progressLabel}>steps done across the catalogue</span>
+            </p>
+            <div className={styles.meter} role="img"
+              aria-label={`${tally.done} done, ${tally.wait} waiting for you, ${tally.check} to read, ${tally.missing} missing`}>
+              <span data-state="done" style={{ width: pct(tally.done) }} />
+              <span data-state="wait" style={{ width: pct(tally.wait) }} />
+              <span data-state="check" style={{ width: pct(tally.check) }} />
+              <span data-state="missing" style={{ width: pct(tally.missing) }} />
+            </div>
+            <ul className={styles.legend}>
+              <li><StepMark state="done" size="sm" /><b data-num>{tally.done}</b> done</li>
+              <li><StepMark state="wait" size="sm" /><b data-num>{tally.wait}</b> waiting for you</li>
+              <li><StepMark state="check" size="sm" /><b data-num>{tally.check}</b> to read</li>
+              <li><StepMark state="missing" size="sm" /><b data-num>{tally.missing}</b> missing</li>
+            </ul>
+          </div>
+
+          {gap && gapCopy && (
+            <div className={styles.next}>
+              <p className="micro">Biggest gap</p>
+              <p className={styles.nextBody}>
+                <strong>
+                  {gap.open === working.length && working.length > 1
+                    ? gapCopy.all
+                    : `${plural(gap.open, 'product')} ${gap.open === 1 ? gapCopy.one : gapCopy.many}`}.
+                </strong>{' '}
+                {gapCopy.body}
+              </p>
+              <button type="button" className={styles.go} onClick={() => openSheet(gap.go, gap.key)}>
+                {gapCopy.go} {shortName(rows.find((r) => r.id === gap.go)?.title)}
+              </button>
+            </div>
+          )}
+        </section>
+      )}
+
+      <div className={styles.toolbar}>
+        <div className={styles.tabs} role="group" aria-label="Filter products">
+          {filters.map((f) => (
+            <button key={f.key} type="button" aria-pressed={filter === f.key}
+              className={styles.tab} onClick={() => setView({ filter: f.key })}>
+              {f.tone && <i className={styles.dot} data-tone={f.tone} aria-hidden="true" />}
+              {f.label}
+              <span className={styles.tabCount} data-num>{counts[f.key]}</span>
+            </button>
+          ))}
+        </div>
+
+        {gapKey && (
+          <span className={styles.gapChip}>
+            Missing {columns.find((c) => c.key === gapKey)?.label.toLowerCase()}, <span data-num>{visible.length}</span>
+            <button type="button" aria-label="Show every step" onClick={() => setView({ gap: null })}>
+              <Icon name="IconX" width="12" height="12" />
+            </button>
+          </span>
+        )}
+
+        <span className={styles.help}>
+          How to read this
+          <Tip label="How to read the grid" side="end">
+            Each square is one step. The first group has to be done before a product can go live; the second
+            finishes the record. Press a square to go straight to it, or a column heading to see only the gaps.
+          </Tip>
+        </span>
       </div>
 
-      {/* Only when there is something to act on. A bar of disabled buttons is
-          furniture on every other screen. */}
-      {selectable.length > 0 && (
-        <div className={styles.bar}>
+      {failed && picked.size === 0 && <p className={styles.error} role="alert">{failed}</p>}
+
+      <div className={styles.ledger} style={{ '--gate': gate.length, '--rest': rest.length }}>
+        <div className={styles.cols}>
           <label className={styles.all}>
-            <input
-              type="checkbox"
-              checked={allPicked}
-              onChange={(e) => setPicked(e.target.checked
-                ? new Set(selectable.map((p) => p.id))
-                : new Set())}
-            />
-            <span>{allPicked ? 'None' : 'All'}</span>
+            <input type="checkbox" checked={allPicked} disabled={visible.length === 0}
+              onChange={(e) => setPicked(e.target.checked ? new Set(visible.map((p) => p.id)) : new Set())} />
+            <span className="visually-hidden">Select every product shown</span>
           </label>
-
-          <span className={styles.chosen} data-num>{picked.size}</span>
-          <span className={styles.chosenLabel}>selected</span>
-
-          {/*
-            * Drafting sits beside taking live rather than above it, and it is
-            * the quieter of the two. Taking a product live is the decision this
-            * screen exists for; asking for a draft is a step towards one.
-            */}
-          {/*
-            * The label counts what is left to do, not what is ticked.
-            *
-            * It read "Draft copy for 3" after all three had drafted, which is
-            * a button offering work that is already finished. Now it counts the
-            * rows in the selection with no draft, and says so when there are
-            * none rather than pretending there is something to press.
-            */}
-          <button
-            type="button"
-            className={styles.ghost}
-            disabled={busy || drafting !== null || undrafted.length === 0}
-            onClick={runDrafts}
-          >
-            {drafting
-              ? `Drafting ${drafting.done} of ${drafting.total}`
-              : undrafted.length === 0
-                ? `${picked.size === 1 ? 'Drafted' : `All ${picked.size} drafted`}`
-                : `Draft copy for ${undrafted.length}`}
-          </button>
-
-          {/* Only when there is something live in the selection. A button that
-              is present and disabled on every draft row is furniture. */}
-          {pickedLive.length > 0 && (
-            <button
-              type="button"
-              className={styles.ghost}
-              disabled={busy || drafting !== null}
-              onClick={() => go(unpublish, pickedLive.map((p) => p.id))}
-            >
-              Take {pickedLive.length} back to draft
-            </button>
-          )}
-
-          {/* Hidden when the selection is live only, rather than shown and
-              disabled. A selection of live products has nothing to take live
-              and a greyed button saying so is noise. It stays visible with
-              nothing ticked, because it is the action this screen is for. */}
-          {!(pickedLive.length > 0 && pickedDraft.length === 0) && (
-            <button
-              type="button"
-              className={styles.primary}
-              disabled={busy || drafting !== null || pickedDraft.length === 0}
-              onClick={() => go(publish, pickedDraft.map((p) => p.id))}
-            >
-              {pickedDraft.length && pickedLive.length
-                ? `Take ${pickedDraft.length} live`
-                : 'Take live'}
-            </button>
-          )}
-
-          {/*
-            * Inside the bar, not under it.
-            *
-            * The bar is sticky and the error was not, so pressing Take live at
-            * the bottom of a list of 78 put the refusal at the top of the page
-            * where nobody was looking. The answer belongs where the button is.
-            */}
-          {failed && <p className={styles.barError} role="alert">{failed}</p>}
+          <span className={styles.colName}>Product</span>
+          <span className={`${styles.colName} ${styles.colPrice}`}>Price</span>
+          <span className={styles.group} style={{ gridColumn: `4 / span ${gate.length}` }}>To go live</span>
+          <span className={styles.group} style={{ gridColumn: `${5 + gate.length} / span ${rest.length}` }}>To finish</span>
+          {gate.map(header)}
+          <span className={styles.divider} aria-hidden="true" />
+          {rest.map(header)}
         </div>
-      )}
 
-      {/* Failures with nothing selected still need somewhere to go, because the
-          bar only exists when there is something to act on. */}
-      {failed && selectable.length === 0 && (
-        <p className={styles.error} role="alert">{failed}</p>
-      )}
-
-      <p className={styles.status} role="status" aria-live="polite">
-        {status === 'loading' ? 'Loading the catalogue' : ''}
-      </p>
-
-      {status === 'ready' && visible.length === 0 && (
-        <div className={styles.empty}>
-          <h2 className={styles.emptyTitle}>
-            {filter === 'blocked' ? 'Nothing is blocked'
-              : filter === 'live' ? 'Nothing is live yet'
-                : filter === 'ready' ? 'Nothing is ready'
-                  : 'No products'}
-          </h2>
-          <p className={styles.emptyBody}>
-            {filter === 'blocked' ? 'Everything either goes live or is already up.'
-              : filter === 'live' ? 'Tick what is ready and take it live.'
-                : filter === 'ready' ? 'Everything left is either live or blocked on something.'
-                  : 'The catalogue is empty.'}
-          </p>
-        </div>
-      )}
-
-      <div className={styles.ledger}>
-        {visible.map((product) => (
-          <ProductRow
-            key={product.id}
-            product={product}
-            selected={picked.has(product.id)}
-            onSelect={select}
-            categoryCount={byCategory.get(String(product.category_path ?? '').split('|')[0]?.trim()) ?? 0}
-            onConfirmReturns={confirmReturns}
-            onSaveHazard={saveHazard}
-            onSaveDescription={saveDescription}
-            onSaveDetails={saveDetails}
-            onSaveImages={saveImages}
-            onRemoveImage={removeImage}
-            onSaveStock={saveStock}
-            onSaveRecord={saveRecord}
-            categories={categories}
-            fees={tenant?.fees}
-            onSaveCost={saveCost}
-            tenantId={tenant?.id}
-            onUnpublish={unpublish}
-            onDraft={draftCopy}
-            onDiscardDraft={discardDraft}
-            onAcknowledgeChecks={acknowledgeChecks}
-            onAddVariant={addVariant}
-            onSaveVariant={saveVariant}
-            onRemoveVariant={removeVariant}
-            onArchive={archiveProduct}
-            onUnarchive={unarchiveProduct}
-          />
+        {status === 'loading' && [0, 1, 2, 3].map((i) => (
+          <div key={i} className={styles.ghost} aria-hidden="true">
+            <span /><span className={styles.ghostName}><i className="skeleton" /><span className="skeleton skeleton-line" /></span>
+            <span />{gate.map((c) => <span key={c.key} className={`${styles.ghostCell} skeleton`} />)}<span />{rest.map((c) => <span key={c.key} className={`${styles.ghostCell} skeleton`} />)}
+          </div>
         ))}
+
+        {status === 'ready' && visible.map((product, i) => (
+          <ProductRow key={product.id} index={i} product={product} columns={columns}
+            where={product.section ? labels.get(product.section) : null}
+            selected={picked.has(product.id)} onSelect={select} onOpen={openSheet} />
+        ))}
+
+        {status === 'ready' && visible.length === 0 && (
+          <div className={styles.empty}>
+            <div className={styles.ghosts} aria-hidden="true">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className={styles.ghost}>
+                  <span /><span className={styles.ghostName}><i /><span /></span>
+                  <span />{gate.map((c) => <span key={c.key} className={styles.ghostCell} />)}<span />{rest.map((c) => <span key={c.key} className={styles.ghostCell} />)}
+                </div>
+              ))}
+            </div>
+            <div className={styles.emptyCard}>
+              <h2 className={styles.emptyTitle}>{EMPTY[gapKey ? 'gap' : filter].title}</h2>
+              <p className={styles.emptyBody}>{EMPTY[gapKey ? 'gap' : filter].body(counts)}</p>
+              <div className={styles.emptyActions}>
+                {gapKey
+                  ? <button type="button" className={styles.quiet} onClick={() => setView({ gap: null })}>Show every step</button>
+                  : <button type="button" className={styles.quiet} onClick={() => setAdding(true)}>
+                    <Icon name="IconPlus" width="16" height="16" />Add a product
+                  </button>}
+                {!gapKey && filter !== 'live' && counts.live > 0 && (
+                  <button type="button" className={styles.link} onClick={() => setView({ filter: 'live' })}>
+                    See the {plural(counts.live, 'live one', 'live ones')}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {picked.size > 0 && (
+        <div className={styles.selection} role="region" aria-label="Selected products">
+          <span className={styles.selCount}><b data-num>{picked.size}</b> selected</span>
+          {undrafted.length > 0 && (
+            <button type="button" className={styles.selButton} disabled={busy || drafting !== null} onClick={runDrafts}>
+              {drafting ? `Drafting ${drafting.done} of ${drafting.total}` : `Draft ${plural(undrafted.length, 'description')}`}
+            </button>
+          )}
+          {pickedLive.length > 0 && (
+            <button type="button" className={styles.selButton} disabled={busy || drafting !== null}
+              onClick={() => go(unpublish, pickedLive.map((p) => p.id))}>
+              Take {pickedLive.length} off the shop
+            </button>
+          )}
+          {pickedDraft.length > 0 && (
+            <button type="button" className={styles.selGo} disabled={busy || drafting !== null}
+              onClick={() => go(publish, pickedDraft.map((p) => p.id))}>
+              Take {pickedDraft.length} live
+            </button>
+          )}
+          <button type="button" className={styles.selClear} aria-label="Clear the selection" onClick={() => setPicked(new Set())}>
+            <Icon name="IconX" width="16" height="16" />
+          </button>
+          {failed && <p className={styles.selError} role="alert">{failed}</p>}
+        </div>
+      )}
+
+      {openProduct && (
+        <ProductSheet
+          key={openProduct.id}
+          product={openProduct}
+          focus={open.step}
+          onClose={closeSheet}
+          columns={columns}
+          catalogue={catalogue}
+          categories={categories}
+          categoryCount={byCategory.get(sectionOf(openProduct)) ?? 0}
+          fees={tenant?.fees}
+          tenantId={tenant?.id}
+        />
+      )}
     </div>
   );
 }
 
-function Stat({ label, value }) {
-  return (
-    <div className={styles.stat}>
-      <dt className="micro">{label}</dt>
-      <dd className={`figure ${styles.statValue}`}>{value}</dd>
-    </div>
-  );
-}
+const EMPTY = {
+  ready: {
+    title: 'Nothing is waiting to go live',
+    body: (c) => (c.blocked
+      ? `${plural(c.blocked, 'product is', 'products are')} blocked on a step. A product arrives here once the first group of squares is done.`
+      : `${c.live ? `All ${c.live} of your products are on the shop. ` : ''}A new one arrives here once the first group of squares is done.`),
+  },
+  blocked: {
+    title: 'Nothing is blocked',
+    body: () => 'Every draft has what it needs to go live.',
+  },
+  live: {
+    title: 'Nothing is on the shop yet',
+    body: (c) => (c.ready ? `${plural(c.ready, 'product is', 'products are')} ready. Tick them under Ready and take them live.` : 'Products appear here once you take them live.'),
+  },
+  all: { title: 'No products yet', body: () => 'Add the first one and it lands under Blocked until it has a photograph.' },
+  archived: { title: 'Nothing archived', body: () => 'Products you take out for good are kept here, with the reason.' },
+  gap: { title: 'No gaps in this column', body: () => 'Every product shown has this step done.' },
+};

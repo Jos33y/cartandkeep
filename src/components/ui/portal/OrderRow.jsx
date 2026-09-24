@@ -1,51 +1,34 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { PORTAL_ROUTES, portalPath } from '@utils/constants';
+import { PORTAL_ROUTES, portalPath, CARRIERS } from '@utils/constants';
 import { formatGbp } from '@utils/formatGbp';
-import { CARRIERS } from '@utils/constants';
 import { isToSend } from '@hooks/useOrders';
+import { Icon } from '@components/ui/icons';
 import styles from '@styles/ui/portal/order-row.module.css';
 
-// A button that says Mark dispatched produces a state that says Dispatched.
-const STATE = {
-  to_send: 'To send',
-  sent: 'Dispatched',
-  refunded: 'Refunded',
-  pending: 'Not paid',
-  failed: 'Payment failed',
-  cancelled: 'Cancelled',
-};
-
-// Her images come off eBay at whatever size the lister uploaded. A 40px thumb
-// does not need the full one.
 const thumb = (url) => (url ? url.replace(/\/s-l\d+\./, '/s-l225.') : null);
+const dayTime = (iso) => (iso ? new Date(iso).toLocaleString('en-GB', {
+  timeZone: 'Europe/London', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+}) : null);
 
-const day = (iso) => (iso
-  ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-  : null);
+// Carriers she uses most sit as one-tap choices; the rest are behind More.
+const QUICK_CARRIERS = ['Royal Mail', 'Evri', 'DPD', 'Yodel'];
 
-const dayTime = (iso) => (iso
-  ? new Date(iso).toLocaleString('en-GB', {
-    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-  })
-  : null);
+export function waitedHours(order) {
+  const from = order.paid_at ?? order.created_at;
+  return from ? (Date.now() - new Date(from).getTime()) / 3600000 : 0;
+}
 
-/*
- * The row state, and the class that marks it.
- *
- * Mapped rather than indexed by the raw state string. `styles[state]` picked up
- * `.failed`, which is the error message class, for an order whose payment
- * failed, and `.sent` collided with the dispatch panel below. An explicit map
- * cannot do either.
- */
-const ROW_CLASS = {
-  to_send: 'stateWaiting',
-  sent: 'stateSent',
-  refunded: 'stateRefunded',
-  pending: 'stateQuiet',
-  failed: 'stateQuiet',
-  cancelled: 'stateQuiet',
-};
+export function waited(order) {
+  const h = waitedHours(order);
+  if (h < 1) return 'just now';
+  if (h < 24) return `${Math.floor(h)}h`;
+  const d = Math.floor(h / 24);
+  return `${d} ${d === 1 ? 'day' : 'days'}`;
+}
+
+// Over a working day is worth a look; over three is a customer wondering where it is.
+const urgency = (order) => (waitedHours(order) >= 72 ? 'late' : waitedHours(order) >= 24 ? 'due' : 'fresh');
 
 function stateOf(order) {
   if (isToSend(order)) return 'to_send';
@@ -53,24 +36,60 @@ function stateOf(order) {
   return order.status;
 }
 
-/*
- * The address as one block, in the order it goes on a label.
- *
- * `country` is absent because the checkout takes UK addresses only and says so.
- * Adding a line that always reads United Kingdom would be a line she has to
- * read every time to learn nothing.
- */
+const STATE = {
+  to_send: 'To send', sent: 'Dispatched', refunded: 'Refunded', pending: 'Not paid', failed: 'Payment failed', cancelled: 'Cancelled',
+};
+
 function addressLines(order) {
   const a = order.address ?? {};
   return [order.name, a.line1, a.line2, a.city, a.postcode]
-    .map((line) => (typeof line === 'string' ? line.trim() : ''))
-    .filter(Boolean);
+    .map((line) => (typeof line === 'string' ? line.trim() : '')).filter(Boolean);
 }
 
-export function OrderRow({ order, onSave, onResend }) {
-  const [open, setOpen] = useState(false);
+// The order's life as five stops, each lit from the record rather than assumed.
+export function journeyOf(order) {
+  const mail = (k) => order.emails?.[k];
+  const mailState = (k) => (mail(k) ? (mail(k).status === 'sent' ? 'done' : 'failed') : 'next');
+  return [
+    { key: 'paid', label: 'Paid', state: order.paid_at ? 'done' : 'next', when: order.paid_at },
+    { key: 'confirmation', label: 'Receipt emailed', state: mailState('confirmation'), when: mail('confirmation')?.created_at },
+    { key: 'sent', label: 'Dispatched', state: order.dispatched_at ? 'done' : 'next', when: order.dispatched_at },
+    { key: 'dispatch', label: 'Tracking emailed', state: order.dispatched_at ? mailState('dispatch') : 'next', when: mail('dispatch')?.created_at },
+    { key: 'review', label: 'Review asked', state: mailState('review_request') === 'next' ? 'next' : mailState('review_request'), when: mail('review_request')?.created_at },
+  ];
+}
+
+export function Journey({ order, compact }) {
+  const stops = journeyOf(order);
+  const reached = stops.reduce((n, s, i) => (s.state !== 'next' ? i : n), -1);
+  return (
+    <ol className={styles.journey} data-compact={compact || undefined}
+      style={{ '--reach': reached < 0 ? 0 : reached / (stops.length - 1) }}>
+      {stops.map((s) => (
+        <li key={s.key} className={styles.stop} data-state={s.state} title={s.when ? `${s.label}, ${dayTime(s.when)}` : s.label}>
+          <span className={styles.node} aria-hidden="true">
+            {s.state === 'done' && <Icon name="IconCheck" width="10" height="10" />}
+            {s.state === 'failed' && <Icon name="IconX" width="10" height="10" />}
+          </span>
+          {!compact && (
+            <span className={styles.stopText}>
+              <b>{s.label}</b>
+              <span data-num>{s.state === 'failed' ? 'did not send' : s.when ? dayTime(s.when) : ''}</span>
+            </span>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+export function OrderRow({ order, onSave, onResend, onDispatched, example, index = 0 }) {
+  const state = stateOf(order);
+  const [open, setOpen] = useState(state === 'to_send' && index === 0);
   const [editing, setEditing] = useState(false);
-  const [carrier, setCarrier] = useState(order.carrier ?? '');
+  // The example shows a carrier picked, so the dispatch button reads as it will when she uses it.
+  const [carrier, setCarrier] = useState(order.carrier ?? (example ? 'Royal Mail' : ''));
+  const [more, setMore] = useState(Boolean(order.carrier) && !QUICK_CARRIERS.includes(order.carrier));
   const [number, setNumber] = useState(order.tracking_number ?? '');
   const [link, setLink] = useState(order.tracking_url ?? '');
   const [busy, setBusy] = useState(false);
@@ -78,24 +97,20 @@ export function OrderRow({ order, onSave, onResend }) {
   const [copied, setCopied] = useState(false);
   const [resending, setResending] = useState(null);
 
-  const state = stateOf(order);
   const lines = addressLines(order);
-  const first = order.items?.[0];
-  const more = Math.max(0, (order.items?.length ?? 0) - 1);
+  const items = order.items ?? [];
+  const where = [order.address?.city, order.address?.postcode].filter(Boolean).join(', ');
+  const mailFailed = Object.values(order.emails ?? {}).some((e) => e.status === 'failed');
 
-  // A failed write used to vanish, leaving the row looking dispatched until the
-  // next reload put it back.
   async function save() {
+    if (example) return;
     setBusy(true);
     setFailed(null);
     try {
-      await onSave({
-        carrier,
-        trackingNumber: number,
-        trackingUrl: link,
-        dispatchedAt: order.dispatched_at ?? null,
-      });
+      const first = !order.dispatched_at;
+      await onSave({ carrier, trackingNumber: number, trackingUrl: link, dispatchedAt: order.dispatched_at ?? null });
       setEditing(false);
+      if (first) onDispatched?.(order);
     } catch (e) {
       setFailed(e?.message ?? 'Not saved. Try again.');
     } finally {
@@ -103,25 +118,12 @@ export function OrderRow({ order, onSave, onResend }) {
     }
   }
 
-  /*
-   * The one control that saves her a step. Everything else on this row is
-   * reading; this is the thing she does next, which is paste an address into a
-   * label. Guarded rather than assumed, because a browser without the clipboard
-   * API should lose the button and not the panel.
-   */
   async function resend(kind) {
+    if (example) return;
     setResending(kind);
     setFailed(null);
-    try {
-      await onResend({ kind });
-    } catch (e) {
-      setFailed(e?.message ?? 'Not sent. Try again.');
-    } finally {
-      setResending(null);
-    }
+    try { await onResend({ kind }); } catch (e) { setFailed(e?.message ?? 'Not sent. Try again.'); } finally { setResending(null); }
   }
-
-  const canCopy = typeof navigator !== 'undefined' && Boolean(navigator.clipboard?.writeText);
 
   async function copyAddress() {
     try {
@@ -133,292 +135,183 @@ export function OrderRow({ order, onSave, onResend }) {
     }
   }
 
-  return (
-    <article className={`${styles.row} ${styles[ROW_CLASS[state]] ?? ''} ${open ? styles.rowOpen : ''}`}>
-      <div
-        className={styles.head}
-        role="button"
-        tabIndex={0}
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((v) => !v); }
-        }}
-      >
-        <p className={styles.ref} data-num>{order.reference}</p>
-
-        <div className={styles.middle}>
-          <h3 className={styles.title}>
-            {first ? first.title : 'No items recorded'}
-            {more > 0 && <span className={styles.more}> and {more} more</span>}
-          </h3>
-          <p className={styles.meta}>
-            <span className={styles.state}>{STATE[state] ?? state}</span>
-            {order.paid_at && <> · paid <span data-num>{day(order.paid_at)}</span></>}
-            {order.name && <> · {order.name}</>}
-            {order.address?.postcode && <>, <span data-num>{order.address.postcode}</span></>}
-          </p>
+  const form = (
+    <div className={styles.form}>
+      <div className={styles.field}>
+        <span className={styles.label}>Who took it</span>
+        <div className={styles.carriers} role="radiogroup" aria-label="Carrier">
+          {QUICK_CARRIERS.map((c) => (
+            <button key={c} type="button" role="radio" aria-checked={carrier === c} className={styles.carrier}
+              onClick={() => { setCarrier(c); setMore(false); }}>{c}</button>
+          ))}
+          {more ? (
+            <select className={styles.select} value={carrier} onChange={(e) => setCarrier(e.target.value)} aria-label="Another carrier">
+              <option value="">Choose one</option>
+              {CARRIERS.filter((c) => !QUICK_CARRIERS.includes(c)).map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          ) : (
+            <button type="button" className={styles.carrierMore} onClick={() => { setMore(true); setCarrier(''); }}>Another</button>
+          )}
         </div>
-
-        <div className={styles.money}>
-          <p className={`figure ${styles.total}`}>{formatGbp(order.total)}</p>
-          <p className={styles.count}>
-            <span data-num>{order.itemCount}</span> {order.itemCount === 1 ? 'item' : 'items'}
-          </p>
-        </div>
-
-        <span className={styles.caret} aria-hidden="true" data-open={open || undefined}>
-          <svg viewBox="0 0 12 12" width="12" height="12" fill="none"
-            stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 4.5L6 7.5L9 4.5" />
-          </svg>
-        </span>
       </div>
+      <div className={styles.pair}>
+        <label className={styles.field}>
+          <span className={styles.label}>Tracking number, if there is one</span>
+          <input className={styles.input} data-num value={number} onChange={(e) => setNumber(e.target.value)} autoComplete="off" spellCheck="false" placeholder="AB123456789GB" />
+        </label>
+        <label className={styles.field}>
+          <span className={styles.label}>Tracking link, if there is one</span>
+          <input className={styles.input} type="url" inputMode="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://" autoComplete="off" spellCheck="false" />
+        </label>
+      </div>
+      <div className={styles.actions}>
+        {example
+          ? <span className={styles.ghost}><Icon name="IconNote" width="14" height="14" />Packing slip</span>
+          : (
+            <Link className={styles.ghost} to={portalPath(PORTAL_ROUTES.SLIP.replace(':reference', order.reference))}>
+              <Icon name="IconNote" width="14" height="14" />Packing slip
+            </Link>
+          )}
+        {editing && (
+          <button type="button" className={styles.ghost} disabled={busy} onClick={() => {
+            setCarrier(order.carrier ?? ''); setNumber(order.tracking_number ?? ''); setLink(order.tracking_url ?? '');
+            setEditing(false); setFailed(null);
+          }}>Cancel</button>
+        )}
+        <button type="button" className={styles.primary} disabled={busy || !carrier} onClick={save}>
+          <Icon name="IconBox" width="16" height="16" />
+          {order.dispatched_at ? 'Save' : busy ? 'Sending' : 'Mark dispatched'}
+        </button>
+      </div>
+      {!carrier && <p className={styles.hint}>Pick who took it. Marking it dispatched emails them straight away.</p>}
+    </div>
+  );
+
+  return (
+    <article className={styles.card} data-state={state} data-urgency={state === 'to_send' ? urgency(order) : undefined}
+      data-open={open || undefined} data-example={example || undefined} style={{ animationDelay: `${Math.min(index, 10) * 35}ms` }}>
+      {example && <span className={styles.exampleTag}>Example</span>}
+
+      <button type="button" className={styles.head} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <span className={styles.stack} aria-hidden="true">
+          {items.slice(0, 3).map((it) => (thumb(it.image_url)
+            ? <img key={it.id} src={thumb(it.image_url)} alt="" loading="lazy" />
+            : <span key={it.id} className={styles.thumbEmpty} />))}
+        </span>
+        <span className={styles.main}>
+          <span className={styles.top}>
+            <span className={styles.ref} data-num>{order.reference}</span>
+            <span className={styles.state}>{STATE[state] ?? state}</span>
+            {state === 'to_send' && (
+              <span className={styles.wait}><Icon name="IconClock" width="12" height="12" />waiting {waited(order)}</span>
+            )}
+            {mailFailed && <span className={styles.warn}>An email did not send</span>}
+          </span>
+          <span className={styles.what}>
+            {items[0]?.title ?? 'No items recorded'}
+            {items.length > 1 && <span className={styles.plus}> and {items.length - 1} more</span>}
+          </span>
+          <span className={styles.who}>
+            {order.name}{where && <> <Icon name="IconPin" width="12" height="12" /> {where}</>}
+          </span>
+        </span>
+        {state !== 'to_send' && <span className={styles.mini}><Journey order={order} compact /></span>}
+        <span className={styles.money}>
+          <b data-num>{formatGbp(order.total)}</b>
+          <small><span data-num>{order.itemCount}</span> {order.itemCount === 1 ? 'item' : 'items'}</small>
+        </span>
+        <Icon name="IconCaret" width="14" height="14" className={styles.caret} />
+      </button>
 
       {open && (
         <div className={styles.detail}>
-          <section className={styles.panel}>
-            <h4 className="micro">What was bought</h4>
-            <ul className={styles.items}>
-              {(order.items ?? []).map((item) => (
-                <li key={item.id} className={styles.item}>
-                  {item.image_url
-                    ? <img className={styles.thumb} src={thumb(item.image_url)} alt="" loading="lazy" />
-                    : <span className={`${styles.thumb} ${styles.thumbEmpty}`} aria-hidden="true" />}
-                  <span className={styles.itemTitle}>{item.title}</span>
-                  <span className={styles.itemQty}>
-                    <span data-num>{item.qty}</span> × <span data-num>{formatGbp(item.unit_price)}</span>
-                  </span>
-                  <span className={`${styles.itemTotal}`} data-num>{formatGbp(item.line_total)}</span>
-                </li>
-              ))}
-            </ul>
+          <Journey order={order} />
 
-            <dl className={styles.sums}>
-              <div><dt>Goods</dt><dd data-num>{formatGbp(order.subtotal)}</dd></div>
-              <div><dt>Delivery</dt><dd data-num>{formatGbp(order.delivery)}</dd></div>
-              <div className={styles.sumTotal}>
-                <dt>Taken</dt><dd data-num>{formatGbp(order.total)}</dd>
-              </div>
-            </dl>
-          </section>
+          <div className={styles.grid}>
+            <section className={styles.panel}>
+              <h4 className={styles.panelTitle}>In the box</h4>
+              <ul className={styles.items}>
+                {items.map((it) => (
+                  <li key={it.id} className={styles.item}>
+                    {thumb(it.image_url) ? <img src={thumb(it.image_url)} alt="" loading="lazy" /> : <span className={styles.thumbEmpty} />}
+                    <span className={styles.itemTitle}>{it.title}</span>
+                    <span className={styles.qty} data-num>{it.qty > 1 ? `${it.qty} x ` : ''}{formatGbp(it.unit_price)}</span>
+                    <span className={styles.itemTotal} data-num>{formatGbp(it.line_total)}</span>
+                  </li>
+                ))}
+              </ul>
+              <dl className={styles.sums}>
+                <div><dt>Goods</dt><dd data-num>{formatGbp(order.subtotal)}</dd></div>
+                <div><dt>Delivery</dt><dd data-num>{formatGbp(order.delivery)}</dd></div>
+                <div className={styles.sumTotal}><dt>Taken</dt><dd data-num>{formatGbp(order.total)}</dd></div>
+              </dl>
+            </section>
 
-          <section className={styles.panel}>
-            <div className={styles.panelHead}>
-              <h4 className="micro">Where it goes</h4>
-              {canCopy && (
+            <section className={styles.panel}>
+              <div className={styles.panelHead}>
+                <h4 className={styles.panelTitle}>Goes to</h4>
                 <button type="button" className={styles.copy} onClick={copyAddress}>
-                  {copied ? 'Copied' : 'Copy address'}
+                  <Icon name={copied ? 'IconCheck' : 'IconNote'} width="12" height="12" />{copied ? 'Copied' : 'Copy'}
                 </button>
-              )}
-            </div>
-
-            <address className={styles.address}>
-              {lines.map((line) => <span key={line}>{line}</span>)}
-            </address>
-
-            <p className={styles.contact}>
-              <a href={`mailto:${order.email}`}>{order.email}</a>
-              {order.phone && <> · <a href={`tel:${order.phone}`} data-num>{order.phone}</a></>}
-            </p>
-
-            {order.customer_note && (
-              <p className={styles.customerNote}>
-                <span className="micro">They wrote</span>
-                {order.customer_note}
+              </div>
+              <address className={styles.label2}>
+                {lines.map((l, i) => <span key={l} className={i === 0 ? styles.addrName : undefined}>{l}</span>)}
+              </address>
+              <p className={styles.contact}>
+                <a href={`mailto:${order.email}`}>{order.email}</a>
+                {order.phone && <a href={`tel:${order.phone}`} data-num>{order.phone}</a>}
               </p>
-            )}
-          </section>
+              {order.customer_note && (
+                <p className={styles.note}><span>They wrote</span>{order.customer_note}</p>
+              )}
+            </section>
+          </div>
 
-          <section className={styles.panel}>
-            <h4 className="micro">Dispatch</h4>
-
+          <section className={styles.dispatch} data-done={(order.dispatched_at && !editing) || undefined}>
             {order.dispatched_at && !editing ? (
-              <div className={styles.dispatched}>
-                <p className={styles.sentLine}>
-                  Left <span data-num>{dayTime(order.dispatched_at)}</span>
-                  {order.carrier && <> by {order.carrier}</>}
-                </p>
-                {order.tracking_number && (
-                  <p className={styles.sentLine}>
-                    Tracking <span data-num>{order.tracking_number}</span>
-                  </p>
-                )}
-                {order.tracking_url && (
-                  <p className={styles.sentLine}>
-                    <a href={order.tracking_url} target="_blank" rel="noreferrer">Open the carrier page</a>
-                  </p>
-                )}
+              <div className={styles.sent}>
+                <span className={styles.sentMark}><Icon name="IconCheck" width="16" height="16" /></span>
+                <span className={styles.sentText}>
+                  <b>Left {dayTime(order.dispatched_at)}{order.carrier ? ` with ${order.carrier}` : ''}</b>
+                  <span>
+                    {order.tracking_number ? <>Tracking <span data-num>{order.tracking_number}</span></> : 'No tracking number'}
+                    {order.tracking_url && <> · <a href={order.tracking_url} target="_blank" rel="noreferrer">carrier page</a></>}
+                  </span>
+                </span>
                 <button type="button" className={styles.ghost} onClick={() => setEditing(true)}>
                   Edit<span className="visually-hidden"> dispatch details for {order.reference}</span>
                 </button>
               </div>
-            ) : (
-              <div className={styles.form}>
-                <label className={styles.field}>
-                  <span className={styles.label}>Carrier</span>
-                  <select
-                    className={styles.select}
-                    value={carrier}
-                    onChange={(e) => setCarrier(e.target.value)}
-                  >
-                    <option value="">Choose one</option>
-                    {CARRIERS.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </label>
-
-                <label className={styles.field}>
-                  <span className={styles.label}>Tracking number, if there is one</span>
-                  <input
-                    className={styles.input}
-                    value={number}
-                    onChange={(e) => setNumber(e.target.value)}
-                    autoComplete="off"
-                    spellCheck="false"
-                  />
-                </label>
-
-                {/*
-                  * The whole link, not a number pushed into a template. Every
-                  * carrier changes their URL shape eventually and a broken
-                  * tracking link on a customer's order page is worse than none.
-                  */}
-                <label className={styles.field}>
-                  <span className={styles.label}>Tracking link, if there is one</span>
-                  <input
-                    className={styles.input}
-                    type="url"
-                    inputMode="url"
-                    value={link}
-                    onChange={(e) => setLink(e.target.value)}
-                    placeholder="https://"
-                    autoComplete="off"
-                    spellCheck="false"
-                  />
-                </label>
-
-                <div className={styles.actions}>
-                  {/* Opened rather than printed from here. Printing from
-                      inside a list prints the list. */}
-                  <Link
-                    className={styles.ghost}
-                    to={portalPath(PORTAL_ROUTES.SLIP.replace(':reference', order.reference))}
-                  >
-                    Packing slip
-                  </Link>
-                  <button
-                    type="button"
-                    className={styles.primary}
-                    disabled={busy || !carrier}
-                    onClick={save}
-                  >
-                    {order.dispatched_at ? 'Save' : 'Mark dispatched'}
-                  </button>
-                  {editing && (
-                    <button
-                      type="button"
-                      className={styles.ghost}
-                      disabled={busy}
-                      onClick={() => {
-                        setCarrier(order.carrier ?? '');
-                        setNumber(order.tracking_number ?? '');
-                        setLink(order.tracking_url ?? '');
-                        setEditing(false);
-                        setFailed(null);
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-
-                {/*
-                  * A carrier is enough. Requiring a tracking number would make
-                  * her invent one for anything that went second class in an
-                  * envelope, and an invented number is worse than an empty
-                  * field on the customer's page.
-                  */}
-                {!carrier && (
-                  <p className={styles.hint}>Pick who took it. The tracking fields can stay empty.</p>
-                )}
-              </div>
-            )}
-
+            ) : state === 'to_send' || editing ? form : null}
             {failed && <p className={styles.error} role="alert">{failed}</p>}
           </section>
 
-          {/*
-            * What the customer was actually told.
-            *
-            * The confirmation is a statutory requirement and the dispatch email
-            * is the only thing that tells somebody their parcel left, so a
-            * failed send has to be visible rather than sitting in a log. Both
-            * are shown even when they worked, because "sent 18 Aug 14:02" is
-            * also the answer to a customer who says they never heard anything.
-            */}
-          <section className={styles.panel}>
-            <h4 className="micro">What we sent them</h4>
-            <ul className={styles.sends}>
-              <Send
-                label="Confirmation"
-                record={order.emails?.confirmation}
-                pending={order.status !== 'paid'}
-                busy={resending === 'confirmation'}
-                onResend={() => resend('confirmation')}
-              />
-              <Send
-                label="Dispatch"
-                record={order.emails?.dispatch}
-                pending={!order.dispatched_at}
-                busy={resending === 'dispatch'}
-                onResend={() => resend('dispatch')}
-              />
-            </ul>
-
-            {order.emails?.confirmation?.identity_complete === false && (
-              <p className={styles.hint}>
-                This went out without your trading name and address, which are
-                required on it. Filling those in makes the next one complete.
-              </p>
-            )}
+          <section className={styles.emails}>
+            {['confirmation', 'dispatch', 'review_request'].map((kind) => {
+              const rec = order.emails?.[kind];
+              const label = kind === 'confirmation' ? 'Receipt' : kind === 'dispatch' ? 'Tracking' : 'Review request';
+              if (!rec) return null;
+              const ok = rec.status === 'sent';
+              return (
+                <span key={kind} className={styles.mail} data-ok={ok || undefined}>
+                  <Icon name={ok ? 'IconEnvelope' : 'IconX'} width="12" height="12" />
+                  {label} {ok ? <>sent <span data-num>{dayTime(rec.created_at)}</span></> : 'did not send'}
+                  {kind !== 'review_request' && (
+                    <button type="button" className={styles.resend} disabled={resending === kind || example} onClick={() => resend(kind)}>
+                      {resending === kind ? 'Sending' : ok ? 'Send again' : 'Try again'}
+                    </button>
+                  )}
+                </span>
+              );
+            })}
           </section>
+          {order.emails?.confirmation?.identity_complete === false && (
+            <p className={styles.hint}>
+              The receipt went out without your trading name and address, which the law asks for. Filling those in under Settings makes the next one complete.
+            </p>
+          )}
         </div>
       )}
     </article>
-  );
-}
-
-/*
- * One line per email.
- *
- * Three states worth distinguishing, because they call for different things.
- * Not sent yet because the moment has not arrived is normal and needs no
- * action. Sent is a fact with a time on it. Failed is the one that needs her,
- * and it is the only one carrying a button.
- */
-function Send({ label, record, pending, busy, onResend }) {
-  if (!record && pending) {
-    return (
-      <li className={styles.send}>
-        <span className={styles.sendLabel}>{label}</span>
-        <span className={styles.sendState}>not yet</span>
-      </li>
-    );
-  }
-
-  const ok = record?.status === 'sent';
-
-  return (
-    <li className={styles.send}>
-      <span className={styles.sendLabel}>{label}</span>
-      <span className={ok ? styles.sendState : styles.sendFailed}>
-        {ok
-          ? <>sent <span data-num>{dayTime(record.created_at)}</span></>
-          : 'not sent'}
-      </span>
-      <button type="button" className={styles.resend} disabled={busy} onClick={onResend}>
-        {busy ? 'Sending' : ok ? 'Send again' : 'Try again'}
-      </button>
-    </li>
   );
 }

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { EmptyState } from '@components/ui/portal/EmptyState';
-import { OrderRow } from '@components/ui/portal/OrderRow';
+import { OrderRow, Journey, waited, waitedHours } from '@components/ui/portal/OrderRow';
 import { useOrders, usePublicCatalogue, isToSend, isSent } from '@hooks/useOrders';
+import { Card, CardHead, Tip } from '@components/ui/portal/primitives';
+import { Icon } from '@components/ui/icons';
+import { PageSkeleton } from '@components/ui/portal/Skeleton';
 import { loadTenant } from '@lib/tenant';
+import { supabase } from '@lib/supabase';
 import { formatGbp } from '@utils/formatGbp';
 import styles from '@styles/pages/portal/orders-page.module.css';
-import { PageSkeleton } from '@components/ui/portal/Skeleton';
 
 const FILTERS = [
   { key: 'to_send', label: 'To send' },
@@ -13,175 +15,217 @@ const FILTERS = [
   { key: 'all', label: 'All' },
 ];
 
-/*
- * The shape of the screen before there is anything in it.
- *
- * Net is not a column here and it was in the version this replaces. There is no
- * cost on store_products, and candidate_id is null on all 78 seeded rows
- * because they came off her eBay listings rather than out of the pipeline, so
- * what was left after fulfilment is not a number this database can produce.
- * Showing a column for it would be promising an answer nothing can fill.
- */
-const PREVIEW_COLUMNS = [
-  { key: 'ref', label: 'Order' },
-  { key: 'items', label: 'Items' },
-  { key: 'state', label: 'State' },
-  { key: 'total', label: 'Taken', align: 'right' },
-];
-
-const PREVIEW_ROWS = [{}, {}, {}];
-
-function sameMonth(iso, now) {
+const sameMonth = (iso, now) => {
   if (!iso) return false;
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return false;
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+};
+
+const dayKey = (d) => d.toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
+
+function Desk({ rows, first, live }) {
+  const toSend = rows.filter(isToSend).sort((a, b) => waitedHours(b) - waitedHours(a));
+  const oldest = toSend[0];
+  const waitingValue = toSend.reduce((n, r) => n + Number(r.total ?? 0), 0);
+  const now = new Date();
+  const month = rows.filter((r) => sameMonth(r.paid_at, now) && r.status !== 'refunded');
+  const taken = month.reduce((n, r) => n + Number(r.total ?? 0), 0);
+
+  // Orders paid each of the last fourteen days.
+  const days = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(Date.now() - (13 - i) * 86400000);
+    const k = dayKey(d);
+    return { k, n: rows.filter((r) => r.paid_at && dayKey(new Date(r.paid_at)) === k).length, today: i === 13 };
+  });
+  const peak = Math.max(1, ...days.map((d) => d.n));
+  const late = oldest && waitedHours(oldest) >= 72;
+  const due = oldest && waitedHours(oldest) >= 24;
+
+  return (
+    <section className={styles.desk} data-first={first || undefined}>
+      <div className={styles.deskMain} data-tone={late ? 'late' : due ? 'due' : toSend.length ? 'fresh' : 'clear'}>
+        <p className={styles.deskLabel}>To send</p>
+        <p className={styles.deskFigure} data-num>{toSend.length}</p>
+        <p className={styles.deskNote}>
+          {first ? (live === 0 ? 'Nothing is live on the shop yet, so nobody can buy.' : 'The first paid order appears here within a minute.')
+            : toSend.length
+              ? <>Oldest waiting <b>{waited(oldest)}</b>, <span data-num>{formatGbp(waitingValue)}</span> to go out</>
+              : 'Everything has gone out.'}
+        </p>
+      </div>
+
+      <div className={styles.deskChart}>
+        <p className={styles.deskLabel}>Paid orders, last 14 days</p>
+        <ol className={styles.bars} aria-label="Paid orders per day">
+          {days.map((d) => (
+            <li key={d.k} data-today={d.today || undefined} title={`${d.k}: ${d.n}`}>
+              <i style={{ height: `${first ? 0 : (d.n / peak) * 100}%` }} />
+            </li>
+          ))}
+        </ol>
+        <p className={styles.axis}><span>2 weeks ago</span><span>Today</span></p>
+      </div>
+
+      <div className={styles.deskMonth}>
+        <p className={styles.deskLabel}>
+          This month
+          <Tip side="end" place="below" tone="light">Paid orders on your shop since the 1st, including delivery, with refunds taken out. eBay sales are under Finance.</Tip>
+        </p>
+        {first ? <p className={styles.deskNote} data-gap="">Starts with the first sale on your shop.</p> : (
+          <>
+            <p className={styles.monthFigure} data-num>{formatGbp(taken)}</p>
+            <p className={styles.deskNote}><span data-num>{month.length}</span> {month.length === 1 ? 'order' : 'orders'}</p>
+          </>
+        )}
+      </div>
+    </section>
+  );
 }
 
-export function OrdersPage() {
-  const [tenant, setTenant] = useState(undefined);
-  const [filter, setFilter] = useState('to_send');
+const EXAMPLE = {
+  id: 'example',
+  reference: 'CK-1063',
+  status: 'paid',
+  name: 'Margaret Hughes',
+  email: 'margaret.h@example.com',
+  phone: null,
+  address: { line1: '14 Elm Road', city: 'Leeds', postcode: 'LS6 2AB' },
+  customer_note: 'Please leave it with number 16 if nobody is in.',
+  subtotal: 23.41,
+  delivery: 3.49,
+  total: 26.9,
+  paid_at: new Date(Date.now() - 26 * 3600000).toISOString(),
+  created_at: new Date(Date.now() - 26 * 3600000).toISOString(),
+  dispatched_at: null,
+  itemCount: 1,
+  emails: { confirmation: { kind: 'confirmation', status: 'sent', created_at: new Date(Date.now() - 26 * 3600000).toISOString() } },
+};
 
-  useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
-
-  const { status, rows, truncated, reload, saveDispatch, resendEmail } = useOrders(tenant?.id);
-  const live = usePublicCatalogue(tenant?.id);
-
-  const counts = useMemo(() => ({
-    to_send: rows.filter(isToSend).length,
-    sent: rows.filter(isSent).length,
-    all: rows.length,
-  }), [rows]);
-
-  /*
-   * The month, computed from the rows that loaded.
-   *
-   * Refunded orders are out of the money figure because the money went back.
-   * `total` includes delivery, which the label says, because a figure called
-   * takings that quietly means something else is the kind of number that gets
-   * repeated in a meeting.
-   */
-  const month = useMemo(() => {
-    const now = new Date();
-    const paid = rows.filter((r) => sameMonth(r.paid_at, now));
-    const kept = paid.filter((r) => r.status !== 'refunded');
-    return {
-      orders: paid.length,
-      taken: kept.reduce((n, r) => n + Number(r.total ?? 0), 0),
-    };
-  }, [rows]);
-
-  const visible = useMemo(() => {
-    if (filter === 'all') return rows;
-    if (filter === 'sent') return rows.filter(isSent);
-    return rows.filter(isToSend);
-  }, [rows, filter]);
-
-  // undefined means still resolving. Only a settled null is an empty state.
-  if (tenant === undefined) {
-    return <PageSkeleton />;
-  }
-
-  if (status === 'error') {
-    return (
-      <div className={styles.empty}>
-        <h1 className={styles.emptyTitle}>The orders did not load</h1>
-        <p className={styles.emptyBody}>Reload the page. If it happens again, send me a note.</p>
-        <button type="button" className={styles.retry} onClick={reload}>Try again</button>
-      </div>
-    );
-  }
-
-  if (status === 'ready' && rows.length === 0) {
-    return (
-      <EmptyState
-        eyebrow="Your own store"
-        title="The first order lands here"
-        icon="IconBox"
-        body="What was bought, where it goes, and somewhere to put the tracking number."
-        columns={PREVIEW_COLUMNS}
-        rows={PREVIEW_ROWS}
-        note={live === 0
-          ? 'Nothing in the catalogue is public yet, so the shop is empty to anyone who is not signed in. Approve the products and it opens. eBay orders stay in eBay: this screen covers the store we are building for you.'
-          : 'eBay orders stay in eBay. This screen covers the store we are building for you.'}
-      />
-    );
-  }
-
+function FirstOrders({ live, shelf }) {
+  const item = shelf[0] ?? { title: 'Bed Rails for Elderly Adults Adjustable Bed Assist Rail', image_url: null };
+  const example = { ...EXAMPLE, items: [{ id: 'i1', title: item.title, image_url: item.image_url, qty: 1, unit_price: 23.41, line_total: 23.41 }] };
   return (
     <div className={styles.page}>
       <header className={styles.head}>
-        <div className={styles.headline}>
-          <p className="micro">Your own store</p>
+        <div>
           <h1 className={styles.title}>Orders</h1>
+          <p className={styles.sub}>Nothing yet. Orders from your own shop land here, ready to pack. eBay orders stay in eBay.</p>
         </div>
-
-        <dl className={styles.stats}>
-          <Stat label="To send" value={counts.to_send} />
-          <Stat label="Paid this month" value={month.orders} />
-          <Stat
-            label="Taken this month"
-            value={formatGbp(month.taken)}
-            foot="including delivery, refunds out"
-          />
-        </dl>
       </header>
-
-      <div className={styles.filters} role="group" aria-label="Filter orders">
-        {FILTERS.map((f) => (
-          <button key={f.key} type="button" aria-pressed={filter === f.key}
-            className={`${styles.chip} ${filter === f.key ? styles.chipOn : ''}`}
-            onClick={() => setFilter(f.key)}>
-            {f.label}
-            <span className={styles.chipCount} data-num>{counts[f.key]}</span>
-          </button>
-        ))}
-      </div>
-
-      <p className={styles.status} role="status" aria-live="polite">
-        {status === 'loading' ? 'Loading orders' : ''}
-      </p>
-
-      {/* Says so rather than quietly summing over a partial page. */}
-      {truncated && (
-        <p className={styles.truncated}>
-          Showing the most recent 200 orders. The figures above cover those.
-        </p>
-      )}
-
-      {status === 'ready' && visible.length === 0 && (
-        <div className={styles.empty}>
-          <h2 className={styles.emptyTitle}>
-            {filter === 'to_send' ? 'Every order has gone out' : 'Nothing dispatched yet'}
-          </h2>
-          <p className={styles.emptyBody}>
-            {filter === 'to_send'
-              ? 'Anything new lands at the top of this list.'
-              : 'Orders you mark dispatched move here.'}
-          </p>
-        </div>
-      )}
-
-      <div className={styles.ledger}>
-        {visible.map((order) => (
-          <OrderRow
-            key={order.id}
-            order={order}
-            onSave={(fields) => saveDispatch({ id: order.id, ...fields })}
-            onResend={({ kind }) => resendEmail({ id: order.id, kind })}
-          />
-        ))}
+      <Desk rows={[]} first live={live} />
+      <div className={styles.first}>
+        <section>
+          <p className={styles.firstLabel}>This is how one will arrive. It opens ready to dispatch.</p>
+          <OrderRow order={example} example index={0} onSave={() => {}} onResend={() => {}} />
+        </section>
+        <Card>
+          <CardHead title="How an order moves" />
+          <div className={styles.flowDemo}><Journey order={{ ...example, dispatched_at: null }} compact /></div>
+          <ol className={styles.steps}>
+            <li><b>Paid</b>It lands here and the receipt is emailed to them by itself.</li>
+            <li><b>You pack it</b>Print the packing slip, copy the address onto the label.</li>
+            <li><b>Mark dispatched</b>Pick the carrier and they get the tracking email straight away.</li>
+            <li><b>A week later</b>One email asks how it went, and the review comes to you.</li>
+          </ol>
+        </Card>
       </div>
     </div>
   );
 }
 
-function Stat({ label, value, foot }) {
+export function OrdersPage() {
+  const [tenant, setTenant] = useState(undefined);
+  const [filter, setFilter] = useState(null);
+  const [toast, setToast] = useState(null);
+  useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
+
+  const { status, rows, truncated, reload, saveDispatch, resendEmail } = useOrders(tenant?.id);
+  const live = usePublicCatalogue(tenant?.id);
+  const [shelf, setShelf] = useState([]);
+
+  const counts = useMemo(() => ({ to_send: rows.filter(isToSend).length, sent: rows.filter(isSent).length, all: rows.length }), [rows]);
+  const active = filter ?? (counts.to_send ? 'to_send' : 'all');
+
+  const visible = useMemo(() => {
+    if (active === 'all') return rows;
+    if (active === 'sent') return rows.filter(isSent);
+    // Oldest first: the one that has waited longest is the one to pack next.
+    return rows.filter(isToSend).sort((a, b) => waitedHours(b) - waitedHours(a));
+  }, [rows, active]);
+
+  // The example on the first screen uses one of her own products.
+  useEffect(() => {
+    if (!tenant?.id || rows.length) return;
+    supabase.from('store_products').select('title, image_url')
+      .eq('tenant_id', tenant.id).eq('status', 'live').not('image_url', 'is', null).order('created_at').limit(1)
+      .then(({ data }) => setShelf(data ?? []));
+  }, [tenant?.id, rows.length]);
+
+  if (tenant === undefined || (status === 'loading' && rows.length === 0)) return <PageSkeleton />;
+
+  if (status === 'error') {
+    return (
+      <div className={styles.failure}>
+        <h1 className={styles.failureTitle}>The orders did not load</h1>
+        <p className={styles.failureBody}>Reload the page. If it happens again, send me a note.</p>
+        <button type="button" className={styles.quiet} onClick={reload}>Try again</button>
+      </div>
+    );
+  }
+
+  if (rows.length === 0) return <FirstOrders live={live} shelf={shelf} />;
+
   return (
-    <div className={styles.stat}>
-      <dt className="micro">{label}</dt>
-      <dd className={`figure ${styles.statValue}`}>{value}</dd>
-      {foot && <dd className={styles.statFoot}>{foot}</dd>}
+    <div className={styles.page}>
+      <header className={styles.head}>
+        <div>
+          <h1 className={styles.title}>Orders</h1>
+          <p className={styles.sub}>
+            {counts.to_send
+              ? <><span data-num>{counts.to_send}</span> to pack and send, oldest first.</>
+              : 'Every order has gone out. New ones land at the top.'}
+          </p>
+        </div>
+      </header>
+
+      <Desk rows={rows} live={live} />
+
+      <div className={styles.tabs} role="group" aria-label="Filter orders">
+        {FILTERS.map((f) => (
+          <button key={f.key} type="button" className={styles.tab} aria-pressed={active === f.key} onClick={() => setFilter(f.key)}>
+            {f.key === 'to_send' && counts.to_send > 0 && <i className={styles.pulse} aria-hidden="true" />}
+            {f.label}<span data-num>{counts[f.key]}</span>
+          </button>
+        ))}
+      </div>
+
+      {truncated && <p className={styles.truncated}>The most recent 200 orders. The figures above cover those.</p>}
+
+      {visible.length === 0 ? (
+        <Card className={styles.none}>
+          <span className={styles.noneMark}><Icon name="IconCheck" width="24" height="24" /></span>
+          <p className={styles.noneTitle}>{active === 'to_send' ? 'Everything has gone out' : 'Nothing dispatched yet'}</p>
+          <p className={styles.noneBody}>{active === 'to_send' ? 'New orders land here, oldest at the top.' : 'Orders you mark dispatched move here.'}</p>
+        </Card>
+      ) : (
+        <div className={styles.list}>
+          {visible.map((order, i) => (
+            <OrderRow key={order.id} order={order} index={i}
+              onSave={(fields) => saveDispatch({ id: order.id, ...fields })}
+              onResend={({ kind }) => resendEmail({ id: order.id, kind })}
+              onDispatched={(o) => {
+                setToast(`${o.reference} is on its way. ${o.name?.split(' ')[0] ?? 'They'} ${o.name ? 'has' : 'have'} the tracking email.`);
+                setTimeout(() => setToast(null), 3200);
+              }} />
+          ))}
+        </div>
+      )}
+
+      {toast && (
+        <p className={styles.toast} role="status">
+          <span className={styles.toastMark}><Icon name="IconCheck" width="14" height="14" /></span>{toast}
+        </p>
+      )}
     </div>
   );
 }

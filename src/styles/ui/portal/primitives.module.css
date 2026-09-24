@@ -66,6 +66,7 @@
   justify-content: center;
   width: 16px;
   height: 16px;
+  padding: 0;
   border-radius: var(--r-full);
   color: var(--c-ink-faint);
   transition: color var(--dur) var(--ease);
@@ -112,6 +113,11 @@
 .tip[data-side='end']:focus-within .tipBody,
 .tip[data-side='start']:hover .tipBody,
 .tip[data-side='start']:focus-within .tipBody { transform: none; }
+
+.tip[data-place='below'] .tipBody { top: calc(100% + 8px); bottom: auto; }
+.tip[data-tone='light'] .tipButton { color: rgba(250, 246, 239, 0.55); }
+.tip[data-tone='light'] .tipButton:hover, .tip[data-tone='light'] .tipButton:focus-visible { color: var(--c-base); }
+.tip[data-tone='light'] .tipBody { background: var(--c-base); color: var(--c-ink); }
 
 @media (prefers-reduced-motion: reduce) {
   .tipBody { transition: none; }

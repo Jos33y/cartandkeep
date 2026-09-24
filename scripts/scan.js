@@ -36,26 +36,18 @@ import {
  * instruments. Ordinary goods sit right beside them in the file, which is why
  * the list is words rather than categories.
  */
+// Only what the gate cannot see. Categories went: "cards" and "games" were
+// silently dropping birthday cards and board games off The Works' shelf.
 const SKIP = [
-  // Second hand by nature
-  'used', 'vintage', 'antique', 'refurbished', 'preowned', 'secondhand', 'joblot', 'spares',
-  // Collectables
-  'pokemon', 'warhammer', 'tcg', 'funko', 'cards', 'booster', 'psa', 'graded',
-  'figure', 'figures', 'stamps', 'coins', 'comic', 'comics', 'manga',
-  // Media
-  'vinyl', 'lp', 'cd', 'dvd', 'records', 'book', 'books', 'novel',
-  // Games and consoles
-  'ps1', 'ps2', 'ps3', 'ps4', 'ps5', 'xbox', 'nintendo', 'wii', 'gameboy', 'console', 'games',
+  // Second hand by nature, and she sells new
+  'used', 'vintage', 'antique', 'refurbished', 'preowned', 'secondhand', 'joblot',
   // Clothing, where size drives the return
   'shirt', 'dress', 'jeans', 'trainers', 'jacket', 'hoodie',
-  // Labels and devices a new seller cannot sell new
-  'iphone', 'ipad', 'macbook', 'airpods', 'samsung', 'laptop',
+  // Account risk: counterfeit reports and brand takedowns land on a young account
+  'iphone', 'ipad', 'macbook', 'airpods',
   'rolex', 'omega', 'gucci', 'prada', 'chanel', 'burberry', 'moncler', 'nike', 'adidas', 'ralph',
-  // Whole vehicles
-  'cars', 'van', 'motorhome', 'motorcycle', 'motorbike', 'tractor', 'bmw', 'audi', 'ford', 'engine',
-  // Instruments
-  'guitar', 'bass', 'drum', 'piano',
 ];
+let skipped = 0;
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
 const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -68,7 +60,7 @@ function readQueries(file) {
     const q = head.trim();
     if (!q || seen.has(q)) continue;
     const words = q.toLowerCase().split(/\s+/);
-    if (SKIP.some((w) => words.includes(w))) continue;
+    if (SKIP.some((w) => words.includes(w))) { skipped += 1; continue; }
     seen.add(q);
     out.push({ q, seed: rest.join('#').trim() || null });
   }
@@ -84,8 +76,9 @@ export function judge({ total, sampled, median, cfg, minResults, minGoods, maxGo
 
   const maxGoods = median == null ? null : maxGoodsCost(median, cfg);
   if (maxGoods == null) return { outcome: 'no_price', maxGoods: null };
-  if (maxGoods <= 0) return { outcome: 'below_cost', maxGoods };
-  if (maxGoods < minGoods) return { outcome: 'too_cheap', maxGoods };
+  // Under the £2 target is ours to argue with. Losing money with the goods free is the market's answer.
+  if (maxGoods + cfg.minProfit <= 0) return { outcome: 'below_cost', maxGoods };
+  if (minGoods > 0 && maxGoods < minGoods) return { outcome: 'too_cheap', maxGoods };
   // Above the ceiling is stock she is not buying yet, and the postage band
   // underneath the figure is wrong for anything that heavy anyway.
   if (ceiling && maxGoods > ceiling) return { outcome: 'too_dear', maxGoods };
@@ -113,7 +106,7 @@ async function main() {
    * the fee stack takes everything and leaves the £2 a sale target to decide
    * the rest, per product, on figures rather than a guess.
    */
-  const minGoods = Number(arg('min-goods', 3));
+  const minGoods = Number(arg('min-goods', 0));
   const maxGoods = Number(arg('max-goods', 40));
   const fromCsv = arg('from-csv');
   // New and fixed price only. A market of used gear is not one she can source.
@@ -146,6 +139,7 @@ async function main() {
 
   const all = readQueries(file);
   const queries = all.slice(start, max ? start + max : undefined);
+  if (skipped) console.log(`\n  ${skipped} queries skipped for a word the gate cannot judge (second hand, sized, or account risk)`);
 
   const loaded = await loadEnvFiles(arg('env-file'));
   const cred = pickCredentials(process.env, arg('id-key'), arg('secret-key'));

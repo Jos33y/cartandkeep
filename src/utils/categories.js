@@ -19,6 +19,11 @@ export function topOf(path) {
   return path.split('|')[0]?.trim() || null;
 }
 
+// Her section where she set one, the eBay department otherwise.
+export function sectionOf(product) {
+  return product?.section || topOf(product?.category_path);
+}
+
 export function leafOf(path) {
   if (!path) return null;
   return path.split('|').pop()?.trim() || null;
@@ -50,7 +55,7 @@ export function categorySlug(name) {
 export function groupCategories(products, { min = 3, label = 'Everything else', names = [] } = {}) {
   const buckets = new Map();
   for (const product of products) {
-    const key = topOf(product.category_path) ?? label;
+    const key = sectionOf(product) ?? label;
     if (!buckets.has(key)) buckets.set(key, []);
     buckets.get(key).push(product);
   }

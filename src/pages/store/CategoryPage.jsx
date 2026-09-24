@@ -9,7 +9,8 @@ import { CategoryNavSkeleton, ProductGridSkeleton } from '@components/ui/store/S
 import { useStoreProducts } from '@hooks/useStoreProducts';
 import { useTenant } from '@hooks/useTenant';
 import { STORE_ROUTES } from '@utils/constants';
-import { allGroups, findGroup, leafOf, topOf } from '@utils/categories';
+import { allGroups, findGroup, leafOf, sectionOf } from '@utils/categories';
+import { displayName } from '@utils/categoryNames';
 import styles from '@styles/pages/store/category-page.module.css';
 import { useCategoryNames } from '@hooks/useCategoryNamesStore';
 
@@ -69,21 +70,21 @@ export function CategoryPage({ everything = false }) {
     for (const p of group.items) {
       // Departments on /shop, leaf categories inside one. Seventy eight
       // products across forty leaves is a rail nobody reads.
-      const name = everything ? topOf(p.category_path) : (leafOf(p.category_path) ?? p.category);
+      const name = everything ? displayName(sectionOf(p), names) : (leafOf(p.category_path) ?? p.category);
       if (name) tally.set(name, (tally.get(name) ?? 0) + 1);
     }
     return [...tally.entries()]
       .filter(([, n]) => n > 1)
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [group, everything]);
+  }, [group, everything, names]);
 
   const visible = useMemo(() => {
     if (!group) return [];
-    const key = (p) => (everything ? topOf(p.category_path) : (leafOf(p.category_path) ?? p.category));
+    const key = (p) => (everything ? displayName(sectionOf(p), names) : (leafOf(p.category_path) ?? p.category));
     const filtered = leaf ? group.items.filter((p) => key(p) === leaf) : group.items;
     const fn = SORTS[sort]?.fn;
     return fn ? [...filtered].sort(fn) : filtered;
-  }, [group, leaf, sort, everything]);
+  }, [group, leaf, sort, everything, names]);
 
   if (status === 'loading') {
     return (

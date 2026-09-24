@@ -82,20 +82,25 @@ export function useInterest(tenantId) {
     if (!tenantId) return;
     setState((s) => ({ ...s, status: 'loading' }));
 
-    const [funnel, searches, days, sources] = await Promise.all([
+    // One window for every figure on the page, by calendar date rather than by the last thirty rows.
+    const since = new Date(Date.now() - 29 * 86400000).toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
+
+    const [funnel, searches, days, sources, orders] = await Promise.all([
       supabase.from('store_product_funnel').select('*')
         .eq('tenant_id', tenantId).order('views', { ascending: false }).limit(300),
       supabase.from('store_searches').select('*')
         .eq('tenant_id', tenantId).order('searches', { ascending: false }).limit(60),
-      supabase.from('store_days').select('*')
-        .eq('tenant_id', tenantId).order('day', { ascending: false }).limit(30),
+      supabase.from('store_visit_funnel').select('day, visits, viewed, basket, checkout')
+        .eq('tenant_id', tenantId).gte('day', since).order('day', { ascending: false }),
       supabase.from('store_source_days').select('*')
-        .eq('tenant_id', tenantId).order('day', { ascending: false }).limit(300),
+        .eq('tenant_id', tenantId).gte('day', since).order('day', { ascending: false }),
+      supabase.from('orders').select('id, total, paid_at')
+        .eq('tenant_id', tenantId).eq('status', 'paid').gte('paid_at', `${since}T00:00:00Z`),
     ]);
 
-    const error = funnel.error ?? searches.error ?? days.error ?? sources.error;
+    const error = funnel.error ?? searches.error ?? days.error ?? sources.error ?? orders.error;
     if (error) {
-      return setState({ status: 'error', products: [], searches: [], days: [], sources: [], error });
+      return setState({ status: 'error', products: [], searches: [], days: [], sources: [], orders: [], error });
     }
 
     setState({
@@ -106,6 +111,8 @@ export function useInterest(tenantId) {
       searches: searches.data ?? [],
       days: days.data ?? [],
       sources: sources.data ?? [],
+      orders: orders.data ?? [],
+      since,
       error: null,
     });
   }, [tenantId]);
@@ -115,15 +122,17 @@ export function useInterest(tenantId) {
   const totals = useMemo(() => {
     const d = state.days;
     const sum = (k) => d.reduce((n, r) => n + Number(r[k] ?? 0), 0);
-
+    const paid = state.orders ?? [];
     return {
       visits: sum('visits'),
-      productViews: sum('product_views'),
-      adds: sum('adds'),
-      checkouts: sum('checkouts'),
+      viewed: sum('viewed'),
+      basket: sum('basket'),
+      checkout: sum('checkout'),
+      bought: paid.length,
+      taken: paid.reduce((n, o) => n + Number(o.total ?? 0), 0),
       days: d.length,
     };
-  }, [state.days]);
+  }, [state.days, state.orders]);
 
   /*
    * The products worth her attention, worst first.

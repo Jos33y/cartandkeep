@@ -29,19 +29,12 @@ export function useRequests(tenantId) {
     if (!tenantId) return;
     setState((s) => ({ ...s, status: 'loading' }));
 
-    const [list, demand] = await Promise.all([
-      supabase.from('store_requests')
-        .select('id, wanted, paying, seen_at, email, name, source, status, note, created_at, product_id')
-        .eq('tenant_id', tenantId)
-        .order('created_at', { ascending: false }),
+    const list = await supabase.from('store_requests')
+      .select('id, wanted, paying, seen_at, email, name, source, status, note, created_at, product_id')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false });
 
-      supabase.from('store_request_demand')
-        .select('wanted, asks, unanswered, paying, last_asked')
-        .eq('tenant_id', tenantId)
-        .order('asks', { ascending: false }),
-    ]);
-
-    const error = list.error ?? demand.error;
+    const { error } = list;
     if (error) return setState({ ...EMPTY, status: 'error', error });
 
     const rows = list.data ?? [];
@@ -50,7 +43,7 @@ export function useRequests(tenantId) {
       status: 'ready',
       error: null,
       rows,
-      demand: demand.data ?? [],
+      demand: groupDemand(rows),
       counts: {
         new: rows.filter((r) => r.status === 'new').length,
         looking: rows.filter((r) => r.status === 'looking').length,
@@ -98,6 +91,63 @@ export function useRequests(tenantId) {
  * lines of a specification that has not changed since 2005, and the channel
  * import reader on this project was written for the same reason.
  */
+// Grouped here rather than in store_request_demand, which only matched exact wording, so
+// "toilet frame with arms" and "Toilet frames with arms, adjustable height" were two things.
+const STOP = new Set(['a', 'an', 'the', 'for', 'with', 'and', 'of', 'to', 'in', 'on', 'my', 'some', 'any', 'please', 'or']);
+
+function wordsOf(text) {
+  return String(text ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ')
+    .filter((w) => w && !STOP.has(w))
+    .map((w) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w));
+}
+
+function alike(a, b) {
+  if (a.joined === b.joined) return true;
+  const [small, large] = a.set.size <= b.set.size ? [a, b] : [b, a];
+  if (small.set.size < 2) return false;
+  let shared = 0;
+  for (const w of small.set) if (large.set.has(w)) shared += 1;
+  if (shared === small.set.size) return true;
+  return shared / (a.set.size + b.set.size - shared) >= 0.6;
+}
+
+export function groupDemand(rows) {
+  const items = rows.map((r) => {
+    const words = wordsOf(r.wanted);
+    return { r, set: new Set(words), joined: words.join('') };
+  });
+  const parent = items.map((_, i) => i);
+  const find = (i) => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  for (let i = 0; i < items.length; i += 1) {
+    for (let j = i + 1; j < items.length; j += 1) {
+      if (items[i].joined && alike(items[i], items[j])) parent[find(j)] = find(i);
+    }
+  }
+
+  const groups = new Map();
+  items.forEach((it, i) => {
+    const k = find(i);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(it.r);
+  });
+
+  return [...groups.values()]
+    .filter((g) => g.length > 1)
+    .map((g) => {
+      const paid = g.map((r) => Number(r.paying)).filter((n) => Number.isFinite(n) && n > 0);
+      return {
+        // The shortest wording is usually the plainest name for the thing.
+        wanted: [...g].sort((a, b) => a.wanted.length - b.wanted.length)[0].wanted,
+        asks: g.length,
+        unanswered: g.filter((r) => r.status === 'new').length,
+        paying: paid.length ? Math.round((paid.reduce((n, v) => n + v, 0) / paid.length) * 100) / 100 : null,
+        last_asked: g.map((r) => r.created_at).sort().at(-1),
+        ids: g.map((r) => r.id),
+      };
+    })
+    .sort((a, b) => b.asks - a.asks || String(b.last_asked).localeCompare(String(a.last_asked)));
+}
+
 export function toCsv(rows, columns) {
   const cell = (v) => {
     if (v === null || v === undefined) return '';

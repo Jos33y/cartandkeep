@@ -90,6 +90,81 @@ export function entryRank(r) {
   return [r.entry.proved ? 0 : 1, r.entry.per_day ?? 0];
 }
 
+const SEASONS = [
+  ['Christmas', /christmas|xmas|advent|santa|reindeer|snowman|festive|stocking|bauble|nativity|tinsel|nutcracker/i],
+  ['Halloween', /halloween|pumpkin|spooky|trick or treat|witch|skeleton|zombie/i],
+  ['Easter', /easter/i],
+  ['Valentine', /valentine/i],
+  ['Summer', /summer|bbq|barbecue|paddling|sun ?cream|sunscreen|parasol|water gun|\bbeach\b|\bpool\b|garden furniture/i],
+];
+
+// Read off the product, so it works the same whichever shop found it.
+export function seasonOf(...texts) {
+  const text = texts.filter(Boolean).join(' ');
+  return SEASONS.find(([, re]) => re.test(text))?.[0] ?? 'General';
+}
+
+/*
+ * The pack a title states, when it states exactly one. A sourcing hint shown
+ * beside where a product was found, never a cost: Home Bargains had Dentastix
+ * 21s at £4.99 and the seller proving the market sold 105 at £24.99.
+ */
+const COUNT_WORDS = 's|pk|pack|packs|sticks|chews|bars|washes|pods|capsules|caps|tablets|tabs|piece|pieces|pcs|count|ct|sachets|pouches|trays|tins|rolls|wipes|pads|bags|servings';
+const COUNT = new RegExp(`\\bx\\s?(\\d+)\\b|\\b(\\d+)\\s?(?:${COUNT_WORDS})\\b|\\bpack of (\\d+)\\b|^(\\d+)\\s`, 'gi');
+const WEIGHT = /\b(\d+(?:\.\d+)?)\s?(kg|g|ml|l|litre|litres)\b/gi;
+export function packOf(title) {
+  if (!title) return null;
+  const t = String(title);
+  // "30 x 26g" and "12s x12" are packs of packs. Guessing which number is the pack is how 144 pads read as 12.
+  if (/\d+\s?x\s?\d+/i.test(t)) return null;
+  const counts = [...t.matchAll(COUNT)].map((m) => Number(m[1] ?? m[2] ?? m[3] ?? m[4])).filter((n) => n > 1);
+  if (counts.length > 1) return null;
+  const weights = [...new Set([...t.matchAll(WEIGHT)].map((m) => {
+    const n = Number(m[1]); const u = m[2].toLowerCase();
+    return u === 'kg' || u.startsWith('l') ? n * 1000 : n;
+  }))];
+  if (counts.length === 1 && weights.length <= 1) return { kind: 'count', n: counts[0] };
+  if (!counts.length && weights.length === 1) return { kind: 'weight', n: weights[0] };
+  return null;
+}
+
+const squash = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+/*
+ * Is the product found on a shelf the one the proving seller sells. A barcode
+ * on both sides settles it. Otherwise the brand has to appear on the eBay side
+ * and the packs are compared where both titles state one. A shop can contradict
+ * itself (Home Bargains: 80 x 85g in the title, 12 x 85g in the description),
+ * so this is a sourcing hint and the picture still decides.
+ */
+export function matchOf(shelf, listing, entryTitle) {
+  if (!shelf) return null;
+  const title = entryTitle ?? listing?.title ?? '';
+  // No proving listing, nothing to compare against.
+  if (!title) return { level: 'unknown', via: 'no listing to compare', shelf: packOf(shelf.product), ebay: null };
+  const shelfPack = packOf(shelf.product);
+  const ebayPack = packOf(title);
+  const packs = { shelf: shelfPack, ebay: ebayPack };
+  if (shelf.gtin && listing?.gtin) {
+    return shelf.gtin === listing.gtin
+      ? { level: 'same_product_same_pack', via: 'barcode', ...packs }
+      : { level: 'different_barcode', via: 'barcode', ...packs };
+  }
+  const brand = squash(shelf.brand);
+  if (!brand) return { level: 'unknown', via: 'no brand on the shelf', ...packs };
+  // A shop may file the maker (Thornton & Ross) where eBay names the product brand (Flexitol).
+  const named = String(shelf.product ?? '').split(/\s+/).slice(0, 1).map(squash).filter((w) => w.length >= 4);
+  const onEbay = squash(listing?.brand) === brand || squash(title).includes(brand)
+    || named.some((w) => squash(title).includes(w));
+  if (!onEbay) return { level: 'different_product', via: 'brand', ...packs };
+  if (!shelfPack || !ebayPack || shelfPack.kind !== ebayPack.kind) return { level: 'same_brand_pack_unknown', via: 'brand', ...packs };
+  return shelfPack.n === ebayPack.n
+    ? { level: 'same_product_same_pack', via: 'brand and pack', ...packs }
+    : { level: 'same_product_different_pack', via: 'brand and pack', ...packs };
+}
+
+const ebayUrl = (id) => (id ? `https://www.ebay.co.uk/itm/${String(id).split('|')[1] ?? id}` : null);
+
 export function buildRow({ r, tenant, cluster, checkedAt, shelf = null, shops = null, product = null }) {
   const median = num(r.median_price);
   const perMonth = int(r.observed_units_per_month);
@@ -138,7 +213,14 @@ export function buildRow({ r, tenant, cluster, checkedAt, shelf = null, shops = 
 
   // The shelf turns a ceiling into a profit. maxGoods already has the target
   // profit taken out of it, so it goes back in before the shelf comes off.
-  const net = shelf && maxGoods != null
+  // Where it was found is a lead, not a cost: the shop's pack is rarely the pack
+  // eBay sells, so nothing below is worked out from the shelf price.
+  const sampled = (listingsOf(r) ?? []).map((l) => ({ ...l, url: ebayUrl(l.item_id) }));
+  const match = matchOf(shelf, sampled.find((l) => l.item_id && l.item_id === entryId), entry?.title);
+  // Only the same product in the same pack makes the shelf price a real cost.
+  // Anything less is a lead, and the cost arrives when she records where she bought it.
+  const exact = match?.level === 'same_product_same_pack';
+  const net = exact && maxGoods != null
     ? Math.round((maxGoods + D.minProfit - shelf.price) * 100) / 100
     : null;
 
@@ -146,7 +228,7 @@ export function buildRow({ r, tenant, cluster, checkedAt, shelf = null, shops = 
     tenant_id: tenant?.id ?? null,
     external_ref: r.query,
     title: titleOf(r.query),
-    category: null,
+    category: shelf?.category || null,
 
     image_url: (r.image_url || '').trim() || null,
     // eBay's composite id is v1|287502604374|0 and the /itm/ path wants the
@@ -154,7 +236,7 @@ export function buildRow({ r, tenant, cluster, checkedAt, shelf = null, shops = 
     reference_url: entryId ? `https://www.ebay.co.uk/itm/${String(entryId).split('|')[1] ?? entryId}` : null,
 
     classification: 'unknown',
-    cluster,
+    cluster: shelf ? seasonOf(shelf.product, shelf.category, r.query) : cluster,
     // Cleared the market read and has never been tested against its own
     // history, which needs three windows the gate does not produce.
     tier: 'candidate',
@@ -231,15 +313,17 @@ export function buildRow({ r, tenant, cluster, checkedAt, shelf = null, shops = 
       band,
       band_label: band ? BAND_LABEL[band] ?? band : null,
       headroom_band: band,
-      landed_cost: shelf ? shelf.price : null,
-      cost_source: shelf ? 'shelf' : 'not_quoted',
+      landed_cost: exact ? shelf.price : null,
+      cost_source: exact ? 'shelf' : 'not_quoted',
       net,
       net_pct: net != null && price ? Math.round((net / price) * 1000) / 10 : null,
 
-      // Where it actually came from, with the price it was seen at. One link,
-      // not a search.
+      // Home Bargains 21s against the proving seller's 105: same product, different pack.
+      match,
+
+      // Where it was found and what it was seen at. A lead to follow, never a cost.
       shelf: shelf
-        ? { shop: shelf.shop, url: shelf.url, product: shelf.product, price: shelf.price }
+        ? { shop: shelf.shop, url: shelf.url, product: shelf.product, price: shelf.price, category: shelf.category ?? null, gtin: shelf.gtin ?? null }
         : null,
 
       // Proposed, not found. Rendered as searches on the card.
@@ -288,7 +372,8 @@ export function buildRow({ r, tenant, cluster, checkedAt, shelf = null, shops = 
       band: num(r.price_band),
       sample: int(r.listings_with_sold),
       // One point per sampled listing, for the price field.
-      listings: listingsOf(r),
+      // Every sampled listing, linked, so what is selling can be opened.
+      listings: sampled.length ? sampled : null,
       competitors: int(r.competitors),
       unbranded_share: num(r.unbranded_share),
       // What the median came from, so a price nobody has been paid is visible as one.

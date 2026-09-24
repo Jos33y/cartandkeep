@@ -64,6 +64,13 @@ const clean = (v: unknown, max: number) => {
   return s ? s.slice(0, max) : null;
 };
 
+// Keeps the line breaks a customer typed, which clean() flattens into one paragraph.
+const cleanParagraphs = (v: unknown, max: number) => {
+  const s = String(v ?? '').replace(/\r\n?/g, '\n').replace(/[ \t]+/g, ' ')
+    .replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  return s ? s.slice(0, max) : null;
+};
+
 Deno.serve(async (req) => {
   const origin = req.headers.get('origin');
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(origin) });
@@ -172,7 +179,7 @@ Deno.serve(async (req) => {
     title: clean(body.title, 120),
     // Long enough for somebody with something to say, short enough that a
     // pasted essay does not become the product page.
-    body: clean(body.body, 2000),
+    body: cleanParagraphs(body.body, 2000),
     // Falls back to the name on the order, first word only. A review signed
     // with a full name is a review somebody regrets, and one signed with an
     // email address is one nobody leaves twice.

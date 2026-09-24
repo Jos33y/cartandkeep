@@ -109,7 +109,7 @@ export function useStoreProducts(tenantId, { includeDrafts = SHOW_DRAFTS } = {})
         // description were in the database and not on the page.
         .select(`
           id, slug, title, description, price, compare_at,
-          image_url, images, category, category_path, postage_band,
+          image_url, images, category, category_path, section, postage_band,
           status, is_sample, position,
           brand, condition, source_description, specifications, highlights,
           in_the_box, gtin, availability, stock, dispatch_days,

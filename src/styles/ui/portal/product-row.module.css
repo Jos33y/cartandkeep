@@ -1,119 +1,233 @@
-/* Same ledger as candidates and orders. A photograph replaces the score at the
-   left anchor, because on a catalogue the picture is what she recognises a
-   product by, and the price holds the right anchor as it does everywhere. */
+/* One row of the readiness grid. Columns are shared with the header in products-page. */
 .row {
-  --gutter: calc(48px + 22px + var(--s-3) * 2);
+  --step-w: 62px;
   position: relative;
-  padding: var(--s-3) var(--s-4);
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 92px repeat(var(--gate), var(--step-w)) 14px repeat(var(--rest), var(--step-w));
+  align-items: center;
+  padding: var(--s-2) var(--s-3) var(--s-2) var(--s-2);
   border-bottom: 1px solid var(--c-line);
   transition: background var(--dur) var(--ease);
+  animation: rise var(--dur-enter) var(--ease-out) both;
 }
 
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+
+.row:last-child { border-bottom: 0; border-radius: 0 0 var(--r-lg) var(--r-lg); }
 .row:hover { background: var(--c-raised); }
-.rowOpen { background: var(--c-raised); }
+.row[data-selected] { background: #fdf6f2; }
 
-.stateReady { box-shadow: inset 3px 0 0 var(--c-brand-strong); }
-.stateBlocked { box-shadow: inset 3px 0 0 var(--c-warning); }
-.stateLive { box-shadow: inset 3px 0 0 var(--c-positive); }
-
-.head { display: flex; align-items: center; gap: var(--s-3); }
-
-.pick {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  min-height: var(--tap);
-  cursor: pointer;
+.row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--row-state, transparent);
 }
 
-.pick input { width: 17px; height: 17px; accent-color: var(--c-action-strong); }
-.pick input:disabled { cursor: not-allowed; opacity: 0.4; }
+.row[data-state='live'] { --row-state: var(--c-positive); }
+.row[data-state='ready'] { --row-state: var(--c-info); }
+.row[data-state='blocked'] { --row-state: var(--c-negative); }
+.row[data-state='archived'] { --row-state: var(--c-line-mid); }
+
+.pick { display: grid; place-items: center; width: 44px; height: var(--tap); cursor: pointer; }
+.pick input { width: 18px; height: 18px; accent-color: var(--c-action-strong); cursor: pointer; }
 
 .opener {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) auto 16px;
+  display: flex;
   align-items: center;
   gap: var(--s-3);
-  min-height: var(--tap);
+  min-width: 0;
+  min-height: 68px;
+  padding-right: var(--s-4);
   text-align: left;
-  background: none;
-  cursor: pointer;
+  border-radius: var(--r-md);
 }
+
+.opener:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+.opener:hover .title { text-decoration: underline; text-decoration-color: var(--c-line-mid); text-underline-offset: 3px; }
 
 .thumb {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
-  border: 1px solid var(--c-line-mid);
-  border-radius: var(--r-sm);
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--r-md);
+  object-fit: cover;
   background: var(--c-surface);
+  box-shadow: 0 0 0 1px var(--c-line);
 }
 
-.thumbEmpty { background: var(--c-sunk); display: block; }
+.thumbEmpty {
+  display: block;
+  background: repeating-linear-gradient(135deg, var(--c-sunk) 0 6px, var(--c-base) 6px 12px);
+}
 
-.middle { min-width: 0; display: block; }
+.text { min-width: 0; }
 
 .title {
-  display: block;
-  font-size: var(--t-lead);
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: var(--t-body);
+  font-weight: 500;
+  line-height: var(--lh-snug);
+  letter-spacing: -0.005em;
 }
 
 .meta {
-  display: block;
-  margin-top: 2px;
-  font-size: var(--t-caption);
-  color: var(--c-ink-soft);
-}
-
-.state { font-weight: 500; color: var(--c-ink); }
-.price { font-size: 1.0625rem; color: var(--c-ink); white-space: nowrap; }
-
-.caret {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: var(--s-2);
+  margin-top: 5px;
+  font-size: var(--t-caption);
   color: var(--c-ink-faint);
-  transition: transform var(--dur) var(--ease);
+  white-space: nowrap;
+  overflow: hidden;
 }
 
-.caret[data-open] { transform: rotate(180deg); }
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  padding: 1px 7px 1px 6px;
+  border-radius: var(--r-sm);
+  font-size: var(--t-micro);
+  font-weight: 600;
+}
 
-.detail {
+.state i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.row[data-state='live'] .state { background: var(--c-positive-wash); color: var(--c-positive); }
+.row[data-state='ready'] .state { background: var(--c-info-wash); color: var(--c-info); }
+.row[data-state='blocked'] .state { background: var(--c-negative-wash); color: var(--c-negative); }
+.row[data-state='archived'] .state { background: var(--c-sunk); color: var(--c-ink-faint); }
+
+.where { overflow: hidden; text-overflow: ellipsis; }
+.score { flex: none; font-size: var(--t-micro); color: var(--c-ink-soft); }
+
+.price { text-align: right; padding-right: var(--s-4); font-size: var(--t-body); font-weight: 500; }
+
+.cell {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--s-5);
-  margin-top: var(--s-4);
-  padding-left: var(--gutter);
+  place-items: center;
+  height: var(--tap);
+  border-radius: var(--r-md);
+  transition: background var(--dur) var(--ease);
 }
 
-.thin {
-  grid-column: 1 / -1;
-  padding: var(--s-3);
-  background: var(--c-brand-wash);
-  border-left: 2px solid var(--c-brand-strong);
-  font-size: var(--t-body);
+.cell:hover:not([data-idle]) { background: var(--c-sunk); }
+.cell:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: -2px; }
+
+.divider { justify-self: center; width: 1px; height: 32px; background: var(--c-line); }
+
+.tip {
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  z-index: var(--z-drawer);
+  width: max-content;
+  max-width: 240px;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-ink);
+  color: var(--c-base);
+  box-shadow: var(--e-3);
+  font-size: var(--t-caption);
   line-height: var(--lh-snug);
+  text-align: left;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px);
+  transition: opacity var(--dur) var(--ease), transform var(--dur-settle) var(--ease-out);
 }
 
-.panel { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
+.tip strong { display: block; margin-bottom: 2px; font-weight: 600; }
+.tip[data-end] { left: auto; right: 0; transform: translateY(4px); }
+.cell:hover .tip, .cell:focus-visible .tip { opacity: 1; transform: translate(-50%, 0); }
+.cell:hover .tip[data-end], .cell:focus-visible .tip[data-end] { transform: none; }
+
+.strip { display: none; }
+
+@media (max-width: 1100px) {
+  .row { --step-w: 40px; }
+}
+
+/* On a phone the grid folds into a card with a labelled strip. */
+@media (max-width: 760px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'open price' 'strip strip';
+    gap: var(--s-3);
+    margin-bottom: var(--s-2);
+    padding: var(--s-4);
+    background: var(--c-surface);
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--e-1);
+  }
+
+  .row:last-child { border-bottom: 1px solid var(--c-line); border-radius: var(--r-lg); }
+  .pick, .cell, .divider { display: none; }
+  .opener { grid-area: open; min-height: 0; padding: 0; align-items: flex-start; }
+  .price { grid-area: price; align-self: start; padding: 0; }
+  .thumb { width: 48px; height: 48px; }
+  .title { font-size: var(--t-label); }
+
+  .strip {
+    grid-area: strip;
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    gap: 4px;
+  }
+
+  .stripStep {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+    font-size: 0.625rem;
+    color: var(--c-ink-faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .stripStep[data-open] { color: var(--c-ink); font-weight: 500; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row, .tip, .cell { animation: none; transition: none; }
+}
+
+/* ---- Panel internals, shared with ChecksPanel, DescriptionPanel and VariantsPanel ---- */
+
+.panel { display: flex; flex-direction: column; gap: var(--s-4); min-width: 0; }
 
 .guessed {
-  font-size: var(--t-body);
-  line-height: var(--lh-snug);
-  color: var(--c-ink-soft);
-  padding: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
   background: var(--c-sunk);
-  border-radius: var(--r-sm);
+  font-size: var(--t-label);
+  line-height: var(--lh-body);
+  color: var(--c-ink-soft);
 }
 
-.settled { font-size: var(--t-body); color: var(--c-ink-soft); }
+.settled { font-size: var(--t-label); line-height: var(--lh-body); color: var(--c-ink-soft); }
+
+.thin {
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--c-brand-wash);
+  font-size: var(--t-label);
+  line-height: var(--lh-snug);
+  color: var(--c-ink);
+}
 
 .choices { display: flex; flex-direction: column; gap: var(--s-2); }
 
@@ -121,313 +235,168 @@
   display: flex;
   align-items: flex-start;
   gap: var(--s-3);
-  min-height: var(--tap);
-  padding: var(--s-2) 0;
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
   cursor: pointer;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
 
+.choice:hover { border-color: var(--c-line-mid); background: var(--c-raised); }
+.choice[data-on] { border-color: var(--c-action-strong); background: var(--c-action-wash); }
 .choice input { margin-top: 3px; width: 17px; height: 17px; accent-color: var(--c-action-strong); }
 .choiceLabel { display: block; font-size: var(--t-body); font-weight: 500; }
-.choiceHint { display: block; font-size: var(--t-caption); color: var(--c-ink-faint); }
+.choiceHint { display: block; margin-top: 2px; font-size: var(--t-caption); line-height: var(--lh-snug); color: var(--c-ink-faint); }
 
-.check {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  min-height: var(--tap);
-  font-size: var(--t-body);
-  cursor: pointer;
-}
-
+.check { display: flex; align-items: center; gap: var(--s-3); min-height: var(--tap); font-size: var(--t-label); cursor: pointer; }
 .check input { width: 17px; height: 17px; accent-color: var(--c-action-strong); }
 
-.field { display: flex; flex-direction: column; gap: var(--s-1); }
-.label { font-size: var(--t-label); font-weight: 500; color: var(--c-ink-soft); }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.label { font-size: var(--t-label); font-weight: 500; color: var(--c-ink); }
 
 .input,
-.textarea {
+.textarea,
+.control {
+  width: 100%;
   min-height: var(--tap);
   padding: var(--s-2) var(--s-3);
   border: 1px solid var(--c-control);
-  border-radius: var(--r-sm);
+  border-radius: var(--r-md);
   background: var(--c-surface);
   color: var(--c-ink);
   font-family: var(--font-ui);
   font-size: var(--t-body);
-  width: 100%;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.input:focus, .textarea:focus, .control:focus-within {
+  outline: none;
+  border-color: var(--c-action-strong);
+  box-shadow: 0 0 0 3px rgba(186, 90, 61, 0.16);
 }
 
 .textarea { resize: vertical; line-height: var(--lh-snug); }
 
-.primary {
-  align-self: flex-start;
-  min-height: var(--tap);
-  padding: 0 var(--s-4);
-  border-radius: var(--r-sm);
-  background: var(--c-action-strong);
-  color: #fff;
-  font-size: var(--t-label);
-  font-weight: 500;
-}
-
-.primary:hover:not(:disabled) { filter: brightness(0.93); }
-.primary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.ghost {
-  align-self: flex-start;
-  min-height: var(--tap);
-  padding: 0 var(--s-3);
-  border: 1px solid var(--c-control);
-  border-radius: var(--r-sm);
-  background: none;
-  color: var(--c-ink-soft);
-  font-size: var(--t-label);
-}
-
-.ghost:hover:not(:disabled) { background: var(--c-sunk); }
-
-.split { display: flex; align-items: center; gap: var(--s-3); }
-.count { font-size: var(--t-caption); color: var(--c-ink-faint); }
-
-.hint { font-size: var(--t-caption); color: var(--c-ink-faint); line-height: var(--lh-snug); }
-
-/* Archiving.
-   ------------------------------------------------------------------------
-   Behind a summary, because taking a product out of the shop for good is not
-   something to do by mistake and it is not something she does often. One
-   deliberate open before the button exists at all. */
-
-.archiveBox {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  margin-top: var(--s-3);
-  padding-top: var(--s-3);
-  border-top: 1px solid var(--c-line);
-  font-size: var(--t-caption);
-}
-
-.archiveBox summary {
-  cursor: pointer;
-  min-height: 32px;
-  display: flex;
-  align-items: center;
-  color: var(--c-ink-soft);
-}
-
-.archiveBox summary:hover { color: var(--c-ink); }
-
-.archived {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--s-2);
-  margin-top: var(--s-3);
-  padding: var(--s-3);
-  background: var(--c-sunk);
-  border-radius: var(--r-sm);
-}
-
-/* Sizes and options.
-   ------------------------------------------------------------------------
-   A ledger, not cards. The same shape as every other list on this screen, so
-   three sizes read as three rows of one product rather than three products. */
-
-.variants { border-top: 1px solid var(--c-line); }
-
-.variant {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s-3);
-  min-height: var(--tap);
-  padding: var(--s-2) 0;
-  border-bottom: 1px solid var(--c-line);
-}
-
-.variantLabel { flex: 1; font-size: var(--t-body); font-weight: 500; }
-
-/* Fixed, so prices and counts stack in columns rather than shifting with the
-   length of the name beside them. */
-.variantPrice { flex: 0 0 4.5rem; text-align: right; font-size: var(--t-body); }
-.variantStock { flex: 0 0 5rem; text-align: right; font-size: var(--t-caption); color: var(--c-ink-faint); }
-
-/* A price that comes from the product rather than from this row. Marked rather
-   than repeated, so it is visible that changing the product price changes this
-   one too. */
-.inherited { color: var(--c-ink-faint); font-weight: 400; }
-
-.variantGone {
-  font-size: var(--t-caption);
-  color: var(--c-action-text);
-  white-space: nowrap;
-}
-
-.variant[data-gone] .variantLabel { color: var(--c-ink-faint); font-weight: 400; }
-
-/* The add row.
-   ------------------------------------------------------------------------
-   A grid, not a wrapping flex row. As flex the button wrapped up beside How
-   many and sat between Price and it, because Name and Price filled the first
-   line on their own in a 400px column. A grid puts the button in a named
-   column, so it cannot be reflowed into the middle of the fields no matter how
-   narrow the panel gets.
-
-   Name takes the whole first row because her labels are "Super king" and
-   "2 pack of 30", not "S". Price, count and the button share the second. */
-.variantAdd {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: var(--s-2);
-  align-items: end;
-  margin-top: var(--s-3);
-}
-
-.variantAdd .field:first-child { grid-column: 1 / -1; }
-
-/* Aligned to the boxes beside it rather than to the row, so it sits on the
-   input baseline instead of floating above the labels. */
-.variantAdd .primary { min-height: var(--tap); }
-
-.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--s-3); }
-
-/* The unit sits inside the field, so the border and the focus ring go on the
-   wrapper or the ring draws around the digits and leaves the pound outside. */
-.control {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  min-height: var(--tap);
-  padding: 0 var(--s-3);
-  border: 1px solid var(--c-control);
-  border-radius: var(--r-sm);
-  background: var(--c-surface);
-}
-
-.control:focus-within { border-color: var(--c-ink-faint); }
+.control { display: flex; align-items: center; gap: var(--s-2); padding-block: 0; }
+.affix { color: var(--c-ink-faint); font-family: var(--font-data); }
 
 .bare {
   flex: 1;
   min-width: 0;
+  min-height: calc(var(--tap) - 2px);
   border: 0;
   background: none;
   color: var(--c-ink);
-  font-size: var(--t-body);
-  min-height: calc(var(--tap) - 2px);
+  font-size: var(--t-lead);
 }
 
-.bare:focus, .bare:focus-visible { outline: none; }
-.affix { color: var(--c-ink-faint); font-size: var(--t-body); }
+.bare:focus { outline: none; }
+.bare::placeholder, .input::placeholder, .textarea::placeholder { color: #a99f8c; }
 
-.margins { display: flex; flex-direction: column; border-top: 1px solid var(--c-line); }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--s-4); }
 
-.margin {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 5.5rem 4rem;
-  align-items: baseline;
-  gap: var(--s-3);
-  padding: var(--s-2) 0;
-  border-bottom: 1px solid var(--c-line);
-  font-size: var(--t-body);
-}
-
-.marginName { color: var(--c-ink-soft); }
-.marginNet { text-align: right; font-weight: 500; }
-.marginPct { text-align: right; font-size: var(--t-caption); color: var(--c-ink-faint); }
-.marginBad { color: var(--c-negative); }
-
-.specs { display: flex; flex-direction: column; gap: var(--s-2); }
-
-.spec {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 32px;
-  gap: var(--s-2);
+.primary,
+.ghost {
+  display: inline-flex;
   align-items: center;
+  gap: var(--s-2);
+  align-self: flex-start;
+  min-height: var(--tap);
+  padding: 0 var(--s-4);
+  border-radius: var(--r-md);
+  font-size: var(--t-label);
+  font-weight: 500;
+  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease);
+  animation: rise var(--dur-settle) var(--ease-out) both;
 }
 
-.dropRow {
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--c-control);
-  border-radius: var(--r-sm);
-  background: none;
-  color: var(--c-ink-faint);
-  font-size: 15px;
-  line-height: 1;
+.primary {
+  background: var(--c-action-strong);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 1px 2px rgba(122, 52, 30, 0.25);
 }
 
-.dropRow:hover { background: var(--c-sunk); color: var(--c-negative); }
+.primary:hover:not(:disabled) { background: #ad5134; }
+.ghost { border: 1px solid var(--c-line-mid); background: var(--c-surface); color: var(--c-ink); }
+.ghost:hover:not(:disabled) { background: var(--c-raised); }
+.primary:active, .ghost:active { transform: translateY(1px); }
+.primary:disabled, .ghost:disabled { opacity: 0.55; cursor: not-allowed; }
+.primary:focus-visible, .ghost:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
 
-.slug {
-  font-size: var(--t-caption);
-  color: var(--c-ink-faint);
-  font-family: var(--font-mono);
-}
-
-.supplier { font-size: var(--t-caption); color: var(--c-ink-soft); }
-.supplier summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; }
-.supplier p { margin-top: var(--s-2); line-height: var(--lh-snug); }
-
-.facts { display: flex; flex-direction: column; gap: var(--s-1); font-size: var(--t-body); }
-.facts > div { display: flex; justify-content: space-between; gap: var(--s-4); }
-.facts dt { color: var(--c-ink-soft); }
-
-.error { grid-column: 1 / -1; font-size: var(--t-caption); color: var(--c-negative); }
-
-@media (max-width: 700px) {
-  .row { --gutter: 0px; }
-  .opener { grid-template-columns: 44px minmax(0, 1fr) 16px; }
-  .price { grid-column: 2; grid-row: 2; }
-  .title { white-space: normal; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .row, .caret { transition: none; }
-}
-
-/* The draft, and the flags above it.
-   ------------------------------------------------------------------------
-   Sunk rather than raised, because a draft is not a fact about the product
-   yet. It sits below her own box and reads as something waiting rather than
-   something recorded. */
+.split { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.count { font-size: var(--t-caption); color: var(--c-ink-faint); }
+.count[data-over] { color: var(--c-warning); }
+.hint { font-size: var(--t-caption); line-height: var(--lh-snug); color: var(--c-ink-faint); }
+.slug { font-size: var(--t-caption); color: var(--c-ink-faint); }
 
 .draft {
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
-  margin-top: var(--s-3);
-  padding: var(--s-3);
-  background: var(--c-sunk);
-  border-radius: var(--r-sm);
+  padding: var(--s-4);
+  border: 1px solid #d3e0e8;
+  border-radius: var(--r-md);
+  background: var(--c-info-wash);
 }
 
-.draftBody {
-  font-size: var(--t-body);
-  line-height: var(--lh-snug);
-  color: var(--c-ink);
-}
-
-/* Terracotta as text, not as a fill.
-   The restraint rule allows one action colour per screen and this is not an
-   action. It is the one part of a draft that has to be read before the prose
-   underneath it, so it takes the accent as text and nothing else does. */
-.flags {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  font-size: var(--t-caption);
-  line-height: var(--lh-snug);
-  color: var(--c-action-text);
-}
-
-.flags li {
-  padding-left: var(--s-3);
-  border-left: 2px solid var(--c-action-text);
-}
+.draftBody { font-size: var(--t-label); line-height: var(--lh-body); color: var(--c-ink); }
 
 .draftTitle {
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
   padding-top: var(--s-3);
+  border-top: 1px solid #d3e0e8;
+}
+
+.flags { display: flex; flex-direction: column; font-size: var(--t-label); line-height: var(--lh-body); color: var(--c-ink-soft); }
+
+.flags li {
+  position: relative;
+  padding: var(--s-3) 0 var(--s-3) var(--s-5);
   border-top: 1px solid var(--c-line);
+  list-style: none;
+}
+
+.flags li:first-child { border-top: 0; padding-top: 0; }
+.flags li::before { content: ''; position: absolute; left: 4px; top: calc(var(--s-3) + 7px); width: 6px; height: 6px; border-radius: 2px; background: var(--c-negative); }
+.flags li:first-child::before { top: 7px; }
+
+.supplier { font-size: var(--t-caption); color: var(--c-ink-soft); }
+.supplier summary { display: flex; align-items: center; min-height: 32px; cursor: pointer; }
+.supplier p { margin-top: var(--s-2); line-height: var(--lh-snug); }
+
+.specs { display: flex; flex-direction: column; gap: var(--s-2); }
+.spec { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) 36px; gap: var(--s-2); align-items: center; }
+
+.dropRow {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  color: var(--c-ink-faint);
+}
+
+.dropRow:hover { background: var(--c-negative-wash); color: var(--c-negative); }
+
+.archiveBox { display: flex; flex-direction: column; gap: var(--s-3); font-size: var(--t-label); }
+.archiveBox summary { display: flex; align-items: center; min-height: var(--tap); cursor: pointer; color: var(--c-ink-faint); }
+.archiveBox summary:hover { color: var(--c-negative); }
+
+.variants { border-top: 1px solid var(--c-line); }
+.variant { display: flex; align-items: baseline; gap: var(--s-3); min-height: var(--tap); padding: var(--s-2) 0; border-bottom: 1px solid var(--c-line); }
+.variantLabel { flex: 1; font-size: var(--t-body); font-weight: 500; }
+.variantPrice { flex: 0 0 4.5rem; text-align: right; font-size: var(--t-body); }
+.variantStock { flex: 0 0 5rem; text-align: right; font-size: var(--t-caption); color: var(--c-ink-faint); }
+.inherited { color: var(--c-ink-faint); font-weight: 400; }
+.variantGone { font-size: var(--t-caption); color: var(--c-action-text); white-space: nowrap; }
+.variant[data-gone] .variantLabel { color: var(--c-ink-faint); font-weight: 400; }
+.variantAdd { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--s-2); align-items: end; margin-top: var(--s-3); }
+.variantAdd .field:first-child { grid-column: 1 / -1; }
+
+.error { font-size: var(--t-caption); color: var(--c-negative); }
+
+@media (prefers-reduced-motion: reduce) {
+  .primary, .ghost, .choice, .input, .textarea, .control { animation: none; transition: none; }
 }

@@ -7,7 +7,7 @@
 
 import { D, stats, bandOf, headroomAt, maxGoodsCost, unitsNeeded } from './cost.js';
 import { search, getItem } from './ebay.js';
-import { readSeller, readBrand, routeOf, readSold, readAge } from './listing.js';
+import { readSeller, readBrand, readGtin, routeOf, readSold, readAge } from './listing.js';
 
 // -------------------------------------------------------------------- one query
 
@@ -53,6 +53,7 @@ export async function assess({ access, marketplace, q, cfg, probe }) {
       itemId: it.itemId,
       title: it.title ?? null,
       brand: readBrand(detail),
+      gtin: readGtin(detail),
       priceGbp: Number(it.price?.value) || null,
       // Already on the wire from both calls and thrown away until now. Without
       // it sourcing means walking into a shop holding a text string.
@@ -71,34 +72,7 @@ export async function assess({ access, marketplace, q, cfg, probe }) {
     });
   }
 
-  // The entry test. A young listing that is actually selling, from a seller
-  // small enough that the sale says something about entry rather than about
-  // standing she does not have.
-  //
-  // Size is not part of finding the listing, only of judging it. Filtering it
-  // out here threw away the useful fact that a 3,302 feedback seller is taking
-  // 27 units in 46 days, which is not proof of entry but is worth reading.
-  const young = listings.filter((l) => l.ageDays != null && l.ageDays <= cfg.youngDays
-    && l.sellerFeedback != null);
-  // Smallest first, not fastest. The question is whether a seller her size can
-  // get in, and the fastest young seller in a sample is routinely the largest
-  // of them. Rate breaks a tie.
-  //
-  // Selling means a rate, not a sale. A listing showing one unit in eighty days
-  // was being reported as entry proved: it is one person who bought a thing
-  // once, and at 0.4 a month it is under the one to two a month this whole
-  // catalogue is being built to hit. Two units and a real monthly rate before
-  // anything is divided.
-  const selling = young.filter((l) => l.rateTrusted
-    && l.soldLifetime >= unitsNeeded(l.ageDays, cfg)
-    && (l.soldPerDay ?? 0) * 30 >= cfg.minEntryPerMonth)
-    .sort((a, b) => a.sellerFeedback - b.sellerFeedback || b.soldPerDay - a.soldPerDay);
-  const smallest = selling[0] ?? null;
-
-  // Somebody small and recent has sold, just not enough of it to be a rate.
-  // Kept separately so the verdict can say which of the two it is looking at.
-  const thin = young.filter((l) => l.soldLifetime > 0 && !selling.includes(l))
-    .sort((a, b) => a.sellerFeedback - b.sellerFeedback)[0] ?? null;
+  const entry = entryOf(listings, cfg);
 
   const observedPerMonth = listings.reduce((n, l) => n + (l.rateTrusted ? (l.soldPerDay ?? 0) : 0), 0) * 30;
 
@@ -122,12 +96,7 @@ export async function assess({ access, marketplace, q, cfg, probe }) {
     competitors,
     feedback,
     sourcing: routeOf(listings),
-    entry: {
-      proved: Boolean(smallest) && smallest.sellerFeedback <= cfg.maxFeedback,
-      youngSeen: young.length,
-      thin: !smallest && Boolean(thin),
-      ...(smallest ?? thin ?? {}),
-    },
+    entry,
     price: priced,
     soldTotal: soldKnown ? soldTotal : null,
     soldKnown,
@@ -137,10 +106,53 @@ export async function assess({ access, marketplace, q, cfg, probe }) {
     // any listing carrying a picture. Tying the image to entry proof left four
     // rows on the board with an empty square, and an empty square on a sourcing
     // card is the whole problem this was built to solve.
-    imageUrl: smallest?.imageUrl ?? listings.find((l) => l.imageUrl)?.imageUrl ?? null,
+    imageUrl: entry.imageUrl ?? listings.find((l) => l.imageUrl)?.imageUrl ?? null,
     band: cfg.band,
     headroom: priced ? headroomAt(priced.median, cfg) : null,
     maxGoods: priced ? maxGoodsCost(priced.median, cfg) : null,
     listings,
+  };
+}
+
+// Three sales in under a week is proof buyers are coming to a new listing, even though a rate
+// that young is noise. "14 in 5 days" was being refused as "nobody is buying it".
+const EARLY_PROOF = 3;
+
+// Who is getting into this market, worked out from the listings alone, so a re-judge of a
+// saved snapshot applies today's rules rather than the ones the snapshot was taken under.
+export function entryOf(listings, cfg) {
+  // The entry test. A young listing that is actually selling, from a seller
+  // small enough that the sale says something about entry rather than about
+  // standing she does not have.
+  const young = listings.filter((l) => l.ageDays != null && l.ageDays <= cfg.youngDays
+    && l.sellerFeedback != null);
+  // Smallest first, not fastest. Rate breaks a tie.
+  //
+  // Selling means a rate, not a sale: one unit in eighty days is one person who
+  // bought a thing once. Under a week old, a rate means nothing, but three or more
+  // sales already is buyers arriving.
+  const selling = young.filter((l) => (l.rateTrusted
+      && l.soldLifetime >= unitsNeeded(l.ageDays, cfg)
+      && (l.soldPerDay ?? 0) * 30 >= cfg.minEntryPerMonth)
+    || (!l.rateTrusted && (l.soldLifetime ?? 0) >= EARLY_PROOF))
+    .sort((a, b) => a.sellerFeedback - b.sellerFeedback || (b.soldPerDay ?? 0) - (a.soldPerDay ?? 0));
+  const smallest = selling[0] ?? null;
+
+  // Somebody small and recent has sold, just not enough of it to be a rate.
+  const thin = young.filter((l) => l.rateTrusted && l.soldLifetime > 0 && !selling.includes(l))
+    .sort((a, b) => a.sellerFeedback - b.sellerFeedback)[0] ?? null;
+
+  // Too new to call either way: a sale or two in its first days.
+  const early = !smallest && !thin
+    ? young.filter((l) => !l.rateTrusted && (l.soldLifetime ?? 0) > 0)
+      .sort((a, b) => a.sellerFeedback - b.sellerFeedback)[0] ?? null
+    : null;
+
+  return {
+    proved: Boolean(smallest) && smallest.sellerFeedback <= cfg.maxFeedback,
+    youngSeen: young.length,
+    thin: !smallest && Boolean(thin),
+    early: Boolean(early),
+    ...(smallest ?? thin ?? early ?? {}),
   };
 }

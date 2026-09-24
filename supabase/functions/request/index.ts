@@ -96,10 +96,17 @@ Deno.serve(async (req) => {
     wanted,
     paying: priceish(body.paying),
     seen_at: clean(body.seenAt, 300),
-    email: clean(body.email, 160),
+    email: validEmail(clean(body.email, 160)),
     name: clean(body.name, 80),
     source: clean(body.source, 120),
   };
+
+  // The same thing again inside ten minutes is a double press, not a second customer.
+  const { count: repeat } = await db.from('store_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('tenant_id', tenant.id).eq('wanted', wanted)
+    .gte('created_at', new Date(Date.now() - 10 * 60_000).toISOString());
+  if (repeat) return json({ ok: true }, 200, origin);
 
   const { error } = await db.from('store_requests').insert(row);
   if (error) {
@@ -116,7 +123,13 @@ Deno.serve(async (req) => {
    * where losing the request is better than losing the email.
    */
   const to = tenant.store?.email ?? tenant.store?.trader?.email;
-  if (RESEND_KEY && to) {
+  // Every request is kept, but a flood stops emailing her after twenty in an hour.
+  const { count: lastHour } = await db.from('store_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('tenant_id', tenant.id)
+    .gte('created_at', new Date(Date.now() - 60 * 60_000).toISOString());
+
+  if (RESEND_KEY && to && (lastHour ?? 0) <= 20) {
     try {
       await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -142,6 +155,10 @@ Deno.serve(async (req) => {
 
   return json({ ok: true }, 200, origin);
 });
+
+function validEmail(v: string | null) {
+  return v && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v : null;
+}
 
 function escapeHtml(s: string) {
   return String(s)

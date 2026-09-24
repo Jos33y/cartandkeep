@@ -14,7 +14,7 @@ import { deleteProductImage } from '@lib/productImages';
 
 const SELECT = `
   id, tenant_id, slug, title, price, image_url, images, status, is_sample, stock,
-  category, category_path, brand, description, source_description,
+  category, category_path, section, brand, description, source_description,
   specifications, in_the_box,
   landed_cost, postage_cost, cost_note, cost_updated_at,
   availability, returns_class, returns_note,
@@ -456,7 +456,7 @@ export function useCatalogue(tenantId) {
    * the only thing that actually knows, and a select then insert has a gap
    * between them where a second tab wins.
    */
-  const create = useCallback(async ({ title, price, categoryPath }) => {
+  const create = useCallback(async ({ title, price, categoryPath, section }) => {
     const clean = String(title ?? '').trim();
     if (!clean) throw new Error('A title is needed.');
 
@@ -478,6 +478,7 @@ export function useCatalogue(tenantId) {
         source_kind: 'manual',
         category_path: categoryPath || null,
         category: categoryPath ? categoryPath.split('|').pop().trim() : null,
+        section: section || null,
         images: [],
       }).select('id').single();
 
@@ -533,9 +534,12 @@ export function useCatalogue(tenantId) {
    * a product appears under one heading and describes itself as another.
    */
   const saveRecord = useCallback(async ({
-    id, categoryPath, brand, specifications, keepSpecs, inTheBox,
+    id, categoryPath, section, brand, specifications, keepSpecs, inTheBox,
   }) => {
     const patch = {};
+
+    // The shop's section, leaving the eBay path and so the Google feed alone.
+    if (section !== undefined) patch.section = section || null;
 
     if (categoryPath !== undefined) {
       patch.category_path = categoryPath || null;
@@ -887,7 +891,7 @@ export function categoryCounts(rows) {
   const counts = new Map();
   for (const r of rows) {
     if (!isLive(r)) continue;
-    const top = String(r.category_path ?? '').split('|')[0]?.trim();
+    const top = r.section || String(r.category_path ?? '').split('|')[0]?.trim();
     if (!top) continue;
     counts.set(top, (counts.get(top) ?? 0) + 1);
   }

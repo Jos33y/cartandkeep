@@ -12,7 +12,7 @@ export const REFUSAL_TEXT = [
   ['young_not_selling', /recent listings in the sample and none of them are selling/],
   ['nothing_sold', /nothing has sold on any of the sampled listings/],
   ['market_small', /whole sampled market moves about/],
-  ['below_cost', /does not cover the cost base/],
+  ['below_cost', /does not cover the cost base|loses money even with the goods free/],
   ['entry_large_only', /feedback, over the \d+ ceiling/],
   ['entry_thin', /Somebody bought it, nobody is buying it/],
   ['entry_untested', /entry is untested here, against/],

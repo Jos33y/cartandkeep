@@ -24,17 +24,17 @@ const LANES = [
   {
     key: 'ready',
     title: 'Worth approving',
-    tip: 'A small seller is converting on this, at the price shown. The month figure is what you would keep at that seller\'s own price and rate.',
+    tip: 'A small seller is converting on this, at the price shown. With a cost, the month figure is what you would keep at that seller\'s own price and rate. Without one, buy under the figure shown.',
   },
   {
     key: 'call',
     title: 'Your call',
-    tip: 'Keeps at least the target, but either no small seller is proved to be selling it, or the price is the market median rather than one a small seller is being paid.',
+    tip: 'Either no small seller is proved to be selling it, or the price is the market median rather than one a small seller is being paid.',
   },
   {
     key: 'short',
     title: 'Keeps under the target',
-    tip: 'A supplier added since import costs more than the price can carry. Find it cheaper or reject it.',
+    tip: 'The known cost, from the same pack on a shelf or a supplier you added, keeps under the £2 target at this price. Find it cheaper or list higher.',
   },
 ];
 

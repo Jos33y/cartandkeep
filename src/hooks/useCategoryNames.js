@@ -1,138 +1,105 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@lib/supabase';
 
-/*
- * The words on her shop front.
- *
- * Reads `store_category_map`, which is every category path actually in the
- * catalogue with her name beside it where she has given one. Listing what
- * exists rather than asking her to type an eBay path from memory is the whole
- * reason that view was written.
- *
- * A row here is a rename, not a move. Products keep their eBay path, the
- * Google feed keeps saying what Google expects, and an absent row means the
- * shop behaves exactly as it does today.
- */
+const EMPTY = { status: 'loading', departments: [], error: null };
 
-const EMPTY = {
-  status: 'loading',
-  departments: [],
-  error: null,
-  counts: { named: 0, unnamed: 0, hidden: 0, all: 0 },
-};
+const slugify = (name) => String(name).normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'section';
 
 export function useCategoryNames(tenantId) {
   const [state, setState] = useState(EMPTY);
 
   const load = useCallback(async () => {
     if (!tenantId) return;
-    setState((s) => ({ ...s, status: 'loading' }));
+    setState((s) => ({ ...s, status: s.departments.length ? 'ready' : 'loading' }));
 
     const { data, error } = await supabase
       .from('store_category_map')
-      .select('path, depth, products, live, name_id, name, slug, blurb, position, hidden, ebay_name')
+      .select('path, products, live, name, slug, blurb, position, hidden, own, ebay_name')
       .eq('tenant_id', tenantId)
-      .order('depth')
       .order('path');
 
     if (error) return setState({ ...EMPTY, status: 'error', error });
 
-    const rows = (data ?? []).map((r) => ({
+    const departments = (data ?? []).map((r) => ({
       ...r,
       products: Number(r.products),
       live: Number(r.live),
-    }));
-
-    /*
-     * Shelves nested under their department.
-     *
-     * She thinks about the shop as departments containing shelves, and a flat
-     * list of thirty paths with pipes in them is the eBay taxonomy wearing a
-     * portal screen. The nesting is done here rather than in the view because
-     * it is a shape for one screen rather than a fact about the data.
-     */
-    const departments = rows
-      .filter((r) => r.depth === 1)
-      .map((d) => ({
-        ...d,
-        shelves: rows.filter((r) => r.depth === 2 && r.path.startsWith(`${d.path}|`)),
-      }));
-
-    setState({
-      status: 'ready',
-      error: null,
-      departments,
-      counts: {
-        named: rows.filter((r) => r.name).length,
-        unnamed: rows.filter((r) => !r.name).length,
-        hidden: rows.filter((r) => r.hidden).length,
-        all: rows.length,
-      },
+      label: r.name || r.ebay_name,
+    })).sort((a, b) => {
+      if (a.position !== null && b.position !== null && a.position !== b.position) return a.position - b.position;
+      if (a.position !== null && b.position === null) return -1;
+      if (a.position === null && b.position !== null) return 1;
+      return b.live - a.live || a.label.localeCompare(b.label);
     });
+
+    setState({ status: 'ready', error: null, departments });
   }, [tenantId]);
 
   useEffect(() => { load(); }, [load]);
 
-  /*
-   * Saving a name.
-   *
-   * Upsert on the path, because she is editing a section rather than a row and
-   * whether one exists yet is not a distinction she should have to think
-   * about. Clearing the name deletes the row instead, so the shop falls back
-   * to the eBay name rather than showing an empty heading.
-   */
-  const save = useCallback(async ({ tenantId: t, path, name, slug, blurb, position, hidden }) => {
+  const write = useCallback(async (row) => {
+    const { error } = await supabase.from('store_category_names')
+      .upsert({ tenant_id: tenantId, ...row }, { onConflict: 'tenant_id,path' });
+    if (error) throw error;
+  }, [tenantId]);
+
+  const create = useCallback(async (name) => {
     const clean = String(name ?? '').trim();
+    if (!clean) throw new Error('Give the section a name.');
+    const path = `own:${crypto.randomUUID().slice(0, 8)}`;
+    await write({ path, name: clean, slug: slugify(clean), own: true });
+    await load();
+    return path;
+  }, [write, load]);
 
-    if (!clean) {
-      const { error } = await supabase.from('store_category_names')
-        .delete().eq('tenant_id', t).eq('path', path);
+  // An empty name on an eBay department goes back to eBay's; her own sections always keep one.
+  const rename = useCallback(async (dept, name) => {
+    const clean = String(name ?? '').trim();
+    if (dept.own && !clean) throw new Error('A section of your own needs a name.');
+    await write({ path: dept.path, name: clean || null, ...(dept.own ? { slug: slugify(clean) } : {}) });
+    await load();
+  }, [write, load]);
+
+  const setHidden = useCallback(async (dept, hidden) => {
+    await write({ path: dept.path, hidden });
+    await load();
+  }, [write, load]);
+
+  const reorder = useCallback(async (paths) => {
+    const { error } = await supabase.from('store_category_names').upsert(
+      paths.map((path, position) => ({ tenant_id: tenantId, path, position })),
+      { onConflict: 'tenant_id,path' },
+    );
+    if (error) throw error;
+    await load();
+  }, [tenantId, load]);
+
+  // Null sends a product back to its eBay department.
+  const move = useCallback(async (ids, path) => {
+    if (!ids.length) return;
+    // In batches: three hundred ids in one filter is a URL long enough to be refused.
+    for (let i = 0; i < ids.length; i += 100) {
+      const { error } = await supabase.from('store_products')
+        .update({ section: path || null })
+        .eq('tenant_id', tenantId)
+        .in('id', ids.slice(i, i + 100));
       if (error) throw error;
-      await load();
-      return;
     }
+    await load();
+  }, [tenantId, load]);
 
-    const tidySlug = String(slug ?? '').trim().toLowerCase();
-    if (tidySlug && !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(tidySlug)) {
-      // Caught here rather than by the column, so the message says what to do
-      // rather than naming a constraint.
-      throw new Error('A web address can only use lower case letters, numbers and hyphens.');
-    }
-
-    const { error } = await supabase.from('store_category_names').upsert({
-      tenant_id: t,
-      path,
-      name: clean,
-      slug: tidySlug || null,
-      blurb: String(blurb ?? '').trim() || null,
-      // An empty box means no position, which sorts last. Zero would sort
-      // first, which is not what an empty box says.
-      position: String(position ?? '').trim() === '' ? null : Number(position),
-      hidden: Boolean(hidden),
-    }, { onConflict: 'tenant_id,path' });
-
+  // Its products go back to their eBay departments, so nothing points at a section that is gone.
+  const remove = useCallback(async (dept) => {
+    if (!dept.own) throw new Error('Only a section you made can be deleted.');
+    const moved = await supabase.from('store_products').update({ section: null })
+      .eq('tenant_id', tenantId).eq('section', dept.path);
+    if (moved.error) throw moved.error;
+    const { error } = await supabase.from('store_category_names').delete()
+      .eq('tenant_id', tenantId).eq('path', dept.path);
     if (error) throw error;
     await load();
-  }, [load]);
+  }, [tenantId, load]);
 
-  /*
-   * Hiding, on its own.
-   *
-   * A section can be hidden without being renamed, so this writes a row with
-   * the eBay name in it rather than requiring her to name something first just
-   * to take it off the navigation.
-   */
-  const setHidden = useCallback(async ({ tenantId: t, path, name, hidden }) => {
-    const { error } = await supabase.from('store_category_names').upsert({
-      tenant_id: t,
-      path,
-      name: String(name ?? '').trim(),
-      hidden,
-    }, { onConflict: 'tenant_id,path' });
-
-    if (error) throw error;
-    await load();
-  }, [load]);
-
-  return { ...state, reload: load, save, setHidden };
+  return { ...state, reload: load, create, rename, setHidden, reorder, move, remove };
 }

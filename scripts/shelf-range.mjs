@@ -13,6 +13,7 @@ const limit = args.limit ? Number(args.limit) : Infinity;
 const sample = args.sample ? Number(args.sample === true ? 3 : args.sample) : 0;
 const urlMatch = args.match ? new RegExp(args.match, 'i') : null;
 const refreshUrls = Boolean(args.refresh);
+const timeout = Number(args.timeout || 30000);
 const useBrowser = Boolean(args.browser);
 
 const dir = join('research', 'shelf');
@@ -100,9 +101,11 @@ async function get(url, retried = false) {
     }
     return r;
   }
+  // A shop that holds the connection open instead of refusing would otherwise stall every worker for good.
   const res = await fetch(url, {
     headers: { 'user-agent': UA, 'accept-language': 'en-GB,en;q=0.9', accept: 'text/html,application/xml;q=0.9,*/*;q=0.8' },
-    redirect: 'follow'
+    redirect: 'follow',
+    signal: AbortSignal.timeout(timeout)
   });
   let buf = Buffer.from(await res.arrayBuffer());
   // .xml.gz sitemaps arrive as raw gzip, not content-encoded.
@@ -314,10 +317,10 @@ try {
         if (!rows.length) {
           empty++;
           await appendFile(skipFile, `${u}\t${r.status === 200 ? 'no product data' : 'status ' + r.status}\n`);
-          continue;
+        } else {
+          ok++;
+          await appendFile(outFile, rows.map(row => JSON.stringify({ ...row, source: u })).join('\n') + '\n');
         }
-        ok++;
-        await appendFile(outFile, rows.map(row => JSON.stringify({ ...row, source: u })).join('\n') + '\n');
       } catch (e) {
         if (e instanceof Stop) { stopped = e.message; return; }
         failed++;

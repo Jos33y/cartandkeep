@@ -36,7 +36,7 @@ import { pathToFileURL } from 'node:url';
 // The cost model is imported rather than restated. Two copies of it is how the
 // project came to have a £19.50 floor in one file and a £10.24 one in another.
 import { D, BANDS } from './lib/cost.js';
-import { parseCsv, readShelf, readProducts, shopFromUrl, num, int, yes } from './lib/sources.js';
+import { parseCsv, readShelf, readShelfProducts, shelfFor, readProducts, shopFromUrl, num, int, yes } from './lib/sources.js';
 import { envKey, proposeShops } from './lib/shops.js';
 import { entryKeepOf, listingsOf, refusalsOf } from './lib/refusals.js';
 import { BAND_LABEL, entryRank, buildRow, listPrice, titleOf } from './lib/row.js';
@@ -72,11 +72,20 @@ async function main() {
   // have to be bought for under £3, and a water butt tap at £1.21 is not a
   // product, it is a row taking up a decision. Pass --min-goods=0 to see them.
   // Matches the scan and the gate. The real test is the £2 a sale below.
-  const minGoods = Number(arg('min-goods', 3));
+  // No floor unless asked for: a low ceiling means cheap stock is needed, not that none exists.
+  const minGoods = arg('min-goods') == null ? null : Number(arg('min-goods'));
   const shelfPath = arg('shelf');
+  const shelfProductsPath = arg('shelf-products');
   const productsPath = arg('products');
   const noShops = args.includes('--no-shops');
   const allowDuplicates = args.includes('--allow-duplicates');
+  const refreshDecided = args.includes('--refresh-decided');
+
+  // A day holds one batch per term since 0087, so the term is what names the batch.
+  if (!term && !dry) {
+    console.error('\n  --term is required: a day holds one batch per term.\n');
+    process.exit(1);
+  }
 
   if (!fs.existsSync(csv)) {
     console.error(`\n  ${csv} not found. Run the gate first.\n`);
@@ -85,6 +94,8 @@ async function main() {
 
   const checkedAt = new Date(fs.statSync(csv).mtime).toISOString();
   const all = parseCsv(fs.readFileSync(csv, 'utf8'));
+  // Early query files carried "# category, £price" comments into the query itself.
+  for (const r of all) r.query = String(r.query ?? '').split('#')[0].trim();
 
   if (!all.length) {
     console.error(`${csv} has no rows.`);
@@ -100,7 +111,7 @@ async function main() {
 
   const wanted = new Set(includeFail ? ['pass', 'review', 'fail'] : ['pass', 'review']);
   const passed = all.filter((r) => wanted.has((r.outcome || '').trim()));
-  const live = passed.filter((r) => (num(r.max_goods_cost) ?? 0) >= minGoods);
+  const live = minGoods == null ? passed : passed.filter((r) => (num(r.max_goods_cost) ?? 0) >= minGoods);
   const refused = all.length - passed.length;
   const unsourceable = passed.length - live.length;
 
@@ -129,15 +140,26 @@ async function main() {
     const hit = deduped.filter((r) => shelf.has((r.query || '').trim())).length;
     console.log(`\n  ${shelf.size} shelf prices read, ${hit} of ${deduped.length} candidates matched`);
   }
+  const products = shelfProductsPath ? readShelfProducts(shelfProductsPath) : [];
+  if (products.length) {
+    let found = 0;
+    for (const r of deduped) {
+      const q = (r.query || '').trim();
+      if (shelf.has(q)) continue;
+      const s = shelfFor(q, products);
+      if (s) { shelf.set(q, s); found += 1; }
+    }
+    console.log(`  ${found} more found by product name across ${products.length} shelf products`);
+  }
 
   // Titles first, because the proposal is one call for the whole batch.
-  const products = readProducts(productsPath);
+  const pages = readProducts(productsPath);
   if (productsPath) {
     const hit = deduped.filter((r) => {
       const s = shelf.get((r.query || '').trim());
-      return s?.url && products.has(s.url);
+      return s?.url && pages.has(s.url);
     }).length;
-    console.log(`  ${products.size} product pages read, ${hit} of ${deduped.length} candidates matched`);
+    console.log(`  ${pages.size} product pages read, ${hit} of ${deduped.length} candidates matched`);
   }
 
   const shopsBy = noShops || coverageOnly || refresh
@@ -155,7 +177,7 @@ async function main() {
       checkedAt,
       shelf: shelf.get((r.query || '').trim()) ?? null,
       shops: shopsBy.get(titleOf(r.query)) ?? null,
-      product: products.get(shelf.get((r.query || '').trim())?.url) ?? null,
+      product: pages.get(shelf.get((r.query || '').trim())?.url) ?? null,
     }))
     .sort((a, b) => {
       const [ba, ra] = entryRank(a);
@@ -163,13 +185,11 @@ async function main() {
       return ba - bb || rb - ra || (b.monthly_headroom ?? 0) - (a.monthly_headroom ?? 0);
     });
 
-  // Shelf cost is only known here, so the target is enforced here.
-  const short = built.filter((r) => (r.margin.net != null && r.margin.net < D.minProfit)
-    || (entryKeepOf(r) ?? Infinity) < D.minProfit);
-  const rows = built.filter((r) => !short.includes(r));
+  // The shelf is a lead, not a cost, so nothing is held back on its price.
+  const rows = built;
 
   const sent = new Set(rows.map((r) => r.external_ref));
-  const held = new Set(short.map((r) => r.external_ref));
+  const held = new Set();
   const netBy = new Map(built.map((r) => [r.external_ref, r.margin.net]));
   const seen = new Set();
   const coverage = [];
@@ -202,17 +222,9 @@ async function main() {
 
   console.log(`\n${csv}, read at ${checkedAt.slice(0, 16).replace('T', ' ')}`);
   console.log(`  ${all.length} queries, ${live.length} carried through`);
-  console.log(`  ${refused} refused by the gate, ${unsourceable} passed but nothing `
-    + `can be bought under £${minGoods.toFixed(2)}`);
+  console.log(`  ${refused} refused by the gate`
+    + (minGoods == null ? '' : `, ${unsourceable} passed but nothing can be bought under £${minGoods.toFixed(2)}`));
   if (collapsed) console.log(`  ${collapsed} folded into another query, same listing underneath`);
-  if (short.length) {
-    console.log(`  ${short.length} held back, under £${D.minProfit.toFixed(2)} a sale at the list or the converting price:`);
-    for (const r of short) {
-      const keep = Math.min(r.margin.net ?? Infinity, entryKeepOf(r) ?? Infinity);
-      console.log(`    £${keep.toFixed(2).padStart(7)} a sale  shelf £${r.margin.shelf.price.toFixed(2)}`
-        + ` against £${r.margin.max_goods_cost.toFixed(2)} max  ${r.title.slice(0, 40)}`);
-    }
-  }
   console.log(`  ${rows.filter((r) => r.entry?.proved).length} where a small seller is selling, `
     + `${rows.filter((r) => r.entry && !r.entry.proved).length} selling but only to bigger accounts (*)\n`);
 
@@ -222,7 +234,11 @@ async function main() {
       ? `${String(r.entry.seller_feedback).padStart(6)}fb at £${(r.entry.price ?? 0).toFixed(2)}`
         + (r.entry.proved ? '  ' : ' *')
       : '     nobody recent selling';
-    console.log(`  £${String((pay ?? 0).toFixed(2)).padStart(6)}  ${ev}  ${r.title.slice(0, 46)}`);
+    const mt = r.margin.match;
+    const same = !mt ? '' : mt.level === 'same_product_different_pack'
+      ? `  shelf ${mt.shelf.n}, eBay ${mt.ebay.n}`
+      : `  ${mt.level.replace(/_/g, ' ')}`;
+    console.log(`  £${String((pay ?? 0).toFixed(2)).padStart(6)}  ${ev}  ${r.title.slice(0, 46)}${same}`);
   }
   if (rows.length > 20) console.log(`  ... and ${rows.length - 20} more`);
   console.log();
@@ -274,6 +290,7 @@ async function main() {
       .select('id, term, category_label')
       .eq('tenant_id', tenant.id)
       .eq('delivered_for', deliveredFor)
+      .eq('term', term)
       .maybeSingle();
     if (!batch) {
       console.error(`\n  No batch on ${deliveredFor}. Pass the --date it was imported with.\n`);
@@ -292,6 +309,7 @@ async function main() {
     .select('id, term, category_label, candidate_count')
     .eq('tenant_id', tenant.id)
     .eq('delivered_for', deliveredFor)
+    .eq('term', term)
     .maybeSingle();
 
   if (existing && existing.term && term && existing.term !== term && !replace) {
@@ -314,8 +332,23 @@ async function main() {
       process.exit(1);
     }
     const elsewhere = new Set((prior ?? []).filter((c) => c.batch_id !== existing?.id).map((c) => c.external_ref));
+    // A different query can land on the same eBay listing: three Flexitol cards, one seller.
+    const listingIds = rows.map((r) => r.entry?.item_id).filter(Boolean);
+    if (listingIds.length) {
+      const { data: same, error: lErr } = await db
+        .from('candidates')
+        .select('batch_id, entry')
+        .eq('tenant_id', tenant.id)
+        .in('entry->>item_id', listingIds);
+      if (lErr) {
+        console.error(`Duplicate check failed, nothing imported: ${lErr.message}\n`);
+        process.exit(1);
+      }
+      const taken = new Set((same ?? []).filter((c) => c.batch_id !== existing?.id).map((c) => c.entry?.item_id));
+      for (const r of rows) if (r.entry?.item_id && taken.has(r.entry.item_id)) elsewhere.add(r.external_ref);
+    }
     if (elsewhere.size) {
-      console.log(`  ${elsewhere.size} already in another batch, not imported again:`);
+      console.log(`  ${elsewhere.size} already in another batch, by query or by listing, not imported again:`);
       for (const ref of elsewhere) console.log(`    ${ref}`);
       for (const c of coverage) if (elsewhere.has(c.query)) c.outcome = 'duplicate';
       rows.splice(0, rows.length, ...rows.filter((r) => !elsewhere.has(r.external_ref)));
@@ -340,7 +373,7 @@ async function main() {
         sources_used: ['ebay_browse'],
         candidate_count: rows.length,
       },
-      { onConflict: 'tenant_id,delivered_for' },
+      { onConflict: 'tenant_id,delivered_for,term' },
     )
     .select()
     .single();
@@ -350,9 +383,27 @@ async function main() {
     process.exit(1);
   }
 
-  const { error: cErr } = await db
-    .from('candidates')
-    .upsert(rows.map((r) => ({ ...r, batch_id: batch.id })), { onConflict: 'batch_id,external_ref' });
+  // A card she has already decided keeps the figures she decided on. --refresh-decided updates them anyway.
+  if (!refreshDecided) {
+    const { data: decided, error: dErr } = await db
+      .from('candidates')
+      .select('external_ref, decisions!inner ( id )')
+      .eq('batch_id', batch.id)
+      .in('external_ref', rows.map((r) => r.external_ref));
+    if (dErr) {
+      console.error(`Decision check failed, nothing imported: ${dErr.message}\n`);
+      process.exit(1);
+    }
+    const held = new Set((decided ?? []).map((c) => c.external_ref));
+    if (held.size) {
+      console.log(`  ${held.size} already decided by her, left exactly as they are`);
+      rows.splice(0, rows.length, ...rows.filter((r) => !held.has(r.external_ref)));
+    }
+  }
+
+  const { error: cErr } = rows.length
+    ? await db.from('candidates').upsert(rows.map((r) => ({ ...r, batch_id: batch.id })), { onConflict: 'batch_id,external_ref' })
+    : { error: null };
 
   if (cErr) {
     console.error('Candidate upsert failed:', cErr.message);

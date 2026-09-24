@@ -48,7 +48,9 @@ export function assess(row) {
 
   const quoted = (row.sources ?? []).find((s) => s.landed_unit_cost != null) ?? null;
   const shelf = m.shelf ?? null;
-  const best = quoted ?? (shelf?.price != null
+  // The shelf is a cost only when it is the proving seller's product and pack; otherwise it is a lead.
+  const shelfIsCost = m.match?.level === 'same_product_same_pack';
+  const best = quoted ?? (shelfIsCost && shelf?.price != null
     ? { supplier: shelf.shop ?? 'the shelf', landed_unit_cost: shelf.price, url: shelf.url }
     : null);
 
@@ -75,9 +77,13 @@ export function assess(row) {
   const entryKeep = modelled && goods != null ? keepAt(entry?.price, m, goods) : null;
   const ref = entry?.price ?? price;
   const ratio = goods > 0 && ref != null ? Math.round((ref / goods) * 10) / 10 : null;
-  const packCheck = ratio != null && ratio > PACK_RATIO;
+  // A shelf matched on brand and pack has already had its pack checked.
+  const packCheck = ratio != null && ratio > PACK_RATIO && !(shelfIsCost && !quoted);
 
   const entryLoses = Boolean(entry?.proved) && entryKeep != null && entryKeep <= 0;
+  const ceiling = entry?.ceiling ?? CEILING;
+  // Not proved can mean a small seller barely selling, or only big accounts selling. Different facts.
+  const entryThin = Boolean(entry) && !entry.proved && entry.seller_feedback != null && entry.seller_feedback <= ceiling;
   // A rate from what may be a different pack is not this product's rate.
   const month = entry?.proved && perMonth != null && entryKeep > 0 && !packCheck
     ? round(entryKeep * perMonth)
@@ -98,9 +104,10 @@ export function assess(row) {
 
   return {
     m, l, entry, d, best, goods, price, keep, fees, postage, modelled, trusted, warnings,
-    target, perMonth, entryKeep, entryLoses, month, ratio, packCheck,
+    target, perMonth, entryKeep, entryLoses, entryThin, month, ratio, packCheck, shelfIsCost,
+    match: m.match ?? null,
     maxGoods: m.max_goods_cost ?? null,
-    ceiling: entry?.ceiling ?? CEILING,
+    ceiling,
     breakEven: priceFor(0, m, goods),
     floor: target != null ? priceFor(target, m, goods) : null,
     lane: short ? 'short' : entry?.proved && trusted && !packCheck && !entryLoses ? 'ready' : 'call',

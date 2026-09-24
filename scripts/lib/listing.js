@@ -35,6 +35,18 @@ export function readBrand(detail) {
   return v || null;
 }
 
+// The barcode, where the seller gave one. Read off the detail call already made,
+// so a shelf product can be matched exactly rather than by its title.
+export function readGtin(detail) {
+  const aspects = Array.isArray(detail?.localizedAspects) ? detail.localizedAspects : [];
+  const named = aspects.find((a) => /^(ean|upc|gtin|isbn)$/i.test(String(a?.name ?? '').trim()))?.value;
+  for (const v of [detail?.gtin, named]) {
+    const digits = String(v ?? '').replace(/\D/g, '');
+    if (digits.length >= 8 && digits.length <= 14) return digits;
+  }
+  return null;
+}
+
 const OPEN_BRAND = /^(un-?branded|generic|no\s*brand|unbranded\s*\/\s*generic|does\s*not\s*apply|not\s*applicable|n\/?a|none|no)$/i;
 
 export function brandIsOpen(brand) {
