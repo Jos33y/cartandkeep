@@ -18,7 +18,7 @@
 
 export const SCOPE_VERSION = '1.3';
 export const SCOPE_DATE = '2026-07-22';
-export const LAST_REVIEWED = '2026-09-22';
+export const LAST_REVIEWED = '2026-09-24';
 export const MONTH_ONE_DUE = '2026-08-22';
 
 export const DELIVERABLE_GROUPS = [
@@ -66,7 +66,7 @@ export const DELIVERABLE_GROUPS = [
       },
       {
         label: 'Multi-category structure ready from day one',
-        detail: 'Eight departments, plus a price band. Category pages, sub-sections and sorting are built.',
+        detail: 'Departments from the catalogue, and sections of your own that you name and fill, plus a price band. Category pages, sub-sections and sorting are built.',
         state: 'active',
       },
       {
@@ -147,7 +147,7 @@ export const DELIVERABLE_GROUPS = [
       {
         label: 'SEO progress report',
         detail:
-          'First on 24 August, then the 22nd of each month, every cycle without exception. It lives in the portal under Being found and is kept month by month, so you can see the line from nothing to the first clicks rather than a document that lands and is filed.',
+          'Monthly, kept under Being found month by month, so you can see the line from nothing to the first clicks rather than a document that lands and is filed. It cannot start until Google Search Console is verified and connected, which is still being set up, so no report has gone out yet. Until then Being found shows what stops Google listing each product.',
         state: 'active',
       },
     ],

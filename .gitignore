@@ -3,6 +3,7 @@ node_modules
 dist
 coverage/
 
+
 # Secrets. The example stays, since it documents what is needed.
 .env
 .env.local
@@ -17,6 +18,7 @@ research/
 drops/
 records/
 backups/
+tools/
 .gate/
 *.zip
 
