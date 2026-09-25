@@ -32,7 +32,7 @@ const dayName = (iso) => {
 const COLUMNS = [
   { key: 'impressions', label: 'Shown', help: 'Times eBay put it in front of somebody' },
   { key: 'views', label: 'Opened', help: 'Times somebody clicked into it' },
-  { key: 'transactions', label: 'Sold', help: 'Units bought in this window' },
+  { key: 'last', label: 'Sold', help: 'Units bought in this window. Sorted, the most recent sale comes first' },
   { key: 'stake', label: 'At stake', help: 'What this listing would have taken if it converted like the ones that do sell' },
 ];
 
@@ -53,7 +53,7 @@ function Info({ children }) {
  * 158,223 and 2,632 and 30 set at the same size made the collapse invisible,
  * which is the one thing this measures. The bars are the numbers.
  */
-function Funnel({ total, benchmark, count }) {
+function Funnel({ total, benchmark, count, latest }) {
   /*
    * Each bar is its share of the step before it, not of impressions.
    *
@@ -115,6 +115,15 @@ function Funnel({ total, benchmark, count }) {
               ? <><span data-num>{pct(s.rate)}</span> carried through, <span data-num>{n(s.lost)}</span> {s.lostWord}</>
               : s.foot}
           </p>
+
+          {s.strong && latest && (
+            <p className={styles.stepLatest}>
+              Latest sale <span data-num>{dayName(latest.sold_at)}</span>,{' '}
+              {latest.href
+                ? <a href={latest.href} target="_blank" rel="noreferrer noopener">{latest.title}</a>
+                : latest.title}
+            </p>
+          )}
         </div>
       ))}
 
@@ -132,7 +141,7 @@ function Funnel({ total, benchmark, count }) {
   );
 }
 
-function Trend({ days }) {
+function Trend({ days, soldOn }) {
   const [at, setAt] = useState(null);
   if (days.length < 2) return null;
 
@@ -167,6 +176,9 @@ function Trend({ days }) {
         <span><span data-num>{n(cur.impressions)}</span> shown</span>
         <span><span data-num>{n(cur.views)}</span> opened</span>
         {cur.transactions > 0 && <span className={styles.won}><span data-num>{cur.transactions}</span> sold</span>}
+        {soldOn?.get(cur.day)?.length > 0 && (
+          <span className={styles.readSold}>{soldOn.get(cur.day).join(', ')}</span>
+        )}
         {at == null && <span className={styles.peakTag}>busiest day</span>}
         {at != null && <span className={styles.hint}>hover to read any day</span>}
       </p>
@@ -213,15 +225,72 @@ export function EbayTrafficPage() {
   const [tenant, setTenant] = useState(undefined);
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
-  const { status, total, listings, days, error, pulling, pull } = useEbayTraffic(tenant?.id);
+  const { status, total, listings, days, sales, error, pulling, pull } = useEbayTraffic(tenant?.id);
   const [only, setOnly] = useState(null);
   const [sort, setSort] = useState({ key: 'stake', dir: -1 });
   const [find, setFind] = useState('');
 
   const benchmark = useMemo(() => benchmarkOf(listings), [listings]);
+
+  // By item id; a title only when no other listing shares it, so an order is never pinned on the wrong one.
+  const listingOf = useMemo(() => {
+    const byId = new Map(listings.map((r) => [String(r.listing_id), r]));
+    const titles = new Map();
+    for (const r of listings) {
+      const t = (r.title ?? '').toLowerCase();
+      if (t) titles.set(t, titles.has(t) ? null : r);
+    }
+    return (s) => byId.get(String(s.external_sku)) ?? titles.get((s.title ?? '').toLowerCase()) ?? null;
+  }, [listings]);
+
+  const ordersBy = useMemo(() => {
+    const map = new Map();
+    for (const s of sales ?? []) {
+      const r = listingOf(s);
+      if (!r) continue;
+      if (!map.has(r.listing_id)) map.set(r.listing_id, []);
+      map.get(r.listing_id).push(s);
+    }
+    return map;
+  }, [sales, listingOf]);
+
+  const latest = useMemo(() => {
+    const s = (sales ?? [])[0];
+    if (!s) return null;
+    const r = listingOf(s);
+    return { ...s, href: r ? `https://www.ebay.co.uk/itm/${r.listing_id}` : null };
+  }, [sales, listingOf]);
+
+  // Day by day, what sold, for the chart's readout. London days, as the traffic report counts them.
+  const soldOn = useMemo(() => {
+    const map = new Map();
+    for (const s of sales ?? []) {
+      const day = new Date(s.sold_at).toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
+      if (!map.has(day)) map.set(day, []);
+      map.get(day).push(s.title.length > 42 ? `${s.title.slice(0, 40)}...` : s.title);
+    }
+    return map;
+  }, [sales]);
+
   const withStake = useMemo(
-    () => listings.map((r) => ({ ...r, stake: atStake(r, benchmark), verdict: diagnose(r) })),
-    [listings, benchmark],
+    () => listings.map((r) => {
+      const orders = ordersBy.get(r.listing_id) ?? [];
+      // The traffic report can lag an order it has not counted yet; the order is the stronger fact.
+      const inWindow = orders.filter((o) => total && o.sold_at.slice(0, 10) >= total.window_start
+        && o.sold_at.slice(0, 10) <= total.window_end).reduce((a, o) => a + (o.qty ?? 1), 0);
+      const sold = Math.max(r.transactions ?? 0, inWindow);
+      const row = { ...r, transactions: sold };
+      const lastSoldAt = orders[0]?.sold_at ?? null;
+      return {
+        ...row,
+        stake: atStake(row, benchmark),
+        verdict: diagnose(row),
+        lastSoldAt,
+        afterWindow: Boolean(lastSoldAt && total && lastSoldAt.slice(0, 10) > total.window_end),
+        last: lastSoldAt ? Date.parse(lastSoldAt) : (sold ? 1 : 0),
+      };
+    }),
+    [listings, benchmark, ordersBy, total],
   );
 
   const groups = useMemo(() => {
@@ -283,8 +352,8 @@ export function EbayTrafficPage() {
           headline. */}
       {total && (
         <section className="card">
-          <Funnel total={total} benchmark={benchmark} count={listings.length} />
-          {days?.length > 1 && <Trend days={days} />}
+          <Funnel total={total} benchmark={benchmark} count={listings.length} latest={latest} />
+          {days?.length > 1 && <Trend days={days} soldOn={soldOn} />}
         </section>
       )}
 
@@ -393,6 +462,11 @@ export function EbayTrafficPage() {
                   <span className={styles.sub}>
                     <span className={`${styles.tag} ${styles[r.verdict]}`}>{VERDICTS[r.verdict].label}</span>
                     {r.price != null && <span data-num>{gbp(r.price, r.currency ?? 'GBP')}</span>}
+                    {r.lastSoldAt && (
+                      <span className={styles.won}>
+                        sold <span data-num>{dayName(r.lastSoldAt)}</span>{r.afterWindow ? ', after this window' : ''}
+                      </span>
+                    )}
                   </span>
                 </span>
 

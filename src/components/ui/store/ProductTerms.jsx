@@ -1,9 +1,7 @@
 import { Link } from 'react-router';
 import { formatGbp } from '@utils/formatGbp';
+import { freeOver, postage, returnsTerms, storeConfig } from '@lib/storeConfig';
 import styles from '@styles/ui/store/product-terms.module.css';
-
-const FREE_OVER = 40;
-const POSTAGE = 3.95;
 
 /*
  * Delivery, dispatch and returns, as a specification list.
@@ -17,27 +15,25 @@ const POSTAGE = 3.95;
  *
  * More important than the tone: the returns line was wrong on real products. It
  * promised an unconditional return on a gift set full of bath products and on a
- * four litre bottle of carpet cleaner. Returns are now a property of the
- * product, so a consumable says what is true of a consumable.
+ * four litre bottle of carpet cleaner. Only sealed hygiene goods lose the
+ * right once opened; an opened consumable is a reduced refund, not a refusal.
  *
  * Nothing here removes the right to reject faulty goods under the Consumer
  * Rights Act 2015, which is why that line is printed whichever class applies.
  */
 
-const RETURNS = {
-  standard: {
-    value: '30 days',
-    detail: 'Unused and in its packaging. We refund the price and standard delivery.',
-  },
-  sealed: {
-    value: '30 days, while sealed',
-    detail: 'On health and hygiene grounds this cannot come back once opened.',
-  },
-  none: {
-    value: 'Not returnable',
-    detail: 'A consumable, so the cooling off right does not apply once it is opened.',
-  },
-};
+function returnsFor(returnsClass) {
+  const { days = 30, postagePaidBy } = returnsTerms();
+  const post = postagePaidBy === 'customer' ? '' : ' Free return postage.';
+  if (returnsClass === 'sealed') {
+    return {
+      value: `${days} days, while sealed`,
+      detail: 'On health and hygiene grounds this cannot come back once the seal is broken, unless it is faulty.',
+    };
+  }
+  // 'none' renders as standard: opened consumables are not an exception the regulations allow.
+  return { value: `${days} days`, detail: `Change your mind for any reason.${post}` };
+}
 
 function Row({ label, value, note }) {
   return (
@@ -53,8 +49,11 @@ function Row({ label, value, note }) {
 
 export function ProductTerms({ product, compact = false }) {
   const price = Number(product.price);
-  const free = price >= FREE_OVER;
-  const returns = RETURNS[product.returns_class] ?? RETURNS.standard;
+  const threshold = freeOver();
+  const free = price >= threshold;
+  const returns = returnsFor(product.returns_class);
+  const cutoff = storeConfig().delivery.cutoffHour ?? 14;
+  const cutoffLabel = cutoff === 12 ? '12pm' : cutoff > 12 ? `${cutoff - 12}pm` : `${cutoff}am`;
 
   // Only what is known. A dispatch claim on a product with no dispatch figure
   // behind it is the same fault as the returns sentence, one field along.
@@ -64,15 +63,15 @@ export function ProductTerms({ product, compact = false }) {
     <dl className={styles.terms} data-compact={compact || undefined}>
       <Row
         label="Delivery"
-        value={free ? 'Free, UK' : `${formatGbp(POSTAGE)}, UK`}
-        note={free ? null : `Free over ${formatGbp(FREE_OVER)}`}
+        value={free ? 'Free, UK' : `${formatGbp(postage())}, UK`}
+        note={free ? null : `Free from ${formatGbp(threshold)}`}
       />
 
       {dispatch != null && (
         <Row
           label="Dispatch"
           value={dispatch === 0 ? 'Same day' : `${dispatch} working ${dispatch === 1 ? 'day' : 'days'}`}
-          note={dispatch === 0 ? 'Ordered before 2pm' : null}
+          note={dispatch === 0 ? `Ordered before ${cutoffLabel}` : null}
         />
       )}
 

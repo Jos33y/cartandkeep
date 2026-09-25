@@ -71,7 +71,7 @@ function parseArgs(argv) {
       goodsFloor: Number(get('min-goods', D.goodsFloor)),
       goodsCeiling: Number(get('max-goods', D.goodsCeiling)),
       bandTrustAbove: Number(get('band-trust', D.bandTrustAbove)),
-      filter: get('condition', 'new') === 'any' ? 'buyingOptions:{FIXED_PRICE}' : D.filter,
+      filter: get('condition', 'new') === 'any' ? 'buyingOptions:{FIXED_PRICE},itemLocationCountry:GB' : D.filter,
       untestedMaxListings: Number(get('untested-max-listings', D.untestedMaxListings)),
       minEntryPerMonth: Number(get('min-entry-rate', D.minEntryPerMonth)),
       youngDays: Number(get('young-days', D.youngDays)),

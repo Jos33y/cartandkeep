@@ -4,9 +4,8 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  /* Top, not stretch. A card is content height, so a short title must make a
-     shorter card rather than a card with a hole in it. */
-  align-items: start;
+  /* Stretch: the card reserves its title and stock lines, so a row of cards shares one bottom edge. */
+  align-items: stretch;
   gap: var(--s-3);
   list-style: none;
   padding: 0;

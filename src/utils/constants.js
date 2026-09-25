@@ -6,6 +6,8 @@ export const STORE_ROUTES = {
   CHECKOUT: '/checkout',
   ORDER_CONFIRMATION: '/order/:reference',
   LEGAL: '/legal/:slug',
+  // Help, not policy, so it sits outside /legal. /legal/faq redirects here.
+  FAQ: '/faq',
   BLOG: '/blog',
   BLOG_POST: '/blog/:slug',
   SEARCH: '/search',

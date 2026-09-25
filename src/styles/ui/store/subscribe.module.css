@@ -86,6 +86,15 @@
 .button:hover:not(:disabled) { opacity: 0.88; }
 .button:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* On the dark footer an empty field's button waits as an outline, not a greyed-out block that reads as broken. */
+.block[data-tone='dark'] .button:disabled {
+  opacity: 1;
+  background: transparent;
+  color: var(--c-on-dark-soft);
+  box-shadow: inset 0 0 0 1px var(--c-on-dark-line);
+  cursor: default;
+}
+
 /* Ink rather than terracotta. The accent belongs to buying, and a shop whose
    newsletter button shouts as loudly as Add to basket has its priorities the
    wrong way round. */

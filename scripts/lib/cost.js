@@ -38,7 +38,8 @@ export const D = {
   band: 'evri5',       // cheapest real route for most of what we sell. --band overrides
   // The scan judges new fixed price listings, so the gate has to judge the same
   // market or the two disagree on how crowded it is. --condition=any turns it off.
-  filter: 'conditions:{NEW},buyingOptions:{FIXED_PRICE}',
+  // UK-located sellers only: a US seller's backpack at $37 once "proved" a UK market for patient slings.
+  filter: 'conditions:{NEW},buyingOptions:{FIXED_PRICE},itemLocationCountry:GB',
   fvfPct: 0.128,
   fvfFixed: 0.30,
   adRate: 0.03,

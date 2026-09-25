@@ -1,110 +1,197 @@
-import { useEffect, useState } from 'react';
-import { Link, NavLink } from 'react-router';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Link, NavLink, useLocation } from 'react-router';
 import { Logo } from '@components/ui/shared/Logo';
-import { BasketIcon, HeartIcon, SearchIcon } from '@components/ui/store/icons';
+import { CloseIcon, GridIcon, HeartIcon, MenuIcon, SearchIcon } from '@components/ui/store/icons';
+import { SectionGlyph } from '@components/ui/store/SectionGlyph';
 import { useBasket } from '@context/BasketContext';
-import { useCategoryNames } from '@hooks/useCategoryNamesStore';
-import { isHidden, resolveName } from '@utils/categoryNames';
+import { useSaved } from '@hooks/useSaved';
+import { useSections } from '@hooks/useSections';
+import { freeOver } from '@lib/storeConfig';
+import { priceGroups } from '@utils/categories';
 import { STORE_ROUTES } from '@utils/constants';
+import { HeaderSearch } from './HeaderSearch';
+import { BasketRing } from './BasketRing';
+import { MobileMenu } from './MobileMenu';
 import styles from '@styles/layout/store/store-header.module.css';
 
-/*
- * The header linked to /c/beauty and /c/pet, which were a 404 for anyone who
- * clicked because neither exists in the catalogue. Removing them left the bar
- * empty, which is its own problem: a shop with eight departments and no way
- * into any of them from the top of the page.
- *
- * These are a constant rather than a derived list. The header renders on the
- * cart, the checkout and every legal page, and deriving them would mean
- * fetching the whole catalogue on all of those. A department that later
- * empties leads to a page that says so with a way back, which is a much
- * cheaper failure than a query on every route.
- *
- * Four, not eight. The rest sit behind "All departments", because a header
- * that scrolls is a header nobody reads.
- *
- * No account link, and there will not be one. Checkout is guest only and the
- * fastest way to lose an order is to put a password between somebody and it.
- */
-/*
- * The path is here so her name can be looked up, and the short label stays as
- * the default.
- *
- * "Home & DIY" is a hand shortened version of "Home, Furniture & DIY", written
- * because a header that scrolls is a header nobody reads. It is a better
- * default than eBay's full string, so a department she has not renamed keeps
- * the short one and only a name she has actually chosen replaces it.
- *
- * Still hardcoded, still no catalogue query. The names are a handful of cached
- * rows rather than a read of every product.
- */
-const DEPARTMENTS = [
-  ['Home & DIY', '/c/home-furniture-and-diy', 'Home, Furniture & DIY'],
-  ['Health & beauty', '/c/health-and-beauty', 'Health & Beauty'],
-  ['Pet', '/c/pet-supplies', 'Pet Supplies'],
-  // A price band rather than a department, so there is no path and nothing to
-  // rename. Hers already.
-  ['Under \u00a320', '/c/under-20', null],
-];
-export function StoreHeader() {
-  const { count } = useBasket();
-  const names = useCategoryNames();
-  const [stuck, setStuck] = useState(false);
+const categoryPath = (slug) => STORE_ROUTES.CATEGORY.replace(':slug', slug);
 
-  // The hairline appears once the page has moved. A rule under a header
-  // sitting at the top of its own page is a line for no reason.
+// The shelf rail's highlight glides to whatever the pointer is over and settles back on the current page.
+function useGlide(railRef, deps) {
+  const [box, setBox] = useState(null);
+  const place = useCallback((el) => {
+    const rail = railRef.current;
+    if (!rail || !el) { setBox(null); return; }
+    const r = rail.getBoundingClientRect();
+    const b = el.getBoundingClientRect();
+    setBox({ x: b.left - r.left + rail.scrollLeft, w: b.width });
+  }, [railRef]);
+  const rest = useCallback(() => place(railRef.current?.querySelector('[aria-current="page"]')), [place, railRef]);
+  useLayoutEffect(() => { rest(); }, deps); // eslint-disable-line react-hooks/exhaustive-deps
+  return { box, place, rest };
+}
+
+export function StoreHeader() {
+  const { count, subtotal } = useBasket();
+  const { ids } = useSaved();
+  const { rows, sections } = useSections();
+  const { pathname } = useLocation();
+  const threshold = freeOver();
+  const bands = useMemo(() => priceGroups(rows), [rows]);
+
+  // Only saves that are still on sale: a count of products the customer can no longer buy is a count that misleads.
+  const savedCount = useMemo(() => {
+    const live = new Set(rows.map((p) => p.id));
+    return ids.filter((id) => live.has(id)).length;
+  }, [ids, rows]);
+
+  const header = useRef(null);
+  const rail = useRef(null);
+  const searchInput = useRef(null);
+  const [stuck, setStuck] = useState(false);
+  const [tucked, setTucked] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const { box, place, rest } = useGlide(rail, [pathname, sections.length]);
+  const closeMenu = useCallback(() => setMenu(false), []);
+
+  // Scrolling down tucks the shelf rail away; any scroll up brings it back.
   useEffect(() => {
-    const onScroll = () => setStuck(window.scrollY > 8);
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      setStuck(y > 8);
+      if (Math.abs(y - last) > 6) setTucked(y > 160 && y > last);
+      last = y;
+    };
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Anything pinned under the header, or scrolled to an anchor, reads the header's real height.
+  useEffect(() => {
+    const el = header.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => document.documentElement.style.setProperty('--store-bar-h', `${el.offsetHeight}px`));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Ctrl K or Cmd K from anywhere, and / when not already typing.
+  useEffect(() => {
+    const onKey = (e) => {
+      const typing = /input|textarea|select/i.test(document.activeElement?.tagName ?? '');
+      if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') || (e.key === '/' && !typing)) {
+        e.preventDefault();
+        if (window.matchMedia('(min-width: 1024px)').matches) searchInput.current?.focus();
+        else setSearching(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  useEffect(() => { setSearching(false); }, [pathname]);
+
+  const shelves = [
+    { key: 'all', label: 'Everything', to: STORE_ROUTES.SHOP, count: rows.length, all: true },
+    ...sections.map((s) => ({ key: s.slug, label: s.name, to: categoryPath(s.slug), count: s.items.length })),
+    ...bands.map((b) => ({ key: b.slug, label: b.name, to: categoryPath(b.slug), band: true })),
+  ];
+
   return (
-    <header className={styles.header} data-stuck={stuck || undefined}>
-      <div className={styles.inner}>
+    <header ref={header} className={styles.header} data-stuck={stuck || undefined} data-tucked={tucked || undefined}>
+      <div className={styles.bar}>
+        <button type="button" className={`${styles.icon} ${styles.menuButton}`} aria-label="Open the menu" aria-expanded={menu} onClick={() => setMenu(true)}>
+          <MenuIcon />
+        </button>
+
         <Link to={STORE_ROUTES.HOME} className={styles.mark} aria-label="Cart and Keep, home">
           <Logo size={32} />
         </Link>
 
-        <nav className={styles.nav} aria-label="Departments">
-          {DEPARTMENTS
-            // A department she has taken off the navigation comes off here
-            // too, or the one place a customer is guaranteed to see it is the
-            // one place she cannot remove it from.
-            .filter(([, , path]) => !path || !isHidden(path, names))
-            .map(([label, to, path]) => (
-              <NavLink key={to} to={to} className={styles.link}>
-                {(path && resolveName(path, names)?.name) || label}
-              </NavLink>
-            ))}
-          <NavLink to={STORE_ROUTES.HOME} end className={styles.link}>All departments</NavLink>
-        </nav>
+        <div className={styles.search}>
+          <HeaderSearch rows={rows} sections={sections} inputRef={searchInput} />
+        </div>
 
         <div className={styles.tools}>
-          <NavLink to="/search" className={styles.icon} aria-label="Search">
+          <button type="button" className={`${styles.icon} ${styles.searchButton}`} aria-label="Search" onClick={() => setSearching(true)}>
             <SearchIcon />
-          </NavLink>
+          </button>
 
-          <NavLink to="/saved" className={styles.icon} aria-label="Saved items">
-            <HeartIcon />
+          <NavLink to={STORE_ROUTES.SAVED} className={styles.saved} data-has={savedCount > 0 || undefined} aria-label={savedCount ? `Saved, ${savedCount}` : 'Saved'}>
+            <span className={styles.heart}>
+              <HeartIcon size={22} />
+              {savedCount > 0 && <span className={styles.pip} data-price aria-hidden="true">{savedCount}</span>}
+            </span>
+            <span className={styles.toolLabel}>Saved</span>
           </NavLink>
 
           <NavLink
             to={STORE_ROUTES.CART}
-            className={styles.icon}
-            aria-label={count === 1 ? 'Basket, 1 item' : `Basket, ${count} items`}
+            className={styles.basket}
+            aria-label={count === 0 ? 'Basket, empty' : `Basket, ${count} ${count === 1 ? 'item' : 'items'}`}
           >
-            <BasketIcon />
-            {/* Hidden at zero. An empty badge is a nag. */}
-            {count > 0 && (
-              <span className={styles.pip} data-price aria-hidden="true">
-                {count > 99 ? '99+' : count}
-              </span>
-            )}
+            <BasketRing count={count} subtotal={subtotal} threshold={threshold} />
           </NavLink>
         </div>
       </div>
+
+      {/* One shelf is not a nav: the rail waits until there are at least two real sections to choose between. */}
+      {sections.length >= 2 && (
+      <nav className={styles.rail} aria-label="Shelves">
+        <div className={styles.railInner}>
+          <ul ref={rail} className={styles.shelves} onPointerLeave={rest}>
+            {box && <li className={styles.glide} aria-hidden="true" style={{ transform: `translateX(${box.x}px)`, width: box.w }} />}
+            {shelves.map((s) => (
+              <li key={s.key}>
+                <NavLink
+                  to={s.to}
+                  className={styles.shelf}
+                  onPointerEnter={(e) => place(e.currentTarget)}
+                  onFocus={(e) => place(e.currentTarget)}
+                  onBlur={rest}
+                >
+                  {s.all
+                    ? <GridIcon size={18} className={styles.shelfGlyph} />
+                    : s.band
+                      ? <span className={styles.shelfBand} aria-hidden="true">£</span>
+                      : <SectionGlyph name={s.label} size={22} className={styles.shelfGlyph} />}
+                  {s.label}
+                  {s.count != null && <span className={styles.count}>{s.count}</span>}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </nav>
+      )}
+
+      {/* Portalled: the header's backdrop blur makes it the containing block for anything fixed inside it. */}
+      {searching && createPortal(
+        <div className={styles.sheet} role="dialog" aria-modal="true" aria-label="Search the shop">
+          <div className={styles.sheetTop}>
+            <HeaderSearch rows={rows} sections={sections} sheet onClose={() => setSearching(false)} />
+            <button type="button" className={styles.icon} aria-label="Close search" onClick={() => setSearching(false)}><CloseIcon /></button>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {createPortal(
+        <MobileMenu
+          open={menu}
+          onClose={closeMenu}
+          sections={sections}
+          total={rows.length}
+          subtotal={subtotal}
+          threshold={threshold}
+          count={count}
+        />,
+        document.body,
+      )}
     </header>
   );
 }

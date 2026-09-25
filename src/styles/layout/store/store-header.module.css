@@ -1,96 +1,226 @@
-/* Sticky, translucent, and the hairline only appears once the page has moved.
-   A rule under a header sitting on its own page top is a line for no reason. */
+/* Two rows on desktop: the counter (mark, search, basket) and the shelf rail. The rail tucks away on the way down. */
 
 .header {
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
-  background: color-mix(in srgb, var(--c-base) 86%, transparent);
-  backdrop-filter: saturate(140%) blur(12px);
-  border-bottom: 1px solid transparent;
-  transition: border-color var(--dur) var(--ease);
+  /* One step lighter than the page, with its edge always drawn: the frame reads as a frame before anything scrolls. */
+  background: color-mix(in srgb, var(--c-raised) 92%, transparent);
+  backdrop-filter: saturate(150%) blur(14px);
+  -webkit-backdrop-filter: saturate(150%) blur(14px);
+  border-bottom: 1px solid var(--c-line);
+  transition: box-shadow var(--dur-settle) var(--ease);
 }
 
-/* Set by the shell on scroll. Kept as an attribute rather than a second class
-   so the rule reads as a state. */
-.header[data-stuck] { border-color: var(--c-line); }
+/* Once content passes under it, a soft shadow says the header is above the page, not part of it. */
+.header[data-stuck] { box-shadow: 0 6px 18px -12px rgba(30, 28, 25, 0.22); }
 
-.inner {
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
   max-width: var(--store-max);
+  height: 64px;
   margin: 0 auto;
-  padding: 0 var(--s-4);
-  height: 66px;
-  display: flex;
-  align-items: center;
-  gap: var(--s-5);
+  padding: 0 var(--s-3);
 }
 
-.mark {
-  display: inline-flex;
-  align-items: center;
-  text-decoration: none;
-  min-height: var(--tap);
-}
+@media (min-width: 1024px) { .bar { gap: var(--s-5); padding: 0 var(--s-5); height: 72px; } }
 
-/* Hidden below 900. On a phone the departments live in the category rail on
-   the page itself, and five links plus three icons in a 66px bar is neither. */
-.nav { display: none; }
+.mark { display: inline-flex; align-items: center; min-height: var(--tap); text-decoration: none; }
 
-@media (min-width: 900px) {
-  .nav { display: flex; align-items: center; gap: var(--s-4); }
-}
+@media (max-width: 1023px) { .mark { margin-right: auto; } }
 
-.link {
-  font-size: var(--t-label);
-  color: var(--c-ink-soft);
-  text-decoration: none;
-  padding: var(--s-1) 0;
-  border-bottom: 1.5px solid transparent;
-  white-space: nowrap;
-  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
-}
+.search { display: none; }
 
-.link:hover { color: var(--c-ink); }
-.link[aria-current] { color: var(--c-ink); border-bottom-color: var(--c-brand); }
+@media (min-width: 1024px) { .search { display: block; flex: 1; max-width: 560px; margin: 0 auto; } }
 
-.tools {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: var(--s-1);
-}
+.tools { display: flex; align-items: center; gap: 2px; }
+
+@media (min-width: 1024px) { .tools { gap: var(--s-2); } }
 
 .icon {
   position: relative;
-  width: var(--tap);
-  height: var(--tap);
   display: grid;
   place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  border: 0;
   border-radius: 50%;
+  background: none;
+  color: var(--c-ink);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+
+.icon:hover { background: var(--c-sunk); }
+
+.menuButton, .searchButton { display: grid; }
+
+@media (min-width: 1024px) { .menuButton, .searchButton { display: none; } }
+
+.saved {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0 var(--s-2);
+  border-radius: var(--r-full);
   color: var(--c-ink);
   text-decoration: none;
   transition: background var(--dur) var(--ease);
 }
 
-.icon:hover { background: var(--c-warm); }
+.saved:hover { background: var(--c-sunk); }
 
-/* Terracotta, because the basket is the one thing in the header on the path to
-   a purchase. */
+.heart { position: relative; display: grid; place-items: center; width: 32px; height: 32px; }
+
+/* A saved item fills the heart, in the colour the product card uses for the same state. */
+.saved[data-has] .heart svg { fill: var(--c-action-text); color: var(--c-action-text); animation: beat 420ms var(--ease-out); }
+
+.toolLabel { display: none; font-size: var(--t-caption); font-weight: 600; color: var(--c-ink-soft); }
+
+@media (min-width: 1200px) { .toolLabel { display: inline; } }
+
+@keyframes beat { 30% { transform: scale(1.22); } 60% { transform: scale(0.94); } }
+
 .pip {
   position: absolute;
-  top: 5px;
-  right: 4px;
+  top: -3px;
+  right: -6px;
   min-width: 17px;
   height: 17px;
   padding: 0 4px;
   border-radius: var(--r-full);
-  background: var(--c-action-strong);
-  color: #fff;
-  font-size: 0.65625rem;
+  background: var(--c-ink);
+  color: var(--c-base);
+  font-size: 0.625rem;
   line-height: 17px;
   text-align: center;
 }
 
+.basket { display: inline-flex; align-items: center; min-height: var(--tap); border-radius: var(--r-full); color: var(--c-ink); text-decoration: none; }
+
+/* --- Shelf rail --------------------------------------------------------- */
+
+.rail {
+  display: none;
+  overflow: hidden;
+  max-height: 56px;
+  border-top: 1px solid var(--c-line);
+  transition: max-height 280ms var(--ease-out), opacity 200ms var(--ease);
+}
+
+@media (min-width: 1024px) { .rail { display: block; } }
+
+.header[data-tucked] .rail { max-height: 0; opacity: 0; }
+
+.railInner {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  max-width: var(--store-max);
+  height: 56px;
+  margin: 0 auto;
+  padding: 0 var(--s-5);
+}
+
+/* ul. so the reset's ul[class] padding rule cannot win. */
+ul.shelves {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+  mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+}
+
+ul.shelves::-webkit-scrollbar { display: none; }
+
+.glide {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  height: 40px;
+  border-radius: var(--r-full);
+  background: var(--c-sage-wash);
+  box-shadow: inset 0 0 0 1px var(--c-brand-mid);
+  pointer-events: none;
+  transition: transform 320ms cubic-bezier(0.3, 1.3, 0.5, 1), width 320ms cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+
+.shelf {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px 0 10px;
+  border-radius: var(--r-full);
+  color: var(--c-ink);
+  font-size: var(--t-label);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--dur) var(--ease);
+}
+
+.shelfGlyph { flex: none; color: var(--c-sage-deep); transition: transform 260ms cubic-bezier(0.3, 1.4, 0.5, 1); }
+.shelf:hover .shelfGlyph { transform: translateY(-2px) rotate(-6deg); }
+
+.shelfBand {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--c-sage-deep);
+  color: var(--c-sage-deep);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* The current shelf gets a sage dot under its name, independent of where the glide has wandered. */
+.shelf[aria-current]::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--c-brand);
+}
+
+.count { font-family: var(--font-data); font-size: var(--t-caption); color: var(--c-faint); }
+
+
+
+/* --- Phone search sheet ------------------------------------------------- */
+
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  background: var(--c-base);
+  animation: sheetIn 260ms var(--ease-out) both;
+}
+
+.sheetTop { display: flex; align-items: flex-start; gap: var(--s-2); padding: var(--s-3); padding-top: calc(var(--s-3) + env(safe-area-inset-top, 0px)); }
+.sheetTop > :first-child { flex: 1; min-width: 0; }
+
+@keyframes sheetIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
 @media (prefers-reduced-motion: reduce) {
-  .header, .icon, .link { transition: none; }
+  .rail, .glide, .shelf, .icon { transition: none; }
+  .sheet { animation: none; }
 }

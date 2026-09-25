@@ -123,6 +123,11 @@ export function verdict(r, c = D) {
     notes.push('no sold figures came back, cannot judge demand yet');
   } else if (r.soldTotal === 0) {
     hard.push('nothing_sold', 'nothing has sold on any of the sampled listings');
+  } else if (r.observedPerMonth != null && r.observedPerMonth < c.minMarketPerMonth && r.entry?.proved) {
+    // Our 10 a month, counted on six listings, against a target of one or two sales a listing.
+    // With a small seller proved selling, a small market is a figure to weigh, not a refusal.
+    policy.push(`the sampled market moves about ${r.observedPerMonth} a month, under ${c.minMarketPerMonth}, `
+      + 'but a small seller is selling in it, and one to two a month per listing is the target');
   } else if (r.observedPerMonth != null && r.observedPerMonth < c.minMarketPerMonth) {
     // A market too small to be worth a listing slot. A hand puppet whose whole
     // sampled market moves nothing a month, and an MP3 player whose market

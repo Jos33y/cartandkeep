@@ -1,0 +1,177 @@
+.box { position: relative; width: 100%; }
+
+.field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  height: 46px;
+  padding: 0 var(--s-2) 0 var(--s-4);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-full);
+  color: var(--c-faint);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), border-radius 120ms var(--ease);
+}
+
+.box[data-open]:not([data-sheet]) .field { border-color: var(--c-line-strong); box-shadow: var(--e-3); }
+.field:focus-within { border-color: var(--c-action-strong); }
+
+.box[data-sheet] .field { height: 52px; box-shadow: var(--e-1); }
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: none;
+  color: var(--c-ink);
+  font: inherit;
+  font-size: var(--t-body);
+}
+
+.input:focus, .input:focus-visible { outline: none; }
+.input::-webkit-search-cancel-button { display: none; }
+
+/* The empty field names real things she sells, one at a time. */
+.ghost {
+  position: absolute;
+  left: calc(var(--s-4) + 18px + var(--s-3));
+  right: 72px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  font-size: var(--t-body);
+  color: var(--c-ink-faint);
+}
+
+.word { display: inline-block; color: var(--c-ink-soft); animation: wordIn 420ms var(--ease-out) both; }
+
+@keyframes wordIn { from { opacity: 0; transform: translateY(8px); filter: blur(3px); } to { opacity: 1; transform: none; filter: none; } }
+
+.kbd {
+  flex: none;
+  padding: 3px 8px;
+  border: 1px solid var(--c-line);
+  border-radius: 6px;
+  background: var(--c-sunk);
+  color: var(--c-faint);
+  font-family: var(--font-data);
+  font-size: var(--t-micro);
+}
+
+.clear {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--c-ink-faint);
+  cursor: pointer;
+}
+
+.clear:hover { background: var(--c-sunk); color: var(--c-ink); }
+
+/* --- Results panel ------------------------------------------------------ */
+
+.panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  padding: var(--s-2);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  box-shadow: var(--e-3);
+  animation: panelIn 180ms var(--ease-out) both;
+}
+
+.box[data-sheet] .panel {
+  position: static;
+  max-height: none;
+  margin-top: var(--s-3);
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: none;
+  animation: none;
+}
+
+@keyframes panelIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+.head {
+  padding: var(--s-2) var(--s-2) var(--s-2);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-faint);
+}
+
+.shelves { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+
+.shelf, .row, .all {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 48px;
+  padding: 6px var(--s-2);
+  border-radius: var(--r-control);
+  color: var(--c-ink);
+  cursor: pointer;
+  transition: background 100ms var(--ease);
+}
+
+.shelf:hover, .row:hover, .all:hover,
+.shelf[data-active], .row[data-active], .all[data-active] { background: var(--c-warm); }
+
+.glyph { flex: none; color: var(--c-sage-deep); }
+.shelfName { flex: 1; min-width: 0; font-size: var(--t-label); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.count { font-family: var(--font-data); font-size: var(--t-caption); color: var(--c-faint); }
+
+.thumb {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: var(--c-warm);
+  color: var(--c-sage-deep);
+  overflow: hidden;
+}
+
+.thumb img { width: 100%; height: 100%; padding: 4px; object-fit: contain; mix-blend-mode: multiply; }
+
+.rowText { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rowTitle { font-size: var(--t-label); line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rowMeta { font-size: var(--t-caption); color: var(--c-faint); }
+.price { flex: none; font-size: var(--t-label); }
+
+.mark { background: var(--c-brand-mid); color: var(--c-ink); border-radius: 3px; box-shadow: 0 0 0 1px var(--c-brand-mid); }
+
+.all {
+  justify-content: space-between;
+  margin-top: 4px;
+  border-top: 1px solid var(--c-line);
+  border-radius: 0 0 var(--r-control) var(--r-control);
+  font-size: var(--t-label);
+  font-weight: 600;
+}
+
+.hint { grid-column: 1 / -1; padding: var(--s-2); font-size: var(--t-label); color: var(--c-faint); }
+
+.foot { margin-top: var(--s-4); padding: 0 var(--s-2); font-size: var(--t-label); }
+.foot a { color: var(--c-ink); text-underline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .word, .panel { animation: none; }
+  .field, .shelf, .row, .all { transition: none; }
+}

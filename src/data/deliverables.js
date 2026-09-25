@@ -6,7 +6,7 @@
  * same list, and merging them would hide the gap between the two, which is the
  * only reason this page exists.
  *
- * Source of truth is Engagement Scope v1.3, 22 July 2026. Section numbers are
+ * Source of truth is Engagement Scope v2.1, 23 July 2026. Section numbers are
  * carried on each group so any line can be checked against the document.
  *
  * state:    done | active | queued | client
@@ -16,9 +16,9 @@
  *           hardcoded number going stale the moment something ships.
  */
 
-export const SCOPE_VERSION = '1.3';
-export const SCOPE_DATE = '2026-07-22';
-export const LAST_REVIEWED = '2026-09-24';
+export const SCOPE_VERSION = '2.1';
+export const SCOPE_DATE = '2026-07-23';
+export const LAST_REVIEWED = '2026-09-25';
 export const MONTH_ONE_DUE = '2026-08-22';
 
 export const DELIVERABLE_GROUPS = [
@@ -76,7 +76,7 @@ export const DELIVERABLE_GROUPS = [
       },
       {
         label: 'Legal pages live',
-        detail: 'Six pages: delivery, returns and refunds, terms of sale, privacy, cookies, frequently asked. The points that need your confirmation are marked where they appear on each page.',
+        detail: 'Six pages: terms of sale, privacy, returns and refunds, delivery, cookies, and how reviews work. Rewritten on 25 September with the law each clause answers to. The decisions that are yours are in the review pack rather than on the live pages, and the pages are final once you have marked it up.',
         state: 'active',
       },
       {
@@ -256,7 +256,7 @@ export const DELIVERABLE_GROUPS = [
       {
         label: 'Cross-channel research pipeline live in the portal',
         detail:
-          'Every candidate is read against eBay\u2019s live market: ten listings taken one at a time for price, sales, age and seller size, with the market\u2019s monthly volume and its price range recorded per product.',
+          'Every candidate is read against eBay\u2019s live market: listings from UK sellers taken one at a time for price, sales, age and seller size, with the market\u2019s monthly volume and its price range recorded per product.',
         state: 'done',
         date: '2026-09-16',
       },
@@ -391,6 +391,18 @@ export const DELIVERABLE_GROUPS = [
         label: 'Decisions on the shortlisted products',
         detail:
           'Approve, reject or defer in the portal. The first approved product is now listed on eBay, so this is the step that decides what follows it. Rejecting with a reason is what stops the same kind of product coming back.',
+        state: 'client',
+      },
+      {
+        label: 'Review the legal pages',
+        detail:
+          'A review pack in Word: every clause as a customer reads it, the law it answers to, and the decisions only you can make, numbered. Mark it up and every change is carried into the shop exactly as you word it.',
+        state: 'client',
+      },
+      {
+        label: 'Your own name as the legal name',
+        detail:
+          'Under Settings, Who is selling. As a sole trader the law requires your own name beside Cart & Keep on every receipt and legal page. The field currently holds a company name with no company number, and the screen now says so.',
         state: 'client',
       },
       {

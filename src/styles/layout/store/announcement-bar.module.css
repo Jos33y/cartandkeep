@@ -1,33 +1,120 @@
-.bar { background: var(--c-ink-deep); color: #efe9de; }
-
-.inner {
-  max-width: var(--store-max);
-  margin: 0 auto;
-  padding: 0 var(--s-4);
-  min-height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--s-4);
-  font-size: 0.8125rem;
-  overflow-x: auto;
-  white-space: nowrap;
-  scrollbar-width: none;
+.bar {
+  position: relative;
+  background: var(--c-ink-deep);
+  color: var(--c-on-dark-soft);
+  font-size: var(--t-label);
 }
 
-.inner::-webkit-scrollbar { display: none; }
+.inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  max-width: var(--store-max);
+  min-height: 40px;
+  margin: 0 auto;
+  padding: 0 var(--s-3);
+}
 
-.voice { color: #cfc8bc; }
+/* Three zones on desktop: who we are, what we promise, where to get help. */
+@media (min-width: 1024px) {
+  .inner { grid-template-columns: 1fr auto 1fr; gap: var(--s-5); padding: 0 var(--s-5); }
+}
 
-.rule { width: 1px; height: 13px; background: #4a453e; flex: none; }
+.voice {
+  display: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--t-caption);
+  letter-spacing: 0.02em;
+  color: var(--c-on-dark-faint);
+}
 
-/* The one thing up here that changes basket size, so it is the one thing that
-   gets weight. */
-.offer { font-weight: 500; color: #fff; }
-.offer [data-price] { color: #fff; }
+@media (min-width: 1024px) { .voice { display: block; } }
 
-/* On a phone the voice line is the first thing to go. The threshold is the
-   part worth the space. */
-@media (max-width: 520px) {
-  .voice, .rule { display: none; }
+.ticker { display: flex; align-items: center; justify-content: center; gap: var(--s-3); min-width: 0; }
+
+.message {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 40px;
+  min-width: 0;
+  color: var(--c-on-dark);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  animation: slideIn 420ms var(--ease-out) both;
+}
+
+.message span { overflow: hidden; text-overflow: ellipsis; }
+.message svg { flex: none; color: var(--c-brand); }
+.message:hover span:first-of-type { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--c-on-dark-faint); }
+.message[data-done] svg { color: #9fcf97; }
+
+.mini { flex: none; width: 56px; height: 4px; border-radius: var(--r-full); background: var(--c-on-dark-line); overflow: hidden; }
+.mini span { display: block; height: 100%; border-radius: inherit; background: var(--c-brand); transform-origin: left; }
+
+.dots { display: none; gap: 4px; }
+
+@media (min-width: 640px) { .dots { display: inline-flex; } }
+
+.dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--c-on-dark-line); transition: width 300ms var(--ease-out), background 300ms var(--ease); }
+.dots i[data-on] { width: 14px; border-radius: var(--r-full); background: var(--c-on-dark-soft); }
+
+.pause {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--c-on-dark-line);
+  border-radius: 50%;
+  background: none;
+  color: var(--c-on-dark-soft);
+  cursor: pointer;
+}
+
+.pause:hover { color: var(--c-on-dark); border-color: var(--c-on-dark-faint); }
+
+@media (pointer: coarse) { .pause { display: none; } }
+
+.utility { display: none; justify-content: flex-end; gap: var(--s-4); }
+
+@media (min-width: 1024px) { .utility { display: flex; } }
+
+.utilityLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  color: var(--c-on-dark-soft);
+  font-size: var(--t-caption);
+  font-weight: 500;
+  text-decoration: none;
+  transition: color var(--dur) var(--ease);
+}
+
+.utilityLink svg { color: var(--c-on-dark-faint); transition: color var(--dur) var(--ease); }
+.utilityLink:hover, .utilityLink:hover svg { color: var(--c-on-dark); }
+
+.progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--c-brand);
+  transform: scaleX(0);
+  transform-origin: left;
+  opacity: 0.8;
+}
+
+.progress[data-running] { animation: fill var(--hold) linear both; }
+
+@keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes fill { to { transform: scaleX(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .message { animation: none; }
+  .dots i, .utilityLink, .utilityLink svg { transition: none; }
 }

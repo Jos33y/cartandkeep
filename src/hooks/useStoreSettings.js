@@ -17,9 +17,10 @@ import { supabase } from '@lib/supabase';
 
 const EMPTY = {
   trader: {
-    legal_name: '', trading_as: '', address: '', company_number: '',
+    legal_name: '', trading_as: '', address: '', return_address: '', company_number: '',
     email: '', complaints_url: '',
   },
+  returns: { days: '', postage_paid_by: '' },
   delivery: {
     free_over: '', postage: '', cutoff_hour: '', transit_min: '', transit_max: '',
     zones: {},
@@ -38,12 +39,14 @@ function shape(store) {
   const d = s.delivery ?? {};
   const v = s.voice ?? {};
   const o = s.socials ?? {};
+  const r = s.returns ?? {};
 
   return {
     trader: {
       legal_name: text(t.legal_name),
       trading_as: text(t.trading_as),
       address: text(t.address),
+      return_address: text(t.return_address),
       company_number: text(t.company_number),
       email: text(t.email),
       complaints_url: text(t.complaints_url),
@@ -56,6 +59,7 @@ function shape(store) {
       transit_max: text(d.transit_max),
       zones: d.zones ?? {},
     },
+    returns: { days: text(r.days), postage_paid_by: text(r.postage_paid_by) },
     voice: { tagline: text(v.tagline), hero_title: text(v.hero_title), hero_em: text(v.hero_em) },
     socials: { instagram: text(o.instagram), tiktok: text(o.tiktok) },
   };
@@ -133,6 +137,7 @@ export function useStoreSettings(tenantId) {
       legal_name: orNull(t.legal_name),
       trading_as: orNull(t.trading_as),
       address: orNull(t.address),
+      return_address: orNull(t.return_address),
       company_number: orNull(t.company_number),
       email: orNull(t.email),
       complaints_url: orNull(t.complaints_url),
@@ -160,6 +165,18 @@ export function useStoreSettings(tenantId) {
    */
   const saveZones = useCallback((zones) => save({ delivery: { zones } }), [save]);
 
+  // The database refuses the same limits; checked here too so the message is in her words.
+  const saveReturns = useCallback((r) => {
+    const days = Number(r.days);
+    if (!Number.isInteger(days) || days < 14 || days > 365) {
+      return Promise.reject(new Error('The return window has to be at least 14 days, which is the legal minimum.'));
+    }
+    if (!['us', 'customer'].includes(r.postage_paid_by)) {
+      return Promise.reject(new Error('Choose who pays return postage.'));
+    }
+    return save({ returns: { days, postage_paid_by: r.postage_paid_by } });
+  }, [save]);
+
   const saveVoice = useCallback((v) => save({
     voice: {
       tagline: orNull(v.tagline),
@@ -169,7 +186,7 @@ export function useStoreSettings(tenantId) {
     socials: { instagram: orNull(v.instagram), tiktok: orNull(v.tiktok) },
   }), [save]);
 
-  return { ...state, reload: load, saveTrader, saveDelivery, saveZones, saveVoice };
+  return { ...state, reload: load, saveTrader, saveDelivery, saveZones, saveReturns, saveVoice };
 }
 
 /*
@@ -183,7 +200,7 @@ export function useStoreSettings(tenantId) {
  */
 export function traderGaps(trader) {
   const gaps = [];
-  if (!trader.legal_name.trim()) gaps.push('trading name');
+  if (!trader.legal_name.trim()) gaps.push('legal name');
   if (!trader.address.trim()) gaps.push('address');
   return gaps;
 }

@@ -1,193 +1,170 @@
-/* Full bleed warm band, closed by a hairline. The hero now has a ground of its
-   own, so the top of the shop ends somewhere instead of dissolving into the
-   departments below it. */
+/* A room, not a colour: a pegboard wall, a pool of light behind the unit, and a floor it stands on. */
 
 .band {
+  --floor: 88px;
+  position: relative;
+  overflow: hidden;
   background: var(--c-warm);
   border-bottom: 1px solid var(--c-line);
+  isolation: isolate;
+}
+
+.wall {
+  position: absolute;
+  inset: 0 0 var(--floor) 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 42% 60% at 74% 48%, rgba(255, 252, 244, 0.95), rgba(255, 252, 244, 0) 70%),
+    radial-gradient(circle at 1px 1px, rgba(94, 115, 89, 0.16) 1.2px, transparent 1.6px) 0 0 / 22px 22px,
+    var(--c-warm);
+}
+
+/* The skirting line and a slightly darker floor, so the unit's feet land on something. */
+.floor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--floor);
+  z-index: -1;
+  background: linear-gradient(180deg, #e7dcc8 0%, #eee5d4 100%);
+  border-top: 3px solid #ddd0b8;
 }
 
 .inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-6);
+  align-items: end;
   max-width: var(--store-max);
   margin: 0 auto;
-  padding: var(--s-6) var(--s-4) var(--s-7);
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--s-6);
-  align-items: center;
+  padding: var(--s-6) var(--s-4) 0;
 }
 
 @media (min-width: 900px) {
   .inner {
-    grid-template-columns: 1.05fr 0.95fr;
-    gap: var(--s-8);
-    padding: var(--s-8) var(--s-5);
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+    gap: var(--s-7);
+    padding: var(--s-7) var(--s-5) 0;
   }
 }
 
-.copy { display: flex; flex-direction: column; }
-
-.eyebrow {
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--c-sage-deep);
-  margin-bottom: var(--s-4);
+/* The copy sits on the wall; its bottom edge clears the floor by the same step the unit's legs do. */
+.copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  align-self: center;
+  padding-bottom: calc(var(--floor) + var(--s-5));
 }
 
-/* One paragraph rather than four hard breaks. The forced line endings were
-   what made it read cramped: they held the block narrow at every width instead
-   of letting it find its own measure. */
-.title {
-  font-size: var(--ts-hero);
-  color: var(--c-ink);
-  max-width: 15ch;
-}
+@media (max-width: 899px) { .copy { padding-bottom: 0; } }
 
-.em { font-style: normal; color: var(--c-action-text); }
+.title { font-size: clamp(2.6rem, 5.6vw, 4.4rem); line-height: 1; color: var(--c-ink); }
+.line { display: block; text-wrap: balance; }
+.em { display: block; font-style: normal; color: var(--c-sage-deep); text-wrap: balance; }
 
 .sub {
-  margin-top: var(--s-5);
-  font-size: 1.0625rem;
-  line-height: 1.62;
-  color: var(--c-ink-soft);
+  margin-top: var(--s-4);
   max-width: 42ch;
+  font-size: var(--t-lead);
+  line-height: 1.6;
+  color: var(--c-ink-soft);
+  text-wrap: pretty;
 }
 
-.searchRow { margin-top: var(--s-6); }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); margin-top: var(--s-5); }
 
-.search {
-  display: flex;
+.primary {
+  display: inline-flex;
   align-items: center;
-  gap: var(--s-3);
-  max-width: 460px;
-  padding: 0 var(--s-2) 0 var(--s-4);
-  background: var(--c-surface);
+  gap: var(--s-2);
+  min-height: 56px;
+  padding: 0 var(--s-5) 0 var(--s-6);
+  border-radius: var(--r-full);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 10px 24px -12px rgba(186, 90, 61, 0.6);
+  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.primary svg { transition: transform var(--dur) var(--ease); }
+.primary:hover { background: var(--c-action); transform: translateY(-1px); box-shadow: 0 14px 28px -12px rgba(186, 90, 61, 0.7); }
+.primary:hover svg { transform: translateX(3px); }
+
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 var(--s-5);
+  border-radius: var(--r-full);
+  border: 1px solid var(--c-line-strong);
+  background: rgba(255, 255, 255, 0.4);
+  color: var(--c-ink);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.secondary:hover { background: var(--c-surface); border-color: var(--c-ink); }
+
+/* Three promises in one line of small type: the proof, placed where the decision is made. */
+ul.proof {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-5);
+  margin-top: var(--s-5);
+  padding: 0;
+  list-style: none;
+}
+
+.proof li { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-label); font-weight: 500; color: var(--c-ink-soft); }
+.proof svg { color: var(--c-sage-deep); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--s-4); }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 36px;
+  padding: 0 14px;
   border: 1px solid var(--c-line-mid);
   border-radius: var(--r-full);
-  color: var(--c-faint);
-  transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease);
-}
-
-.search:focus-within {
-  border-color: var(--c-brand);
-  box-shadow: 0 0 0 4px var(--c-sage-wash);
-}
-
-.input {
-  flex: 1;
-  min-width: 0;
-  height: 56px;
-  border: 0;
-  outline: 0;
-  background: none;
-  font: inherit;
-  font-size: 1rem;
-  color: var(--c-ink);
-}
-
-.input::placeholder { color: var(--c-faint); }
-.input::-webkit-search-cancel-button { display: none; }
-
-.clear {
-  height: 40px;
-  padding: 0 var(--s-4);
-  border-radius: var(--r-full);
-  background: var(--c-warm);
   color: var(--c-ink-soft);
   font-size: var(--t-label);
   font-weight: 500;
+  text-decoration: none;
 }
 
-.terms {
-  margin-top: var(--s-4);
-  display: flex;
-  gap: var(--s-2);
-  flex-wrap: wrap;
-  align-items: center;
-}
+.chip:hover { border-color: var(--c-line-strong); color: var(--c-ink); background: var(--c-surface); }
+@media (pointer: coarse) { .chip { min-height: var(--tap); } }
+.chipCount { font-family: var(--font-data); font-size: var(--t-caption); opacity: 0.6; }
 
-.termsLabel {
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--c-faint);
-  margin-right: var(--s-1);
-}
+/* The unit stands with its feet a little way into the floor, like furniture in a room. */
+.stage { position: relative; padding-bottom: calc(var(--floor) - 34px); }
 
-.term {
-  font-size: var(--t-caption);
-  color: var(--c-ink-soft);
-  background: var(--c-surface);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-full);
-  padding: 8px 14px;
-  transition: border-color 150ms var(--ease), color 150ms var(--ease);
-}
+@media (max-width: 899px) { .stage { padding-bottom: 24px; } }
 
-.term:hover { border-color: var(--c-brand); color: var(--c-ink); }
-
-/* One object, not four floating cards. Sage is the frame and it shows through
-   the 3px gaps, so the products read as goods in a window rather than as
-   screenshots on a page. */
-.window {
-  display: grid;
-  grid-template-columns: 1.35fr 1fr;
-  grid-template-rows: repeat(2, 1fr);
-  gap: 3px;
-  padding: 3px;
-  background: var(--c-sage-deep);
-  border-radius: var(--r-card);
-  overflow: hidden;
-  aspect-ratio: 1.08;
-  position: relative;
-}
-
-@media (min-width: 900px) { .window { aspect-ratio: 1.02; } }
-
-.pane {
-  position: relative;
-  margin: 0;
-  overflow: hidden;
-  background: var(--c-surface);
-}
-
-.pane img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 600ms var(--ease); }
-.pane:hover img { transform: scale(1.05); }
-
-.pane1 { grid-row: span 2; border-radius: 11px 0 0 11px; }
-.pane2 { border-radius: 0 11px 0 0; }
-.pane4 { border-radius: 0 0 11px 0; }
-
-/* A window with prices in it is a shop. Without them it is a mood board. */
-.chip {
+.contact {
   position: absolute;
-  left: 8px;
-  bottom: 8px;
-  padding: 4px 9px;
-  border-radius: var(--r-full);
-  background: rgba(255, 255, 255, 0.94);
-  font-size: 0.78125rem;
-  color: var(--c-ink);
+  left: 50%;
+  bottom: calc(var(--floor) - 44px);
+  z-index: -1;
+  width: 78%;
+  height: 26px;
+  margin-left: -37%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(30, 28, 25, 0.28), rgba(30, 28, 25, 0) 70%);
 }
 
-.stock {
-  position: absolute;
-  right: 10px;
-  top: 10px;
-  z-index: 2;
-  padding: 6px 12px;
-  border-radius: var(--r-full);
-  background: var(--c-ink-deep);
-  color: #efe9de;
-  font-size: var(--t-caption);
-}
-
-.stock [data-price] { color: #fff; }
+@media (max-width: 899px) { .contact { bottom: 8px; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .pane img, .search, .term { transition: none; }
-  .pane:hover img { transform: none; }
+  .primary, .primary svg, .secondary { transition: none; }
+  .primary:hover { transform: none; }
 }

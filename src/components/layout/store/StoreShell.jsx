@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router';
+import { loadStoreConfig } from '@lib/storeConfig';
+import { BrandLoader } from '@components/ui/store/BrandLoader';
 import { ScrollToTop } from '@components/layout/shared/ScrollToTop';
 import { BasketProvider } from '@context/BasketContext';
 import { usePageViews } from '@hooks/useAnalytics';
@@ -19,6 +22,16 @@ export function StoreShell() {
   // the only place a single page app can count a navigation from.
   const tenant = useTenant();
   usePageViews(tenant?.id);
+
+  // Settings reach the shop only through this load. Nothing renders before it, so no page promises the defaults first.
+  const [configured, setConfigured] = useState(false);
+  useEffect(() => {
+    let live = true;
+    loadStoreConfig().finally(() => { if (live) setConfigured(true); });
+    return () => { live = false; };
+  }, []);
+
+  if (!configured) return <BrandLoader />;
 
   return (
     <BasketProvider>

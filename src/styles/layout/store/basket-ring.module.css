@@ -1,0 +1,67 @@
+.wrap { display: inline-flex; align-items: center; gap: var(--s-2); }
+
+.ring { position: relative; display: grid; place-items: center; width: 44px; height: 44px; color: var(--c-ink); }
+
+.dial { position: absolute; inset: 0; transform: rotate(-90deg); }
+
+.track { fill: none; stroke: var(--c-line); stroke-width: 2; }
+
+.fill {
+  fill: none;
+  stroke: var(--c-brand);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 700ms var(--ease-out), stroke 300ms var(--ease);
+}
+
+.wrap[data-unlocked] .fill { stroke: var(--c-sage-deep); }
+
+/* Crossing the threshold is the one moment worth marking: a single ripple, then stillness. */
+.ring[data-burst]::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  border: 2px solid var(--c-brand);
+  animation: ripple 700ms var(--ease-out) both;
+}
+
+.pip {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: var(--r-full);
+  background: var(--c-ink);
+  color: var(--c-base);
+  font-size: 0.625rem;
+  line-height: 17px;
+  text-align: center;
+}
+
+.wrap[data-unlocked] .pip { background: var(--c-sage-deep); }
+
+.words {
+  display: none;
+  font-size: var(--t-caption);
+  font-weight: 600;
+  color: var(--c-ink-soft);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.wrap[data-unlocked] .words { color: var(--c-sage-deep); }
+
+@media (min-width: 1200px) { .words { display: inline; } }
+
+@keyframes ripple {
+  from { opacity: 0.9; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.7); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill { transition: none; }
+  .ring[data-burst]::after { animation: none; }
+}

@@ -1,53 +1,51 @@
-/* Not a bar. The first version was a 16px tall row of small text between two
-   rules, which is why it read as an afterthought: it was given the height of
-   one. This has the vertical space of a section, because reassurance is a
-   section. */
+/* Four promises on the page grid: same outer edges as the hero and the shelves, even columns, one rule between each. */
 
 .strip {
   border-bottom: 1px solid var(--c-line);
   background: var(--c-base);
 }
 
-.inner {
+/* ul. outranks the reset's ul[class] { padding: 0 }, which had removed every bit of this padding. */
+ul.inner {
   max-width: var(--store-max);
   margin: 0 auto;
-  padding: var(--s-6) var(--s-4);
+  padding: var(--s-5) var(--s-4);
   list-style: none;
   display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--s-5);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-4);
 }
 
 @media (min-width: 620px) {
-  .inner { grid-template-columns: 1fr 1fr; gap: var(--s-5) var(--s-6); }
+  ul.inner { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-5) var(--s-6); }
 }
 
 @media (min-width: 1000px) {
-  .inner {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0;
-    padding: var(--s-6) var(--s-5);
-  }
-  /* Hairlines between rather than around. A column divider says these are four
-     of one thing; a box around each says they are four separate cards. */
-  .item + .item {
-    border-left: 1px solid var(--c-line);
-    padding-left: var(--s-5);
-    margin-left: var(--s-5);
+  ul.inner { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-6); padding: var(--s-6) var(--s-5); }
+
+  /* The rule sits in the middle of the gap, so every column keeps its full width. */
+  .item + .item::before {
+    content: '';
+    position: absolute;
+    left: calc(var(--s-6) / -2);
+    top: 2px;
+    bottom: 2px;
+    width: 1px;
+    background: var(--c-line);
   }
 }
 
-.item { display: flex; gap: var(--s-3); align-items: flex-start; }
+.item { position: relative; display: flex; gap: var(--s-3); align-items: flex-start; min-width: 0; }
 
 .badge {
   flex: none;
-  width: 38px;
-  height: 38px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: var(--c-sage-wash);
   color: var(--c-sage-deep);
-  display: grid;
-  place-items: center;
 }
 
 .text { min-width: 0; }
@@ -55,7 +53,7 @@
 .title {
   display: block;
   font-size: 0.9375rem;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.3;
   color: var(--c-ink);
 }
@@ -64,6 +62,7 @@
   display: block;
   margin-top: 3px;
   font-size: 0.8125rem;
-  line-height: 1.5;
+  line-height: 1.45;
   color: var(--c-ink-soft);
+  overflow-wrap: anywhere;
 }

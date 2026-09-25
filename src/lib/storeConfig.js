@@ -32,10 +32,12 @@ const DEFAULTS = {
    */
   trader: {
     name: null,
+    tradingAs: null,
     address: null,
     company: null,
     returnAddress: null,
     vat: null,
+    complaintsUrl: null,
   },
   returns: {
     days: 30,
@@ -77,8 +79,14 @@ const DEFAULTS = {
       channel_islands: { blocked: true },
     },
   },
+  // The reply promise, worded once and read by the terms, the FAQ, the trust strip and the help desk.
+  support: {
+    reply: 'within 24 hours',
+  },
   voice: {
     tagline: 'A small UK shop with a very large cupboard',
+    // Examples of the kind of thing worth asking for: things not on the shelf, never things that are.
+    requestExamples: ['Pond pump hose', 'Same-brand refills', 'Older charger'],
   },
   socials: {},
 };
@@ -100,34 +108,62 @@ function deepMerge(base, patch) {
   return out;
 }
 
-// The row stores free_over, cutoff_hour, transit_min and transit_max, the names the checkout charges by.
-// The shop reads them under its own names, so both always see the same figures.
+// The row stores snake case, the names the checkout and portal write. The shop reads camel case.
+const STORED_NAMES = {
+  delivery: { free_over: 'freeOver', cutoff_hour: 'cutoffHour', transit_min: 'transitMin', transit_max: 'transitMax' },
+  trader: {
+    legal_name: 'name', trading_as: 'tradingAs', company_number: 'company',
+    vat_number: 'vat', return_address: 'returnAddress', complaints_url: 'complaintsUrl',
+  },
+  returns: { statutory_days: 'statutoryDays', postage_paid_by: 'postagePaidBy' },
+  privacy: { retention_years: 'retentionYears' },
+};
+const NUMERIC = new Set(['freeOver', 'cutoffHour', 'transitMin', 'transitMax', 'days', 'statutoryDays', 'retentionYears']);
+
 function fromStored(store) {
-  const d = store?.delivery;
-  if (!d || typeof d !== 'object') return store;
-  const delivery = { ...d };
-  const names = { free_over: 'freeOver', cutoff_hour: 'cutoffHour', transit_min: 'transitMin', transit_max: 'transitMax' };
-  for (const [stored, used] of Object.entries(names)) {
-    if (d[stored] !== undefined && d[stored] !== null) delivery[used] = Number(d[stored]);
-    delete delivery[stored];
+  if (!store || typeof store !== 'object') return store;
+  const out = { ...store };
+  for (const [section, names] of Object.entries(STORED_NAMES)) {
+    const s = store[section];
+    if (!s || typeof s !== 'object') continue;
+    const mapped = { ...s };
+    for (const [stored, used] of Object.entries(names)) {
+      if (s[stored] !== undefined && s[stored] !== null) mapped[used] = s[stored];
+      delete mapped[stored];
+    }
+    for (const key of Object.keys(mapped)) {
+      if (NUMERIC.has(key) && mapped[key] !== null) mapped[key] = Number(mapped[key]);
+    }
+    out[section] = mapped;
   }
-  return { ...store, delivery };
+  return out;
 }
+
+const wait = (ms) => new Promise((r) => { setTimeout(r, ms); });
 
 export async function loadStoreConfig() {
   if (loaded) return config;
-  try {
-    const tenant = await loadTenant();
-    config = deepMerge(DEFAULTS, fromStored(tenant?.store));
-    // These two end up in structured data and in mailto links, so an empty
-    // column would produce a shop that emails nobody.
-    if (!config.email) config.email = DEFAULTS.email;
-    if (!config.domain) config.domain = DEFAULTS.domain;
-  } catch {
-    // A shop that refuses to render because its config row is missing is worse
-    // than one running on the defaults it was built with.
-    config = DEFAULTS;
+  // Three tries: a dropped request on a phone signal should not leave a page on the built-in defaults.
+  for (const delay of [0, 700, 1600]) {
+    if (delay) await wait(delay);
+    try {
+      const tenant = await loadTenant();
+      // No row is a failure too, not a quiet reason to run on defaults.
+      if (!tenant?.store) throw new Error('The shop record came back without its settings');
+      config = deepMerge(DEFAULTS, fromStored(tenant.store));
+      config.shopName = tenant.name ?? null;
+      // These two end up in structured data and in mailto links, so an empty
+      // column would produce a shop that emails nobody.
+      if (!config.email) config.email = DEFAULTS.email;
+      if (!config.domain) config.domain = DEFAULTS.domain;
+      loaded = true;
+      return config;
+    } catch (error) {
+      if (delay === 1600) console.error('[store] settings did not load; running on defaults', error);
+    }
   }
+  // A shop that refuses to render is worse than one on its built-in defaults, but the failure is now logged.
+  config = DEFAULTS;
   loaded = true;
   return config;
 }
@@ -144,6 +180,7 @@ export const siteUrl = () => `https://${config.domain}`;
 export const freeOver = () => config.delivery.freeOver;
 export const postage = () => config.delivery.postage;
 export const trader = () => config.trader ?? {};
+export const replyPromise = () => config.support?.reply ?? 'within 24 hours';
 export const returnsTerms = () => config.returns ?? {};
 export const privacyTerms = () => config.privacy ?? {};
 

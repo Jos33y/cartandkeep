@@ -1,0 +1,133 @@
+/* An open shelving unit in the brand sage. Every object is drawn in the icon set's line, so the hero looks the same whatever the catalogue's photographs look like. */
+
+.figure { --wood: var(--c-sage-deep); --wood-dark: #4c5e47; --back: #ebe2d1; margin: 0; }
+
+.whole { position: relative; display: block; color: inherit; text-decoration: none; }
+.whole:focus-visible { outline: 3px solid var(--c-action-strong); outline-offset: 6px; border-radius: 8px; }
+
+.unit { position: relative; max-width: 500px; margin: 22px 0 0 auto; }
+
+.top { display: block; height: 14px; margin: 0 -8px; border-radius: 6px 6px 2px 2px; background: var(--wood-dark); }
+
+.carcass {
+  display: grid;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  aspect-ratio: 1 / 1.02;
+  padding: 10px 10px 0;
+  background: var(--wood);
+}
+
+.shelf {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-evenly;
+  padding: 0 var(--s-3);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--back) 88%, #000) 0%, var(--back) 22%);
+  border-bottom: 9px solid var(--wood-dark);
+  color: var(--c-sage-deep);
+  text-decoration: none;
+}
+
+.shelfLink { transition: background var(--dur) var(--ease); }
+.shelfLink:hover { background: linear-gradient(180deg, color-mix(in srgb, #f3ecdf 88%, #000) 0%, #f3ecdf 22%); }
+.shelfLink:focus-visible { outline: 3px solid var(--c-action-strong); outline-offset: -3px; }
+
+/* Objects drop onto the shelf one after another, then stand still until a pointer reaches them. */
+.object {
+  position: relative;
+  display: grid;
+  place-items: end center;
+  padding-bottom: 4px;
+  animation: drop 620ms cubic-bezier(0.34, 1.56, 0.64, 1) calc(300ms + var(--d)) both;
+}
+
+/* Drawn large, with the stroke thickened to match, so each object has the weight of a thing on a shelf. */
+.glyph { width: clamp(60px, 11vw, 96px); height: auto; stroke-width: 2; transform-origin: 50% 100%; }
+
+.object:hover .glyph,
+.shelfLink:hover .object .glyph { animation: wobble 620ms var(--ease-out); }
+
+.shadow {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 70%;
+  height: 6px;
+  margin-left: -35%;
+  border-radius: 50%;
+  background: rgba(30, 28, 25, 0.16);
+  filter: blur(1px);
+}
+
+.tag {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: calc(100% - 20px);
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-mid);
+  color: var(--c-ink);
+  font-size: var(--t-caption);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 1px 0 rgba(30, 28, 25, 0.06);
+}
+
+.tag b { font-family: var(--font-data); font-weight: 400; color: var(--c-faint); }
+
+.feet { position: relative; display: block; height: 14px; }
+.feet i { position: absolute; top: 0; width: 18px; height: 14px; border-radius: 0 0 3px 3px; background: var(--wood-dark); }
+.feet i:first-child { left: 14px; }
+.feet i:last-child { right: 14px; }
+
+/* The one call on the unit: a brass-plate label on the base. */
+/* A sign hung from the top board, so it never covers anything on the shelves. */
+.plate {
+  position: absolute;
+  left: 50%;
+  top: -22px;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: var(--r-full);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-mid);
+  color: var(--c-ink);
+  font-size: var(--t-caption);
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: var(--e-2);
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.whole:hover .plate { transform: translate(-50%, -2px) rotate(-2deg); box-shadow: var(--e-3); }
+.whole:hover .object .glyph { animation: wobble 620ms var(--ease-out); }
+.whole:hover .object:nth-child(2n) .glyph { animation-delay: 60ms; }
+
+@keyframes drop {
+  from { opacity: 0; transform: translateY(-28px); }
+  60% { opacity: 1; }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes wobble {
+  20% { transform: rotate(-7deg); }
+  45% { transform: rotate(5deg); }
+  70% { transform: rotate(-2deg); }
+  100% { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .object { animation: none; }
+  .object:hover .glyph, .shelfLink:hover .object .glyph, .whole:hover .object .glyph { animation: none; }
+  .plate { transition: none; }
+}

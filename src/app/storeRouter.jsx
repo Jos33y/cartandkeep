@@ -16,6 +16,7 @@ import { RequestPage } from '@pages/store/RequestPage';
 import { AboutPage } from '@pages/store/AboutPage';
 import { ContactPage } from '@pages/store/ContactPage';
 import { LegalPage } from '@pages/store/LegalPage';
+import { FaqPage } from '@pages/store/FaqPage';
 import { BlogPage } from '@pages/store/BlogPage';
 import { BlogPostPage } from '@pages/store/BlogPostPage';
 import { SearchPage } from '@pages/store/SearchPage';
@@ -48,6 +49,7 @@ export const storeRouter = createBrowserRouter([
       { path: STORE_ROUTES.ORDER_CONFIRMATION, element: <OrderConfirmationPage /> },
       { path: STORE_ROUTES.ABOUT, element: <AboutPage /> },
       { path: STORE_ROUTES.CONTACT, element: <ContactPage /> },
+      { path: STORE_ROUTES.FAQ, element: <FaqPage /> },
       { path: STORE_ROUTES.LEGAL, element: <LegalPage /> },
       { path: STORE_ROUTES.BLOG, element: <BlogPage /> },
       { path: STORE_ROUTES.BLOG_POST, element: <BlogPostPage /> },

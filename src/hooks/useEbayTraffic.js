@@ -72,7 +72,7 @@ export const VERDICTS = {
 };
 
 export function useEbayTraffic(tenantId) {
-  const [state, setState] = useState({ status: 'loading', total: null, listings: [], days: [], error: null });
+  const [state, setState] = useState({ status: 'loading', total: null, listings: [], days: [], sales: [], error: null });
   const [pulling, setPulling] = useState(false);
 
   const load = useCallback(async () => {
@@ -88,8 +88,8 @@ export function useEbayTraffic(tenantId) {
       .limit(1)
       .maybeSingle();
 
-    if (e1) return setState({ status: 'error', total: null, listings: [], days: [], error: e1.message });
-    if (!recent) return setState({ status: 'empty', total: null, listings: [], days: [], error: null });
+    if (e1) return setState({ status: 'error', total: null, listings: [], days: [], sales: [], error: e1.message });
+    if (!recent) return setState({ status: 'empty', total: null, listings: [], days: [], sales: [], error: null });
 
     const { data, error } = await supabase
       .from('ebay_traffic')
@@ -99,7 +99,7 @@ export function useEbayTraffic(tenantId) {
       .eq('window_end', recent.window_end)
       .order('impressions', { ascending: false, nullsFirst: false });
 
-    if (error) return setState({ status: 'error', total: null, listings: [], days: [], error: error.message });
+    if (error) return setState({ status: 'error', total: null, listings: [], days: [], sales: [], error: error.message });
 
     // The account total is the row with no listing on it.
     const total = data.find((r) => !r.listing_id) ?? null;
@@ -115,7 +115,17 @@ export function useEbayTraffic(tenantId) {
       .lte('day', recent.window_end)
       .order('day');
 
-    setState({ status: 'ready', total, listings, days: days ?? [], error: null });
+    // The traffic report counts sales per listing; which day each sold comes from the orders.
+    const { data: sales } = await supabase
+      .from('channel_sales')
+      .select('external_ref, line_no, external_sku, title, sold_at, qty, gross')
+      .eq('tenant_id', tenantId)
+      .eq('channel', 'ebay')
+      .eq('status', 'paid')
+      .order('sold_at', { ascending: false })
+      .limit(500);
+
+    setState({ status: 'ready', total, listings, days: days ?? [], sales: sales ?? [], error: null });
   }, [tenantId]);
 
   useEffect(() => { load(); }, [load]);
@@ -125,10 +135,17 @@ export function useEbayTraffic(tenantId) {
     const { data, error } = await supabase.functions.invoke('ebay-traffic', {
       body: { tenant_id: tenantId, days },
     });
+    // Recent orders too, so what sold since the last pull shows here without a trip to Finance.
+    const sales = error || data?.error
+      ? null
+      : await supabase.functions.invoke('ebay-sales', { body: { tenant_id: tenantId, days: 30 } });
     setPulling(false);
     if (error || data?.error) {
       setState((s) => ({ ...s, error: data?.error ?? error.message }));
       return null;
+    }
+    if (sales?.error || sales?.data?.error) {
+      setState((s) => ({ ...s, error: `Traffic pulled, recent orders not: ${sales.data?.error ?? sales.error.message}` }));
     }
     await load();
     return data;

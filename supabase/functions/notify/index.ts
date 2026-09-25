@@ -131,50 +131,72 @@ function itemRows(items: Array<Record<string, unknown>>) {
 
 // --- the rights block, which is the statutory part ---------------------------
 
-// Schedule 2 items l, m, o and p. Every clause is conditional on the shop having
-// the fact: nothing is asserted that legal.js has not been told.
+// Schedule 2 items l, m, o and p, and the Schedule 3 form: a web page is not a durable medium, this email is.
+// Every clause is conditional on the shop having the fact, and matches src/data/legal.js.
 function rightsBlock(
   items: Array<Record<string, unknown>>,
   trader: Record<string, unknown>,
-  shopUrl: string,
+  cfg: Record<string, any>,
 ) {
+  const days = Number(cfg.returns?.days ?? 30);
+  const extended = days > 14;
+  const customerPays = cfg.returns?.postage_paid_by === 'customer';
   const sealed = items.filter((i) => i.returns_class === 'sealed');
-  const none = items.filter((i) => i.returns_class === 'none');
+  const sendTo = trader.return_address ?? trader.address;
 
-  // Two routes once there is an address, one until then.
   const how = trader.address
     ? `replying to this email or by writing to ${escape(trader.address)}`
     : 'replying to this email';
 
-  // Fourteen statutory, thirty her policy, and the window itself. Separate, or
-  // they collapse into a promise she did not make.
   const parts = [
-    `<p style="margin:0 0 12px;">You have 14 days from the day it arrives to cancel this order for any reason, which is your statutory right, and we extend that to 30 days as a term of sale. You do not have to give a reason. Tell us by ${how}.</p>`,
-    `<p style="margin:0 0 12px;">Send the goods back within 14 days of telling us. If an item comes back showing more handling than it would have had in a shop, we may reduce the refund by the value lost.</p>`,
-    `<p style="margin:0 0 12px;">We refund the price you paid plus the standard delivery charge on the outbound order, within 14 days of the goods reaching us or of you showing us proof of postage, whichever is sooner.</p>`,
+    `<p style="margin:0 0 12px;">You have 14 days from the day your order arrives to cancel it, for any reason. That is your statutory right${extended ? `, and we extend it to ${days} days on the same terms` : ''}. Tell us by ${how}.</p>`,
+    `<p style="margin:0 0 12px;">Send the goods back${sendTo ? ` to ${escape(sendTo)}` : ''} within 14 days of telling us. ${customerPays ? 'The cost of sending them back is yours, unless they are faulty or not as described.' : 'We pay the return postage.'} You can handle what you receive as you would in a shop; if it has been handled more than that, we may reduce the refund by the value lost.</p>`,
+    `<p style="margin:0 0 12px;">We refund the price you paid, and the delivery charge if the whole order comes back, within 14 days of the goods reaching us or of you showing us proof of postage, whichever is sooner.</p>`,
   ];
 
+  // 'none' is deliberately not an exception here: an opened consumable is a reduced refund, not a refusal.
   if (sealed.length) {
-    // 30 rather than 14, matching ProductTerms. The exception is about the seal,
-    // not the clock, so the window applies until it is broken.
-    parts.push(`<p style="margin:0 0 12px;">${sealed.map((i) => escape(i.title)).join(', ')} can be returned within the same 30 days, but only while the seal is unbroken. Once opened, the right to cancel does not apply to ${sealed.length > 1 ? 'them' : 'it'}, on health and hygiene grounds.</p>`);
+    parts.push(`<p style="margin:0 0 12px;">${sealed.map((i) => escape(i.title)).join(', ')} can be returned within the same ${days} days only while the seal is unbroken. Once opened, the right to cancel does not apply to ${sealed.length > 1 ? 'them' : 'it'}, on health and hygiene grounds, unless faulty.</p>`);
   }
 
-  if (none.length) {
-    parts.push(`<p style="margin:0 0 12px;">${none.map((i) => escape(i.title)).join(', ')} cannot be returned once opened.</p>`);
-  }
-
-  parts.push(`<p style="margin:0 0 12px;">None of this affects your right to a refund, repair or replacement if something arrives faulty or is not as described. That right is separate and it does not run out when the 30 days do.</p>`);
-  parts.push(`<p style="margin:0;"><a href="${shopUrl}/legal/returns" style="color:#AD5438;">A cancellation form, if you would rather use one</a></p>`);
+  parts.push(`<p style="margin:0 0 12px;">None of this affects your right to a refund, repair or replacement if something is faulty or not as described. That right is separate and does not run out when the ${days} days do.</p>`);
+  parts.push(cancellationForm(trader));
 
   return parts.join('');
+}
+
+// Schedule 3, Part B, filled with the trader's details.
+function cancellationForm(trader: Record<string, unknown>) {
+  const to = [identity(trader), trader.address, trader.email].filter(Boolean).map((l) => escape(l)).join(', ');
+  const lines = [
+    'I/We* hereby give notice that I/We* cancel my/our* contract of sale of the following goods:',
+    'Order reference:',
+    'Ordered on* / received on*:',
+    'Name of consumer(s):',
+    'Address of consumer(s):',
+    'Signature of consumer(s) (only if this form is sent on paper):',
+    'Date:',
+  ];
+  return `<div style="margin:16px 0 0;padding:16px;border:1px solid #E6DECF;border-radius:10px;font-size:13px;line-height:1.7;color:#5C564D;">
+<p style="margin:0 0 8px;font-weight:600;color:#2A2723;">Cancellation form</p>
+<p style="margin:0 0 8px;">Complete and return this only if you want to cancel. You can also just reply to this email.</p>
+${to ? `<p style="margin:0 0 8px;">To: ${to}</p>` : ''}
+${lines.map((l) => `<p style="margin:0;">${escape(l)}</p>`).join('')}
+<p style="margin:8px 0 0;font-size:12px;">* Delete as appropriate.</p>
+</div>`;
+}
+
+// "Jane Smith, trading as Corner Shop". Mirrors traderIdentity in src/data/legal.js.
+function identity(t: Record<string, unknown>) {
+  if (!t.legal_name) return t.trading_as ?? null;
+  const as = t.trading_as && t.trading_as !== t.legal_name ? `, trading as ${t.trading_as}` : '';
+  return t.company_number ? `${t.legal_name}, company number ${t.company_number}${as}` : `${t.legal_name}${as}`;
 }
 
 // Schedule 2 items b and c. Whatever is present, never a placeholder: TO CONFIRM
 // in a legal block is worse than an absent line.
 function traderBlock(trader: Record<string, unknown>) {
-  const lines = [trader.legal_name, trader.address, trader.company_number
-    ? `Company number ${trader.company_number}` : null, trader.email]
+  const lines = [identity(trader), trader.address, trader.email]
     .filter(Boolean).map((l) => escape(l));
 
   if (!lines.length) return '';
@@ -187,7 +209,6 @@ const identityComplete = (t: Record<string, unknown>) =>
 // --- templates ---------------------------------------------------------------
 
 function confirmation(order: any, trader: any, cfg: any) {
-  const shopUrl = `https://${cfg.domain ?? 'cartandkeep.com'}`;
   const now = new Date();
   const cutoff = Number(cfg.delivery?.cutoff_hour ?? 14);
 
@@ -219,7 +240,7 @@ ${itemRows(order.items)}
 ${RULE}
 
 <p style="margin:0 0 12px;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:#857D70;">Your rights</p>
-${rightsBlock(order.items, trader, shopUrl)}
+${rightsBlock(order.items, trader, cfg)}
 ${traderBlock(trader)}`;
 
   return {

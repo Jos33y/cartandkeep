@@ -1,5 +1,7 @@
 import { Logo } from '@components/ui/shared/Logo';
 import { formatGbp } from '@utils/formatGbp';
+import { storeConfig, returnsTerms } from '@lib/storeConfig';
+import { legalTrader, traderIdentity } from '@data/legal';
 import styles from '@styles/ui/shared/receipt.module.css';
 
 /*
@@ -67,7 +69,7 @@ export function Receipt({ order, items = [], variant = 'customer' }) {
     <article className={styles.receipt} data-variant={variant}>
       <header className={styles.head}>
         <Logo size={28} />
-        <p className={styles.site}>cartandkeep.com</p>
+        <p className={styles.site}>{storeConfig().domain}</p>
         {slip && <p className={styles.slipLabel}>Packing slip</p>}
       </header>
 
@@ -174,9 +176,18 @@ export function Receipt({ order, items = [], variant = 'customer' }) {
           {order.status === 'refunded' ? (
             <p>Refunded to the card it was paid with. It usually shows within three working days.</p>
           ) : (
-            <p>30 days to change your mind. We pay the return postage.</p>
+            <p>
+              {returnsTerms().days ?? 30} days to change your mind.
+              {returnsTerms().postagePaidBy === 'customer'
+                ? ' Return postage is yours to pay unless it is faulty.'
+                : ' We pay the return postage.'}
+            </p>
           )}
           <p>Nothing here removes your statutory rights.</p>
+          {/* Receipts must carry a sole trader's own name and address. Companies Act 2006, s. 1202. */}
+          {traderIdentity() && legalTrader().address && (
+            <p>{traderIdentity()}, {legalTrader().address}.</p>
+          )}
         </div>
       ) : (
         <p className={styles.terms}>

@@ -1,0 +1,353 @@
+.page { width: 100%; padding: var(--s-5) var(--s-4) var(--s-8); }
+
+@media (min-width: 900px) { .page { padding: var(--s-5) var(--s-5) var(--s-8); } }
+
+/* Answers column plus the desk: the search, the chips and the list share the answers' left and right edges. */
+.frame { max-width: calc(640px + var(--s-7) + 300px); margin: 0 auto; }
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-caption);
+  color: var(--c-faint);
+}
+
+.crumbs a { color: var(--c-ink-soft); text-decoration: none; }
+.crumbs a:hover { color: var(--c-ink); }
+.crumbs svg { color: var(--c-line-mid); }
+
+.header { margin-top: var(--s-6); }
+.title { font-size: clamp(2.25rem, 4.6vw, 3.25rem); color: var(--c-ink); }
+.lede { margin-top: var(--s-3); font-size: var(--t-lead); line-height: 1.5; color: var(--c-ink-soft); text-wrap: pretty; }
+
+/* --- Finder ------------------------------------------------------------ */
+
+.finder { max-width: 640px; }
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  height: 56px;
+  padding: 0 var(--s-2) 0 var(--s-4);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-card);
+  box-shadow: var(--e-1);
+  color: var(--c-faint);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.search:focus-within { border-color: var(--c-action-strong); box-shadow: 0 0 0 3px rgba(186, 90, 61, 0.14); }
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: none;
+  color: var(--c-ink);
+  font: inherit;
+  font-size: var(--t-lead);
+}
+
+/* The field owns the focus ring, so the input inside it does not draw a second one. */
+.input:focus, .input:focus-visible { outline: none; }
+.input::placeholder { color: var(--c-ink-faint); }
+.input::-webkit-search-cancel-button { display: none; }
+
+.clear {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--c-ink-faint);
+  cursor: pointer;
+}
+
+.clear:hover { background: var(--c-warm); color: var(--c-ink); }
+
+.topics { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--s-3); }
+
+/* One row that scrolls on a phone, running to the screen edges, rather than two ragged rows. */
+@media (max-width: 639px) {
+  .topics {
+    flex-wrap: nowrap;
+    margin-inline: calc(var(--s-4) * -1);
+    padding-inline: var(--s-4);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .topics::-webkit-scrollbar { display: none; }
+  .topic { flex: none; }
+}
+
+.topic {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-full);
+  background: transparent;
+  color: var(--c-ink-soft);
+  font: inherit;
+  font-size: var(--t-label);
+  font-weight: 500;
+  gap: var(--s-2);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.topicCount { font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: var(--t-caption); opacity: 0.6; }
+
+.topic:hover { border-color: var(--c-line-strong); color: var(--c-ink); }
+.topic[aria-pressed='true'] { background: var(--c-ink); border-color: var(--c-ink); color: var(--c-base); }
+
+@media (pointer: coarse) { .topic { min-height: var(--tap); } }
+
+/* It belongs to the controls above, so it sits closer to them than to the list below. */
+.count { min-height: 1.5em; margin: var(--s-2) 0 var(--s-4); font-size: var(--t-caption); color: var(--c-faint); }
+
+/* --- Answers and desk -------------------------------------------------- */
+
+/* The search sits in the answers column, so the desk's top edge meets the search box's top edge. */
+.body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); margin-top: var(--s-5); }
+
+@media (min-width: 1024px) {
+  .body { grid-template-columns: minmax(0, 640px) 300px; gap: var(--s-7); align-items: start; }
+}
+
+.group + .group { margin-top: var(--s-6); }
+
+.groupHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  padding-bottom: var(--s-2);
+  border-bottom: 2px solid var(--c-line-mid);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-faint);
+}
+
+/* A count beside a heading is one of the two places the store allows the data face. */
+.groupCount { font-family: var(--font-data); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+
+.items { list-style: none; padding: 0; margin: 0; }
+
+.item {
+  position: relative;
+  border-bottom: 1px solid var(--c-line-mid);
+  scroll-margin-top: calc(var(--store-bar-h) + var(--s-5));
+}
+
+/* The open question is marked in the gutter, the same sage line the policy pages read by. */
+.item[data-open]::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--s-3) * -1);
+  top: var(--s-4);
+  bottom: var(--s-4);
+  width: 2px;
+  border-radius: 2px;
+  background: var(--c-brand);
+}
+
+.q { font: inherit; }
+
+.qButton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--s-4) 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: var(--c-ink);
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.qIcon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--c-line-mid);
+  border-radius: 50%;
+  color: var(--c-ink-soft);
+  transition: transform var(--dur-settle) var(--ease-out), background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.qButton:hover .qIcon { border-color: var(--c-line-strong); background: var(--c-surface); }
+
+/* The plus turns into a close mark, so the same control says what it will do next. */
+.item[data-open] .qIcon { transform: rotate(45deg); background: var(--c-sage-wash); border-color: var(--c-brand-mid); color: var(--c-ink); }
+
+.answer { padding: 0 0 var(--s-5); animation: rise var(--dur-settle) var(--ease-out) both; }
+
+/* On wider screens the answer stays clear of the icon column above it. */
+@media (min-width: 640px) { .answer { padding-right: calc(32px + var(--s-4)); } }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: var(--s-3);
+  padding: 5px 12px;
+  border-radius: var(--r-full);
+  background: var(--c-sage-wash);
+  color: var(--c-sage-deep);
+  font-family: var(--font-display);
+  font-size: var(--t-label);
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+}
+
+.a { font-size: 1rem; line-height: 1.7; color: var(--c-ink-soft); }
+.a + .a { margin-top: var(--s-2); }
+
+.more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin-top: var(--s-3);
+  font-size: var(--t-label);
+  font-weight: 600;
+  color: var(--c-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--c-line-mid);
+  text-underline-offset: 4px;
+  transition: text-decoration-color var(--dur) var(--ease);
+}
+
+.more svg { transition: transform var(--dur) var(--ease); }
+.more:hover { text-decoration-color: var(--c-ink); }
+.more:hover svg { transform: translateX(2px); }
+
+/* A shadow rather than padding, so a match inside a word does not push the letters apart. */
+.mark { background: var(--c-brand-mid); color: var(--c-ink); border-radius: 3px; box-shadow: 0 0 0 2px var(--c-brand-mid); }
+
+.empty {
+  padding: var(--s-6) var(--s-5);
+  border: 1px dashed var(--c-line-mid);
+  border-radius: var(--r-card);
+  text-align: center;
+}
+
+.emptyTitle { font-family: var(--font-display); font-size: 1.25rem; font-weight: 620; color: var(--c-ink); margin-bottom: var(--s-2); }
+
+.emptyReset {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  margin-top: var(--s-4);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-control);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font: inherit;
+  font-size: var(--t-label);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.emptyReset:hover { border-color: var(--c-line-strong); }
+
+/* --- The desk: the page's one dark surface, and it stays in reach ------ */
+
+.desk {
+  padding: var(--s-5);
+  background: var(--c-ink-deep);
+  color: var(--c-on-dark);
+  border-radius: var(--r-card);
+}
+
+@media (min-width: 1024px) { .desk { position: sticky; top: calc(var(--store-bar-h) + var(--s-5)); } }
+
+.deskEyebrow {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-on-dark-faint);
+}
+
+.deskTitle { margin-top: var(--s-2); font-size: 1.875rem; color: var(--c-on-dark); }
+.deskLine { margin-top: var(--s-2); font-size: var(--t-label); color: var(--c-on-dark-soft); }
+
+.deskLinks { margin-top: var(--s-4); list-style: none; border-top: 1px solid var(--c-on-dark-line); }
+.deskLinks li { border-bottom: 1px solid var(--c-on-dark-line); }
+
+.deskLink {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 52px;
+  color: var(--c-on-dark-soft);
+  font-size: var(--t-label);
+  text-decoration: none;
+  transition: color var(--dur) var(--ease);
+}
+
+.deskLink svg:first-child { color: var(--c-brand); }
+.deskLink svg:last-child { color: var(--c-on-dark-faint); transition: transform var(--dur) var(--ease); }
+.deskLink:hover { color: var(--c-on-dark); }
+.deskLink:hover svg:last-child { transform: translateX(2px); }
+
+/* The page's one action, so it is the only terracotta on it. */
+.deskAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: 48px;
+  margin-top: var(--s-5);
+  border-radius: var(--r-control);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-label);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.deskAction:hover { background: var(--c-action); }
+.deskAction:active { transform: translateY(1px); }
+
+.deskEmail {
+  display: block;
+  margin-top: var(--s-3);
+  text-align: center;
+  font-size: var(--t-caption);
+  color: var(--c-on-dark-faint);
+  text-underline-offset: 3px;
+}
+
+.deskEmail:hover { color: var(--c-on-dark); }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .answer { animation: none; }
+  .qIcon, .search, .topic, .more svg, .deskLink, .deskLink svg:last-child, .deskAction { transition: none; }
+}

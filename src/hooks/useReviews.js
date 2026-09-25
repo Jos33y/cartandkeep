@@ -34,7 +34,7 @@ export function useReviews(tenantId) {
     const { data, error } = await supabase
       .from('store_reviews')
       .select(`
-        id, rating, title, body, author, status, reply, replied_at,
+        id, rating, title, body, author, status, hidden_reason, reply, replied_at,
         created_at, published_at, product_id, variant_id,
         store_products ( id, title, slug, image_url ),
         order_items ( variant_label, orders ( reference, name, email ) )
@@ -62,7 +62,7 @@ export function useReviews(tenantId) {
 
   useEffect(() => { load(); }, [load]);
 
-  const setStatus = useCallback(async (id, status) => {
+  const setStatus = useCallback(async (id, status, reason = null) => {
     const row = state.rows.find((r) => r.id === id);
 
     /*
@@ -75,6 +75,7 @@ export function useReviews(tenantId) {
      * write, one round trip, and the condition is legible.
      */
     const patch = { status };
+    if (status === 'hidden') patch.hidden_reason = reason;
     if (status === 'approved' && !row?.published_at) {
       patch.published_at = new Date().toISOString();
     }
@@ -85,7 +86,8 @@ export function useReviews(tenantId) {
   }, [state.rows, load]);
 
   const approve = useCallback((id) => setStatus(id, 'approved'), [setStatus]);
-  const hide = useCallback((id) => setStatus(id, 'hidden'), [setStatus]);
+  // The reason is required by the database: the reviews page promises these are the only grounds.
+  const hide = useCallback((id, reason) => setStatus(id, 'hidden', reason), [setStatus]);
 
   /*
    * Her reply, published under the review it answers.

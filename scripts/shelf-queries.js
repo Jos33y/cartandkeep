@@ -55,8 +55,8 @@ const SIZED_NAME = /\b(hoodie|sweatshirt|jacket|trousers|jeans|pyjamas?|pajamas|
  * and it is stated on the row so it can be corrected by eye before a call is
  * spent.
  */
-const BULKY = /furniture|mattress|bed frame|folding bed|curtain|rug|duvet|pillow|throw|cushion|heater|appliance|microwave|kettle|fryer|hoover|vacuum|outdoor play|sandpit|slide|swing|tent|table|chair|bookshelf|storage chest|wardrobe|garden|patio|paddling|christmas tree|tree skirt|bulk buy|litter|cat food|dog food|bird food|bird feed|compost/i
-const LIGHT = /stationery|pen|pencil|marker|notebook|card|battery|batteries|dental|denture|floss|hair accessor|phone accessor|cable|charger|seed|sewing|haberdashery|knitting|yarn|craft|sticker|balloon|gift wrap|wallpaper sample|lip|nail/i
+const BULKY = /\b(?:furniture|tv unit|sideboard|chest of drawers|drawer chest|\d drawer|cabinet|cupboard|desk|dresser|display shelf|shelving|bookcase|sofa|ottoman|headboard|console table|greenhouse|polytunnel|potting bench|garden bench|mattress|bed frame|folding bed|curtain|rug|duvet|pillow|throw|cushion|heater|appliance|microwave|kettle|fryer|hoover|vacuum|outdoor play|sandpit|slide|swing|tent|table|chair|bookshelf|storage chest|wardrobe|garden|patio|paddling|christmas tree|tree skirt|bulk buy|litter|cat food|dog food|bird food|bird feed|compost)(?:e?s)?\b/i
+const LIGHT = /\b(?:stationery|pen|pencil|marker|notebook|card|battery|batteries|dental|denture|floss|hair accessor\w*|phone accessor\w*|cable|charger|seed|sewing|haberdashery|knitting|yarn|craft|sticker|balloon|gift wrap|wallpaper sample|lip|nail)(?:e?s)?\b/i
 
 function bandOf (row) {
   const text = `${row.category || ''} ${row.name || ''}`
@@ -219,8 +219,12 @@ const JOINERS = new Set(['and', 'the', 'with', 'for', 'of', 'in', 'to', 'a', 'an
 // A colour narrows eBay's match to one seller's listing and says nothing about the market.
 const COLOURS = new Set(['black', 'white', 'grey', 'gray', 'navy', 'blue', 'red', 'pink', 'green', 'beige', 'cream', 'brown', 'silver', 'gold', 'purple', 'yellow', 'orange', 'charcoal', 'teal'])
 
+// Whole words: "table" in "portable" sent a hand-wash sink to the 15kg band.
+// Marketplace titles carry their extras after the product: "Potting Bench with 2 Removable Wheels".
+const EXTRAS = /\s(?:with|w\/)\s|\s[-–|]\s|,|\(/i
+
 function words (name) {
-  return name.split(SIZE)[0]
+  return name.split(EXTRAS)[0].split(SIZE)[0]
     .toLowerCase()
     .replace(/[^a-z0-9 ]+/g, ' ')
     .split(/\s+/)
@@ -270,8 +274,11 @@ for (const r of rows) {
   // Names read off a sitemap carry no brand field; the first word of a trade name is nearly always it.
   const lead = named ? brand : (!brand && model ? words(r.name)[0] : null)
   const extra = model && lead && lead !== model.toLowerCase() ? [`${lead} ${model.toLowerCase()}`] : []
+  // One query per product: two or three were mostly the same market asked twice, at a call each.
+  // The strongest one wins: model number, then brand and product, then the product alone.
+  const best = extra.length ? extra : (oneWord || named ? [`${brand} ${core}`] : [core])
   const plain = oneWord ? [`${brand} ${core}`] : (named ? [core, `${brand} ${core}`] : [core])
-  for (const q of [...plain, ...extra]) {
+  for (const q of args['all-queries'] ? [...plain, ...extra] : best) {
     if (doneQueries.has(q)) continue
     // The same product on two shelves drafts one query, priced at the cheaper shop.
     const prev = drafted.get(q)
@@ -299,7 +306,8 @@ const all = [...drafted.values()]
 // Nothing is cut on price, but it is scanned in order of how likely it is to be bought: the £3 to £60
 // band first, dearest first, then names with no price, then the rest. A £2,700 boiler fails the goods
 // ceiling at the gate; it should not spend the first calls of the night.
-const tier = (p) => (p >= 3 && p <= 60 ? 0 : p > 0 && p < 3 ? 2 : p > 60 ? 3 : 1)
+// £45 on the shelf is about where the goods pass the £40 the gate buys at.
+const tier = (p) => (p >= 3 && p <= 45 ? 0 : p > 0 && p < 3 ? 2 : p > 45 ? 3 : 1)
 if (ORDER === 'price') all.sort((a, b) => tier(a.sort) - tier(b.sort) || b.sort - a.sort)
 
 console.log(`\n${rows.length} shelf products`)

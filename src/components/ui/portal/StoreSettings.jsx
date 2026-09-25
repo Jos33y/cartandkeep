@@ -18,13 +18,32 @@ function ReceiptPreview({ t }) {
     <figure className={styles.preview}>
       <figcaption className={styles.previewLabel}>At the foot of every receipt</figcaption>
       <div className={styles.paperSlip}>
-        <b>{t.legal_name?.trim() || <span className={styles.previewMissing}>Trading name needed</span>}</b>
+        <b>{t.legal_name?.trim() || <span className={styles.previewMissing}>Legal name needed</span>}</b>
         {t.trading_as?.trim() && t.trading_as !== t.legal_name && <span>trading as {t.trading_as}</span>}
         {line(t.address, 'Address needed')}
         {t.company_number?.trim() && <span>Company number <span data-num>{t.company_number}</span></span>}
         {t.email?.trim() && <span>{t.email}</span>}
         {t.complaints_url?.trim() && <span>Complaints: {t.complaints_url}</span>}
         {!t.complaints_url?.trim() && t.email?.trim() && <span>Complaints: {t.email}</span>}
+      </div>
+    </figure>
+  );
+}
+
+// What the returns page, the receipt and the confirmation email will say.
+function ReturnsPreview({ r }) {
+  const days = Number(r.days);
+  const ok = Number.isInteger(days) && days >= 14;
+  return (
+    <figure className={styles.preview}>
+      <figcaption className={styles.previewLabel}>On every receipt</figcaption>
+      <div className={styles.paperSlip}>
+        {ok
+          ? <b>{days} days to change your mind.</b>
+          : <span className={styles.previewMissing}>Return window needed</span>}
+        {r.postage_paid_by === 'customer' && <span>Return postage is yours to pay unless it is faulty.</span>}
+        {r.postage_paid_by === 'us' && <span>We pay the return postage.</span>}
+        <span>Nothing here removes your statutory rights.</span>
       </div>
     </figure>
   );
@@ -45,7 +64,7 @@ function DeliveryPreview({ d }) {
       <figcaption className={styles.previewLabel}>What customers are told</figcaption>
       <div className={styles.promise}>
         <p className={styles.promiseMain}>
-          {hasFree ? <>Free UK delivery over <b data-num>{formatGbp(free)}</b></> : <>UK delivery <b data-num>{formatGbp(post || 0)}</b></>}
+          {hasFree ? <>Free UK delivery from <b data-num>{formatGbp(free)}</b></> : <>UK delivery <b data-num>{formatGbp(post || 0)}</b></>}
         </p>
         <p className={styles.promiseSub}>
           {cut ? <>Order by {cut} and it goes out that day. </> : null}
@@ -99,7 +118,7 @@ function VoicePreview({ v }) {
  */
 export function StoreSettings({ tenantId }) {
   const {
-    status, values, saveTrader, saveDelivery, saveZones, saveVoice,
+    status, values, saveTrader, saveDelivery, saveZones, saveReturns, saveVoice,
   } = useStoreSettings(tenantId);
 
   if (status === 'loading') return null;
@@ -117,6 +136,7 @@ export function StoreSettings({ tenantId }) {
       <Trader initial={values.trader} onSave={saveTrader} />
       <Delivery initial={values.delivery} onSave={saveDelivery} />
       <Zones initial={values.delivery.zones} onSave={saveZones} />
+      <Returns initial={values.returns} onSave={saveReturns} />
       <Voice initial={{ ...values.voice, ...values.socials }} onSave={saveVoice} />
     </>
   );
@@ -223,15 +243,27 @@ function Save({ section, onSave, label = 'Save' }) {
   );
 }
 
+// "Cart and Keep Ltd" and "Cart & Keep" are the same name to a customer.
+const COMPANY_SUFFIX = /\b(ltd|limited|plc|llp)\.?\s*$/i;
+const sameName = (a, b) => {
+  const norm = (v) => String(v ?? '').trim().replace(COMPANY_SUFFIX, '').toLowerCase()
+    .replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
+  return norm(a) !== '' && norm(a) === norm(b);
+};
+const claimsCompany = (name) => COMPANY_SUFFIX.test(String(name ?? '').trim());
+
 function Trader({ initial, onSave }) {
   const s = useSection(initial);
   const gaps = traderGaps(s.draft);
+  const noNumber = !s.draft.company_number.trim();
+  const nameIsShop = sameName(s.draft.legal_name, s.draft.trading_as) && noNumber;
+  const companyWithoutNumber = claimsCompany(s.draft.legal_name) && noNumber;
 
   return (
     <Section
       title="Who is selling"
       note="Your identity as a trader. It appears on your legal pages and on every order confirmation."
-      state={gaps.length ? `${gaps.length} missing` : null}
+      state={gaps.length ? `${gaps.length} missing` : (nameIsShop || companyWithoutNumber) ? 'Check your name' : null}
       stateTone="stateMissing"
       preview={<ReceiptPreview t={s.draft} />}
     >
@@ -240,6 +272,21 @@ function Trader({ initial, onSave }) {
         * regulation. "Schedule 2 items b and c" tells her nothing she can act
         * on; "every confirmation goes out without it" does.
         */}
+      {companyWithoutNumber && (
+        <p className={styles.note} role="alert">
+          Ltd is only for a company registered at Companies House, and using it otherwise is an
+          offence. If you have a company, add its number. If you are a sole trader, put your own
+          name here.
+        </p>
+      )}
+
+      {nameIsShop && !companyWithoutNumber && (
+        <p className={styles.note} role="alert">
+          Your legal name matches your trading name. As a sole trader it has to be your own
+          name, the one on your bank account, or every receipt and legal page names nobody.
+        </p>
+      )}
+
       {gaps.length > 0 && (
         <p className={styles.note}>
           Every order confirmation goes out without your {gaps.join(' and ')}, which the
@@ -249,10 +296,18 @@ function Trader({ initial, onSave }) {
 
       <div className={styles.fields}>
         <Field
-          label="Trading name"
+          label="Your legal name"
           value={s.draft.legal_name}
           onChange={s.set('legal_name')}
-          placeholder="The name you trade under"
+          placeholder="Your full name"
+          hint="As a sole trader, your own name. It has to appear beside the trading name."
+        />
+
+        <Field
+          label="Trading name"
+          value={s.draft.trading_as}
+          onChange={s.set('trading_as')}
+          placeholder="The name customers know the shop by"
         />
 
         <Field
@@ -270,6 +325,15 @@ function Trader({ initial, onSave }) {
           onChange={s.set('address')}
           placeholder="12 Example Road, London N1 1AA"
           hint="A geographic address, not a PO box."
+        />
+
+        <Field
+          label="Return address"
+          wide
+          value={s.draft.return_address}
+          onChange={s.set('return_address')}
+          placeholder="Optional"
+          hint="Leave empty and returns go to the address above."
         />
 
         <Field
@@ -301,6 +365,44 @@ function Trader({ initial, onSave }) {
   );
 }
 
+const RETURN_DAYS = [
+  ['14', '14 days, the legal minimum'], ['21', '21 days'], ['28', '28 days'], ['30', '30 days'],
+  ['45', '45 days'], ['60', '60 days'], ['90', '90 days'],
+];
+
+function Returns({ initial, onSave }) {
+  const s = useSection(initial);
+  const days = Number(s.draft.days);
+
+  return (
+    <Section
+      title="Returns"
+      note="Printed on the returns page, every receipt and every order confirmation, from here."
+      state={!s.draft.days || !s.draft.postage_paid_by ? 'Not set' : null}
+      stateTone="stateMissing"
+      preview={<ReturnsPreview r={s.draft} />}
+    >
+      <div className={styles.fields}>
+        <Choice
+          label="Time to change their mind"
+          value={s.draft.days}
+          onChange={s.set('days')}
+          options={[['', 'Choose'], ...RETURN_DAYS]}
+          hint={days > 14 ? `The law gives 14. The other ${days - 14} are your own promise.` : 'Customers always have at least 14 days by law.'}
+        />
+        <Choice
+          label="Return postage on a change of mind"
+          value={s.draft.postage_paid_by}
+          onChange={s.set('postage_paid_by')}
+          options={[['', 'Choose'], ['us', 'We pay'], ['customer', 'The customer pays']]}
+          hint="You always pay when something is faulty or not as described."
+        />
+      </div>
+      <Save section={s} onSave={onSave} label="Save returns" />
+    </Section>
+  );
+}
+
 const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
 const DAYS = [1, 2, 3, 4, 5, 6, 7, 10];
 
@@ -328,7 +430,7 @@ function Delivery({ initial, onSave }) {
     >
       <div className={styles.fields}>
         <Field
-          label="Free delivery over"
+          label="Free delivery from"
           prefix="£"
           num
           inputMode="decimal"
@@ -355,11 +457,11 @@ function Delivery({ initial, onSave }) {
         <div className={styles.field}>
           <span className={styles.label}>Arrives in</span>
           <span className={styles.range}>
-            <select className={styles.select} aria-label="Quickest, in working days" value={s.draft.transit_min} onChange={s.set('transit_min')}>
+            <select className={styles.select} data-num aria-label="Quickest, in working days" value={s.draft.transit_min} onChange={s.set('transit_min')}>
               {DAYS.map((d) => <option key={d} value={String(d)}>{d}</option>)}
             </select>
             <span>to</span>
-            <select className={styles.select} aria-label="Longest, in working days" value={s.draft.transit_max} onChange={s.set('transit_max')}>
+            <select className={styles.select} data-num aria-label="Longest, in working days" value={s.draft.transit_max} onChange={s.set('transit_max')}>
               {DAYS.map((d) => <option key={d} value={String(d)}>{d}</option>)}
             </select>
             <span>working days</span>

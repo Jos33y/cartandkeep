@@ -81,7 +81,7 @@ async function main() {
   const allowDuplicates = args.includes('--allow-duplicates');
   const refreshDecided = args.includes('--refresh-decided');
 
-  // A day holds one batch per term since 0087, so the term is what names the batch.
+  // A day holds one batch per term since 0094, so the term is what names the batch.
   if (!term && !dry) {
     console.error('\n  --term is required: a day holds one batch per term.\n');
     process.exit(1);
@@ -280,7 +280,7 @@ async function main() {
   for (const r of rows) r.tenant_id = tenant.id;
 
   if (refresh) {
-    await refreshMarket(db, tenant.id, deliveredFor, rows, coverage);
+    await refreshMarket(db, tenant.id, deliveredFor, rows, coverage, term);
     return;
   }
 

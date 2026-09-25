@@ -503,3 +503,9 @@
   .button, .segment, .row, .sortable, .caret, .out, .tip { transition: none; }
   .stepBar span, .spin { animation: none; }
 }
+
+/* The day's sales, read beside the day's traffic. */
+.readSold { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--c-ink-soft); }
+.stepLatest { margin-top: 2px; font-size: var(--t-micro); color: var(--c-ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stepLatest a { color: inherit; text-decoration: underline; text-decoration-color: var(--c-line-strong); text-underline-offset: 2px; }
+.stepLatest a:hover { color: var(--c-ink); }

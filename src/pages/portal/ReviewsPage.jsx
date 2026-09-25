@@ -102,7 +102,34 @@ function Hero({ published, approved, pending, onNext, first }) {
   );
 }
 
+// The only grounds the shop's reviews page allows. Whether a review is favourable is never one of them.
+const HOLD_REASONS = [
+  ['abusive', 'Abusive or unlawful'],
+  ['personal_details', 'Has someone\u2019s personal details'],
+  ['off_topic', 'Not about the product or order'],
+  ['advertising', 'Advertises something'],
+];
+const HOLD_LABEL = Object.fromEntries(HOLD_REASONS);
+
+function HoldReasons({ busy, onPick, onCancel }) {
+  return (
+    <div className={styles.reply} role="group" aria-label="Why is it being held back">
+      <span className={styles.replyLabel}>
+        Why is it being held back?
+        <Tip side="end">A low rating is not a reason. Hiding reviews because they are unfavourable is banned under consumer law, and the reviews page promises these four only.</Tip>
+      </span>
+      <div className={styles.replyActions}>
+        {HOLD_REASONS.map(([key, label]) => (
+          <button key={key} type="button" className={styles.quiet} disabled={busy} onClick={() => onPick(key)}>{label}</button>
+        ))}
+        <button type="button" className={styles.link} onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 function Review({ review, busy, run, onApprove, onHide, onReply, example, just }) {
+  const [holding, setHolding] = useState(false);
   const [replying, setReplying] = useState(false);
   const [text, setText] = useState(review.reply ?? '');
   const [whole, setWhole] = useState(false);
@@ -177,6 +204,13 @@ function Review({ review, busy, run, onApprove, onHide, onReply, example, just }
             </div>
           </form>
         )}
+        {holding && (
+          <HoldReasons
+            busy={busy}
+            onCancel={() => setHolding(false)}
+            onPick={(reason) => { setHolding(false); run(() => onHide(review.id, reason)); }}
+          />
+        )}
       </div>
 
       <div className={styles.decide}>
@@ -186,18 +220,18 @@ function Review({ review, busy, run, onApprove, onHide, onReply, example, just }
               onClick={() => !example && run(() => onApprove(review.id), review.id)}>
               <Icon name="IconCheck" width="16" height="16" />Put it on the shop
             </button>
-            <button type="button" className={styles.link} disabled={busy} tabIndex={example ? -1 : undefined} onClick={() => !example && run(() => onHide(review.id))}>Hide it</button>
+            <button type="button" className={styles.link} disabled={busy || holding} tabIndex={example ? -1 : undefined} onClick={() => !example && setHolding(true)}>Hide it</button>
           </>
         )}
         {review.status === 'approved' && (
           <>
             <span className={styles.live}><i />On the shop</span>
-            <button type="button" className={styles.link} disabled={busy} tabIndex={example ? -1 : undefined} onClick={() => !example && run(() => onHide(review.id))}>Hide it</button>
+            <button type="button" className={styles.link} disabled={busy || holding} tabIndex={example ? -1 : undefined} onClick={() => !example && setHolding(true)}>Hide it</button>
           </>
         )}
         {review.status === 'hidden' && (
           <>
-            <span className={styles.hiddenTag}>Hidden</span>
+            <span className={styles.hiddenTag}>{review.hidden_reason ? `Hidden: ${HOLD_LABEL[review.hidden_reason]}` : 'Hidden'}</span>
             <button type="button" className={styles.link} disabled={busy} onClick={() => run(() => onApprove(review.id), review.id)}>Put it on the shop</button>
           </>
         )}

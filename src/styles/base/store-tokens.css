@@ -22,6 +22,12 @@
   --c-warm: #f4efe5;
   --c-ink-deep: #1e1c19;
 
+  /* Text and lines on --c-ink-deep. The footer's values, named so the next dark panel does not guess them. */
+  --c-on-dark: #f6f1e8;
+  --c-on-dark-soft: #cfc8bc;
+  --c-on-dark-faint: #a79f92;
+  --c-on-dark-line: #3a3630;
+
   /* Sage as a filled surface rather than a hairline. 5E7359 clears 4.6:1
      against white, so a category tile can carry a label. */
   --c-sage-deep: #5e7359;
@@ -76,6 +82,8 @@
      Wider than the portal's 1180. A ledger loses the eye past that width; a
      four up product grid does not. */
   --store-max: 1240px;
+  /* The sticky store header. Anything pinned below it, or scrolled to an anchor, clears this. */
+  --store-bar-h: 66px;
 }
 
 /*

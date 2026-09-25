@@ -531,8 +531,11 @@
 .select {
   min-height: 44px; padding: 0 var(--s-3);
   border: 1px solid var(--c-line-mid); border-radius: var(--r-md);
-  background: var(--c-surface); font-family: var(--font-data); font-size: var(--t-body); color: var(--c-ink);
+  background: var(--c-surface); font-family: var(--font-ui); font-size: var(--t-body); color: var(--c-ink);
 }
+
+/* Bare numbers keep the data face; a choice that reads as words does not. */
+.select[data-num] { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
 
 .select:hover { border-color: var(--c-control); }
 .select:focus { outline: none; border-color: var(--c-action-strong); box-shadow: 0 0 0 3px rgba(186, 90, 61, 0.14); }

@@ -1,0 +1,261 @@
+/* Drawn on --c-ink-deep inside the policy panel. Ink, cream and sage only: nothing here is a call to buy. */
+
+.shape { margin: 0; min-width: 0; }
+
+/* --- Return window ---------------------------------------------------- */
+
+.scale { position: relative; height: 18px; font-size: var(--t-caption); color: var(--c-on-dark-faint); }
+
+.tick { position: absolute; top: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tick:not(:first-child):not(.tickEnd) { transform: translateX(-50%); }
+.tickEnd { right: 0; }
+
+.bar {
+  display: flex;
+  gap: 3px;
+  height: 14px;
+  margin-top: var(--s-2);
+}
+
+.barLaw, .barOurs { height: 100%; border-radius: var(--r-full); animation: grow var(--dur-enter) var(--ease-out) both; transform-origin: left; }
+.barLaw { flex: none; background: var(--c-on-dark-soft); }
+.barOurs { flex: 1; background: var(--c-brand); animation-delay: 120ms; }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-5);
+  margin-top: var(--s-4);
+  list-style: none;
+  font-size: var(--t-label);
+  color: var(--c-on-dark-soft);
+}
+
+.legend li { display: flex; align-items: center; gap: var(--s-2); }
+.legend i { width: 10px; height: 10px; border-radius: 3px; }
+.keyLaw { background: var(--c-on-dark-soft); }
+.keyOurs { background: var(--c-brand); }
+
+/* --- Delivery track: three stops on one line -------------------------- */
+
+.route {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+}
+
+.stop { position: relative; display: flex; flex-direction: column; gap: 2px; padding-top: 30px; padding-right: var(--s-3); }
+
+/* The line runs from this stop's dot to the next one's. */
+.stop:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 18px;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--c-brand), var(--c-on-dark-line));
+}
+
+.dot {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--c-on-dark-faint);
+  background: var(--c-ink-deep);
+}
+
+.stop[data-first] .dot { border-color: var(--c-brand); background: var(--c-brand); box-shadow: 0 0 0 4px rgba(122, 149, 117, 0.22); }
+
+.stopBig {
+  font-family: var(--font-display);
+  font-stretch: var(--wide-tight);
+  font-size: 1.25rem;
+  font-weight: 620;
+  line-height: 1.15;
+  color: var(--c-on-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+.stopSmall { font-size: var(--t-caption); line-height: 1.4; color: var(--c-on-dark-faint); }
+
+/* --- Browser storage: four tiles, one with its switch ----------------- */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2);
+  list-style: none;
+}
+
+.tile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: var(--s-3);
+  align-items: center;
+  min-height: 64px;
+  padding: var(--s-3);
+  border: 1px solid var(--c-on-dark-line);
+  border-radius: var(--r-control);
+  color: var(--c-on-dark-faint);
+  scroll-margin-top: calc(var(--store-bar-h) + var(--s-5));
+}
+
+.tile svg { grid-row: span 2; color: var(--c-brand); }
+.tileName { font-size: var(--t-label); font-weight: 500; color: var(--c-on-dark); }
+.tileState { font-size: var(--t-caption); }
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  justify-self: start;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--c-on-dark-soft);
+  font: inherit;
+  font-size: var(--t-caption);
+  cursor: pointer;
+}
+
+/* The hit area reaches the tile's edges on touch, so the small track is still a 44px target. */
+@media (pointer: coarse) { .tile:has(.switch) { position: relative; } .switch::after { content: ''; position: absolute; inset: 0; } }
+
+.switchLabel { min-width: 1.8em; }
+
+.switchTrack {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: var(--r-full);
+  background: var(--c-on-dark-line);
+  transition: background var(--dur-settle) var(--ease);
+}
+
+.switchKnob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--c-on-dark-soft);
+  transition: transform var(--dur-settle) var(--ease-out), background var(--dur-settle) var(--ease);
+}
+
+.switch[aria-checked='true'] .switchTrack { background: var(--c-brand); }
+.switch[aria-checked='true'] .switchKnob { transform: translateX(14px); background: var(--c-on-dark); }
+
+/* --- Where your data goes: a tree drawn with two rules ---------------- */
+
+.flow { list-style: none; font-size: var(--t-label); }
+
+.node {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-on-dark-line);
+  border-radius: var(--r-full);
+  color: var(--c-on-dark);
+}
+
+.flow > li + li { position: relative; margin-top: var(--s-3); }
+
+/* A short vertical joins each level to the one above, on the same x as the tree below. */
+.flow > li + li::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: calc(var(--s-3) * -1);
+  height: var(--s-3);
+  width: 1px;
+  background: var(--c-on-dark-faint);
+}
+
+.nodeHeld { border-color: var(--c-brand); background: rgba(122, 149, 117, 0.16); }
+
+.branches { list-style: none; margin-left: 16px; }
+
+.branch {
+  position: relative;
+  padding: 5px 0 5px var(--s-4);
+  line-height: 1.4;
+  color: var(--c-on-dark-faint);
+}
+
+/* Each branch draws its own piece of the trunk, so the last one can stop at its own tick. */
+.branch::before,
+.branch::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  background: var(--c-on-dark-faint);
+}
+
+.branch::before { top: 50%; width: 10px; height: 1px; }
+.branch::after { top: 0; bottom: 0; width: 1px; }
+.branch:last-child::after { bottom: 50%; }
+
+.branch b { font-weight: 500; color: var(--c-on-dark); }
+
+/* --- Receipt slip ------------------------------------------------------ */
+
+.slipLabel {
+  margin-bottom: var(--s-2);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-on-dark-faint);
+}
+
+/* Torn edge: the same scallop the receipt and the Settings preview use. */
+.slip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 340px;
+  padding: var(--s-4) var(--s-4) calc(var(--s-4) + 8px);
+  background: var(--c-surface);
+  color: var(--c-ink-soft);
+  font-size: var(--t-label);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  -webkit-mask: radial-gradient(circle 5px at 8px 100%, transparent 98%, #000) 0 0 / 16px 100% repeat-x;
+  mask: radial-gradient(circle 5px at 8px 100%, transparent 98%, #000) 0 0 / 16px 100% repeat-x;
+  border-radius: 4px 4px 0 0;
+}
+
+.slip b { font-weight: 600; color: var(--c-ink); }
+
+/* --- Every rating published ------------------------------------------ */
+
+.ratings { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+
+.rating { display: flex; align-items: center; gap: var(--s-3); font-size: var(--t-caption); color: var(--c-on-dark-soft); }
+
+.stars { display: inline-flex; gap: 2px; color: var(--c-brand); }
+.starOff { color: var(--c-on-dark-line); }
+
+.leader { flex: 1; min-width: var(--s-4); border-bottom: 1px dotted var(--c-on-dark-line); }
+
+.published { display: inline-flex; align-items: center; gap: 4px; }
+.published svg { color: var(--c-brand); }
+
+@keyframes grow { from { transform: scaleX(0); } to { transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .barLaw, .barOurs { animation: none; }
+  .switchTrack, .switchKnob { transition: none; }
+}
+
+/* The drawings are made for the dark panel; the printed page keeps the words. */
+@media print { .shape { display: none; } }

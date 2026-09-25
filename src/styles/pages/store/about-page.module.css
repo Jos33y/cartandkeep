@@ -1,6 +1,6 @@
 .page {
   width: 100%;
-  max-width: 880px;
+  max-width: calc(640px + var(--s-7) + 320px);
   margin: 0 auto;
   padding: var(--s-5) var(--s-4) var(--s-8);
 }
@@ -16,58 +16,69 @@
   color: var(--c-faint);
 }
 
-.crumbs a { color: var(--c-ink-soft); }
+.crumbs a { color: var(--c-ink-soft); text-decoration: none; }
 .crumbs a:hover { color: var(--c-ink); }
 .crumbs svg { color: var(--c-line-mid); }
 
-/* 66 characters. This is the one page on the shop somebody reads end to end,
-   which makes the measure matter more here than anywhere else. */
-.article { max-width: 66ch; }
+/* The story on the left, the facts beside it where a doubtful reader can check them without leaving the page. */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-7); }
 
-.title { font-size: clamp(1.875rem, 5vw, 3rem); }
-
-.lede {
-  margin-top: var(--s-5);
-  font-size: 1.1875rem;
-  line-height: 1.6;
-  color: var(--c-ink);
+@media (min-width: 1024px) {
+  .layout { grid-template-columns: minmax(0, 640px) 320px; align-items: start; }
 }
+
+.article { min-width: 0; }
+
+.title { font-size: clamp(2.25rem, 5vw, 3.5rem); color: var(--c-ink); max-width: 14ch; }
+
+.lede { margin-top: var(--s-5); font-size: 1.1875rem; line-height: 1.6; color: var(--c-ink); text-wrap: pretty; }
 
 .h2 {
   margin-top: var(--s-7);
   font-family: var(--font-display);
   font-stretch: var(--wide-tight);
   font-weight: 620;
-  font-size: 1.375rem;
+  font-size: 1.5rem;
   letter-spacing: -0.015em;
   line-height: 1.2;
+  color: var(--c-ink);
 }
 
 .p { margin-top: var(--s-3); font-size: 1.0625rem; line-height: 1.72; color: var(--c-ink-soft); }
 
-.list { margin-top: var(--s-4); list-style: none; display: flex; flex-direction: column; gap: var(--s-3); }
+/* --- What we will not do: each one crossed out, in ink, as it comes into view --- */
 
-.list li {
-  position: relative;
-  padding-left: var(--s-5);
-  font-size: 1.0625rem;
-  line-height: 1.62;
-  color: var(--c-ink-soft);
+ul.refusals { margin-top: var(--s-4); padding: 0; list-style: none; border-top: 1px solid var(--c-line-mid); }
+
+.refusal { padding: var(--s-4) 0; border-bottom: 1px solid var(--c-line-mid); }
+
+.no {
+  font-family: var(--font-display);
+  font-stretch: var(--wide-tight);
+  font-size: 1.25rem;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: var(--c-ink);
 }
 
-.list li::before {
-  content: '';
-  position: absolute;
-  left: 4px;
-  top: 0.66em;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--c-action-strong);
+/* The strike is a drawn line rather than text-decoration, so it can draw itself left to right. */
+.no s {
+  text-decoration: none;
+  background-image: linear-gradient(var(--c-ink), var(--c-ink));
+  background-repeat: no-repeat;
+  background-position: 0 58%;
+  background-size: 0% 2px;
+  transition: background-size 520ms var(--ease-out) calc(var(--i) * 140ms), color 520ms var(--ease) calc(var(--i) * 140ms);
 }
 
+.refusals[data-seen] .no s { background-size: 100% 2px; color: var(--c-ink-faint); }
+
+.why { margin-top: var(--s-1); font-size: 1rem; line-height: 1.6; color: var(--c-ink-soft); }
+
+/* Development only: never rendered in a production build. */
 .confirm {
-  margin-top: var(--s-4);
+  margin-top: var(--s-6);
   padding: var(--s-4);
   background: var(--c-gold-wash);
   border: 1px solid var(--c-gold-line);
@@ -87,28 +98,7 @@
   color: #8a6412;
 }
 
-.trader {
-  margin-top: var(--s-4);
-  padding: var(--s-4);
-  background: var(--c-warm);
-  border-radius: var(--r-control);
-  font-style: normal;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  font-size: var(--t-body);
-  line-height: 1.6;
-  color: var(--c-ink-soft);
-}
-
-.trader a { color: var(--c-action-text); }
-
-.after {
-  margin-top: var(--s-7);
-  padding-top: var(--s-5);
-  border-top: 1px solid var(--c-line);
-  max-width: 66ch;
-}
+.after { margin-top: var(--s-7); padding-top: var(--s-5); border-top: 1px solid var(--c-line); }
 
 .cta {
   display: inline-flex;
@@ -120,9 +110,76 @@
   background: var(--c-action-strong);
   color: #fff;
   font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--dur) var(--ease);
+}
+
+.cta:hover { background: var(--c-action); }
+
+.afterNote { margin-top: var(--s-4); font-size: var(--t-body); color: var(--c-ink-soft); }
+.afterNote a { color: var(--c-ink); text-decoration: underline; text-decoration-color: var(--c-line-mid); text-underline-offset: 3px; }
+.afterNote a:hover { text-decoration-color: var(--c-ink); }
+
+/* --- At a glance --------------------------------------------------------- */
+
+.facts {
+  padding: var(--s-5);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  box-shadow: var(--e-1);
+}
+
+@media (min-width: 1024px) {
+  .facts { position: sticky; top: calc(var(--store-bar-h) + var(--s-5)); margin-top: calc(var(--s-2) + 0.5rem); }
+}
+
+.factsHead {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-faint);
+}
+
+.factsList { margin-top: var(--s-3); }
+
+.factRow { padding: var(--s-3) 0; border-top: 1px solid var(--c-line); }
+.factRow:first-child { border-top: 0; padding-top: 0; }
+
+.factRow dt { font-size: var(--t-caption); color: var(--c-faint); }
+.factRow dd { margin-top: 2px; font-size: var(--t-label); line-height: 1.5; color: var(--c-ink); overflow-wrap: anywhere; }
+
+.factsMail {
+  display: block;
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-control);
+  background: var(--c-warm);
+  color: var(--c-ink);
+  font-size: var(--t-label);
   font-weight: 500;
+  text-align: center;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.factsMail:hover { background: var(--c-sunk); }
+
+.factsLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin-top: var(--s-3);
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
   text-decoration: none;
 }
 
-.afterNote { margin-top: var(--s-4); font-size: var(--t-body); color: var(--c-ink-soft); }
-.afterNote a { color: var(--c-action-text); text-decoration: underline; text-underline-offset: 2px; }
+.factsLink:hover { color: var(--c-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .no s { transition: none; }
+  .cta { transition: none; }
+}

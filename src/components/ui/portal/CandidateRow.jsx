@@ -92,6 +92,9 @@ export function CandidateRow({
   const search = encodeURIComponent(c.title);
   const shelf = a.m.shelf ?? null;
   const pill = matchPill(a.match);
+  // Sourced from outside the UK and held as stock: the import route, labelled until it earns its own lane.
+  const from = String(a.best?.ships_from ?? '').trim().toUpperCase();
+  const imported = Boolean(from) && from !== 'GB' && from !== 'UK';
 
   async function run(fn) {
     setBusy(true);
@@ -137,6 +140,7 @@ export function CandidateRow({
             </span>
             {a.packCheck && <span className="pill pill-warning">Check pack size</span>}
             {pill && <span className={`pill pill-${pill.tone}`}>{pill.text}</span>}
+            {imported && <span className="pill pill-quiet">Import, from {from}</span>}
             {c.routes === 'branded' && <span className="pill pill-quiet">Branded</span>}
             {c.routes === 'china' && <span className="pill pill-quiet">Open market</span>}
             {(shelf?.price != null || shelf?.url) && (
@@ -287,7 +291,7 @@ export function CandidateRow({
           </Card>
 
           <Card>
-            <CardHead title="Where to buy it" />
+            <CardHead title="Where it was seen" />
             {shelf?.url && (
               <a className={styles.seen} href={shelf.url} target="_blank" rel="noreferrer noopener">
                 <span className={styles.seenShop}>{shelf.shop ?? 'The shop'}</span>
@@ -295,9 +299,16 @@ export function CandidateRow({
                 {shelf.price != null && <span className={`figure ${styles.seenPrice}`}>{formatGbp(shelf.price)}</span>}
               </a>
             )}
+            {/* A lead, not an instruction: say plainly when the price seen cannot work here. */}
+            {shelf?.price != null && a.maxGoods != null && shelf.price > a.maxGoods && (
+              <p className={styles.quietText}>
+                <span data-num>{formatGbp(shelf.price - a.maxGoods)}</span> over what the goods can cost at{' '}
+                <span data-num>{formatGbp(a.price)}</span>. Only works found cheaper, or listed higher.
+              </p>
+            )}
             {a.m.shops?.length > 0 && (
               <p className={styles.shops}>
-                <span className={styles.shopsLabel}>Also try</span>
+                <span className={styles.shopsLabel}>Also look at</span>
                 {a.m.shops.map((name) => (
                   <a key={name} href={searchUrlFor(name, search)} target="_blank" rel="noreferrer noopener">{name}</a>
                 ))}

@@ -65,74 +65,67 @@ export const anyBuyable = (product) => (product.variants?.length
   : (product.availability ?? 'in_stock') !== 'out_of_stock'
     && (product.availability ?? 'in_stock') !== 'discontinued');
 
+// One catalogue per tenant per visit, shared: the header, the home page and a category page read the same fetch.
+const cache = new Map();
+
+function fetchCatalogue(tenantId, includeDrafts) {
+  const key = `${tenantId}:${includeDrafts}`;
+  if (!cache.has(key)) {
+    let query = supabase
+      .from('store_products')
+      .select(`
+        id, slug, title, description, price, compare_at,
+        image_url, images, category, category_path, section, postage_band,
+        status, is_sample, position,
+        brand, condition, source_description, specifications, highlights,
+        in_the_box, gtin, availability, stock, dispatch_days,
+        returns_class, returns_note,
+        hazard, safety_data_sheet_url, energy_class, energy_label_url,
+        compare_at_from, sale_ends,
+        store_variants ( id, label, price, stock, availability, sku, gtin, image_url, position )
+      `)
+      .eq('tenant_id', tenantId);
+    if (!includeDrafts) query = query.eq('status', 'live');
+
+    const pending = query
+      .order('position', { ascending: true, nullsFirst: false })
+      .order('price', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) throw error;
+        return (data ?? []).map(withVariants);
+      });
+
+    // A failed fetch is forgotten, so the next page to ask tries again rather than inheriting the failure.
+    pending.catch(() => cache.delete(key));
+    cache.set(key, { pending, rows: null });
+    pending.then((rows) => { const hit = cache.get(key); if (hit) hit.rows = rows; });
+  }
+  return cache.get(key);
+}
+
 export function useStoreProducts(tenantId, { includeDrafts = SHOW_DRAFTS } = {}) {
-  const [state, setState] = useState({ status: 'loading', rows: [], error: null });
+  const ready = tenantId ? cache.get(`${tenantId}:${includeDrafts}`)?.rows : null;
+  const [state, setState] = useState(() => (ready
+    ? { status: 'ready', rows: ready, error: null }
+    : { status: 'loading', rows: [], error: null }));
 
   useEffect(() => {
-    // undefined means the tenant has not resolved yet. null means it resolved
-    // to nothing, which is a failure and has to say so. Treating both as "wait"
-    // is how a page sits on "Loading the catalogue" until somebody reloads.
     if (tenantId === undefined) return undefined;
 
     if (tenantId === null) {
-      setState({
-        status: 'error',
-        rows: [],
-        error: new Error('No shop is configured for this address'),
-      });
+      setState({ status: 'error', rows: [], error: new Error('No shop is configured for this address') });
       return undefined;
     }
 
     let live = true;
-
-    (async () => {
-      /*
-       * Variants come with the product rather than as a second query.
-       *
-       * The grid needs them to show "from" on a card and the product page needs
-       * them to render a chooser. Two reads would mean a page that paints one
-       * price and then reflows into a range, which reads as a shop that changed
-       * its mind.
-       *
-       * The embed is written on one line because the select is a string
-       * PostgREST parses, and a block comment inside it is sent to the server
-       * as part of the query. That cost a parse error the first time.
-       */
-      let query = supabase
-        .from('store_products')
-        // Written out rather than select('*') so adding a column to the table
-        // does not silently start shipping it to a shopper's browser, and so
-        // this list is the one place to look when the page renders nothing.
-        //
-        // Everything after `position` arrived with migration 0036 and was
-        // missing here, which is why brand, specifications and the supplier
-        // description were in the database and not on the page.
-        .select(`
-          id, slug, title, description, price, compare_at,
-          image_url, images, category, category_path, section, postage_band,
-          status, is_sample, position,
-          brand, condition, source_description, specifications, highlights,
-          in_the_box, gtin, availability, stock, dispatch_days,
-          returns_class, returns_note,
-          hazard, safety_data_sheet_url, energy_class, energy_label_url,
-          compare_at_from, sale_ends,
-          store_variants ( id, label, price, stock, availability, sku, gtin, image_url, position )
-        `)
-        .eq('tenant_id', tenantId);
-
-      if (!includeDrafts) query = query.eq('status', 'live');
-
-      // `position` is hers to set and most rows will not have one, so nulls
-      // sort last and price decides the rest. A grid ordered by whatever the
-      // database happened to return reshuffles between loads.
-      const { data, error } = await query
-        .order('position', { ascending: true, nullsFirst: false })
-        .order('price', { ascending: false });
-
-      if (!live) return;
-      if (error) return setState({ status: 'error', rows: [], error });
-      setState({ status: 'ready', rows: (data ?? []).map(withVariants), error: null });
-    })();
+    const entry = fetchCatalogue(tenantId, includeDrafts);
+    if (entry.rows) {
+      setState({ status: 'ready', rows: entry.rows, error: null });
+      return undefined;
+    }
+    entry.pending
+      .then((rows) => { if (live) setState({ status: 'ready', rows, error: null }); })
+      .catch((error) => { if (live) setState({ status: 'error', rows: [], error }); });
 
     return () => { live = false; };
   }, [tenantId, includeDrafts]);

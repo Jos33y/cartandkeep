@@ -5,9 +5,9 @@ import { useBasket } from '@context/BasketContext';
 import { imageAt } from '@utils/categories';
 import { formatGbp } from '@utils/formatGbp';
 import { STORE_ROUTES } from '@utils/constants';
+import { freeOver } from '@lib/storeConfig';
 import styles from '@styles/ui/store/mini-basket.module.css';
 
-const FREE_OVER = 40;
 const MAX_QTY = 20;
 
 /*
@@ -63,7 +63,7 @@ export function MiniBasket() {
 
   if (!open) return null;
 
-  const toFree = Math.max(0, FREE_OVER - subtotal);
+  const toFree = Math.max(0, freeOver() - subtotal);
   // Newest first: the thing just added is what somebody is checking.
   const ordered = [...lines].reverse();
 

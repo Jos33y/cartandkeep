@@ -13,7 +13,11 @@
 .plainTitle { font-size: var(--ts-section); margin: var(--s-7) 0 var(--s-3); }
 
 .shelvesHead { padding: var(--s-7) 0 var(--s-4); }
-.shelves { display: flex; flex-direction: column; gap: var(--s-5); padding-bottom: var(--s-6); }
+.shelves { display: flex; flex-direction: column; gap: var(--s-6); padding-bottom: var(--s-8); }
+.shelves[data-single] { padding-top: var(--s-7); }
+
+/* Holds the space a shelf will take, so the page does not jump as shelves mount. */
+.shelfHold { min-height: 380px; }
 
 .resultsHead {
   display: flex;

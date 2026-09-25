@@ -45,9 +45,14 @@ export const BasketIcon = (p) => (
   </Icon>
 );
 
+// Fuller lobes and a softer point: the old outline read as a shape, not a heart.
 export const HeartIcon = (p) => (
-  <Icon {...p}><path d="M12 20.3l-7.1-7a4.4 4.4 0 1 1 7.1-5 4.4 4.4 0 1 1 7.1 5l-7.1 7Z" /></Icon>
+  <Icon {...p}><path d="M12 20.4c-.3 0-8.4-4.9-9.6-10C1.6 6.9 3.8 4 7 4c2.1 0 3.8 1.2 5 3 1.2-1.8 2.9-3 5-3 3.2 0 5.4 2.9 4.6 6.4-1.2 5.1-9.3 10-9.6 10z" /></Icon>
 );
+
+export const PauseIcon = (p) => (<Icon {...p}><path d="M9 6v12M15 6v12" /></Icon>);
+export const PlayIcon = (p) => (<Icon {...p}><path d="M8 5.5v13l10-6.5z" /></Icon>);
+export const GridIcon = (p) => (<Icon {...p}><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" /></Icon>);
 
 export const VanIcon = (p) => (
   <Icon {...p}>
@@ -107,4 +112,20 @@ export const MessageIcon = (p) => (
 
 export const MailIcon = (p) => (
   <Icon {...p}><rect x="3" y="5.5" width="18" height="13" rx="2.5" /><path d="M4 7.5l8 5.5 8-5.5" /></Icon>
+);
+
+export const LinkIcon = (p) => (
+  <Icon {...p}><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></Icon>
+);
+
+export const CheckIcon = (p) => (
+  <Icon {...p}><path d="M5 12.5l4.5 4.5L19 7.5" /></Icon>
+);
+
+export const ClockIcon = (p) => (
+  <Icon {...p}><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></Icon>
+);
+
+export const FilesIcon = (p) => (
+  <Icon {...p}><path d="M8 3.5h6l4 4v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-12a2 2 0 0 1 2-2z" /><path d="M14 3.5v4h4" /></Icon>
 );

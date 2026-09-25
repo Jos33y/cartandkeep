@@ -1,146 +1,103 @@
-.footer {
-  margin-top: var(--s-8);
-  background: var(--c-ink-deep);
-  color: #cfc8bc;
-}
+/* Compact: one row of ways in, one thin bar of small print. It follows the page's last band with no gap. */
 
-.inner {
-  max-width: var(--store-max);
-  margin: 0 auto;
-  padding: 0 var(--s-4);
-}
+.footer { background: var(--c-ink-deep); color: var(--c-on-dark-soft); }
 
-.grid {
+.inner { max-width: var(--store-max); margin: 0 auto; padding: var(--s-6) var(--s-4) var(--s-4); }
+
+@media (min-width: 900px) { .inner { padding: var(--s-7) var(--s-5) var(--s-4); } }
+
+.top {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--s-6);
-  padding: var(--s-7) 0 var(--s-5);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-6) var(--s-5);
 }
 
-@media (min-width: 620px) {
-  .grid { grid-template-columns: 1fr 1fr; }
+.brand { grid-column: 1 / -1; display: flex; flex-direction: column; gap: var(--s-4); max-width: 420px; }
+
+@media (min-width: 900px) {
+  .top { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-7); }
+  .brand { grid-column: auto; }
 }
 
-@media (min-width: 960px) {
-  .grid { grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: var(--s-6); }
-  .inner { padding: 0 var(--s-5); }
-}
-
-.about { display: flex; flex-direction: column; }
-
-.mark {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-3);
-  text-decoration: none;
-  align-self: flex-start;
-}
-
-/* Inverted by tone="light" on the mark itself, not by reaching into its SVG. */
-.word {
-  font-family: var(--font-display);
-  font-stretch: 112%;
-  font-weight: 640;
-  font-size: 1.125rem;
-  letter-spacing: -0.025em;
-  color: #fff;
-}
-
+.mark { display: inline-flex; align-items: center; gap: var(--s-2); width: fit-content; min-height: var(--tap); color: var(--c-on-dark); text-decoration: none; }
+.word { font-family: var(--font-display); font-stretch: var(--wide); font-size: 1.125rem; font-weight: 620; letter-spacing: -0.02em; }
 .wordAmp { color: var(--c-brand); }
 
-.blurb {
-  margin-top: var(--s-3);
-  font-size: 0.84375rem;
-  line-height: var(--lh-body);
-  color: #a79f92;
-  max-width: 34ch;
-}
-
-.social { margin-top: var(--s-4); display: flex; gap: var(--s-2); }
-
-.socialLink {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  border: 1px solid #3a3630;
-  display: grid;
-  place-items: center;
-  color: #cfc8bc;
-  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
-}
-
-.socialLink:hover { border-color: #6e675c; color: #fff; }
-
-.col { display: flex; flex-direction: column; }
-
 .head {
+  margin-bottom: var(--s-3);
   font-size: var(--t-micro);
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #8b8375;
-  margin-bottom: var(--s-3);
+  color: var(--c-on-dark-faint);
 }
 
-.list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  font-size: 0.84375rem;
-}
+/* ul. so the reset's ul[class] rule cannot win. */
+ul.list { display: flex; flex-direction: column; gap: 2px; padding: 0; list-style: none; }
 
-/* 44px targets in a footer too. A mis-tapped legal link on a phone is the same
-   frustration as a mis-tapped buy button. */
 .list a {
-  color: inherit;
-  text-decoration: none;
   display: inline-flex;
   align-items: center;
-  min-height: 34px;
+  min-height: 32px;
+  color: var(--c-on-dark-soft);
+  font-size: var(--t-label);
+  text-decoration: none;
   transition: color var(--dur) var(--ease);
 }
 
-.list a:hover { color: #fff; }
+@media (pointer: coarse) { .list a { min-height: 40px; } }
+
+.list a:hover { color: var(--c-on-dark); }
 
 .bottom {
-  border-top: 1px solid #322e29;
-  padding: var(--s-4) 0 var(--s-6);
   display: flex;
-  align-items: center;
-  gap: var(--s-4);
   flex-wrap: wrap;
-  font-size: 0.75rem;
-  color: #8b8375;
-}
-
-.bottom a { color: inherit; text-decoration: none; }
-.bottom a:hover { color: #fff; }
-
-.payment {
-  margin-left: auto;
-  list-style: none;
-  padding: 0;
-  display: flex;
-  gap: var(--s-2);
   align-items: center;
+  gap: var(--s-3) var(--s-5);
+  margin-top: var(--s-6);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--c-on-dark-line);
+  font-size: var(--t-caption);
+  color: var(--c-on-dark-faint);
 }
 
-/* A neutral frame on white, because the marks may not be recoloured and a
-   trademark on a near black ground would need a variant we are not allowed to
-   make. */
-.payMark {
-  background: #fff;
-  border-radius: 4px;
-  padding: 3px 4px;
+.small { margin: 0; }
+.small a, .legal a { color: inherit; text-decoration: none; transition: color var(--dur) var(--ease); }
+.small a:hover, .legal a:hover { color: var(--c-on-dark); }
+
+.legal { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); }
+
+@media (pointer: coarse) { .legal a { display: inline-flex; align-items: center; min-height: 36px; } }
+
+.end { display: flex; align-items: center; gap: var(--s-4); margin-left: auto; }
+
+@media (max-width: 899px) { .end { margin-left: 0; } }
+
+.social { display: flex; gap: var(--s-2); }
+
+.socialLink {
   display: grid;
   place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--c-on-dark-line);
+  border-radius: 50%;
+  color: var(--c-on-dark-soft);
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 
+@media (pointer: coarse) { .socialLink { width: var(--tap); height: var(--tap); } }
+
+.socialLink:hover { border-color: var(--c-on-dark-faint); color: var(--c-on-dark); }
+
+ul.payment { display: flex; gap: var(--s-2); align-items: center; padding: 0; list-style: none; }
+
+.payMark { display: grid; place-items: center; padding: 3px 4px; border-radius: 4px; background: #fff; }
 .payMark img { display: block; height: 22px; width: auto; }
 
+/* Invisible until its image has actually loaded: a missing file must never show as an empty white frame. */
+.payMark:not([data-ready]) { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; padding: 0; }
+
 @media (prefers-reduced-motion: reduce) {
-  .socialLink, .list a, .bottom a { transition: none; }
+  .list a, .small a, .legal a, .socialLink { transition: none; }
 }
