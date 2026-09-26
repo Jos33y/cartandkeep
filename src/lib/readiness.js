@@ -1,4 +1,4 @@
-import { checksFor, checksUnread, isLive } from '@hooks/useCatalogue';
+import { checksFor, openDecisions, isLive } from '@hooks/useCatalogue';
 import { formatGbp } from '@utils/formatGbp';
 
 // Gate steps mirror blockers() in useCatalogue. Change both together.
@@ -49,11 +49,13 @@ function judge(key, p) {
         : { state: 'done', note: RETURNS_LABEL[p.returns_class] ?? 'Standard' };
     case 'checks': {
       const c = checksFor(p);
-      if (!c) return { state: 'done', note: 'Nothing contradicts itself' };
-      const n = c.items.length;
-      return checksUnread(p)
-        ? { state: 'check', note: `${n} to read before it sells` }
-        : { state: 'done', note: 'Read' };
+      const open = openDecisions(p);
+      if (!c?.decide.length) return { state: 'done', note: c?.done.length ? 'Fixed for you' : 'Nothing to decide' };
+      if (!open) return { state: 'done', note: 'Decided' };
+      // Already on sale, so a new question is a to-do, not a blocker.
+      return isLive(p)
+        ? { state: 'wait', note: `${open} new to decide` }
+        : { state: 'check', note: `${open} to decide before it sells` };
     }
     case 'hazard':
       if (!p.derived_fields?.hazard_suspect) return { state: 'none', note: 'Not a chemical' };
@@ -70,7 +72,7 @@ function judge(key, p) {
     case 'description':
       if (p.description?.trim()) return { state: 'done', note: 'Written' };
       return p.derived_fields?.draft
-        ? { state: 'wait', note: 'A draft is written and waiting for you to read it.' }
+        ? { state: 'wait', note: 'Written for you. Read it and save.' }
         : { state: 'missing', note: 'No description. Google will not list it without one.' };
     case 'section':
       if (p.section) return { state: 'done', note: 'Placed by you' };

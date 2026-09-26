@@ -68,6 +68,7 @@ export function ProductsPage() {
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
   const catalogue = useCatalogue(tenant?.id);
+  const agentName = tenant?.store?.agent?.name || 'Your assistant';
   const { status, rows, counts, reload, publish, unpublish, create, draftMany } = catalogue;
 
   const setView = (next) => {
@@ -134,7 +135,7 @@ export function ProductsPage() {
   }, [visible, columns]);
 
   const undrafted = useMemo(
-    () => rows.filter((r) => picked.has(r.id) && !r.description?.trim() && !r.derived_fields?.draft),
+    () => rows.filter((r) => picked.has(r.id) && !isArchived(r) && r.derived_fields?.draft?.version !== 2),
     [rows, picked],
   );
 
@@ -172,8 +173,8 @@ export function ProductsPage() {
     setFailed(null);
     setDrafting({ done: 0, total: ids.length });
     try {
-      const failures = await draftMany(ids, (done, total) => setDrafting({ done, total }));
-      if (failures.length) setFailed(`${failures.length} of ${ids.length} did not draft: ${failures.join(', ')}`);
+      const failures = await draftMany(ids, (done, total) => setDrafting({ done, total }), categories);
+      if (failures.length) setFailed(`${failures.length} of ${ids.length} were not filled in: ${failures.join(', ')}`);
     } catch (e) {
       setFailed(e?.message ?? 'The drafts did not run.');
     } finally {
@@ -422,7 +423,7 @@ export function ProductsPage() {
           <span className={styles.selCount}><b data-num>{picked.size}</b> selected</span>
           {undrafted.length > 0 && (
             <button type="button" className={styles.selButton} disabled={busy || drafting !== null} onClick={runDrafts}>
-              {drafting ? `Drafting ${drafting.done} of ${drafting.total}` : `Draft ${plural(undrafted.length, 'description')}`}
+              {drafting ? `${agentName} is on ${drafting.done} of ${drafting.total}` : `Fill in ${plural(undrafted.length, 'product')} with ${agentName}`}
             </button>
           )}
           {pickedLive.length > 0 && (
@@ -450,12 +451,13 @@ export function ProductsPage() {
           product={openProduct}
           focus={open.step}
           onClose={closeSheet}
-          columns={columns}
           catalogue={catalogue}
           categories={categories}
           categoryCount={byCategory.get(sectionOf(openProduct)) ?? 0}
           fees={tenant?.fees}
           tenantId={tenant?.id}
+          returnDays={Number(tenant?.store?.returns?.days) || null}
+          agent={agentName}
         />
       )}
     </div>

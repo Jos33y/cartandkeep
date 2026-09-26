@@ -23,38 +23,8 @@ const SELECT = `
   store_variants ( id, label, price, stock, availability, sku, gtin, image_url, position )
 `;
 
-/*
- * The release guard.
- *
- * Blocking, not advisory. A product failing any of these does not go live, and
- * the reason is named on the row so the fix is obvious.
- *
- * The returns check is the one that earns its keep. `returns_class` has a
- * column default of 'standard', so every row already reads as standard whether
- * or not a person ever looked at it, and `enrich-store.js` only writes 'sealed'
- * or 'none', into `derived_fields`. That means a gift set full of bath products
- * currently presents as an ordinary 14 day return and nothing anywhere stops it
- * going live saying so. That is the wrong returns sentence again, one layer
- * down, and it is the reason this is a gate rather than a nag.
- *
- * The hazard check blocks the seven classified mixtures by name until somebody
- * reads a label. `screens.py` refuses ingestibles and cosmetics on the research
- * side and has no equivalent for chemicals, which is how they reached the seed.
- *
- * An empty description is a warning, not a block. All 78 are empty and blocking
- * on it would make this screen useless on the one weekend it is needed.
- */
-/*
- * An empty box is a null, not a zero.
- *
- * The difference carries meaning in both directions here. An empty variant
- * price means the product price applies; a zero would mean she gives it away.
- * An empty count means it never runs out; a zero means it has.
- *
- * Lifted out of `saveCost`, where it was a local, so the cost fields and the
- * variant fields cannot drift into two rules about what an empty box means.
- */
-function money(v, what) {
+// An empty box is null, never zero: empty price follows the product, empty count never runs out.
+export function money(v, what) {
   const s = String(v ?? '').trim();
   if (s === '') return null;
   const n = Number(s);
@@ -64,7 +34,7 @@ function money(v, what) {
 
 // Stock is a count of things, so 2.5 of a bed sheet is a typo rather than a
 // quantity, and it is caught here rather than by the column refusing it later.
-function whole(v, what) {
+export function whole(v, what) {
   const s = String(v ?? '').trim();
   if (s === '') return null;
   const n = Number(s);
@@ -72,33 +42,43 @@ function whole(v, what) {
   return n;
 }
 
-/*
- * What the model found wrong, and whether anybody has looked at it.
- *
- * Flags live in two places and this is the only thing that should know it.
- * A fresh draft carries them inside `draft`. Once she has either acknowledged
- * them or discarded the draft they are copied to `checks`, so they survive the
- * draft going away. Without that, discarding would be a way to clear the gate
- * without reading anything, which is the opposite of what the gate is for.
- *
- * `checks` wins when both exist, because it is the record of a decision and
- * `draft` is only a suggestion.
- */
-export function checksFor(p) {
-  const stored = p.derived_fields?.checks;
-  if (stored?.items?.length) return stored;
-
-  const fresh = p.derived_fields?.draft?.flags;
-  if (fresh?.length) return { items: fresh, read_at: null };
-
-  return null;
+// Decisions Keeper needs from her, answered or not. A saved record wins over a fresh draft.
+// Legacy checks (a list she only had to read) become one-option questions, answered when she read them.
+function fromLegacy(items, readAt) {
+  return items.map((q, i) => ({
+    id: `legacy-${i}`, question: q, options: ['Noted'], detail: null, answer: readAt ? 'Noted' : null,
+  }));
 }
 
-export const checksUnread = (p) => {
-  const c = checksFor(p);
-  return Boolean(c && !c.read_at);
-};
+export function checksFor(p) {
+  const stored = p.derived_fields?.checks;
+  const draft = p.derived_fields?.draft;
+  let decide = [];
+  let done = [];
 
+  if (stored?.decide || stored?.done) {
+    decide = stored.decide ?? [];
+    done = stored.done ?? [];
+  } else if (stored?.items?.length) {
+    decide = fromLegacy(stored.items, stored.read_at);
+  } else if (draft?.version !== 2 && draft?.flags?.length) {
+    decide = fromLegacy(draft.flags, null);
+  }
+
+  // A fresh pass adds its questions; one already answered under the same id keeps its answer.
+  if (draft?.version === 2 && !draft.applied_at) {
+    const have = new Set(decide.map((d) => d.id));
+    decide = [...decide, ...(draft.decide ?? []).filter((d) => !have.has(d.id)).map((d) => ({ ...d, answer: null }))];
+    done = [...new Set([...done, ...(draft.done ?? [])])];
+  }
+
+  return decide.length || done.length ? { decide, done } : null;
+}
+
+export const openDecisions = (p) => (checksFor(p)?.decide ?? []).filter((d) => !d.answer).length;
+export const checksUnread = (p) => openDecisions(p) > 0;
+
+// The release guard: anything here keeps a product off the shop, with the reason named.
 export function blockers(p) {
   const out = [];
 
@@ -110,22 +90,8 @@ export function blockers(p) {
 
   if (p.derived_fields?.hazard_suspect && !p.hazard) out.push('Hazard data missing');
 
-  /*
-   * Unread contradictions block release.
-   *
-   * A pack of stickers went live carrying Type: Foam. The draft had flagged it
-   * against the photograph, the flag was sitting on the row, and nothing stood
-   * between reading it and taking the product live.
-   *
-   * She is not required to fix them, only to have seen them. Some cannot be
-   * fixed at all: a supplier text saying China beside a specification saying
-   * United Kingdom is a contradiction nobody here can resolve, and a gate she
-   * cannot clear is a gate she learns to click past.
-   */
-  if (checksUnread(p)) {
-    const n = checksFor(p).items.length;
-    out.push(`${n} thing${n === 1 ? '' : 's'} to check`);
-  }
+  const open = openDecisions(p);
+  if (open) out.push(`${open} to decide`);
 
   if (p.availability === 'out_of_stock' || p.availability === 'discontinued') {
     out.push('Marked unavailable');
@@ -306,110 +272,6 @@ export function useCatalogue(tenantId) {
   }, [load]);
 
   /*
-   * Confirming a returns class.
-   *
-   * Writes the value to the real column and removes it from `derived_fields`,
-   * which is what turns a script's guess into a decision somebody made. Once
-   * that key is gone the product stops being blocked, and the change is
-   * deliberately not reversible in one tap: putting a guess back would mean
-   * writing a key that says nobody has checked, which is not something a
-   * confirmation screen should be able to do.
-   */
-  const confirmReturns = useCallback(async ({ id, returnsClass, note }) => {
-    const row = state.rows.find((r) => r.id === id);
-    const derived = { ...(row?.derived_fields ?? {}) };
-    delete derived.returns_class;
-
-    const { error } = await supabase
-      .from('store_products')
-      .update({
-        returns_class: returnsClass,
-        returns_note: note?.trim() || null,
-        derived_fields: derived,
-      })
-      .eq('id', id);
-
-    if (error) throw error;
-    await load();
-  }, [state.rows, load]);
-
-  /*
-   * Recording the GB CLP label elements, or recording that there are none.
-   *
-   * Both are answers and the difference matters. `hazard` null on a product
-   * nobody has looked at and `hazard` null on a product somebody confirmed is
-   * not a classified mixture are the same value with opposite meanings, so
-   * clearing the suspect flag is what records that a person checked.
-   */
-  const saveHazard = useCallback(async ({ id, hazard, sdsUrl, biocideRegNo, notHazardous }) => {
-    const row = state.rows.find((r) => r.id === id);
-    const derived = { ...(row?.derived_fields ?? {}) };
-    delete derived.hazard_suspect;
-
-    const { error } = await supabase
-      .from('store_products')
-      .update({
-        hazard: notHazardous ? null : hazard,
-        safety_data_sheet_url: sdsUrl?.trim() || null,
-        biocide_reg_no: biocideRegNo?.trim() || null,
-        derived_fields: derived,
-      })
-      .eq('id', id);
-
-    if (error) throw error;
-    await load();
-  }, [state.rows, load]);
-
-  /*
-   * Her sentence about the product.
-   *
-   * Empty on all 78, and the page falls back to the supplier's text in a panel
-   * labelled as theirs, which is honest and is not selling anything. This is
-   * the only field on this screen that is authored rather than confirmed, and
-   * it earns the exception because a warning she cannot act on is a dead end.
-   *
-   * Not blocking. Blocking on it would make this screen useless on the one
-   * weekend it is needed, and a product with a photograph and a price and no
-   * description still sells.
-   */
-  const saveDescription = useCallback(async ({ id, description }) => {
-    const { error } = await supabase
-      .from('store_products')
-      .update({ description: description?.trim() || null })
-      .eq('id', id);
-
-    if (error) throw error;
-    await load();
-  }, [load]);
-
-  /*
-   * The fields she corrects rather than confirms.
-   *
-   * Price and title are here and nothing else, because everything else on a
-   * product is either derived, confirmed elsewhere on this screen, or belongs
-   * to a screen that does not exist yet. A partial editor that silently drops
-   * a field is worse than one that does not offer it.
-   *
-   * The slug does not follow the title. A URL that changes when somebody fixes
-   * a typo breaks every link anyone has shared and every page Google has
-   * indexed, so it is set once when the product is created and left alone.
-   */
-  const saveDetails = useCallback(async ({ id, title, price }) => {
-    const patch = {};
-    if (typeof title === 'string' && title.trim()) patch.title = title.trim();
-    if (price !== undefined && price !== null && price !== '') {
-      const n = Number(price);
-      if (!Number.isFinite(n) || n < 0) throw new Error('That price does not look like a number.');
-      patch.price = Math.round(n * 100) / 100;
-    }
-    if (!Object.keys(patch).length) return;
-
-    const { error } = await supabase.from('store_products').update(patch).eq('id', id);
-    if (error) throw error;
-    await load();
-  }, [load]);
-
-  /*
    * Photographs.
    *
    * `image_url` is the one the card and the shelf use and `images` is the
@@ -480,6 +342,7 @@ export function useCatalogue(tenantId) {
         category: categoryPath ? categoryPath.split('|').pop().trim() : null,
         section: section || null,
         images: [],
+        stock: NEW_LISTING_STOCK,
       }).select('id').single();
 
       if (!error) { await load(); return data.id; }
@@ -492,133 +355,26 @@ export function useCatalogue(tenantId) {
     throw new Error('Could not find a free web address for that title. Try changing it slightly.');
   }, [tenantId, load]);
 
-  /*
-   * How many she has.
-   *
-   * Empty means untracked, which is every seeded product and anything she
-   * reorders, and untracked is always sellable. A number is counted down on
-   * payment. The distinction is the whole feature: a shop that insists on a
-   * count for a thing it can always get more of makes work for nobody's
-   * benefit.
-   *
-   * Setting a number does not change availability by itself. Zero stock and
-   * "out of stock" arrive at the same place through the checkout, and having
-   * two switches that mean the same thing is how they end up disagreeing.
-   */
-  const saveStock = useCallback(async ({ id, stock, availability }) => {
-    const patch = { availability };
+  // The whole sheet in one write. With goLive the release guard runs on the saved values, in the same write.
+  const saveSheet = useCallback(async ({ id, patch, goLive = false }) => {
+    const row = state.rows.find((r) => r.id === id);
+    if (!row) throw new Error('That product is no longer in the list. Reload and try again.');
+    const next = { ...patch };
 
-    if (stock === '' || stock === null || stock === undefined) {
-      patch.stock = null;
-    } else {
-      const n = Number(stock);
-      if (!Number.isInteger(n) || n < 0) throw new Error('Stock has to be a whole number, or empty.');
-      patch.stock = n;
+    if (goLive) {
+      const stops = blockers({ ...row, ...next });
+      if (stops.length) throw new Error(`Saved values still stop it going live: ${stops.join(', ').toLowerCase()}.`);
+      next.status = 'live';
+      next.is_sample = false;
     }
 
-    const { error } = await supabase.from('store_products').update(patch).eq('id', id);
+    const { error } = await supabase.from('store_products').update(next).eq('id', id);
     if (error) throw error;
     await load();
-  }, [load]);
+  }, [state.rows, load]);
 
-  /*
-   * The rest of the product record.
-   *
-   * Category was on the add form and nowhere else, so the 78 seeded products
-   * were stuck with whatever eBay's Browse call decided they were and nothing
-   * could be refiled. That was a gap rather than a decision.
-   *
-   * `category_path` is the pipe separated eBay path and `category` is its leaf.
-   * Both are written together because `groupCategories` reads the path for the
-   * navigation and the card reads the leaf, and letting those two drift is how
-   * a product appears under one heading and describes itself as another.
-   */
-  const saveRecord = useCallback(async ({
-    id, categoryPath, section, brand, specifications, keepSpecs, inTheBox,
-  }) => {
-    const patch = {};
-
-    // The shop's section, leaving the eBay path and so the Google feed alone.
-    if (section !== undefined) patch.section = section || null;
-
-    if (categoryPath !== undefined) {
-      patch.category_path = categoryPath || null;
-      patch.category = categoryPath ? categoryPath.split('|').pop().trim() : null;
-    }
-    if (brand !== undefined) patch.brand = brand?.trim() || null;
-    if (inTheBox !== undefined) patch.in_the_box = inTheBox?.trim() || null;
-
-    /*
-     * Specifications arrive as pairs rather than as an object, because a
-     * key/value editor that maps straight onto an object silently loses a row
-     * the moment two keys match. Blank keys are dropped and a later duplicate
-     * wins, which is what somebody correcting a typo expects.
-     */
-    if (specifications !== undefined) {
-      /*
-       * The rows the editor hid go back in first.
-       *
-       * Her eBay policy ids are kept out of the Details panel because they are
-       * her account's plumbing rather than facts about the goods, and this is
-       * the write that would otherwise delete them. Hers are spread second, so
-       * a key she edited wins over a hidden copy of the same key.
-       */
-      const out = { ...(keepSpecs ?? {}) };
-      for (const { key, value } of specifications) {
-        const k = String(key ?? '').trim();
-        if (k) out[k] = String(value ?? '').trim();
-      }
-      patch.specifications = out;
-    }
-
-    if (!Object.keys(patch).length) return;
-
-    const { error } = await supabase.from('store_products').update(patch).eq('id', id);
-    if (error) throw error;
-    await load();
-  }, [load]);
-
-  /*
-   * What it costs her.
-   *
-   * The one number this platform has never held, and four month one
-   * commitments depend on it: margin per channel, net profit, category profit
-   * and loss, and the alert when something goes negative. None of them were
-   * unstarted so much as unstartable.
-   *
-   * Empty is null rather than zero, and every margin figure is null with it. A
-   * margin computed without a cost is not a cautious estimate, it is an
-   * invented number, and there is no version of this screen where showing one
-   * is better than showing nothing.
-   */
-  const saveCost = useCallback(async ({ id, landedCost, postageCost, note }) => {
-    const landed = money(landedCost, 'Cost');
-
-    const { error } = await supabase.from('store_products').update({
-      landed_cost: landed,
-      postage_cost: money(postageCost, 'Postage'),
-      cost_note: note?.trim() || null,
-      // Stamped only when there is a figure. A date against an empty cost says
-      // somebody checked when nobody did.
-      cost_updated_at: landed === null ? null : new Date().toISOString(),
-    }).eq('id', id);
-
-    if (error) throw error;
-    await load();
-  }, [load]);
-
-  /*
-   * Asking the model for a draft, and throwing one away.
-   *
-   * The call goes to the `draft` edge function rather than to Anthropic
-   * directly, because the key cannot live in a browser. The function reads the
-   * product row itself under her own session rather than trusting fields sent
-   * from here, for the same reason the checkout reads prices from the database.
-   *
-   * It writes into `derived_fields.draft` and never into `description` or
-   * `title`, so a reload shows the draft again and nothing has been published.
-   */
-  const draftCopy = useCallback(async (id) => {
+  // Through the draft function: the key cannot live in a browser, and it reads the row under her session.
+  const draftCopy = useCallback(async (id, sections = []) => {
     const { data: session } = await supabase.auth.getSession();
     const token = session?.session?.access_token;
     if (!token) throw new Error('Signed out. Sign in and try again.');
@@ -626,7 +382,7 @@ export function useCatalogue(tenantId) {
     const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/draft`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId: id }),
+      body: JSON.stringify({ productId: id, sections }),
     });
 
     const body = await res.json().catch(() => ({}));
@@ -651,7 +407,7 @@ export function useCatalogue(tenantId) {
    * One reload at the end rather than one per product. Reloading after each
    * would be seventy eight full reads of the whole catalogue.
    */
-  const draftMany = useCallback(async (ids, onProgress) => {
+  const draftMany = useCallback(async (ids, onProgress, sections = []) => {
     const { data: session } = await supabase.auth.getSession();
     const token = session?.session?.access_token;
     if (!token) throw new Error('Signed out. Sign in and try again.');
@@ -665,7 +421,7 @@ export function useCatalogue(tenantId) {
         const res = await fetch(url, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ productId: id }),
+          body: JSON.stringify({ productId: id, sections }),
         });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
@@ -683,66 +439,6 @@ export function useCatalogue(tenantId) {
 
     await load();
     return failures;
-  }, [state.rows, load]);
-
-  /*
-   * Discarding, which removes the key rather than blanking it.
-   *
-   * A draft left as an empty object is a draft the panel has to reason about.
-   * The `-` operator takes the key out, and the returns and hazard flags beside
-   * it are untouched because this rewrites the whole object from the row that
-   * was just read rather than from a stale copy.
-   */
-  const discardDraft = useCallback(async (id) => {
-    const row = state.rows.find((r) => r.id === id);
-    const derived = { ...(row?.derived_fields ?? {}) };
-    const flags = derived.draft?.flags ?? [];
-    delete derived.draft;
-
-    /*
-     * The flags outlive the draft they came in with.
-     *
-     * Throwing the prose away is a judgement about writing. What the model
-     * found wrong with the record is a separate finding and it is still true
-     * afterwards, so discarding must not be a way to clear the gate. Only
-     * copied when there is nothing already recorded, or discarding twice would
-     * wipe an acknowledgement.
-     */
-    if (flags.length && !derived.checks) {
-      derived.checks = { items: flags, read_at: null };
-    }
-
-    const { error } = await supabase
-      .from('store_products')
-      .update({ derived_fields: derived })
-      .eq('id', id);
-
-    if (error) throw error;
-    await load();
-  }, [state.rows, load]);
-
-  /*
-   * Marking the checks as read.
-   *
-   * Records who and when rather than a boolean, because this is the evidence
-   * that somebody looked at a contradiction before a product went on sale, and
-   * a true tells you nothing about when it became true.
-   */
-  const acknowledgeChecks = useCallback(async (id) => {
-    const row = state.rows.find((r) => r.id === id);
-    const found = checksFor(row ?? {});
-    if (!found) return;
-
-    const derived = { ...(row?.derived_fields ?? {}) };
-    derived.checks = { items: found.items, read_at: new Date().toISOString() };
-
-    const { error } = await supabase
-      .from('store_products')
-      .update({ derived_fields: derived })
-      .eq('id', id);
-
-    if (error) throw error;
-    await load();
   }, [state.rows, load]);
 
   /*
@@ -869,9 +565,8 @@ export function useCatalogue(tenantId) {
 
   return {
     ...state, counts, reload: load,
-    publish, unpublish, confirmReturns, saveHazard, saveDescription,
-    saveDetails, saveImages, removeImage, create, saveStock, saveRecord, saveCost,
-    draftCopy, draftMany, discardDraft, acknowledgeChecks,
+    publish, unpublish, saveSheet, saveImages, removeImage, create,
+    draftCopy, draftMany,
     addVariant, saveVariant, removeVariant,
     archive, unarchive,
   };
@@ -886,6 +581,9 @@ export function useCatalogue(tenantId) {
  * is surfaced: silently correct behaviour is indistinguishable from a bug.
  */
 export const CATEGORY_MIN = 3;
+
+// Every new listing starts with this many on the shop unless she changes it.
+export const NEW_LISTING_STOCK = 5;
 
 export function categoryCounts(rows) {
   const counts = new Map();

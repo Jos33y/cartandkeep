@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CATEGORY_MIN } from '@hooks/useCatalogue';
+import { CATEGORY_MIN, NEW_LISTING_STOCK } from '@hooks/useCatalogue';
 import { stepsFor } from '@lib/readiness';
 import { StepMark } from '@components/ui/portal/product/StepMark';
 import { Icon } from '@components/ui/icons';
@@ -22,7 +22,7 @@ export function NewProduct({ categories, columns, onCreate, onCancel }) {
   // What the row will look like the moment it lands, so the next steps are visible before it exists.
   const steps = stepsFor({
     title, price: Number(price) || null, category_path: null, section: section || null, status: 'draft',
-    image_url: null, images: [], stock: null, derived_fields: {}, landed_cost: null,
+    image_url: null, images: [], stock: NEW_LISTING_STOCK, derived_fields: {}, landed_cost: null,
   }, columns).filter((s) => s.state !== 'none');
   const done = steps.filter((s) => s.state === 'done').length;
 

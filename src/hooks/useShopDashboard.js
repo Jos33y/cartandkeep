@@ -178,8 +178,9 @@ export function useShopDashboard(tenantId) {
       {
         key: 'checks',
         count: checks.length,
-        label: 'The source contradicts itself',
-        impact: 'Read these before the product goes live',
+        label: 'Products with a question for you',
+        one: 'Product with a question for you',
+        impact: 'One tap each, then they can go live',
         blocking: true,
         to: '/products?filter=blocked',
         action: 'Review',

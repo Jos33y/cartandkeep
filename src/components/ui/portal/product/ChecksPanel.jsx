@@ -1,48 +1,45 @@
-import styles from '@styles/ui/portal/product-row.module.css';
+import row from '@styles/ui/portal/product-row.module.css';
+import styles from '@styles/ui/portal/product-sheet.module.css';
 
-/*
- * What the model found wrong with the record.
- *
- * Its own panel rather than part of the description, for two reasons. These are
- * findings about the product, not about the writing, so they outlive the draft
- * they arrived with. And they gate release, which the description does not, so
- * burying them under a textarea put the one blocking thing on the row below the
- * one thing that never blocks.
- *
- * Sits first on the row, above returns, because it is the reason the row is
- * blocked and a person should not have to scroll to find out why.
- *
- * No dialogue. A box that appears on every row is a box that gets clicked
- * through inside a week, and then it is worse than nothing because it looks
- * like a check that happened.
- */
-export function ChecksPanel({ product, checks, busy, run, onAcknowledge }) {
-  const read = Boolean(checks?.read_at);
+// Only true decisions reach her, as taps. What the agent settled itself is listed, never asked.
+export function ChecksPanel({ checks, answers, onAnswer, agent }) {
+  const decide = checks?.decide ?? [];
+  const done = checks?.done ?? [];
 
   return (
-    <section className={styles.panel}>
-      <h4 className="micro">Things to check</h4>
-
-      <p className={read ? styles.settled : styles.guessed}>
-        {read
-          ? 'You have read these. They are kept in case they matter later.'
-          : 'The source data contradicts itself here. Read these before this goes on sale. You do not have to fix them, and some of them cannot be fixed.'}
-      </p>
-
-      <ul className={styles.flags}>
-        {checks.items.map((item) => <li key={item}>{item}</li>)}
-      </ul>
-
-      {!read && (
-        <button
-          type="button"
-          className={styles.primary}
-          disabled={busy}
-          onClick={() => run(() => onAcknowledge(product.id))}
-        >
-          I have read these
-        </button>
+    <div className={row.panel}>
+      {decide.length > 0 && (
+        <ol className={styles.decide}>
+          {decide.map((q) => {
+            const picked = answers[q.id] ?? q.answer ?? null;
+            return (
+              <li key={q.id} className={styles.question} data-answered={picked ? true : undefined}>
+                <p className={styles.questionText}>{q.question}</p>
+                <div className={styles.options} role="group" aria-label={q.question}>
+                  {q.options.map((o) => (
+                    <button key={o} type="button" className={styles.option} aria-pressed={picked === o}
+                      onClick={() => onAnswer(q, o)}>
+                      {o}
+                    </button>
+                  ))}
+                </div>
+                {q.detail && <p className={row.hint}>Fills {q.detail} in the details.</p>}
+              </li>
+            );
+          })}
+        </ol>
       )}
-    </section>
+
+      {done.length > 0 && (
+        <details className={styles.done} open={decide.length === 0}>
+          <summary>
+            {agent} sorted <span data-num>{done.length}</span> {done.length === 1 ? 'thing' : 'things'} for you
+          </summary>
+          <ul>
+            {done.map((d) => <li key={d}>{d}</li>)}
+          </ul>
+        </details>
+      )}
+    </div>
   );
 }

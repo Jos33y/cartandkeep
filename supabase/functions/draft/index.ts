@@ -1,32 +1,18 @@
-/*
- * Drafts a description and a title for one product.
- *
- * It writes to `derived_fields.draft` and never to `description` or `title`.
- * The model drafts and she ships, and nothing generated reaches a customer
- * without a person having read it and pressed something.
- *
- * One product per call rather than the Batch API. All 78 come to roughly $0.49
- * sent this way against $0.25 batched, so the saving is about nineteen pence
- * against a stored job id, a poll loop, a retrieval path and a wait that can
- * run to 24 hours. Sync also means drafts land one at a time and she can start
- * reading while the rest run. Revisit if a job ever gets large enough to matter.
- *
- * There is no ../_shared import. The dashboard editor deploys one folder, which
- * is what broke cors.ts. The CORS block below is duplicated on purpose.
- */
+// One pass that fills every field of a product for her to approve. Writes only derived_fields.draft.
+// No ../_shared import: the dashboard editor deploys one folder, so CORS is duplicated on purpose.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 
 // The model sometimes answers "nothing" as a pair of quote marks or a word; all of those are empty.
 const emptyish = (v: string) => (/^(["'`]{2}|none|n\/a|-|unknown|not stated)$/i.test(v.trim()) ? '' : v.replace(/^["']|["']$/g, '').trim());
 
-// A last guard on customer copy: any sentence about the supplier, the photograph or the source moves to flags, never to the shop.
+// A last guard on customer copy: a sentence about the supplier, the photograph or the source never reaches the shop.
 const BACKSTAGE = /\b(supplier|photograph|photo|image|listing|source|the details|feed|not visible|cannot be confirmed)\b/i;
-function customerCopy(description: string, flags: string[]) {
+function customerCopy(description: string, done: string[]) {
   const sentences = description.match(/[^.!?]+[.!?]+(\s|$)/g) ?? [description];
   const kept = sentences.filter((x) => !BACKSTAGE.test(x));
   const moved = sentences.filter((x) => BACKSTAGE.test(x)).map((x) => `Left out of the description: ${x.trim()}`);
-  return { description: kept.join('').trim(), flags: [...flags, ...moved] };
+  return { description: kept.join('').trim(), done: [...done, ...moved] };
 }
 
 const ALLOWED = (Deno.env.get('STORE_ORIGINS')
@@ -147,29 +133,37 @@ RULES, in order of importance.
 
 4. Never repeat a rating, review count, sales rank, price, discount or urgency. No superlatives about quality nobody has verified: no premium, luxury, best, perfect, ultimate.
 
-5. When two fields disagree, do not pick one. Write around the disagreement and record it in flags. A title saying 250ml over a specification saying 50ml is not a rounding error and choosing either could be a false description.
+5. When two fields disagree, do not pick one. Write around the disagreement and ask in decide. A title saying 250ml over a specification saying 50ml is not a rounding error and choosing either could be a false description.
 
-6. The photograph is evidence. Describe what is plainly visible in it. Do not infer material, dimensions or quality from it. Where the photograph and the fields disagree, say so in flags rather than quietly preferring one.
+6. The photograph is evidence. Describe what is plainly visible in it. Do not infer material, dimensions or quality from it. Where the photograph and the fields disagree, ask in decide rather than quietly preferring one.
 
 VOICE. British English. Plain, calm, specific. Short sentences. Write as a shopkeeper who has the thing in their hand, not as a marketplace listing. No emoji, no bullet symbols, no exclamation marks, no second person sales patter.
 
 DESCRIPTION. Two to four sentences, 40 to 90 words. What it is, what it is for, and what is certain about it. Plain prose, no headings, no lists.
 
-The description is what a customer reads on the shop. It never mentions the supplier, the photograph, the listing, the details, the source or any doubt. Anything uncertain or contradictory is left out of the description entirely and goes in flags. A customer must never read "the supplier says" or "not visible in the photograph".
+The description is what a customer reads on the shop. It never mentions the supplier, the photograph, the listing, the details, the source or any doubt. Anything uncertain or contradictory is left out of the description entirely and becomes a question in decide.
 
-TITLE. Under 65 characters. What the thing is, the brand if there is a real one, and the one distinguishing detail that is certain. Strip the feed's keyword stuffing, pipes, model codes and repeated words. "Unbranded" is not a brand.
+TITLES. Three options, each under 65 characters, each a different job:
+search   the words a shopper types first, in the order they type them
+short    the plainest name for the thing, under 40 characters
+feature  what it is plus the one certain detail that sets it apart
+Strip keyword stuffing, pipes, model codes and repeated words. A real brand may lead a title. A private label, a shop name or a generic trade name never leads: put it last or leave it out.
 
-FLAGS. Short factual notes for the shop owner about problems in the source data. Each one names the fields and what they say. Empty array when there is nothing wrong. Never put marketing in here.
+BRAND. The brand and whether it is real. Real means a maker a shopper would recognise or search for by name. A private label is a name printed on generic goods by whoever sells them; it is not real for this purpose. "Unbranded" is no brand: empty name, real false.
 
-Write them for somebody looking at a screen, not at this prompt.
+DETAILS. The product's facts as short name and value pairs, cleaned: fix casing, units and spelling, drop the eBay furniture (policy ids, "Does not apply", "Unbranded", "N/A"), merge duplicates. Complete them from what the supplier wrote when it states a fact plainly. Never add a fact the source does not state. Names in British English, sentence case, no underscores.
 
-Name fields as the screen names them. The keys you are given are internal. Say "the details", not specifications or specs. Say "the title". Say "what the supplier wrote", not supplier_text. Say "the returns policy", not current_returns_class or returns_class. Say "the photograph". Never write a field name with an underscore in it.
+IN THE BOX. What a customer opening the parcel will find, taken only from the source. A short comma separated list, or empty string when the source does not say. Do not count things in the photograph and do not infer a pack size.
 
-Never cite a rule by number. "per rule 2", "excluded per policy" and "not carried into the description per guidelines" mean nothing to the reader. Either say plainly what was left out and why in ordinary words, or leave it out of the flags entirely.
+SECTION. Choose the one section from the list you are given where a shopper would look for this. Answer with its path exactly as given, or an empty string when none fits.
 
-Do not flag the returns policy. Disagreeing with it is what the returns class field is for, it is shown separately with its own reason, and repeating it here means the same finding is read twice and cleared in two places.
+CARE. Tag the goods that need special handling, any that apply: biocide (kills or repels pests, disinfects), supplement (vitamins, food supplements, anything taken for health), electrical (mains or battery powered), branded (a real brand's own goods, where authenticity matters), sealed (hygiene goods that cannot come back once opened). Empty array when none apply.
 
-Do not flag your own decisions. A flag is a problem in the source data, not a note about what you chose to write. "Marketing claims not included" is not a finding; leaving them out is simply the job.
+DECIDE. The questions only the shop owner can answer, because the sources disagree or are silent on something a buyer needs. Each has a plain question and two to four short options she can tap, taken from what the sources say. When the answer fills a detail, give the detail name it fills. Example: the title says 150 kg and the details say 50 kg; question "What weight does it hold?", options ["50 kg", "150 kg"], detail "Maximum load". Never ask about something you can settle from the sources yourself. Never ask about the returns policy. Empty array when there is nothing to decide.
+
+DONE. Short notes of what you fixed on her behalf, so she can see it was handled: "Removed the eBay policy numbers from the details", "Corrected 'Colour' spelled two ways". Only real changes. Empty array when there were none.
+
+Write decide and done for somebody looking at a screen. Say "the details", "the title", "what the supplier wrote", "the photograph". Never write a field name with an underscore, never cite a rule by number.
 
 RETURNS CLASS. Which UK cancellation rules apply to these goods.
 
@@ -181,9 +175,7 @@ Choose standard unless the goods clearly fall in an exception. Getting this wron
 
 Judge the goods, not the packaging. A saucepan in a sealed box is standard. A jar of moisturiser is sealed even if the photograph does not show a seal. Cleaning chemicals are ordinary goods, not consumables, so they are standard.
 
-RETURNS REASON. One short sentence naming what about these goods puts them in that class. It is read by somebody deciding whether to accept your suggestion, so it says what the goods are, not what the rule is.
-
-IN THE BOX. What a customer opening the parcel will find, taken only from the source. A short comma separated list, or empty string when the source does not say. Do not count things in the photograph and do not infer a pack size.
+RETURNS REASON. One short sentence naming what about these goods puts them in that class. It says what the goods are, not what the rule is.
 
 Return your answer through the draft tool. It is the only way to answer.`;
 
@@ -203,58 +195,68 @@ Return your answer through the draft tool. It is the only way to answer.`;
  */
 const DRAFT_TOOL = {
   name: 'draft',
-  description: 'Return the drafted description, title and any problems found in the source data.',
+  description: 'Return every field of the product, filled for the shop owner to approve.',
   input_schema: {
     type: 'object',
     properties: {
-      description: {
-        type: 'string',
-        description: 'Two to four sentences, 40 to 90 words, plain prose, British English.',
+      titles: {
+        type: 'object',
+        properties: {
+          search: { type: 'string', description: 'Under 65 characters, the words a shopper types first.' },
+          short: { type: 'string', description: 'Under 40 characters, the plainest name.' },
+          feature: { type: 'string', description: 'Under 65 characters, what it is plus one certain detail.' },
+        },
+        required: ['search', 'short', 'feature'],
       },
-      title: {
-        type: 'string',
-        description: 'Under 65 characters. No keyword stuffing, no pipes, no model codes.',
+      description: { type: 'string', description: 'Two to four sentences, 40 to 90 words, plain prose, British English.' },
+      brand: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'The brand, or empty string when there is none.' },
+          real: { type: 'boolean', description: 'True only for a maker a shopper would recognise. False for private labels and shop names.' },
+        },
+        required: ['name', 'real'],
       },
-      flags: {
+      details: {
         type: 'array',
-        items: { type: 'string' },
-        description: 'Contradictions in the source data, each naming the fields and what they say. Empty when there are none.',
+        items: {
+          type: 'object',
+          properties: { name: { type: 'string' }, value: { type: 'string' } },
+          required: ['name', 'value'],
+        },
       },
-      returns_class: {
-        type: 'string',
-        enum: ['standard', 'sealed', 'none'],
-        description: 'Which cancellation rules apply. standard unless the goods clearly fall in an exception.',
+      in_the_box: { type: 'string', description: 'From the source only. Empty string when the source does not say.' },
+      section: { type: 'string', description: 'A path from the list given, exactly, or empty string.' },
+      care: {
+        type: 'array',
+        items: { type: 'string', enum: ['biocide', 'supplement', 'electrical', 'branded', 'sealed'] },
       },
-      returns_reason: {
-        type: 'string',
-        description: 'One short sentence on what about these goods puts them in that class.',
+      decide: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            question: { type: 'string' },
+            options: { type: 'array', items: { type: 'string' }, minItems: 2, maxItems: 4 },
+            detail: { type: 'string', description: 'The detail name the answer fills, or empty string.' },
+          },
+          required: ['question', 'options', 'detail'],
+        },
       },
-      in_the_box: {
-        type: 'string',
-        description: 'What a customer opening the parcel finds, from the source only. Empty string when the source does not say.',
-      },
+      done: { type: 'array', items: { type: 'string' } },
+      returns_class: { type: 'string', enum: ['standard', 'sealed', 'none'] },
+      returns_reason: { type: 'string' },
     },
-    required: ['description', 'title', 'flags', 'returns_class', 'returns_reason', 'in_the_box'],
+    required: ['titles', 'description', 'brand', 'details', 'in_the_box', 'section', 'care', 'decide', 'done', 'returns_class', 'returns_reason'],
   },
 };
 
-/*
- * The flags, tidied on the way out.
- *
- * The prompt asks for all of this and a prompt is a request a model can
- * decline. It declined twice already: `current_returns_class` and "per rule 2"
- * both reached her screen, in two separate drafts, after the instruction was
- * written. So the instruction stays and this enforces it.
- *
- * Names are rewritten rather than dropped, because a flag that mentions an
- * internal key is usually a real contradiction wearing the wrong word, and
- * throwing it away would lose the finding to fix the phrasing.
- */
+// The prompt asks for screen words; this enforces it, because the model has already slipped twice.
 const FIELD_WORDS: Array<[RegExp, string]> = [
   [/\bcurrent_returns_class\b/gi, 'the returns policy'],
   [/\breturns_class\b/gi, 'the returns policy'],
   [/\bsupplier_text\b/gi, 'what the supplier wrote'],
-  [/\bin_the_box\b/gi, "what is in the box"],
+  [/\bin_the_box\b/gi, 'what is in the box'],
   [/\bcategory_path\b/gi, 'the section'],
   [/\bimage_url\b/gi, 'the photograph'],
   [/\bcurrent_title\b/gi, 'the title'],
@@ -262,37 +264,67 @@ const FIELD_WORDS: Array<[RegExp, string]> = [
   [/\bspecifications\b/gi, 'the details'],
 ];
 
-/*
- * Two kinds of line that are not findings at all.
- *
- * A disagreement about the returns policy has its own field, its own panel and
- * its own button, so repeating it here means she reads it twice and clears it
- * in two places. And a note saying marketing claims were left out is a
- * description of the job rather than a problem with the record.
- */
 const NOT_A_FINDING = [
   /\b(returns?|cancellation) (policy|class|rules?)\b/i,
-  /\b(not (included|repeated|carried)|omitted|excluded)\b.*\b(claim|marketing|superlative|efficacy)/i,
-  /\b(claim|marketing|superlative|efficacy)\b.*\b(not (included|repeated|carried)|omitted|excluded)/i,
   /\bper (rule|policy|guideline)/i,
 ];
 
-function tidyFlags(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((f) => {
-      let text = String(f).trim();
-      for (const [pattern, word] of FIELD_WORDS) text = text.replace(pattern, word);
-      // A replacement at the start of a sentence lowercases it, so
-      // "Specifications list Type as Backpack" became "the details list...".
-      // Restored rather than left, because a line of hers should not start in
-      // lower case on a screen where every other line does not.
-      return text.charAt(0).toUpperCase() + text.slice(1);
-    })
-    .filter((text) => text && !NOT_A_FINDING.some((p) => p.test(text)));
+function screenWords(raw: unknown) {
+  let text = String(raw ?? '').trim();
+  for (const [pattern, word] of FIELD_WORDS) text = text.replace(pattern, word);
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-async function draftFor(product: Record<string, any>) {
+const clip = (v: unknown, max: number) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max).trim();
+
+function tidyDone(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(screenWords).filter((t) => t && !NOT_A_FINDING.some((p) => p.test(t)));
+}
+
+// Ids are stable per question text, so an answer given before a redraft still finds its question.
+function slug(text: string) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'question';
+}
+
+function tidyDecide(raw: unknown) {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out = [];
+  for (const d of raw as Array<Record<string, unknown>>) {
+    const question = screenWords(d?.question);
+    const options = [...new Set((Array.isArray(d?.options) ? d.options : []).map((o) => clip(o, 60)).filter(Boolean))].slice(0, 4);
+    if (!question || options.length < 2 || NOT_A_FINDING.some((p) => p.test(question))) continue;
+    const id = slug(question);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push({ id, question, options, detail: clip(d?.detail, 60) || null });
+  }
+  return out;
+}
+
+// The model returns a cleaned list; any original fact it dropped without saying so is put back, not lost.
+function mergeDetails(raw: unknown, original: Record<string, string>) {
+  const out: Array<{ name: string; value: string }> = [];
+  const names = new Set<string>();
+  for (const d of (Array.isArray(raw) ? raw : []) as Array<Record<string, unknown>>) {
+    const name = clip(d?.name, 60);
+    const value = emptyish(clip(d?.value, 200));
+    if (!name || !value || names.has(name.toLowerCase())) continue;
+    names.add(name.toLowerCase());
+    out.push({ name, value });
+  }
+  for (const [name, value] of Object.entries(original)) {
+    if (!names.has(name.trim().toLowerCase()) && !out.some((d) => d.value === value)) out.push({ name: name.trim(), value });
+  }
+  return out;
+}
+
+const CARE = new Set(['biocide', 'supplement', 'electrical', 'branded', 'sealed']);
+
+type Section = { path: string; label: string };
+
+async function draftFor(product: Record<string, any>, sections: Section[]) {
   const specs = cleanSpecs(product.specifications);
   const source = cleanSource(product.source_description);
   const image = bigger(product.image_url);
@@ -305,22 +337,14 @@ async function draftFor(product: Record<string, any>) {
     price_gbp: product.price ?? null,
     specifications: specs,
     in_the_box: product.in_the_box ?? null,
-    // What the enrichment script guessed from the title alone, so the model can
-    // agree or disagree with it rather than starting from nothing. It has the
-    // specifications, the supplier text and the photograph, which the script
-    // did not.
     current_returns_class: product.returns_class ?? 'standard',
     supplier_text: source,
+    sections: sections.map((s) => ({ path: s.path, name: s.label })),
   };
 
   const content: Array<Record<string, unknown>> = [];
-
-  // The image first, then the fields. A model shown the fields first tends to
-  // read the photograph as confirmation of them rather than as a check on them,
-  // and catching the disagreement is the reason it is here at all.
-  if (image) {
-    content.push({ type: 'image', source: { type: 'url', url: image } });
-  }
+  // Image first: shown the fields first, the model reads the photograph as confirmation rather than as a check.
+  if (image) content.push({ type: 'image', source: { type: 'url', url: image } });
   content.push({
     type: 'text',
     text: `${image ? 'The photograph above is the product.\n\n' : 'There is no photograph.\n\n'}${JSON.stringify(facts, null, 2)}`,
@@ -335,14 +359,9 @@ async function draftFor(product: Record<string, any>) {
     },
     body: JSON.stringify({
       model: MODEL,
-      // Raised from 1000. A product with four contradictions in it writes four
-      // flags, and a reply that runs out mid object parses as nothing at all,
-      // which is indistinguishable from the model ignoring the format.
-      max_tokens: 1500,
+      max_tokens: 3000,
       system: SYSTEM,
       tools: [DRAFT_TOOL],
-      // Forced, not offered. Left to choose, a model asked a question about a
-      // product will sometimes answer it in prose instead of calling the tool.
       tool_choice: { type: 'tool', name: 'draft' },
       messages: [{ role: 'user', content }],
     }),
@@ -351,63 +370,40 @@ async function draftFor(product: Record<string, any>) {
   const payload = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(payload?.error?.message ?? `Anthropic ${res.status}`);
 
-  /*
-   * The tool call, found by type rather than by position.
-   *
-   * A reply can carry a text block before the tool_use block, so indexing into
-   * content would read the model thinking out loud as the draft. Selectors by
-   * position in a growing structure have been wrong five times on this project.
-   */
   const call = (payload.content ?? []).find((b: any) => b.type === 'tool_use');
-
   if (!call) {
-    // Kept loud and kept whole. The first version of this threw the reply away
-    // and left nothing to diagnose with, which cost a round trip.
     console.error('[draft] no tool call', JSON.stringify(payload).slice(0, 800));
-    if (payload.stop_reason === 'max_tokens') {
-      throw new Error('The draft was cut off before it finished. Try again.');
-    }
-    const said = (payload.content ?? [])
-      .filter((b: any) => b.type === 'text').map((b: any) => b.text).join(' ').trim();
-    throw new Error(said
-      ? `The model answered in prose instead of drafting. It said: ${said.slice(0, 120)}`
-      : 'The model returned nothing to draft from.');
+    if (payload.stop_reason === 'max_tokens') throw new Error('The draft was cut off before it finished. Try again.');
+    throw new Error('The draft came back empty. Try again.');
   }
 
   const parsed = call.input ?? {};
+  const titles = parsed.titles ?? {};
+  const brandName = emptyish(clip(parsed.brand?.name, 60));
+  const paths = new Set(sections.map((s) => s.path));
+  const copy = customerCopy(String(parsed.description ?? '').trim(), tidyDone(parsed.done));
 
   return {
-    ...customerCopy(String(parsed.description ?? '').trim(), tidyFlags(parsed.flags)),
-    title: String(parsed.title ?? '').trim(),
-    /*
-     * Validated against the three the column accepts rather than trusted.
-     *
-     * The enum in the schema is an instruction, and this value ends up
-     * selecting which statutory paragraph goes into a customer's confirmation
-     * email. Anything unexpected falls back to standard, which is the class
-     * that grants the most rights, so a bad value cannot quietly take one away.
-     */
-    returns_class: ['standard', 'sealed', 'none'].includes(parsed.returns_class)
-      ? parsed.returns_class : 'standard',
-    returns_reason: String(parsed.returns_reason ?? '').trim(),
-    in_the_box: emptyish(String(parsed.in_the_box ?? '').trim()),
-    /*
-     * What answered, not what was asked for.
-     *
-     * `claude-sonnet-5` is an alias with no date on it, so it floats to
-     * whatever the current snapshot is and her shop voice could shift without
-     * anything being deployed. The API returns the model it actually resolved
-     * to, so that is what gets stored. Recording the alias would mean a draft
-     * read in November says nothing about what wrote it.
-     *
-     * `requested` is kept beside it because the two disagreeing is the
-     * interesting case: it is how a pinned DRAFT_MODEL that silently did not
-     * take becomes visible.
-     */
+    version: 2,
+    titles: {
+      search: clip(titles.search, 80),
+      short: clip(titles.short, 80),
+      feature: clip(titles.feature, 80),
+    },
+    description: copy.description,
+    brand: { name: brandName, real: Boolean(parsed.brand?.real) && Boolean(brandName) },
+    details: mergeDetails(parsed.details, specs),
+    in_the_box: emptyish(clip(parsed.in_the_box, 400)),
+    section: paths.has(parsed.section) ? parsed.section : null,
+    care: (Array.isArray(parsed.care) ? parsed.care : []).filter((c: string) => CARE.has(c)),
+    decide: tidyDecide(parsed.decide),
+    done: copy.done,
+    // Anything unexpected falls back to standard, the class that grants the most rights.
+    returns_class: ['standard', 'sealed', 'none'].includes(parsed.returns_class) ? parsed.returns_class : 'standard',
+    returns_reason: clip(parsed.returns_reason, 240),
+    // What answered, not the floating alias that was asked for.
     model: String(payload.model ?? MODEL),
     requested: MODEL,
-    // So a draft can be judged against when it was written, and a stale one is
-    // visible rather than assumed current.
     drafted_at: new Date().toISOString(),
   };
 }
@@ -417,11 +413,6 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(origin) });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405, origin);
 
-  /*
-   * A signed in portal user, verified against the auth server rather than
-   * decoded and trusted. There is no service role caller here: nothing on the
-   * platform drafts on its own, because a draft only exists to be read by her.
-   */
   const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
   if (!token) return json({ error: 'Not authorised' }, 401, origin);
 
@@ -432,39 +423,29 @@ Deno.serve(async (req) => {
   const { data: who } = await asUser.auth.getUser();
   if (!who?.user) return json({ error: 'Not authorised' }, 401, origin);
 
-  let body: { productId?: string };
+  let body: { productId?: string; sections?: Section[] };
   try { body = await req.json(); } catch { return json({ error: 'Bad body' }, 400, origin); }
   if (!body.productId) return json({ error: 'productId is required' }, 400, origin);
 
+  const sections = (Array.isArray(body.sections) ? body.sections : [])
+    .filter((s) => s && typeof s.path === 'string' && s.path)
+    .slice(0, 80)
+    .map((s) => ({ path: s.path.slice(0, 200), label: String(s.label ?? s.path).slice(0, 80) }));
+
   try {
-    /*
-     * Read under the user's own session, not the service role.
-     *
-     * The service role would happily draft for another tenant's product on a
-     * guessed id. Going through `asUser` means the 0048 policy decides, so a
-     * product she cannot see is a product she cannot draft.
-     */
+    // Under her own session, so the tenant policy decides which products she can draft.
     const { data: product, error } = await asUser
       .from('store_products')
-      .select(`
-        id, title, brand, condition, category_path, price,
-        specifications, in_the_box, source_description, image_url,
-        returns_class
-      `)
+      .select('id, title, brand, condition, category_path, price, specifications, in_the_box, source_description, image_url, returns_class')
       .eq('id', body.productId)
       .single();
 
     if (error || !product) return json({ error: 'No such product' }, 404, origin);
 
-    const draft = await draftFor(product);
+    const draft = await draftFor(product, sections);
     if (!draft.description) throw new Error('The draft came back empty.');
 
-    // Merged rather than written, so the returns and hazard flags beside it
-    // survive. 0057 is what makes that one statement.
-    const { error: wErr } = await db.rpc('set_product_draft', {
-      p_id: product.id,
-      p_draft: draft,
-    });
+    const { error: wErr } = await db.rpc('set_product_draft', { p_id: product.id, p_draft: draft });
     if (wErr) throw new Error(wErr.message);
 
     return json({ draft }, 200, origin);

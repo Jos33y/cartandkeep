@@ -137,7 +137,7 @@ export function VariantsPanel({ product, busy, run, onAdd, onSave, onRemove }) {
 
         <button
           type="button"
-          className={styles.primary}
+          className={styles.ghost}
           disabled={busy || !label.trim()}
           onClick={add}
         >
