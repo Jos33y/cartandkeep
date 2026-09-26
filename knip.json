@@ -1,0 +1,24 @@
+{
+  "entry": [
+    "src/main.jsx",
+    "scripts/*.{js,mjs}",
+    "scripts/store/*.{js,mjs}",
+    "scripts/probes/*.{js,mjs}",
+    "pipeline/**/*.js"
+  ],
+  "project": ["src/**/*.{js,jsx}", "scripts/**/*.{js,mjs}", "pipeline/**/*.js"],
+  "ignore": ["supabase/**", "tools/**", "docs/archive/**", "scripts/archive/**", "scripts/lib/scan.js"],
+  "paths": {
+    "@/*": ["src/*"],
+    "@app/*": ["src/app/*"],
+    "@components/*": ["src/components/*"],
+    "@context/*": ["src/context/*"],
+    "@pages/*": ["src/pages/*"],
+    "@pwa/*": ["src/pwa/*"],
+    "@styles/*": ["src/styles/*"],
+    "@hooks/*": ["src/hooks/*"],
+    "@utils/*": ["src/utils/*"],
+    "@lib/*": ["src/lib/*"],
+    "@data/*": ["src/data/*"]
+  }
+}

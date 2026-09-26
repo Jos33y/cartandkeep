@@ -33,3 +33,7 @@ cartandkeep.txt
 /audit.csv
 /sweep.csv
 /ck-*.csv
+# Local runtime data
+.browser/
+research/archive/backups/
+dist/

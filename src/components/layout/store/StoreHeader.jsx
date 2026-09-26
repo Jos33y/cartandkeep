@@ -5,7 +5,7 @@ import { Logo } from '@components/ui/shared/Logo';
 import { CloseIcon, HeartIcon, MenuIcon, SearchIcon } from '@components/ui/store/icons';
 import { useBasket } from '@context/BasketContext';
 import { useSaved } from '@hooks/useSaved';
-import { useCards, useGroups } from '@hooks/useCatalogue';
+import { useCards, useGroups } from '@hooks/useStoreCatalogue';
 import { visibleGroups } from '@utils/categories';
 import { freeOver } from '@lib/storeConfig';
 import { STORE_ROUTES } from '@utils/constants';

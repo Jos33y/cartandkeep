@@ -196,3 +196,5 @@
 }
 .scope:hover { background: color-mix(in srgb, var(--c-sage-deep) 18%, var(--c-sage-wash)); }
 .scope:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+.input::placeholder { color: var(--c-faint); opacity: 1; }

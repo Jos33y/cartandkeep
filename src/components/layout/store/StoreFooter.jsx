@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { LogoMark } from '@components/ui/shared/Logo';
 import { InstagramIcon, MailIcon, TiktokIcon } from '@components/ui/store/icons';
 import { LEGAL_COLUMN, LEGAL_LINKS } from '@data/legal';
-import { useGroups } from '@hooks/useCatalogue';
+import { useGroups } from '@hooks/useStoreCatalogue';
 import { visibleGroups } from '@utils/categories';
 import { STORE_ROUTES } from '@utils/constants';
 import { storeConfig, supportEmail, trader } from '@lib/storeConfig';

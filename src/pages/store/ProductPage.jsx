@@ -16,7 +16,7 @@ import { SupplierText } from '@components/ui/store/SupplierText';
 import { Shelf } from '@components/ui/store/Shelf';
 import { BasketIcon, ChevronRightIcon, HeartIcon, PlusIcon } from '@components/ui/store/icons';
 import { anyBuyable } from '@hooks/useStoreProducts';
-import { useBrowse, useGroups, useProduct } from '@hooks/useCatalogue';
+import { useBrowse, useGroups, useProduct } from '@hooks/useStoreCatalogue';
 import { useBasket } from '@context/BasketContext';
 import { useRecentlyViewed } from '@hooks/useRecentlyViewed';
 import { useSaved } from '@hooks/useSaved';

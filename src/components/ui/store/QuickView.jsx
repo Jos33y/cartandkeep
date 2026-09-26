@@ -7,7 +7,7 @@ import { StockSignal } from '@components/ui/store/StockSignal';
 import { anyBuyable } from '@hooks/useStoreProducts';
 import { ArrowRightIcon, BasketIcon, CloseIcon, PlusIcon, ReturnIcon } from '@components/ui/store/icons';
 import { useBasket } from '@context/BasketContext';
-import { useProduct } from '@hooks/useCatalogue';
+import { useProduct } from '@hooks/useStoreCatalogue';
 import { trackQuickView } from '@lib/analytics';
 import { returnsTerms } from '@lib/storeConfig';
 import { formatGbp } from '@utils/formatGbp';

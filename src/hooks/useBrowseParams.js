@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router';
-import { SORTS } from '@lib/catalogue';
+import { SORTS } from '@lib/storeCatalogue';
 
 // Filters live in the address, so Back, refresh and a shared link all reopen the exact view.
 // ?q=scale&min=10&max=40&brand=Salter&brand=Draper&stock=1&by=1&sort=price-asc

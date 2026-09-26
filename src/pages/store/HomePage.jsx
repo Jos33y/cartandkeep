@@ -5,7 +5,7 @@ import { ProductGridSkeleton } from '@components/ui/store/Skeleton';
 import { OfflineNotice } from '@components/ui/store/OfflineNotice';
 import { PromiseBand } from '@components/ui/store/PromiseBand';
 import { QuickView } from '@components/ui/store/QuickView';
-import { useBrowse, useGroups } from '@hooks/useCatalogue';
+import { useBrowse, useGroups } from '@hooks/useStoreCatalogue';
 import { visibleGroups } from '@utils/categories';
 import styles from '@styles/pages/store/home-page.module.css';
 

@@ -6,7 +6,7 @@ import { ProductGridSkeleton } from '@components/ui/store/Skeleton';
 import { QuickView } from '@components/ui/store/QuickView';
 import { ArrowRightIcon } from '@components/ui/store/icons';
 import { useSaved } from '@hooks/useSaved';
-import { useCards } from '@hooks/useCatalogue';
+import { useCards } from '@hooks/useStoreCatalogue';
 import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/pages/store/saved-page.module.css';
 

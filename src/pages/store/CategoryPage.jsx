@@ -9,7 +9,7 @@ import { ProductGrid } from '@components/ui/store/ProductGrid';
 import { QuickView } from '@components/ui/store/QuickView';
 import { ProductCardSkeleton } from '@components/ui/store/Skeleton';
 import { CloseIcon } from '@components/ui/store/icons';
-import { useBrowse, useFacets, useGroups, prefetchProduct } from '@hooks/useCatalogue';
+import { useBrowse, useFacets, useGroups, prefetchProduct } from '@hooks/useStoreCatalogue';
 import { useBrowseParams } from '@hooks/useBrowseParams';
 import { useTenant } from '@hooks/useTenant';
 import { trackSearch } from '@lib/analytics';

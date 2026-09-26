@@ -4,7 +4,7 @@ import { ArrowRightIcon, CloseIcon, SearchIcon } from '@components/ui/store/icon
 import { SectionGlyph } from '@components/ui/store/SectionGlyph';
 import { imageAt, leafOf } from '@utils/categories';
 import { formatGbp } from '@utils/formatGbp';
-import { useBrowse } from '@hooks/useCatalogue';
+import { useBrowse } from '@hooks/useStoreCatalogue';
 import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/layout/store/header-search.module.css';
 
@@ -168,11 +168,13 @@ export function HeaderSearch({ sections, sheet = false, onClose, inputRef: exter
           autoComplete="off"
           enterKeyHint="search"
           value={query}
+          placeholder={scope ? `Search ${scope.name}` : undefined}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
         />
-        {!query && <span className={styles.ghost} aria-hidden="true"><Rotating words={examples} /></span>}
+        {/* The rotating examples sit over the field, so with a section chip in it they give way to a plain prompt after the chip. */}
+        {!query && !scope && <span className={styles.ghost} aria-hidden="true"><Rotating words={examples} /></span>}
         {query ? (
           <button type="button" className={styles.clear} aria-label="Clear" onClick={() => { setQuery(''); inputRef.current?.focus(); }}>
             <CloseIcon size={16} />
