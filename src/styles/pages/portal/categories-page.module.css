@@ -248,3 +248,36 @@
 @media (prefers-reduced-motion: reduce) {
   .section, .create, .picker, .chosen, .itemThumb { animation: none; transition: none; }
 }
+
+/* The agent's proposal, edited in place before one apply. */
+.review { display: flex; flex-direction: column; gap: var(--s-4); animation: rise var(--dur-settle) var(--ease-out) both; }
+.reviewHead { display: flex; flex-direction: column; gap: var(--s-1); }
+.reviewTitle { font-size: var(--t-lead); font-weight: 560; letter-spacing: -0.01em; }
+.reviewGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: var(--s-3); }
+.reviewSection { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-3); border: 1px solid var(--c-line); border-radius: var(--r-lg); background: var(--c-base); }
+.reviewName { display: flex; align-items: center; gap: var(--s-2); }
+.reviewTag { flex: none; padding: 1px 7px; border-radius: var(--r-sm); background: var(--c-sunk); color: var(--c-ink-soft); font-size: var(--t-micro); font-weight: 600; }
+.reviewTag[data-new] { background: var(--c-info-wash); color: var(--c-info); }
+.reviewList { display: flex; flex-direction: column; gap: var(--s-1); list-style: none; }
+.reviewRow { display: grid; grid-template-columns: 36px minmax(0, 1fr) minmax(0, 9.5rem); gap: var(--s-2); align-items: center; }
+.reviewItem { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-label); }
+.reviewMove {
+  min-height: 36px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--c-control);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font-size: var(--t-caption);
+}
+.reviewMove:focus { outline: none; border-color: var(--c-action-strong); box-shadow: 0 0 0 3px rgba(186, 90, 61, 0.16); }
+.reviewFoot { display: flex; justify-content: flex-end; gap: var(--s-2); }
+
+@media (max-width: 720px) {
+  .reviewRow { grid-template-columns: 36px minmax(0, 1fr); }
+  .reviewMove { grid-column: 2; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review { animation: none; }
+}

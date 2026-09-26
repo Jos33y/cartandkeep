@@ -469,6 +469,7 @@ export function ProductsPage() {
           returnDays={Number(tenant?.store?.returns?.days) || null}
           agent={agentName}
           keeper={keeper}
+          onCreateSection={async (name) => { const path = await sections.create(name); return path; }}
         />
       )}
     </div>

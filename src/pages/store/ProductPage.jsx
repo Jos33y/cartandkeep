@@ -31,8 +31,8 @@ import styles from '@styles/pages/store/product-page.module.css';
 const LEFTOVER = 'Everything else';
 const categoryPath = (slug) => STORE_ROUTES.CATEGORY.replace(':slug', slug);
 
-// The group this product's cards fall in, by the same rule as the database: her section key, else the top of eBay's path.
-const groupKeyOf = (p) => (p.section || String(p.category_path ?? '').split('|')[0] || '').trim();
+// The group this product's cards fall in, by the same rule as the database: her section, else none.
+const groupKeyOf = (p) => (p.section || '').trim();
 
 // Somewhere to go next: her section when it has at least two others, otherwise the rest of the shop. Nine fetched, this one dropped.
 function NextShelf({ product, own }) {

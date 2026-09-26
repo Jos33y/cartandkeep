@@ -16,7 +16,6 @@ export const STEPS = [
 
 const RETURNS_LABEL = { standard: 'Standard', sealed: 'Sealed only', none: 'No return' };
 
-const leaf = (path) => String(path ?? '').split('|').pop()?.trim() || null;
 
 function unsellable(p) {
   if (p.availability === 'out_of_stock') return 'Marked out of stock for now';
@@ -75,10 +74,9 @@ function judge(key, p) {
         ? { state: 'wait', note: 'Written for you. Read it and save.' }
         : { state: 'missing', note: 'No description. Google will not list it without one.' };
     case 'section':
-      if (p.section) return { state: 'done', note: 'Placed by you' };
-      return p.category_path
-        ? { state: 'done', note: leaf(p.category_path) }
-        : { state: 'missing', note: 'Not in a section, so it sits in Everything else.' };
+      return p.section
+        ? { state: 'done', note: 'In a section' }
+        : { state: 'missing', note: 'Not in a section yet, so it sits in Odds and ends.' };
     case 'cost':
       return p.landed_cost === null || p.landed_cost === undefined
         ? { state: 'missing', note: 'No cost yet, so nothing can say what a sale earns.' }

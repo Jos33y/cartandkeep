@@ -547,9 +547,8 @@ export function categoryCounts(rows) {
   const counts = new Map();
   for (const r of rows) {
     if (!isLive(r)) continue;
-    const top = r.section || String(r.category_path ?? '').split('|')[0]?.trim();
-    if (!top) continue;
-    counts.set(top, (counts.get(top) ?? 0) + 1);
+    if (!r.section) continue;
+    counts.set(r.section, (counts.get(r.section) ?? 0) + 1);
   }
   return counts;
 }

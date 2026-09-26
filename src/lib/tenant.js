@@ -94,7 +94,7 @@ export async function loadCategoryNames() {
 
   const { data, error } = await supabase
     .from('store_category_names')
-    .select('path, name, slug, blurb, position, hidden');
+    .select('path, name, slug, blurb, position, hidden, aliases');
 
   /*
    * An empty list on failure, not a throw.

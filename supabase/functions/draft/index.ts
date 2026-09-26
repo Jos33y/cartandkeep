@@ -155,7 +155,7 @@ DETAILS. The product's facts as short name and value pairs, cleaned: fix casing,
 
 IN THE BOX. What a customer opening the parcel will find, taken only from the source. A short comma separated list, or empty string when the source does not say. Do not count things in the photograph and do not infer a pack size.
 
-SECTION. Choose the one section from the list you are given where a shopper would look for this. Answer with its path exactly as given, or an empty string when none fits.
+SECTION. Choose the one section from the list you are given where a shopper would look for this. Answer with its path exactly as given. When none fits, answer an empty string and put a new section name in new_section: two or three words a shopper would use, broad enough to hold several products (Garden, Kitchen and dining), never a season or an occasion. Otherwise new_section is an empty string. The eBay category is a clue to what the goods are, never a section name.
 
 CARE. Tag the goods that need special handling, any that apply: biocide (kills or repels pests, disinfects), supplement (vitamins, food supplements, anything taken for health), electrical (mains or battery powered), branded (a real brand's own goods, where authenticity matters), sealed (hygiene goods that cannot come back once opened). Empty array when none apply.
 
@@ -227,6 +227,7 @@ const DRAFT_TOOL = {
       },
       in_the_box: { type: 'string', description: 'From the source only. Empty string when the source does not say.' },
       section: { type: 'string', description: 'A path from the list given, exactly, or empty string.' },
+      new_section: { type: 'string', description: 'A new section name only when none in the list fits, else empty string.' },
       care: {
         type: 'array',
         items: { type: 'string', enum: ['biocide', 'supplement', 'electrical', 'branded', 'sealed'] },
@@ -247,7 +248,7 @@ const DRAFT_TOOL = {
       returns_class: { type: 'string', enum: ['standard', 'sealed', 'none'] },
       returns_reason: { type: 'string' },
     },
-    required: ['titles', 'description', 'brand', 'details', 'in_the_box', 'section', 'care', 'decide', 'done', 'returns_class', 'returns_reason'],
+    required: ['titles', 'description', 'brand', 'details', 'in_the_box', 'section', 'new_section', 'care', 'decide', 'done', 'returns_class', 'returns_reason'],
   },
 };
 
@@ -419,6 +420,7 @@ async function draftFor(product: Record<string, any>, sections: Section[]) {
     details: merged.details,
     in_the_box: emptyish(clip(parsed.in_the_box, 400)),
     section: paths.has(parsed.section) ? parsed.section : null,
+    new_section: paths.has(parsed.section) ? null : (clip(parsed.new_section, 40) || null),
     care,
     decide: [...tidyDecide(parsed.decide), ...care.filter((c) => CARE_QUESTIONS[c]).map((c) => CARE_QUESTIONS[c])],
     done: copy.done,
@@ -450,6 +452,115 @@ function cleanSections(raw: unknown): Section[] {
     .filter((s) => s && typeof s.path === 'string' && s.path)
     .slice(0, 80)
     .map((s) => ({ path: s.path.slice(0, 200), label: String(s.label ?? s.path).slice(0, 80) }));
+}
+
+const SORT_SYSTEM = `You organise the sections of a small independent UK general store's website. The owner approves your proposal before anything changes.
+
+You are given her current sections, every product on her shop with its eBay category, and the titles of her eBay listings that are coming to the shop soon.
+
+Propose between five and nine sections that together hold everything, then place every shop product in one of them.
+
+RULES.
+Name sections the way a shopper looks for things, in British English, two or three words, sentence case, "and" never "&". Examples of the register: Home care and mobility, Health and wellbeing, Beauty, Pet essentials, Kitchen and dining, Music and audio.
+Health and beauty are different sections. Mobility aids and care equipment are not beauty.
+Keep one of her current section names, exactly as written, when it already fits what is in it. Never keep a name that does not fit its products.
+Every section should have room for several of the products listed or coming. A section for one odd product is wrong; leave odd products in the section that is nearest.
+Never make a section for a season, an occasion or a price. Seasonal goods go where the goods belong: face paint is beauty.
+eBay's categories are clues to what the goods are. Never copy an eBay category name as a section name.
+Place every shop product. Use the product number you are given.
+
+Answer through the sort tool.`;
+
+const SORT_TOOL = {
+  name: 'sort',
+  description: 'Return the proposed sections and where each shop product goes.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      sections: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            why: { type: 'string', description: 'One short line: what belongs here.' },
+          },
+          required: ['name', 'why'],
+        },
+      },
+      placements: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: { n: { type: 'integer' }, section: { type: 'string' } },
+          required: ['n', 'section'],
+        },
+      },
+    },
+    required: ['sections', 'placements'],
+  },
+};
+
+// One call for the whole shop: products are numbered, so the answer is short and cannot name a product that is not hers.
+async function sortShop(tenantId: string) {
+  const [{ data: names }, { data: products }, { data: latest }] = await Promise.all([
+    db.from('store_category_names').select('path, name').eq('tenant_id', tenantId).eq('own', true),
+    db.from('store_products').select('id, title, category_path, section, source_ref, status')
+      .eq('tenant_id', tenantId).neq('status', 'archived').limit(600),
+    db.from('ebay_traffic').select('window_start, window_end').eq('tenant_id', tenantId)
+      .order('window_end', { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  const list = products ?? [];
+  if (!list.length) throw new Error('There are no products to sort yet.');
+
+  let coming: string[] = [];
+  if (latest) {
+    const onShop = new Set(list.map((p) => String(p.source_ref ?? '')));
+    const { data: traffic } = await db.from('ebay_traffic').select('listing_id, title')
+      .eq('tenant_id', tenantId).eq('window_start', latest.window_start).eq('window_end', latest.window_end)
+      .not('listing_id', 'is', null).limit(400);
+    coming = (traffic ?? []).filter((t) => !onShop.has(String(t.listing_id)) && t.title).map((t) => String(t.title)).slice(0, 250);
+  }
+
+  const nameOf = new Map((names ?? []).map((n) => [n.path, n.name]));
+  const facts = {
+    current_sections: (names ?? []).map((n) => n.name),
+    shop_products: list.map((p, i) => ({
+      n: i + 1, title: p.title, ebay_category: (p.category_path ?? '').split('|').join(' > '),
+      now_in: p.section ? nameOf.get(p.section) ?? null : null,
+    })),
+    coming_from_ebay: coming,
+  };
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: MODEL, max_tokens: 8000, system: SORT_SYSTEM, tools: [SORT_TOOL],
+      tool_choice: { type: 'tool', name: 'sort' },
+      messages: [{ role: 'user', content: JSON.stringify(facts) }],
+    }),
+  });
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(payload?.error?.message ?? `Anthropic ${res.status}`);
+  const call = (payload.content ?? []).find((b: any) => b.type === 'tool_use');
+  if (!call) throw new Error('The sort came back empty. Try again.');
+
+  const sections: Array<{ name: string; why: string }> = [];
+  for (const sec of (call.input?.sections ?? []) as Array<Record<string, unknown>>) {
+    const name = clip(sec?.name, 40).replace(/\s*&\s*/g, ' and ');
+    if (name && !sections.some((x) => x.name.toLowerCase() === name.toLowerCase())) sections.push({ name, why: clip(sec?.why, 120) });
+  }
+  if (!sections.length) throw new Error('The sort proposed no sections. Try again.');
+  const known = new Map(sections.map((x) => [x.name.toLowerCase(), x.name]));
+
+  const placements: Array<{ id: string; section: string }> = [];
+  for (const pl of (call.input?.placements ?? []) as Array<Record<string, unknown>>) {
+    const product = list[Number(pl?.n) - 1];
+    const section = known.get(clip(pl?.section, 40).replace(/\s*&\s*/g, ' and ').toLowerCase());
+    if (product && section && !placements.some((x) => x.id === product.id)) placements.push({ id: product.id, section });
+  }
+  return { sections, placements, coming: coming.length, model: String(payload.model ?? MODEL) };
 }
 
 const PRODUCT_FIELDS = 'id, tenant_id, title, brand, condition, category_path, price, specifications, in_the_box, source_description, image_url, returns_class';
@@ -501,7 +612,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(origin) });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405, origin);
 
-  let body: { productId?: string; sections?: Section[]; queue?: boolean; tenant_id?: string };
+  let body: { productId?: string; sections?: Section[]; queue?: boolean; sort?: boolean; tenant_id?: string };
   try { body = await req.json(); } catch { return json({ error: 'Bad body' }, 400, origin); }
 
   // The schedule works every shop's queue; it proves itself with the scheduler secret.
@@ -521,6 +632,15 @@ Deno.serve(async (req) => {
   });
   const { data: who } = await asUser.auth.getUser();
   if (!who?.user) return json({ error: 'Not authorised' }, 401, origin);
+
+  if (body.sort) {
+    if (!body.tenant_id) return json({ error: 'tenant_id is required' }, 400, origin);
+    const { data: member } = await asUser.rpc('has_tenant', { t: body.tenant_id });
+    if (member !== true) return json({ error: 'Not authorised' }, 401, origin);
+    try { return json(await sortShop(body.tenant_id), 200, origin); } catch (err) {
+      return json({ error: err instanceof Error ? err.message : String(err) }, 500, origin);
+    }
+  }
 
   // The portal kicks its own shop's queue so she does not wait for the next minute.
   if (body.queue) {

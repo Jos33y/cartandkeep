@@ -93,12 +93,8 @@ export function sortByPosition(items, names) {
 export const slugFor = (path, names, fallback) =>
   resolveName(path, names)?.slug ?? fallback;
 
-// Her own words only. A product's section is a group key, so it is looked up in her names like an eBay department: her name if she set one, nothing if she hid it, and never eBay's words on their own.
+// Her section's name, nothing when it is hidden or the product has none. Never eBay's words.
 export function shopSectionOf(product, names) {
-  const top = String(product?.category_path ?? '').split('|')[0]?.trim();
-  const key = product?.section || top;
-  const row = (names ?? []).find((n) => n.path === key);
-  if (row) return row.hidden ? null : row.name;
-  // A section she typed herself has no row; one that only repeats the eBay department is not hers.
-  return product?.section && product.section !== top ? product.section : null;
+  const row = product?.section ? (names ?? []).find((n) => n.path === product.section) : null;
+  return row && !row.hidden ? row.name : null;
 }

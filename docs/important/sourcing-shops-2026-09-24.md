@@ -128,6 +128,24 @@ Christmas listings need to be live by early November. Halloween, five weeks out,
 | plumbworld.co.uk, plumbnation.co.uk | tap cartridges, fill valves, shower parts, by part number | to probe |
 | bulbs.co.uk | bulbs by cap and fitting: GU10, B22, oven and fridge | to probe |
 
+### General shops with electronics and named brands
+
+Added 26 September. Probed the same day. Shops here are for finding named products, not necessarily for buying from.
+
+| Shop | State | How it is read |
+|---|---|---|
+| maplin.co.uk | **collected, 1,382 products**, Shopify | Shopify feed, prices included. Also runs an affiliate programme with a full data feed |
+| cpc.farnell.com | **7,880 named** from 106,862 product links | Sitemap names only; product pages blocked by Akamai. Consumer brands kept: brand plus part number in every link |
+| hartsofstur.com | **93,232 named**, Magento | Sitemap names only. Trade kitchenware; product codes in the link. The code lines are drafted as their own set |
+| studio.co.uk | **61,516 named** | Sitemap names only. Mostly sport and fashion; last in the rotation |
+| hughes.co.uk | answered, about 15,000 links, prices on the page | Not collected yet: mostly large appliances, over the £40 goods rule |
+| sonicdirect.co.uk | answered, 3,525 links | Not collected yet: mostly large appliances |
+| argos.co.uk | sitemaps open, 215,403 links, pages blocked by Akamai | Links carry only product numbers, so there is nothing to draft from. Needs the affiliate feed |
+| dunelm.com | sitemaps refused | Not readable this way |
+| gear4music.com, studiospares.com, menkind.co.uk, wilko.com, electricaldiscountuk.co.uk, salter.com | refused | Out |
+| shop.scope.org.uk | answered, but charity merchandise only (T-shirts, hoodies, prints) | Out, files deleted |
+
+
 ### Not worth probing for this buyer
 
 Fireworks and sparklers are explosives. Costumes and clothing are sized. Perfume and aftershave gift sets are the most counterfeit-reported goods on eBay and are held back as account risk by the scan since 25 September.
@@ -151,7 +169,7 @@ State at 25 September 2026, evening. Nothing here is a guess; counts are the lin
 | Wickes | 612 priced, 37,117 named | pages, then its sitemap | no |
 | **Total priced** | **about 68,900** | | |
 
-Refused: The Range, Superdrug, Boots, CareCo, JML, Coopers of Stortford, and B&Q for now.
+Refused: The Range, Superdrug, Boots, CareCo, JML, Coopers of Stortford, Gear4music, Studiospares, Menkind, Wilko, Electrical Discount UK, Salter, and B&Q for now.
 
 ### Where the records are
 

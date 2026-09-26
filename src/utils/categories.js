@@ -19,9 +19,9 @@ export function topOf(path) {
   return path.split('|')[0]?.trim() || null;
 }
 
-// Her section where she set one, the eBay department otherwise.
+// Her section, or none (Odds and ends). eBay's category is only a hint the agent reads, never a section.
 export function sectionOf(product) {
-  return product?.section || topOf(product?.category_path);
+  return product?.section || null;
 }
 
 export function leafOf(path) {
@@ -34,12 +34,13 @@ export function leafOf(path) {
 // The catch-all group's name on the shop. Its key stays 'Everything else', which the portal and the grouping use.
 export const LEFTOVER_NAME = 'Odds and ends';
 
-// A slug she set wins; otherwise one from her name when she renamed it; otherwise eBay's. The eBay one is kept as an alias when it moved.
+// Her slug, else one from her name. Every address the section used to have stays as an alias that redirects.
 export function addressOf(path, names) {
-  const legacy = categorySlug(path);
   const row = (names ?? []).find((n) => n.path === path);
-  const own = row?.slug || (row?.name && row.name !== path ? categorySlug(row.name) : null);
-  return own && own !== legacy ? { slug: own, aliases: [legacy] } : { slug: legacy, aliases: [] };
+  const slug = row?.slug || categorySlug(row?.name || path);
+  const legacy = String(path).startsWith('own:') ? [] : [categorySlug(path)];
+  const aliases = [...new Set([...(row?.aliases ?? []), ...legacy])].filter((a) => a && a !== slug);
+  return { slug, aliases };
 }
 
 export function categorySlug(name) {

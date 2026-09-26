@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useCategoryNames } from '@hooks/useCategoryNames';
+import { useCategoryNames, sectionSlug } from '@hooks/useCategoryNames';
+import { supabase } from '@lib/supabase';
 import { useCatalogue, CATEGORY_MIN, isLive, isArchived } from '@hooks/useCatalogue';
 import { Card, Tip } from '@components/ui/portal/primitives';
 import { Icon } from '@components/ui/icons';
@@ -79,7 +80,7 @@ function Picker({ dept, products, labels, busy, onMove, onClose }) {
                 <Thumb product={p} className={styles.pickThumb} />
                 <span className={styles.pickText}>
                   <span className={styles.pickTitle}>{p.title}</span>
-                  <span className={styles.pickFrom}>Now in {labels.get(sectionOf(p)) ?? 'Everything else'}</span>
+                  <span className={styles.pickFrom}>Now in {labels.get(sectionOf(p)) ?? 'Odds and ends'}</span>
                 </span>
               </label>
             </li>
@@ -109,7 +110,7 @@ function Section({ dept, index, total, products, labels, busy, run, actions }) {
   const saveName = () => run(async () => {
     await actions.rename(dept, name);
     setEditing(false);
-  }, dept.own || name.trim() ? 'Renamed' : 'Back to the eBay name');
+  }, 'Renamed. The old address still works.');
 
   return (
     <Card className={styles.section} data-hidden={dept.hidden || undefined} data-own={dept.own || undefined}
@@ -118,7 +119,7 @@ function Section({ dept, index, total, products, labels, busy, run, actions }) {
         {editing ? (
           <form className={styles.renameForm} onSubmit={(e) => { e.preventDefault(); saveName(); }}>
             <input className={styles.renameInput} value={name} autoFocus onChange={(e) => setName(e.target.value)}
-              placeholder={dept.ebay_name ?? 'Section name'} aria-label="Section name"
+              placeholder="Section name" aria-label="Section name"
               onKeyDown={(e) => { if (e.key === 'Escape') { setEditing(false); setName(dept.name ?? ''); } }} />
             <button type="submit" className={styles.go} disabled={busy}>Save</button>
             <button type="button" className={styles.quiet} onClick={() => { setEditing(false); setName(dept.name ?? ''); }}>Cancel</button>
@@ -142,7 +143,7 @@ function Section({ dept, index, total, products, labels, busy, run, actions }) {
       </header>
 
       <p className={styles.origin}>
-        {dept.own ? 'Made by you' : dept.name ? `From eBay, originally ${dept.ebay_name}` : 'From eBay'}
+        /c/{dept.slug}
         <span aria-hidden="true"> </span>
         <span data-num>{plural(dept.products, 'product')}</span>
       </p>
@@ -178,12 +179,10 @@ function Section({ dept, index, total, products, labels, busy, run, actions }) {
       {chosen && inside.some((p) => p.id === chosen.id) && (
         <div className={styles.chosen}>
           <span className={styles.chosenTitle}>{chosen.title}</span>
-          {chosen.section ? (
-            <button type="button" className={styles.quiet} disabled={busy}
-              onClick={() => run(async () => { await actions.move([chosen.id], null); setChosen(null); return 'products'; }, 'Moved back')}>
-              Send back to {labels.get(chosen.category_path?.split('|')[0]) ?? 'its eBay department'}
-            </button>
-          ) : <span className={styles.hint}>Its eBay department. Move it with the + on another section.</span>}
+          <button type="button" className={styles.quiet} disabled={busy}
+            onClick={() => run(async () => { await actions.move([chosen.id], null); setChosen(null); return 'products'; }, 'Moved to Odds and ends')}>
+            Move to Odds and ends
+          </button>
         </div>
       )}
 
@@ -197,9 +196,9 @@ function Section({ dept, index, total, products, labels, busy, run, actions }) {
           onClick={() => run(() => actions.setHidden(dept, !dept.hidden), dept.hidden ? 'Shown' : 'Hidden')}>
           {dept.hidden ? 'Show on the shop' : 'Hide from the shop'}
         </button>
-        {dept.own && (confirming ? (
+        {(confirming ? (
           <span className={styles.confirm}>
-            {inside.length ? `Its ${plural(inside.length, 'product')} go back to their eBay departments.` : 'It is empty.'}
+            {inside.length ? `Its ${plural(inside.length, 'product')} go to Odds and ends.` : 'It is empty.'}
             <button type="button" className={styles.danger} disabled={busy}
               onClick={() => run(() => actions.remove(dept), 'Deleted')}>Delete it</button>
             <button type="button" className={styles.link} onClick={() => setConfirming(false)}>Keep it</button>
@@ -208,6 +207,76 @@ function Section({ dept, index, total, products, labels, busy, run, actions }) {
           <button type="button" className={styles.linkDanger} onClick={() => setConfirming(true)}>Delete</button>
         ))}
       </footer>
+    </Card>
+  );
+}
+
+// Keeper's proposal, editable in place: rename any section, move any product, then apply once.
+function SortReview({ proposal, setProposal, products, departments, agent, busy, onApply, onDiscard }) {
+  const existing = new Set(departments.map((d) => d.label.trim().toLowerCase()));
+  const rename = (key, name) => setProposal((p) => ({ ...p, sections: p.sections.map((x) => (x.key === key ? { ...x, name } : x)) }));
+  const place = (id, key) => setProposal((p) => { const placed = new Map(p.placed); placed.set(id, key); return { ...p, placed }; });
+  const unplaced = products.filter((p) => { const k = proposal.placed.get(p.id); return k === undefined || k < 0; });
+  const proposedNames = new Set(proposal.sections.map((x) => x.name.trim().toLowerCase()));
+  const leaving = departments.filter((d) => !proposedNames.has(d.label.trim().toLowerCase()));
+
+  return (
+    <Card className={styles.review}>
+      <div className={styles.reviewHead}>
+        <h2 className={styles.reviewTitle}>{agent}&apos;s sections</h2>
+        <p className={styles.hint}>
+          Read from your shop{proposal.coming ? <> and <span data-num>{proposal.coming}</span> eBay listings still to come</> : null}.
+          Rename any section or move any product, then apply. Old addresses keep working.
+        </p>
+      </div>
+
+      <div className={styles.reviewGrid}>
+        {proposal.sections.map((x) => {
+          const inside = products.filter((p) => proposal.placed.get(p.id) === x.key);
+          return (
+            <section key={x.key} className={styles.reviewSection}>
+              <div className={styles.reviewName}>
+                <input className={styles.renameInput} value={x.name} onChange={(e) => rename(x.key, e.target.value)} aria-label="Section name" />
+                <span className={styles.reviewTag} data-new={!existing.has(x.name.trim().toLowerCase()) || undefined}>
+                  {existing.has(x.name.trim().toLowerCase()) ? 'Yours' : 'New'}
+                </span>
+              </div>
+              {x.why && <p className={styles.hint}>{x.why}</p>}
+              <ul className={styles.reviewList}>
+                {inside.map((p) => (
+                  <li key={p.id} className={styles.reviewRow}>
+                    <Thumb product={p} className={styles.pickThumb} />
+                    <span className={styles.reviewItem}>{p.title}</span>
+                    <select className={styles.reviewMove} value={x.key} aria-label={`Section for ${p.title}`}
+                      onChange={(e) => place(p.id, Number(e.target.value))}>
+                      {proposal.sections.map((o) => <option key={o.key} value={o.key}>{o.name || 'Unnamed'}</option>)}
+                      <option value={-1}>Odds and ends</option>
+                    </select>
+                  </li>
+                ))}
+                {inside.length === 0 && <li className={styles.hint}>Nothing on the shop yet; ready for what comes from eBay.</li>}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
+
+      {unplaced.length > 0 && (
+        <p className={styles.hint}>
+          Stays where it is: {unplaced.map((p) => p.title).slice(0, 3).join(', ')}{unplaced.length > 3 ? ` and ${unplaced.length - 3} more` : ''}.
+        </p>
+      )}
+      {leaving.length > 0 && (
+        <p className={styles.hint}>
+          {leaving.map((d) => d.label).join(', ')} {leaving.length === 1 ? 'goes' : 'go'} once empty; {leaving.length === 1 ? 'its address points' : 'their addresses point'} to
+          where {leaving.length === 1 ? 'its' : 'their'} products went.
+        </p>
+      )}
+
+      <div className={styles.reviewFoot}>
+        <button type="button" className={styles.quiet} disabled={busy} onClick={onDiscard}>Discard</button>
+        <button type="button" className={styles.go} disabled={busy} onClick={onApply}>Apply these sections</button>
+      </div>
     </Card>
   );
 }
@@ -222,6 +291,65 @@ export function CategoriesPage() {
   const [note, setNote] = useState(null);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
+  const [sorting, setSorting] = useState(false);
+  const [proposal, setProposal] = useState(null);
+  const agent = tenant?.store?.agent?.name || 'Your assistant';
+
+  async function askSort() {
+    setSorting(true);
+    setNote(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('draft', { body: { sort: true, tenant_id: tenant.id } });
+      if (error || data?.error) throw new Error(data?.error ?? error.message);
+      setProposal({
+        sections: data.sections.map((x, i) => ({ key: i, name: x.name, why: x.why })),
+        placed: new Map(data.placements.map((pl) => [pl.id, data.sections.findIndex((x) => x.name === pl.section)])),
+        coming: data.coming,
+      });
+    } catch (e) {
+      setNote({ ok: false, text: e?.message ?? `${agent} could not sort. Try again.` });
+    } finally {
+      setSorting(false);
+    }
+  }
+
+  // Her edits to the proposal become sections and moves; a section left empty hands its address to where its products went.
+  async function applySort() {
+    const byName = new Map(sections.departments.map((d) => [d.label.trim().toLowerCase(), d]));
+    const target = new Map();
+    for (const x of proposal.sections) {
+      const name = x.name.trim();
+      if (!name) throw new Error('Every section needs a name.');
+      const have = byName.get(name.toLowerCase());
+      const path = have ? have.path : await sections.create(name, { reload: false });
+      target.set(x.key, have ?? { path, slug: sectionSlug(name), aliases: [], label: name });
+    }
+
+    const moves = new Map();
+    for (const p of products) {
+      const key = proposal.placed.get(p.id);
+      const dest = key === undefined || key < 0 ? null : target.get(key);
+      if (!dest || dest.path === p.section) continue;
+      if (!moves.has(dest.path)) moves.set(dest.path, []);
+      moves.get(dest.path).push(p.id);
+    }
+    for (const [path, ids] of moves) await sections.move(ids, path, { reload: false });
+
+    const kept = new Set([...target.values()].map((d) => d.path));
+    for (const d of sections.departments) {
+      if (kept.has(d.path)) continue;
+      const mine = products.filter((p) => p.section === d.path);
+      const stays = mine.filter((p) => { const k = proposal.placed.get(p.id); return k === undefined || k < 0; });
+      if (stays.length) continue;
+      const tally = new Map();
+      for (const p of mine) { const t = target.get(proposal.placed.get(p.id)); tally.set(t, (tally.get(t) ?? 0) + 1); }
+      const successor = [...tally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+      await sections.remove(d, successor, { reload: false });
+    }
+    setProposal(null);
+    await sections.reload();
+    return 'products';
+  }
 
   const products = useMemo(() => catalogue.rows.filter((p) => !isArchived(p)), [catalogue.rows]);
   const labels = useMemo(() => new Map(sections.departments.map((d) => [d.path, d.label])), [sections.departments]);
@@ -279,20 +407,27 @@ export function CategoriesPage() {
           <h1 className={styles.title}>Sections</h1>
           <p className={styles.sub}>
             {showing.length === 0
-              ? <>No section shows on the shop yet. Each needs {CATEGORY_MIN} live products, so everything sits in Everything else for now.</>
+              ? <>No section shows on the shop yet. Each needs {CATEGORY_MIN} live products, so everything sits in Odds and ends for now.</>
               : showing.length === sections.departments.length
                 ? <>All <span data-num>{showing.length}</span> sections show on the shop.</>
-                : <><span data-num>{showing.length}</span> of <span data-num>{sections.departments.length}</span> show on the shop. The rest fold into Everything else until they have {CATEGORY_MIN} live products.</>}
+                : <><span data-num>{showing.length}</span> of <span data-num>{sections.departments.length}</span> show on the shop. The rest fold into Odds and ends until they have {CATEGORY_MIN} live products.</>}
           </p>
         </div>
         <span className={styles.headActions}>
           <Tip side="end">
-            Sections are the departments across the top of the shop. Moving a product here changes only where the
-            shop shows it; its eBay category, and so Google, stay as they are.
+            Sections are the departments across the top of the shop, and they are yours alone. A product's eBay
+            category is only a clue for {agent}; Google still gets the eBay category.
           </Tip>
-          <button type="button" className={styles.go} onClick={() => setCreating(true)}>
-            <Icon name="IconPlus" width="16" height="16" />New section
-          </button>
+          {!proposal && (
+            <button type="button" className={styles.quiet} disabled={sorting || busy} onClick={askSort}>
+              {sorting ? `${agent} is sorting` : `Sort with ${agent}`}
+            </button>
+          )}
+          {!proposal && (
+            <button type="button" className={styles.go} onClick={() => setCreating(true)}>
+              <Icon name="IconPlus" width="16" height="16" />New section
+            </button>
+          )}
         </span>
       </header>
 
@@ -314,6 +449,11 @@ export function CategoriesPage() {
         </Card>
       )}
 
+      {proposal && (
+        <SortReview proposal={proposal} setProposal={setProposal} products={products} departments={sections.departments}
+          agent={agent} busy={busy} onApply={() => run(applySort, 'Sections set. Old addresses still work.')} onDiscard={() => setProposal(null)} />
+      )}
+
       <div className={styles.grid}>
         {sections.departments.map((d, i) => (
           <Section key={d.path} dept={d} index={i} total={sections.departments.length}
@@ -323,7 +463,7 @@ export function CategoriesPage() {
 
       <Card className={styles.everything}>
         <div className={styles.everythingHead}>
-          <h2 className={styles.everythingTitle}>Everything else</h2>
+          <h2 className={styles.everythingTitle}>Odds and ends</h2>
           <p className={styles.origin}>
             Where the shop puts anything not in a section that shows. <span data-num>{plural(folded.length, 'live product')}</span> there now.
           </p>
@@ -331,7 +471,7 @@ export function CategoriesPage() {
         {unplaced.length > 0 && (
           <p className={styles.unplaced}>
             <b data-num>{unplaced.length}</b> {unplaced.length === 1 ? 'has' : 'have'} no section at all: {unplaced.map((p) => p.title).slice(0, 2).join(', ')}
-            {unplaced.length > 2 ? ` and ${unplaced.length - 2} more` : ''}. Use the + on a section to place {unplaced.length === 1 ? 'it' : 'them'}.
+            {unplaced.length > 2 ? ` and ${unplaced.length - 2} more` : ''}. Use the + on a section, or sort with {agent}.
           </p>
         )}
         <ul className={styles.items}>

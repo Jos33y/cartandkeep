@@ -209,8 +209,9 @@ function modelOf (name) {
     if (UNIT.test(bare) || AMPS.test(bare)) return false
     return (/\d/.test(t) && /[A-Za-z]/.test(t) && t.length >= 4) || /^\d{5,10}$/.test(t)
   })
-  // Region suffixes narrow the eBay search to one seller's listing.
-  return hit ? hit.replace(/-(gb|uk|eu)$/i, '') : null
+  // Region suffixes and trade case counts narrow the eBay search to one seller's listing:
+  // "0025378x12" is a box of twelve; the jar people search for is "0025378".
+  return hit ? hit.replace(/-(gb|uk|eu)$/i, '').replace(/^(\d{5,})x\d{1,3}$/i, '$1') : null
 }
 
 // Everything from the first size token onwards is size and variant.
@@ -285,7 +286,22 @@ for (const r of rows) {
   const extra = model && lead && lead !== model.toLowerCase() ? [`${lead} ${model.toLowerCase()}`] : []
   // One query per product: two or three were mostly the same market asked twice, at a call each.
   // The strongest one wins: model number, then brand and product, then the product alone.
-  const best = extra.length ? extra : (oneWord || named ? [`${brand} ${core}`] : [core])
+  // A name read off a sitemap has no brand field, so "Joseph Joseph Elevate Slotted Spoon" drafted
+  // "slotted spoon dark". There the brand is taken from the start of the name: the repeated pair
+  // ("joseph joseph") or the first word, unless that word is a generic opener.
+  const GENERIC = new Set(['stainless', 'steel', 'large', 'small', 'medium', 'mini', 'set', 'pack', 'new', 'the',
+    'kids', 'childrens', 'mens', 'womens', 'ladies', 'deluxe', 'premium', 'classic', 'round', 'square', 'glass',
+    'plastic', 'wooden', 'silicone', 'electric', 'digital', 'kitchen', 'home', 'garden', 'test', 'food', 'baking'])
+  let nameBrand = null
+  if (!brand && !(price > 0)) {
+    const ws = words(r.name)
+    if (ws[0] && ws[0] === ws[1]) nameBrand = `${ws[0]} ${ws[1]}`
+    else if (ws[0] && !GENERIC.has(ws[0]) && !/\d/.test(ws[0])) nameBrand = ws[0]
+  }
+  const withBrand = nameBrand && !core.startsWith(nameBrand)
+    ? `${nameBrand} ${core.split(' ').filter((x) => !nameBrand.split(' ').includes(x)).join(' ')}`.trim()
+    : null
+  const best = extra.length ? extra : (oneWord || named ? [`${brand} ${core}`] : [withBrand ?? core])
   const plain = oneWord ? [`${brand} ${core}`] : (named ? [core, `${brand} ${core}`] : [core])
   for (const q of args['all-queries'] ? [...plain, ...extra] : best) {
     if (doneQueries.has(q)) continue

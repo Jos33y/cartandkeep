@@ -15,9 +15,10 @@ import row from '@styles/ui/portal/product-row.module.css';
 import styles from '@styles/ui/portal/product-sheet.module.css';
 
 const thumb = (url) => (url ? url.replace(/\/s-l\d+\./, '/s-l225.') : null);
-const top = (path) => String(path ?? '').split('|')[0]?.trim() || null;
 const asText = (v) => (v === null || v === undefined ? '' : String(v));
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+
+const NEW_SECTION = '__new';
 
 const HEAD_LABEL = { archived: 'Archived', live: 'Live', blocked: 'Blocked', question: 'Needs you', ready: 'Ready' };
 
@@ -38,7 +39,6 @@ function returnsOptions(days) {
 
 // The draft only fills what is still empty or still a guess, and marks what it filled.
 function initialForm(product, draft) {
-  const ebayTop = top(product.category_path) ?? '';
   const fresh = draft?.version === 2 && !draft.applied_at ? draft : null;
   const unconfirmedReturns = Boolean(product.derived_fields?.returns_class);
   const specs = visibleSpecs(product.specifications, { max: 0 }).map(([key, value]) => ({ key, value }));
@@ -49,7 +49,7 @@ function initialForm(product, draft) {
     price: asText(product.price),
     description: product.description ?? '',
     brand: product.brand ?? '',
-    section: product.section || ebayTop,
+    section: product.section || '',
     inTheBox: product.in_the_box ?? '',
     specs,
     returnsClass: product.returns_class ?? 'standard',
@@ -81,14 +81,13 @@ function initialForm(product, draft) {
   if (!form.brand && fresh.brand?.real) fill('brand', fresh.brand.name);
   if (!form.inTheBox) fill('inTheBox', fresh.in_the_box);
   if (fresh.details?.length) fill('specs', fresh.details.map((d) => ({ key: d.name, value: d.value })));
-  if (!product.section && fresh.section && fresh.section !== ebayTop) fill('section', fresh.section);
+  if (!product.section && fresh.section) fill('section', fresh.section);
   if (unconfirmedReturns) fill('returnsClass', fresh.returns_class);
   return { form, suggested };
 }
 
 // Everything the sheet changed, as one row update. Throws in her words when a box cannot be saved.
 function buildPatch(product, form, checks, draft) {
-  const ebayTop = top(product.category_path) ?? '';
   const patch = {};
   const set = (column, value, current) => { if (!same(value, current)) patch[column] = value; };
 
@@ -103,7 +102,7 @@ function buildPatch(product, form, checks, draft) {
   set('description', form.description.trim() || null, product.description?.trim() || null);
   set('brand', form.brand.trim() || null, product.brand || null);
   set('in_the_box', form.inTheBox.trim() || null, product.in_the_box || null);
-  set('section', form.section && form.section !== ebayTop ? form.section : null, product.section || null);
+  set('section', form.section || null, product.section || null);
 
   const pairs = {};
   for (const { key, value } of form.specs) {
@@ -171,7 +170,7 @@ function dropKept(id) {
 }
 
 export function ProductSheet({
-  product, focus, onClose, catalogue, categories, categoryCount, fees, tenantId, returnDays, agent, keeper,
+  product, focus, onClose, catalogue, categories, categoryCount, fees, tenantId, returnDays, agent, keeper, onCreateSection,
 }) {
   const { unpublish, saveSheet, saveImages, removeImage,
     addVariant, saveVariant, removeVariant, archive, unarchive } = catalogue;
@@ -180,7 +179,6 @@ export function ProductSheet({
   const checks = checksFor(product);
   const live = isLive(product);
   const archived = isArchived(product);
-  const ebayTop = top(product.category_path) ?? '';
   const steps = Object.fromEntries(stepsFor(product).map((s) => [s.key, s]));
 
   const [kept] = useState(() => readKept(product.id));
@@ -198,6 +196,7 @@ export function ProductSheet({
   const [failed, setFailed] = useState(null);
   const [saved, setSaved] = useState(null);
   const [askFailed, setAskFailed] = useState(null);
+  const [naming, setNaming] = useState(null);
   const [arrived, setArrived] = useState(() => new Set());
   const [landed, setLanded] = useState(null);
   const job = keeper?.stateOf(product.id) ?? null;
@@ -236,6 +235,22 @@ export function ProductSheet({
   };
 
   const sections = useMemo(() => (categories ?? []).map((c) => ({ path: c.path, label: c.label })), [categories]);
+
+  async function makeSection(name) {
+    const clean = String(name ?? '').trim();
+    if (!clean) return;
+    setBusy(true);
+    setFailed(null);
+    try {
+      const path = await onCreateSection(clean);
+      change('section', path);
+      setNaming(null);
+    } catch (e) {
+      setFailed(e?.message ?? 'The section was not made. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function askAgent() {
     setAskFailed(null);
@@ -343,8 +358,10 @@ export function ProductSheet({
   const labelOf = (path) => (categories ?? []).find((c) => c.path === path)?.label ?? null;
   const placedLabel = labelOf(form.section) ?? form.section;
   // Her section names only; eBay's category words never reach her screens.
-  const shelfLabel = labelOf(product.section || ebayTop) ?? 'Odds and ends';
+  const shelfLabel = labelOf(product.section) ?? 'Odds and ends';
   const thin = form.section && categoryCount > 0 && categoryCount < CATEGORY_MIN;
+  const suggestedSection = !form.section && draft?.version === 2 && draft.new_section
+    && !(categories ?? []).some((c) => c.label.toLowerCase() === draft.new_section.toLowerCase()) ? draft.new_section : null;
   const returns = returnsOptions(returnDays);
 
   const groups = [
@@ -498,14 +515,37 @@ export function ProductSheet({
                 It needs {CATEGORY_MIN} to get its own section on the shop; until then these sit in Odds and ends.
               </p>
             )}
+            {suggestedSection && (
+              <div className={row.draft}>
+                <p className={row.draftBody}>
+                  None of your sections fits this. {agent} suggests a new one: <strong>{suggestedSection}</strong>.
+                </p>
+                <button type="button" className={row.ghost} disabled={busy} onClick={() => makeSection(suggestedSection)}>
+                  Create it and put this here
+                </button>
+              </div>
+            )}
             <label className={row.field} {...fx('section')}>
               <span className={row.label}>Section{by('section')}</span>
-              <select className={row.input} value={form.section} onChange={(e) => change('section', e.target.value)}>
-                {!ebayTop && <option value="">Odds and ends</option>}
+              <select className={row.input} value={form.section} onChange={(e) => {
+                if (e.target.value === NEW_SECTION) setNaming(''); else change('section', e.target.value);
+              }}>
+                <option value="">Odds and ends</option>
                 {(categories ?? []).map((c) => <option key={c.path} value={c.path}>{c.label}</option>)}
+                <option value={NEW_SECTION}>New section…</option>
               </select>
-              <span className={row.hint}>Moves it on your shop only.</span>
+              <span className={row.hint}>Where it shows on your shop. Its eBay category stays for Google.</span>
             </label>
+            {naming !== null && (
+              <form className={row.variantAdd} onSubmit={(e) => { e.preventDefault(); makeSection(naming); }}>
+                <label className={row.field}>
+                  <span className={row.label}>New section name</span>
+                  <input className={row.input} value={naming} autoFocus onChange={(e) => setNaming(e.target.value)}
+                    placeholder="Kitchen and dining" onKeyDown={(e) => { if (e.key === 'Escape') setNaming(null); }} />
+                </label>
+                <button type="submit" className={row.ghost} disabled={busy || !naming.trim()}>Create</button>
+              </form>
+            )}
           </div>
         ) },
       ],
