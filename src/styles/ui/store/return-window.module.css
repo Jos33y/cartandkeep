@@ -1,0 +1,49 @@
+/* A bar of days from arrival to the last day to change your mind; the number is the headline, the date the promise. */
+
+.window { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.head { display: flex; align-items: baseline; gap: var(--s-2); color: var(--c-ink); }
+.days { font-size: 1.5rem; line-height: 1; }
+.unit { font-size: var(--t-label); font-weight: 600; }
+
+.bar { display: flex; align-items: center; gap: var(--s-2); }
+
+.seal { flex: none; width: 22px; height: 22px; fill: none; stroke: var(--c-sage-deep); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.segments {
+  flex: 1;
+  min-width: 0;
+  height: 10px;
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  gap: 2px;
+  border-radius: var(--r-full);
+  overflow: hidden;
+}
+
+/* A window longer than thirty days is one continuous band rather than slivers. */
+.segments:empty { background: var(--c-sage-deep); }
+
+.segments i {
+  background: var(--c-sage-deep);
+  transform-origin: left center;
+  animation: fill 280ms var(--ease-out) calc(120ms + var(--i) * 24ms) both;
+}
+
+.until { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; font-size: var(--t-label); font-weight: 500; color: var(--c-ink); }
+
+.estimate {
+  padding: 1px 8px;
+  border: 1px dashed var(--c-line-strong);
+  border-radius: var(--r-full);
+  color: var(--c-ink-soft);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  cursor: help;
+}
+
+.detail { font-size: var(--t-caption); line-height: 1.5; color: var(--c-ink-soft); }
+
+@keyframes fill { from { transform: scaleX(0); } to { transform: none; } }
+
+@media (prefers-reduced-motion: reduce) { .segments i { animation: none; } }

@@ -1,0 +1,23 @@
+/* Real acceptance marks in identical chips, so the row reads as one object whatever each file's proportions. */
+
+.payment { display: flex; flex-direction: column; gap: var(--s-2); }
+
+ul.marks { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+.chip {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--c-line);
+  border-radius: 6px;
+  background: var(--c-surface);
+}
+
+.chip img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+.secure { display: flex; align-items: center; gap: 6px; font-size: var(--t-caption); color: var(--c-ink-soft); }
+.secure svg { flex: none; color: var(--c-sage-deep); }
+.stripe { height: 15px; width: auto; transform: translateY(1px); }
+.stripeText { font-weight: 600; color: var(--c-ink); }

@@ -27,7 +27,8 @@
    40ms apart. The delay is capped at eight steps so the fortieth tile does not
    wait one and a half seconds, and anything past the cap arrives together,
    which is correct because it is below the fold anyway. */
-.grid[data-animate] .cell {
+.grid[data-animate] .cell,
+.shelves[data-animate] .cell {
   opacity: 0;
   animation: rise 320ms var(--ease) forwards;
   animation-delay: calc(min(var(--i, 0), 8) * 40ms);
@@ -39,5 +40,22 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .grid[data-animate] .cell { opacity: 1; animation: none; }
+  .grid[data-animate] .cell,
+.shelves[data-animate] .cell { opacity: 1; animation: none; }
 }
+
+/* Shelves: each row of cards stands on a sage board that runs the full width, a part-filled last row included. */
+.shelves { display: flex; flex-direction: column; gap: var(--s-6); }
+
+.shelf { display: flex; flex-direction: column; }
+
+.board {
+  display: block;
+  height: 12px;
+  margin: 0 -6px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--c-sage-deep) 0 4px, var(--c-wood-dark) 4px);
+  box-shadow: 0 14px 18px -14px color-mix(in srgb, var(--c-ink-deep) 55%, transparent);
+}
+
+@media (min-width: 900px) { .board { height: 14px; } }

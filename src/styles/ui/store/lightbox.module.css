@@ -1,0 +1,105 @@
+/* The one dark panel on the product page: the photograph alone on ink, everything else stepped back. */
+
+.box {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-modal) + 2);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  background: var(--c-ink-deep);
+  color: var(--c-on-dark);
+  animation: fade 220ms var(--ease) both;
+}
+
+/* Flex, not grid: a percentage height on the photo resolves against a flex container's height, but not an auto grid cell's. */
+.stage {
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: var(--s-7) var(--s-4) var(--s-4);
+  touch-action: pinch-zoom;
+}
+
+@media (min-width: 900px) { .stage { padding: var(--s-6) 96px var(--s-4); } }
+
+.photo {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  min-height: 0;
+  object-fit: contain;
+  border-radius: 6px;
+  background: var(--c-surface);
+  transition: transform 320ms var(--ease-out);
+  animation: rise 260ms var(--ease-out) backwards;
+}
+
+.photo[data-can-zoom] { cursor: zoom-in; }
+.photo[data-zoomed] { cursor: zoom-out; transition: transform 320ms var(--ease-out), transform-origin 80ms linear; }
+
+.close,
+.step {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--c-on-dark-line);
+  background: color-mix(in srgb, var(--c-ink-deep) 70%, transparent);
+  color: var(--c-on-dark);
+  transition: border-color 150ms var(--ease), background 150ms var(--ease);
+}
+
+.close { top: var(--s-4); right: var(--s-4); width: 44px; height: 44px; }
+.step { top: 50%; width: 48px; height: 48px; margin-top: -24px; }
+.prev { left: var(--s-4); }
+.next { right: var(--s-4); }
+
+.close:hover, .step:hover { border-color: var(--c-on-dark-soft); background: var(--c-ink); }
+.close:focus-visible, .step:focus-visible { outline: 2px solid var(--c-on-dark); outline-offset: 2px; }
+
+/* Swipe replaces the arrows on a phone. */
+@media (hover: none) { .step { display: none; } }
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom, 0px));
+  min-width: 0;
+}
+
+.count { flex: none; font-size: var(--t-caption); color: var(--c-on-dark-soft); }
+
+/* ul. outranks the reset's ul[class] padding. */
+ul.thumbs { margin: 0; padding: 2px; list-style: none; display: flex; gap: var(--s-2); overflow-x: auto; min-width: 0; scrollbar-width: none; }
+ul.thumbs::-webkit-scrollbar { display: none; }
+
+.thumb {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  padding: 3px;
+  border: 1px solid var(--c-on-dark-line);
+  border-radius: var(--r-control);
+  background: var(--c-surface);
+  opacity: 0.55;
+  transition: opacity 150ms var(--ease);
+}
+
+.thumb:hover { opacity: 0.85; }
+.thumb[data-active] { opacity: 1; box-shadow: 0 0 0 2px var(--c-on-dark); }
+.thumb img { width: 100%; height: 100%; object-fit: contain; }
+
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rise { from { transform: scale(0.97); opacity: 0; } to { transform: none; opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .box, .photo { animation: none; }
+  .photo, .photo[data-zoomed], .thumb, .close, .step { transition: none; }
+}

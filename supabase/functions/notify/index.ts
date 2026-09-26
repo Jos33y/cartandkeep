@@ -31,10 +31,25 @@ const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const RESEND_KEY = Deno.env.get('RESEND_API_KEY')!;
 
+// Same length and every character compared, so the time taken says nothing about how close a guess was.
+function sameSecret(a: string, b: string) {
+  if (!a || !b || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 const FROM = Deno.env.get('MAIL_FROM') ?? 'Cart & Keep <notify@relay.cartandkeep.com>';
 const PORTAL = Deno.env.get('PORTAL_URL') ?? 'https://portal.cartandkeep.com';
 
 const db = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+
+// Read from app_config with this function's own connection, so there is no second copy to paste or drift.
+async function storedSchedulerSecret() {
+  const { data, error } = await db.from('app_config').select('value').eq('key', 'scheduler_secret').maybeSingle();
+  if (error) console.error('[scheduler] secret not readable', error.message);
+  return data?.value ?? '';
+}
 
 // --- formatting --------------------------------------------------------------
 
@@ -580,8 +595,16 @@ Deno.serve(async (req) => {
   const auth = req.headers.get('authorization') ?? '';
   const token = auth.replace(/^Bearer\s+/i, '');
 
-  // Two callers: the webhook with the service key, the portal with a user's JWT.
-  let allowed = token === SERVICE_KEY;
+  // Three callers: the webhook with the service key, the database's scheduled jobs with their own secret,
+  // and the portal with a user's JWT.
+  const sentSecret = req.headers.get('x-scheduler-secret');
+  const scheduled = sentSecret ? sameSecret(sentSecret, await storedSchedulerSecret()) : false;
+  if (sentSecret && !scheduled) {
+    console.error('[scheduler] secret sent but did not match app_config');
+    return json({ error: 'Not authorised', reason: 'scheduler secret does not match app_config' }, 401, origin);
+  }
+  const trusted = scheduled || token === SERVICE_KEY;
+  let allowed = trusted;
   if (!allowed && token) {
     const asUser = createClient(SUPABASE_URL, ANON_KEY, {
       global: { headers: { Authorization: `Bearer ${token}` } },
@@ -599,7 +622,7 @@ Deno.serve(async (req) => {
 
   // Not about an order, so no order_emails row. Handled before the orderId check.
   if (kind === 'low_stock') {
-    if (token !== SERVICE_KEY) return json({ error: 'Not authorised' }, 401, origin);
+    if (!trusted) return json({ error: 'Not authorised' }, 401, origin);
 
     const items = Array.isArray(body.items) ? body.items : [];
     if (items.length === 0) return json({ sent: 'nothing', count: 0 }, 200, origin);
@@ -623,9 +646,9 @@ Deno.serve(async (req) => {
     }
   }
 
-  // The studio's own alert. Service key only, because the address comes in the body.
+  // The studio's own alert. Trusted callers only, because the address comes in the body.
   if (kind === 'pull_alert') {
-    if (token !== SERVICE_KEY) return json({ error: 'Not authorised' }, 401, origin);
+    if (!trusted) return json({ error: 'Not authorised' }, 401, origin);
 
     const a = body as Record<string, any>;
     const to = String(a.to ?? '');

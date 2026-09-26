@@ -9,7 +9,7 @@
  * reason: a department heading, a breadcrumb and a nav item that each resolve
  * a name separately are three chances to call one shelf two things.
  */
-import { displayName, isHidden, slugFor } from '@utils/categoryNames';
+import { displayName, isHidden } from '@utils/categoryNames';
 
 // The top of an eBay category path. eBay has about thirty of these, so a
 // generalist catalogue lands in eight to fifteen groups rather than in forty
@@ -31,6 +31,17 @@ export function leafOf(path) {
 
 // The URL for a group. Derived rather than stored, because the groups are
 // themselves derived and a stored slug would outlive the group it named.
+// The catch-all group's name on the shop. Its key stays 'Everything else', which the portal and the grouping use.
+export const LEFTOVER_NAME = 'Odds and ends';
+
+// A slug she set wins; otherwise one from her name when she renamed it; otherwise eBay's. The eBay one is kept as an alias when it moved.
+function addressOf(path, names) {
+  const legacy = categorySlug(path);
+  const row = (names ?? []).find((n) => n.path === path);
+  const own = row?.slug || (row?.name && row.name !== path ? categorySlug(row.name) : null);
+  return own && own !== legacy ? { slug: own, aliases: [legacy] } : { slug: legacy, aliases: [] };
+}
+
 export function categorySlug(name) {
   return String(name)
     .toLowerCase()
@@ -72,16 +83,8 @@ export function groupCategories(products, { min = 3, label = 'Everything else', 
     // Hers where she has given one, eBay's where she has not.
     name: displayName(group.path, names),
 
-    /*
-     * The address stays derived from eBay's name unless she has set one.
-     *
-     * Deriving it from her name instead would mean renaming a department
-     * silently moves a URL somebody has shared and Google has indexed, which
-     * turns a copy edit into a broken link. Moving an address is a deliberate
-     * second act, which is why `slug` on her row is optional and null by
-     * default.
-     */
-    slug: slugFor(group.path, names, categorySlug(group.path)),
+    // Her address from her name; the eBay address stays as an alias that redirects, so a renamed department never breaks a shared link.
+    ...addressOf(group.path, names),
 
     /*
      * Off the navigation, not gone.
@@ -124,11 +127,22 @@ export function groupCategories(products, { min = 3, label = 'Everything else', 
   if (tail.length) {
     ordered.push({
       path: label,
-      name: label,
+      name: LEFTOVER_NAME,
       items: tail,
-      slug: categorySlug(label),
+      slug: categorySlug(LEFTOVER_NAME),
+      aliases: [categorySlug(label)],
       hidden: false,
     });
+  }
+
+  // Two departments whose names give the same address: the later one keeps its eBay address.
+  const taken = new Set();
+  for (const group of ordered) {
+    if (taken.has(group.slug) && group.aliases?.length) {
+      group.slug = group.aliases[0];
+      group.aliases = [];
+    }
+    taken.add(group.slug);
   }
 
   return ordered;
@@ -172,8 +186,11 @@ export function allGroups(products, options) {
   return [...groupCategories(products, options), ...priceGroups(products)];
 }
 
+// Matches an old address too; the page redirects from it to the group's own.
 export function findGroup(groups, slug) {
-  return groups.find((group) => group.slug === slug) ?? null;
+  return groups.find((group) => group.slug === slug)
+    ?? groups.find((group) => group.aliases?.includes(slug))
+    ?? null;
 }
 
 // eBay serves whatever size the seller uploaded. Asking for one size stops a

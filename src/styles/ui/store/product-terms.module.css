@@ -1,54 +1,19 @@
-/* A specification list, not prose. Label left, fact right, detail underneath
-   for anyone who wants it. */
+/* Returns and payment side by side on a wide card, stacked when it is narrow. */
 
 .terms {
   margin-top: var(--s-5);
-  padding-top: var(--s-4);
+  padding-top: var(--s-5);
   border-top: 1px solid var(--c-line);
   display: flex;
   flex-direction: column;
+  gap: var(--s-4);
 }
 
-.row {
-  display: grid;
-  grid-template-columns: 88px 1fr;
-  gap: var(--s-3);
-  padding: var(--s-3) 0;
-  border-bottom: 1px solid var(--c-line);
-  align-items: baseline;
+.pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); }
+
+@container buycard (min-width: 480px) {
+  .pair { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; }
 }
 
-.row:last-of-type { border-bottom: 0; }
-
-.label {
-  font-size: var(--t-caption);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--c-faint);
-}
-
-.value {
-  margin: 0;
-  font-size: 0.9375rem;
-  font-weight: 500;
-  color: var(--c-ink);
-}
-
-.note {
-  display: block;
-  margin-top: 2px;
-  font-size: 0.8125rem;
-  font-weight: 400;
-  line-height: 1.5;
-  color: var(--c-ink-soft);
-}
-
-.statutory {
-  margin-top: var(--s-4);
-  font-size: var(--t-caption);
-  line-height: 1.55;
-  color: var(--c-faint);
-}
-
+.statutory { font-size: var(--t-caption); line-height: 1.55; color: var(--c-faint); }
 .statutory a { color: var(--c-ink); text-decoration: underline; text-decoration-color: var(--c-sage-deep); text-underline-offset: 3px; }

@@ -58,7 +58,7 @@ function londonParts(date) {
   };
 }
 
-const addDays = (iso, n) => {
+export const addDays = (iso, n) => {
   const d = new Date(`${iso}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { freeOver, postage, returnsTerms } from '@lib/storeConfig';
 
 /*
  * Per route title, description, canonical and structured data.
@@ -137,9 +138,8 @@ export function productSchema(product, { path }) {
       price: price.toFixed(2),
       availability,
       url: `${SITE}${path}`,
-      itemCondition: product.condition === 'New'
-        ? 'https://schema.org/NewCondition'
-        : 'https://schema.org/UsedCondition',
+      // Stated only when the row says so; a missing condition must not become "used".
+      ...(product.condition ? { itemCondition: /^new/i.test(product.condition) ? 'https://schema.org/NewCondition' : 'https://schema.org/UsedCondition' } : {}),
       seller: { '@id': `${SITE}/#organization` },
     },
   };
@@ -165,13 +165,17 @@ export function breadcrumbSchema(trail) {
   };
 }
 
-// Meta descriptions have to be written, not generated, but 78 products cannot
-// wait for that. This produces something specific and true from the fields we
-// have, and a written one replaces it the moment it exists.
-export function productDescription(product, { leaf, formatPrice }) {
-  const brand = product.brand ? `${product.brand} ` : '';
-  const what = leaf ? `${brand}${leaf.toLowerCase()}` : `${brand}${product.title}`.trim();
+// Meta descriptions have to be written, not generated, but products cannot wait for that. Specific and true from the fields and her settings; her words only, never eBay's category.
+export function productDescription(product, { section = null, formatPrice }) {
+  // No brand prefix when the title already starts with it, or the snippet reads "Cesar Cesar".
+  const named = product.brand && !String(product.title).toLowerCase().startsWith(product.brand.toLowerCase());
+  const brand = named ? `${product.brand} ` : '';
+  const what = section ? `${brand}${section}`.trim() : `${brand}${product.title}`.trim();
   const price = formatPrice(Number(product.price));
-  const post = Number(product.price) >= 40 ? 'Free UK delivery' : 'UK delivery from £3.95';
-  return `${what.charAt(0).toUpperCase()}${what.slice(1)}, ${price}. ${post}, 30 day returns, no account needed. ${product.title}`.slice(0, 300);
+  const threshold = freeOver();
+  const post = threshold > 0 && Number(product.price) >= threshold ? 'Free UK delivery' : `UK delivery ${formatPrice(postage())}`;
+  const days = Number(returnsTerms().days);
+  const returns = days > 0 ? `, ${days} days to change your mind` : '';
+  const lead = section ? `${what}: ${product.title}` : what;
+  return `${lead}, ${price}. ${post}${returns}, no account needed.`.slice(0, 300);
 }

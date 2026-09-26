@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router';
 import { STORE_ROUTES } from '@utils/constants';
+import { visibleGroups } from '@utils/categories';
 import styles from '@styles/ui/store/category-nav.module.css';
 
 const categoryPath = (slug) => STORE_ROUTES.CATEGORY.replace(':slug', slug);
@@ -20,7 +21,9 @@ const categoryPath = (slug) => STORE_ROUTES.CATEGORY.replace(':slug', slug);
  * Counts are set in mono and are not decoration. On a catalogue this broad the
  * count is the fastest way to see that Home is twenty four and Pet is four.
  */
-export function CategoryNav({ groups, total }) {
+export function CategoryNav({ groups: all, total }) {
+  // Hidden departments stay reachable by link but off the tabs.
+  const groups = visibleGroups(all);
   if (groups.length < 2) return null;
 
   return (

@@ -141,11 +141,31 @@ async function report(access: string, params: Record<string, string>) {
   });
 }
 
-// Two callers: the 8am schedule with the service key, or a signed-in member of this tenant. Anyone else is refused.
+// Same length and every character compared, so the time taken says nothing about how close a guess was.
+function sameSecret(a: string, b: string) {
+  if (!a || !b || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+// Read from app_config with this function's own connection, so there is no second copy to paste or drift.
+async function storedSchedulerSecret() {
+  const { data, error } = await db().from('app_config').select('value').eq('key', 'scheduler_secret').maybeSingle();
+  if (error) console.error('[scheduler] secret not readable', error.message);
+  return data?.value ?? '';
+}
+
+// Two callers: the 8am schedule with its own secret, or a signed-in member of this tenant. Anyone else is refused.
 async function callerOf(req: Request, tenantId: string): Promise<'schedule' | 'portal' | null> {
+  const sent = req.headers.get('x-scheduler-secret');
+  if (sent) {
+    if (sameSecret(sent, await storedSchedulerSecret())) return 'schedule';
+    console.error('[scheduler] secret sent but did not match app_config');
+    return null;
+  }
   const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
   if (!token) return null;
-  if (token === env('SUPABASE_SERVICE_ROLE_KEY')) return 'schedule';
   const asUser = createClient(env('SUPABASE_URL'), env('SUPABASE_ANON_KEY'), {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { persistSession: false },
@@ -183,7 +203,9 @@ Deno.serve(async (req) => {
   if (!tenantId) return json({ error: 'tenant_id is required' }, 400);
 
   const caller = await callerOf(req, tenantId);
-  if (!caller) return json({ error: 'Not authorised' }, 401);
+  if (!caller) {
+    return json({ error: 'Not authorised', reason: req.headers.get('x-scheduler-secret') ? 'scheduler secret does not match app_config' : 'not a member of this shop' }, 401);
+  }
   const run = await beginPull(tenantId, 'ebay_traffic', caller);
 
   try {

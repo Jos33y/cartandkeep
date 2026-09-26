@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { imageAt } from '@utils/categories';
 import { ChevronRightIcon } from '@components/ui/store/icons';
+import { Lightbox } from '@components/ui/store/Lightbox';
 import styles from '@styles/ui/store/gallery.module.css';
 
 // One photograph reads as a single square; several get arrows on the photo and a strip that keeps the chosen one in view.
-export function Gallery({ images, title, afterFrame = null }) {
+export function Gallery({ images, title, afterFrame = null, zoom = false }) {
   const [active, setActive] = useState(0);
   const [broken, setBroken] = useState(false);
+  const [looking, setLooking] = useState(false);
   const strip = useRef(null);
   const [edges, setEdges] = useState({ start: false, end: false });
 
@@ -67,6 +69,14 @@ export function Gallery({ images, title, afterFrame = null }) {
           decoding="async"
           onError={() => setBroken(true)}
         />
+        {zoom && (
+          <button type="button" className={styles.look} onClick={() => setLooking(true)} aria-label="Look closer" title="Look closer">
+            <svg className={styles.lookIcon} viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="6.5" />
+              <path d="M20 20l-4.2-4.2M11 8.2v5.6M8.2 11h5.6" />
+            </svg>
+          </button>
+        )}
         {many && (
           <>
             <button type="button" className={`${styles.step} ${styles.prev}`} onClick={() => step(-1)} aria-label="Previous photograph">
@@ -81,6 +91,8 @@ export function Gallery({ images, title, afterFrame = null }) {
       </div>
 
       {afterFrame}
+
+      {looking && <Lightbox images={images} start={active} title={title} onClose={() => setLooking(false)} />}
 
       {many && (
         <div className={styles.stripWrap} data-start={edges.start || undefined} data-end={edges.end || undefined}>

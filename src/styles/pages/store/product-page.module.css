@@ -83,6 +83,7 @@
   border: 1px solid var(--c-line);
   border-radius: 18px;
   box-shadow: var(--e-1);
+  container: buycard / inline-size;
 }
 
 @media (min-width: 900px) { .buyCard { padding: var(--s-5); } }
@@ -110,7 +111,16 @@
   font-weight: 500;
 }
 
-.buy { margin-top: var(--s-4); display: flex; gap: var(--s-3); align-items: stretch; flex-wrap: wrap; }
+.buy { margin-top: var(--s-4); display: flex; gap: var(--s-2); align-items: stretch; }
+
+/* One row on a phone: the stepper and the heart give way before the button does. */
+@container buycard (max-width: 400px) {
+  .qty button { width: 38px; }
+  .qty span { min-width: 22px; }
+  .save { width: 48px; }
+  .addBtn { padding: 0 var(--s-3); }
+  .addBtn svg { display: none; }
+}
 
 .qty {
   display: flex;
@@ -126,7 +136,8 @@
 .qty span { min-width: 28px; text-align: center; font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 .addBtn {
-  flex: 1 1 190px;
+  flex: 1 1 auto;
+  min-width: 0;
   white-space: nowrap;
   min-height: 52px;
   padding: 0 var(--s-5);
@@ -148,6 +159,28 @@
 .addBtn[data-added] { background: var(--c-sage-deep); }
 .addBtn:disabled { background: var(--c-sunk); color: var(--c-faint); cursor: default; }
 
+/* The card's heart, at the height of the buy row. Terracotta only once saved, as on the cards. */
+.save {
+  flex: none;
+  width: 52px;
+  min-height: 52px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-control);
+  background: var(--c-surface);
+  color: var(--c-ink-soft);
+  transition: border-color 150ms var(--ease), color 150ms var(--ease), transform 150ms var(--ease);
+}
+
+.save:hover { border-color: var(--c-ink); color: var(--c-ink); }
+.save:active { transform: scale(0.94); }
+.save:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+.save[data-saved] { color: var(--c-action-strong); border-color: var(--c-action-strong); }
+.save[data-saved] svg { fill: currentColor; animation: beat 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+@keyframes beat { from { transform: scale(0.6); } to { transform: none; } }
+
 .delivery {
   margin-top: var(--s-5);
   padding-top: var(--s-5);
@@ -166,9 +199,17 @@
 
 @media (min-width: 900px) {
   .aboutGrid { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: var(--s-7); }
+  /* Short: sticks under the header. Taller than the screen: scrolls until its bottom edge is in view, then holds there. */
+  .aboutSide {
+    position: sticky;
+    top: min(calc(var(--bar-h) + var(--s-4)), calc(100dvh - var(--side-h, 0px) - var(--s-4)));
+  }
 }
 
 .aboutMain, .aboutSide { min-width: 0; display: flex; flex-direction: column; gap: var(--s-5); }
+
+/* Details brings the divider it needed in the old stacked column; here it starts level with the panel beside it. */
+.aboutSide > section:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 
 .description { padding: var(--s-5); background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-card); }
 .descHead { margin-bottom: var(--s-3); font-size: var(--t-label); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--c-faint); }
@@ -224,13 +265,15 @@
   gap: var(--s-3);
 }
 
+.stickyThumb { flex: none; width: 40px; height: 40px; padding: 3px; object-fit: contain; border: 1px solid var(--c-line); border-radius: 8px; background: var(--c-surface); }
+
 .stickyName { flex: 1; min-width: 0; font-size: 0.875rem; color: var(--c-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stickyPrice { flex: none; font-size: 1.0625rem; }
 .stickyInner .addBtn { flex: none; min-height: 46px; }
 
 /* On a phone the name is the least useful part: they are looking at it. */
 @media (max-width: 560px) {
-  .stickyName { display: none; }
+  .stickyName, .stickyThumb { display: none; }
   .stickyInner .addBtn { flex: 1; }
 }
 
@@ -254,5 +297,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .addBtn, .sticky { transition: none; }
+  .addBtn, .sticky, .save { transition: none; }
+  .save[data-saved] svg { animation: none; }
 }

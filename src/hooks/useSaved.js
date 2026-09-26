@@ -25,8 +25,12 @@ function read() {
   }
 }
 
+// The storage event only reaches other tabs; this one tells the header and every card in this tab.
+const EVENT = 'ck:saved';
+
 function write(ids) {
   try { window.localStorage.setItem(KEY, JSON.stringify(ids)); } catch { /* full or private */ }
+  window.dispatchEvent(new Event(EVENT));
 }
 
 export function useSaved() {
@@ -46,29 +50,34 @@ export function useSaved() {
    * list rather than rejecting a product, and netting the two off gives a
    * number that means neither thing.
    */
+  // Read from storage, not this instance's state: another component may have changed it a moment ago.
   const toggle = useCallback((id) => {
     if (!id) return;
-    const saving = !ids.includes(id);
-    const next = saving ? [id, ...ids] : ids.filter((x) => x !== id);
+    const current = read();
+    const saving = !current.includes(id);
+    const next = saving ? [id, ...current] : current.filter((x) => x !== id);
     setIds(next);
     write(next);
     if (saving) trackSave(id);
-  }, [ids]);
+  }, []);
 
   const remove = useCallback((id) => {
-    setIds((current) => {
-      const next = current.filter((x) => x !== id);
-      write(next);
-      return next;
-    });
+    const next = read().filter((x) => x !== id);
+    setIds(next);
+    write(next);
   }, []);
 
   // Two tabs are the same person. A heart filled in one and hollow in the
   // other is the kind of thing that stops somebody trusting the shop.
   useEffect(() => {
     function onStorage(e) { if (e.key === KEY) setIds(read()); }
+    function onLocal() { setIds(read()); }
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    window.addEventListener(EVENT, onLocal);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener(EVENT, onLocal);
+    };
   }, []);
 
   return { ids, toggle, remove, has: (id) => ids.includes(id) };

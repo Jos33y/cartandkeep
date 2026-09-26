@@ -1,29 +1,20 @@
 import { Link } from 'react-router';
 import { imageAt } from '@utils/categories';
 import { ChevronRightIcon } from '@components/ui/store/icons';
+import { SectionGlyph } from '@components/ui/store/SectionGlyph';
 import { formatGbp } from '@utils/formatGbp';
 import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/ui/store/category-header.module.css';
 
-// Same choice as the tiles on the shop front: the most expensive product with
-// a photograph, because that is reliably the best shot in a department and it
-// is never the drain unblocker.
-const cover = (items) =>
-  items.filter((p) => p.image_url).sort((a, b) => Number(b.price) - Number(a.price))[0];
+const SHOWN = 3;
 
-/*
- * A department needs a top.
- *
- * The page went straight from a chip rail into a grid, which reads as a filter
- * applied to the shop front rather than as somewhere you have arrived. This
- * gives it a breadcrumb, a banner in the same treatment as the tiles that link
- * here, and the two numbers a buyer actually wants before scrolling: how many
- * there are and where the prices start.
- */
+// The unit itself: one ink panel with the department's drawn object and a few of its products standing on the board.
 export function CategoryHeader({ group, derived = false }) {
-  const pick = cover(group.items);
-  const cheapest = Math.min(...group.items.map((p) => Number(p.price)));
-  const dearest = Math.max(...group.items.map((p) => Number(p.price)));
+  const prices = group.items.map((p) => Number(p.price)).filter(Number.isFinite);
+  const cheapest = Math.min(...prices);
+  const dearest = Math.max(...prices);
+  const standing = group.items.filter((p) => p.image_url).slice(0, SHOWN);
+  const count = group.items.length;
 
   return (
     <header className={styles.header}>
@@ -33,21 +24,12 @@ export function CategoryHeader({ group, derived = false }) {
         <span aria-current="page">{group.name}</span>
       </nav>
 
-      <div className={styles.banner}>
-        {pick && (
-          <img
-            className={styles.image}
-            src={imageAt(pick.image_url, 800)}
-            alt=""
-            loading="eager"
-            decoding="async"
-          />
-        )}
+      <div className={styles.unit}>
         <div className={styles.label}>
           <h1 className={`${styles.title} wide`}>{group.name}</h1>
           <p className={styles.meta}>
-            {group.items.length} {group.items.length === 1 ? 'product' : 'products'}
-            {Number.isFinite(cheapest) && (
+            {count} {count === 1 ? 'product' : 'products'}
+            {prices.length > 0 && (
               <>
                 {' '}&middot;{' '}
                 <span data-price>{formatGbp(cheapest)}</span>
@@ -55,16 +37,23 @@ export function CategoryHeader({ group, derived = false }) {
               </>
             )}
           </p>
+          {/* A price band is not a department; saying so stops somebody wondering why it has no sub-sections. */}
+          {derived && <p className={styles.note}>Across every section of the shop.</p>}
+        </div>
+
+        <div className={styles.shelf} aria-hidden="true">
+          <span className={styles.object}>
+            <SectionGlyph name={group.name} size={48} className={styles.glyph} />
+            <i className={styles.shadow} />
+          </span>
+          {standing.map((p, i) => (
+            <span key={p.id} className={styles.item} style={{ '--i': i }}>
+              <img src={imageAt(p.image_url, 300)} alt="" loading="eager" decoding="async" />
+            </span>
+          ))}
+          <span className={styles.board} />
         </div>
       </div>
-
-      {/* A price band is not a department, and saying so stops somebody
-          wondering why Under 20 has no sub-sections. */}
-      {derived && (
-        <p className={styles.note}>
-          Everything in the shop below {formatGbp(20)}, across every department.
-        </p>
-      )}
     </header>
   );
 }

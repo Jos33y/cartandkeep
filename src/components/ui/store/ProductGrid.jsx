@@ -1,29 +1,67 @@
+import { useEffect, useState } from 'react';
 import { ProductCard } from './ProductCard';
 import styles from '@styles/ui/store/product-grid.module.css';
 
-/*
- * Shared by the shop front and by a category, so the two cannot drift into
- * looking like different shops.
- *
- * Module level rather than state: the entry animation runs on the first grid
- * of a session and never again. Playing it on every route change turns a
- * pleasant arrival into a stutter between categories.
- */
+// The entry animation runs on the first grid of a session only; replaying it on every route change reads as a stutter.
 let played = false;
 
-export function ProductGrid({ products, onQuickView }) {
+// Same breakpoints as the stylesheet, so a row of cards is exactly one shelf.
+const WIDE = '(min-width: 900px)';
+const MID = '(min-width: 620px)';
+const columns = () => {
+  if (typeof window === 'undefined') return 4;
+  if (window.matchMedia(WIDE).matches) return 4;
+  return window.matchMedia(MID).matches ? 3 : 2;
+};
+
+function useColumns(active) {
+  const [cols, setCols] = useState(columns);
+  useEffect(() => {
+    if (!active || typeof window === 'undefined') return undefined;
+    const queries = [WIDE, MID].map((q) => window.matchMedia(q));
+    const update = () => setCols(columns());
+    queries.forEach((m) => m.addEventListener('change', update));
+    return () => queries.forEach((m) => m.removeEventListener('change', update));
+  }, [active]);
+  return cols;
+}
+
+function Cells({ products, from, onQuickView, shelfName }) {
+  return products.map((product, i) => (
+    // --i is set here rather than on the card, because the delay is read on this element.
+    <li key={product.id} className={styles.cell} style={{ '--i': from + i }}>
+      <ProductCard product={product} index={from + i} onQuickView={onQuickView} shelfName={shelfName} />
+    </li>
+  ));
+}
+
+// Shared by every page that lists products. With shelves, each row of cards stands on its own board, as in the cupboard.
+export function ProductGrid({ products, onQuickView, shelfName = null, shelves = false }) {
   const animate = !played;
   if (typeof window !== 'undefined') played = true;
+  const cols = useColumns(shelves);
+
+  if (!shelves) {
+    return (
+      <ul className={styles.grid} data-animate={animate || undefined}>
+        <Cells products={products} from={0} onQuickView={onQuickView} shelfName={shelfName} />
+      </ul>
+    );
+  }
+
+  const rows = [];
+  for (let i = 0; i < products.length; i += cols) rows.push(products.slice(i, i + cols));
 
   return (
-    <ul className={styles.grid} data-animate={animate || undefined}>
-      {products.map((product, i) => (
-        // --i is set here rather than on the card, because the delay is read
-        // on this element and a custom property inherits downward, not up.
-        <li key={product.id} className={styles.cell} style={{ '--i': i }}>
-          <ProductCard product={product} index={i} onQuickView={onQuickView} />
-        </li>
+    <div className={styles.shelves} data-animate={animate || undefined}>
+      {rows.map((row, r) => (
+        <div key={row[0].id} className={styles.shelf}>
+          <ul className={styles.grid}>
+            <Cells products={row} from={r * cols} onQuickView={onQuickView} shelfName={shelfName} />
+          </ul>
+          <span className={styles.board} aria-hidden="true" />
+        </div>
       ))}
-    </ul>
+    </div>
   );
 }

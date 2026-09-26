@@ -52,10 +52,12 @@ const SKIP = [
   'whisky', 'whiskey', 'vodka', 'gin', 'rum', 'prosecco', 'champagne', 'liqueur', '70cl', '75cl',
   'butane', 'propane', 'flogas', 'calor',
   'nicorette', 'nicotinell', 'nicotine', 'vape', 'vapes',
+  // Pharmacy medicines, which eBay restricts
+  'canesten', 'thrush', 'ibuprofen', 'paracetamol', 'nurofen', 'anadin', 'piriton', 'gaviscon', 'imodium', 'sudafed',
 ];
 // Fragrance houses, caught by brand when the shelf name never says EDP: "Hugo Boss Bottled 50ml Spray".
 // Only when sold by the millilitre or as a spray, so a Calvin Klein wallet still goes through.
-const SCENT_HOUSES = /\b(hugo boss|hugo|boss bottled|jimmy choo|calvin klein|paco rabanne|rabanne|dkny|issey miyake|lacoste|diesel|police|ghost|ariana grande|vera wang|clinique|armaf|afnan|marc jacobs|thierry mugler|mugler|dolce|gabbana|versace|davidoff|azzaro|carolina herrera|ysl|yves saint laurent|guess|britney spears|katy perry|elizabeth arden|lancome|givenchy|dior|tom ford|montblanc|joop|cacharel|nina ricci|kenzo|moschino|michael kors|hollister|jean paul gaultier|playboy|beyonce|rihanna|jennifer lopez|lattafa|eternity|obsession|euphoria|daisy dream|212 ladies|lovestruck)\b/;
+const SCENT_HOUSES = /\b(hugo boss|hugo|boss bottled|jimmy choo|calvin klein|paco rabanne|rabanne|dkny|issey miyake|lacoste|diesel|police|ghost|ariana grande|vera wang|clinique|armaf|afnan|marc jacobs|thierry mugler|mugler|dolce|gabbana|versace|davidoff|azzaro|carolina herrera|ysl|yves saint laurent|guess|britney spears|katy perry|elizabeth arden|lancome|givenchy|dior|tom ford|montblanc|joop|cacharel|nina ricci|kenzo|moschino|michael kors|hollister|jean paul gaultier|playboy|beyonce|rihanna|jennifer lopez|lattafa|eternity|obsession|euphoria|daisy dream|212 ladies|lovestruck|ck|sarah jessica parker|missguided|air du temps|giorgio beverly hills|anais anais|nina ricci|cacharel)\b/;
 const BY_ML = /\b\d+(\.\d+)?\s?ml\b|\bspray\b/;
 
 // The shop's own name is read too: "jimmy choo illicit" says nothing, "Jimmy Choo Illicit 60ml EDP" does.

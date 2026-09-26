@@ -20,7 +20,7 @@ export const SORTS = {
   name: { label: 'Name, A to Z', fn: (a, b) => a.title.localeCompare(b.title) },
 };
 
-export function CategoryControls({ leaves, leaf, onLeaf, sort, onSort, count }) {
+export function CategoryControls({ leaves, leaf, onLeaf, sort, onSort, count, total = count }) {
   return (
     <div className={styles.controls}>
       {leaves.length > 1 && (
@@ -49,8 +49,9 @@ export function CategoryControls({ leaves, leaf, onLeaf, sort, onSort, count }) 
       )}
 
       <div className={styles.right}>
+        {/* The count is on the tab and in the panel; here it only says what a filter left. */}
         <p className={styles.count} aria-live="polite">
-          {count} {count === 1 ? 'product' : 'products'}
+          {count !== total ? `${count} of ${total}` : ''}
         </p>
         <label className={styles.sort}>
           <span className={styles.sortLabel}>Sort</span>

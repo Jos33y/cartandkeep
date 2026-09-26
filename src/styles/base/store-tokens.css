@@ -34,6 +34,8 @@
   --c-sage-wash: #eef2ec;
   /* Text on the sage wash. */
   --c-sage-ink: #3f5139;
+  /* Sage drawn on ink: the department panel's object and the lit edge of its board. */
+  --c-sage-on-dark: #a3b69d;
 
   /* The drawn cupboard: the hero unit and every shelf on the home page share it. */
   --c-wood-dark: #4c5e47;

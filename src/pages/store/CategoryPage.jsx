@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, Navigate, useParams } from 'react-router';
+import { Head } from '@components/layout/shared/Head';
 import { CategoryHeader } from '@components/ui/store/CategoryHeader';
 import { CategoryControls, SORTS } from '@components/ui/store/CategoryControls';
 import { CategoryNav } from '@components/ui/store/CategoryNav';
@@ -9,8 +10,9 @@ import { CategoryNavSkeleton, ProductGridSkeleton } from '@components/ui/store/S
 import { useStoreProducts } from '@hooks/useStoreProducts';
 import { useTenant } from '@hooks/useTenant';
 import { STORE_ROUTES } from '@utils/constants';
-import { allGroups, findGroup, leafOf, sectionOf } from '@utils/categories';
-import { displayName } from '@utils/categoryNames';
+import { allGroups, findGroup } from '@utils/categories';
+import { shopSectionOf } from '@utils/categoryNames';
+import { formatGbp } from '@utils/formatGbp';
 import styles from '@styles/pages/store/category-page.module.css';
 import { useCategoryNames } from '@hooks/useCategoryNamesStore';
 
@@ -64,13 +66,13 @@ export function CategoryPage({ everything = false }) {
 
   // Leaf categories with two or more behind them. A chip that narrows fifteen
   // products to one is a worse version of scrolling.
+  // Her sections as filters on the whole-shop page only. Inside a department the only sub-sections are eBay's, which never show.
+  const keyOf = (p) => shopSectionOf(p, names);
   const leaves = useMemo(() => {
-    if (!group) return [];
+    if (!group || !everything) return [];
     const tally = new Map();
     for (const p of group.items) {
-      // Departments on /shop, leaf categories inside one. Seventy eight
-      // products across forty leaves is a rail nobody reads.
-      const name = everything ? displayName(sectionOf(p), names) : (leafOf(p.category_path) ?? p.category);
+      const name = keyOf(p);
       if (name) tally.set(name, (tally.get(name) ?? 0) + 1);
     }
     return [...tally.entries()]
@@ -80,8 +82,7 @@ export function CategoryPage({ everything = false }) {
 
   const visible = useMemo(() => {
     if (!group) return [];
-    const key = (p) => (everything ? displayName(sectionOf(p), names) : (leafOf(p.category_path) ?? p.category));
-    const filtered = leaf ? group.items.filter((p) => key(p) === leaf) : group.items;
+    const filtered = leaf ? group.items.filter((p) => keyOf(p) === leaf) : group.items;
     const fn = SORTS[sort]?.fn;
     return fn ? [...filtered].sort(fn) : filtered;
   }, [group, leaf, sort, everything, names]);
@@ -119,8 +120,21 @@ export function CategoryPage({ everything = false }) {
     );
   }
 
+  // An old address, such as the eBay name before she renamed it, moves to the group's own.
+  if (!everything && slug !== group.slug) {
+    return <Navigate to={STORE_ROUTES.CATEGORY.replace(':slug', group.slug)} replace />;
+  }
+
+  const path = everything ? STORE_ROUTES.SHOP : STORE_ROUTES.CATEGORY.replace(':slug', group.slug);
+  const cheapest = Math.min(...group.items.map((p) => Number(p.price)));
+
   return (
     <section className={styles.page}>
+      <Head
+        title={group.name}
+        description={`${group.items.length} ${group.items.length === 1 ? 'product' : 'products'} from ${formatGbp(cheapest)}, delivered from the UK. No account needed to buy.`}
+        path={path}
+      />
       <CategoryNav groups={groups} total={rows.length} />
 
       <CategoryHeader group={group} derived={Boolean(group.derived)} />
@@ -132,10 +146,11 @@ export function CategoryPage({ everything = false }) {
         sort={sort}
         onSort={setSort}
         count={visible.length}
+        total={group.items.length}
       />
 
       {visible.length > 0 ? (
-        <ProductGrid products={visible} onQuickView={setPeek} />
+        <ProductGrid shelves products={visible} onQuickView={setPeek} shelfName={everything ? null : group.name} />
       ) : (
         <div className={styles.empty}>
           <p className={styles.emptyLead}>Nothing in that sub-section right now.</p>
