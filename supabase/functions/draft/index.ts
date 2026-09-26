@@ -16,6 +16,19 @@
  */
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+
+// The model sometimes answers "nothing" as a pair of quote marks or a word; all of those are empty.
+const emptyish = (v: string) => (/^(["'`]{2}|none|n\/a|-|unknown|not stated)$/i.test(v.trim()) ? '' : v.replace(/^["']|["']$/g, '').trim());
+
+// A last guard on customer copy: any sentence about the supplier, the photograph or the source moves to flags, never to the shop.
+const BACKSTAGE = /\b(supplier|photograph|photo|image|listing|source|the details|feed|not visible|cannot be confirmed)\b/i;
+function customerCopy(description: string, flags: string[]) {
+  const sentences = description.match(/[^.!?]+[.!?]+(\s|$)/g) ?? [description];
+  const kept = sentences.filter((x) => !BACKSTAGE.test(x));
+  const moved = sentences.filter((x) => BACKSTAGE.test(x)).map((x) => `Left out of the description: ${x.trim()}`);
+  return { description: kept.join('').trim(), flags: [...flags, ...moved] };
+}
+
 const ALLOWED = (Deno.env.get('STORE_ORIGINS')
   ?? 'https://portal.cartandkeep.com,http://localhost:5180,http://127.0.0.1:5180')
   .split(',')
@@ -140,7 +153,9 @@ RULES, in order of importance.
 
 VOICE. British English. Plain, calm, specific. Short sentences. Write as a shopkeeper who has the thing in their hand, not as a marketplace listing. No emoji, no bullet symbols, no exclamation marks, no second person sales patter.
 
-DESCRIPTION. Two to four sentences, 40 to 90 words. What it is, what it is for, and anything the photograph does not show. Plain prose, no headings, no lists.
+DESCRIPTION. Two to four sentences, 40 to 90 words. What it is, what it is for, and what is certain about it. Plain prose, no headings, no lists.
+
+The description is what a customer reads on the shop. It never mentions the supplier, the photograph, the listing, the details, the source or any doubt. Anything uncertain or contradictory is left out of the description entirely and goes in flags. A customer must never read "the supplier says" or "not visible in the photograph".
 
 TITLE. Under 65 characters. What the thing is, the brand if there is a real one, and the one distinguishing detail that is certain. Strip the feed's keyword stuffing, pipes, model codes and repeated words. "Unbranded" is not a brand.
 
@@ -362,9 +377,8 @@ async function draftFor(product: Record<string, any>) {
   const parsed = call.input ?? {};
 
   return {
-    description: String(parsed.description ?? '').trim(),
+    ...customerCopy(String(parsed.description ?? '').trim(), tidyFlags(parsed.flags)),
     title: String(parsed.title ?? '').trim(),
-    flags: tidyFlags(parsed.flags),
     /*
      * Validated against the three the column accepts rather than trusted.
      *
@@ -376,7 +390,7 @@ async function draftFor(product: Record<string, any>) {
     returns_class: ['standard', 'sealed', 'none'].includes(parsed.returns_class)
       ? parsed.returns_class : 'standard',
     returns_reason: String(parsed.returns_reason ?? '').trim(),
-    in_the_box: String(parsed.in_the_box ?? '').trim(),
+    in_the_box: emptyish(String(parsed.in_the_box ?? '').trim()),
     /*
      * What answered, not what was asked for.
      *
