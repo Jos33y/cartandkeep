@@ -11,11 +11,12 @@ if ($LASTEXITCODE -eq 0 -and $status) {
 }
 
 # Code files are only deleted if nothing in src still imports them.
+# Matched on the import path, case sensitive: 'Cupboard' alone also matches scope-cupboard.module.css.
 $code = @(
-    @{ Path = 'src\components\ui\store\Cupboard.jsx';        Name = 'Cupboard' },
-    @{ Path = 'src\styles\ui\store\cupboard.module.css';     Name = 'cupboard.module.css' },
-    @{ Path = 'src\components\ui\store\TrustStrip.jsx';      Name = 'TrustStrip' },
-    @{ Path = 'src\styles\ui\store\trust-strip.module.css';  Name = 'trust-strip.module.css' }
+    @{ Path = 'src\components\ui\store\Cupboard.jsx';        Import = 'ui/store/Cupboard(\.jsx)?[''"]' },
+    @{ Path = 'src\styles\ui\store\cupboard.module.css';     Import = 'ui/store/cupboard\.module\.css[''"]' },
+    @{ Path = 'src\components\ui\store\TrustStrip.jsx';      Import = 'ui/store/TrustStrip(\.jsx)?[''"]' },
+    @{ Path = 'src\styles\ui\store\trust-strip.module.css';  Import = 'ui/store/trust-strip\.module\.css[''"]' }
 )
 
 $loose = @(
@@ -32,8 +33,8 @@ foreach ($c in $code) {
     if (-not (Test-Path $c.Path)) { Write-Host "    [ABSENT]  $($c.Path)" -ForegroundColor DarkGray; continue }
     $self = (Resolve-Path $c.Path).Path
     $uses = Get-ChildItem 'src' -Recurse -File -Include *.jsx, *.js, *.css |
-        Where-Object { $_.FullName -ne $self -and $_.Name -notlike 'Cupboard.jsx' -and $_.Name -notlike 'TrustStrip.jsx' } |
-        Select-String -Pattern "import[^;]*\b$([regex]::Escape($c.Name))\b" -List
+        Where-Object { $_.FullName -ne $self -and $_.Name -ne 'Cupboard.jsx' -and $_.Name -ne 'TrustStrip.jsx' } |
+        Select-String -Pattern $c.Import -CaseSensitive -List
     if ($uses) {
         Write-Host "    [KEPT]    $($c.Path), still imported by:" -ForegroundColor Red
         $uses | ForEach-Object { Write-Host "                $($_.Path):$($_.LineNumber)" -ForegroundColor Red }

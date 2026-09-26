@@ -256,7 +256,11 @@ for (const r of rows) {
   r.name = String(r.name || '').replace(/[-/]?\s*(not\s+)?eligible for vat relief/ig, '').replace(/\s{2,}/g, ' ').trim()
   const w = words(r.name)
   // The shelf gives the brand, so it is removed rather than detected.
-  const brand = (r.brand || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').trim()
+  // A shop filing its own name as the brand ("Essential Aids") is no brand at all, and hid the model rule.
+  const squashed = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+  const host = squashed(String(r.url || '').replace(/^https?:\/\/(www\.)?/, '').split(/[./]/)[0])
+  const ownName = host && squashed(r.brand) && (host.includes(squashed(r.brand)) || squashed(r.brand).includes(host))
+  const brand = ownName ? '' : (r.brand || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').trim()
   const brandWords = brand ? brand.split(/\s+/) : []
   const body = brandWords.length && w.slice(0, brandWords.length).join(' ') === brand
     ? w.slice(brandWords.length)
