@@ -37,12 +37,27 @@ const tag = (xml: string, name: string) => {
 const tags = (xml: string, name: string) =>
   [...xml.matchAll(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`, 'g'))].map((m) => decode(m[1].trim()));
 
+
+// The shop id is public, so the caller has to prove membership, not just name the shop.
+async function allowed(req: Request, tenantId: string) {
+  const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
+  if (!token) return false;
+  if (token === env('SUPABASE_SERVICE_ROLE_KEY')) return true;
+  const asUser = createClient(env('SUPABASE_URL'), env('SUPABASE_ANON_KEY'), {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false },
+  });
+  const { data, error } = await asUser.rpc('has_tenant', { t: tenantId });
+  return !error && data === true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
     const { tenant_id: tenantId, listing_id: listingId } = await req.json();
     if (!tenantId || !listingId) return json({ error: 'tenant_id and listing_id are required' }, 400);
+    if (!(await allowed(req, tenantId))) return json({ error: 'Not authorised. Sign in to the portal and try again.' }, 401);
 
     const { data: cred, error } = await db()
       .from('tenant_credentials')
