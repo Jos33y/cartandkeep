@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router';
 import { useEbayTraffic, diagnose, VERDICTS, atStake, benchmarkOf } from '@hooks/useEbayTraffic';
+import { useKeeper } from '@hooks/useKeeper';
+import { useCategoryNames } from '@hooks/useCategoryNames';
+import { KeeperDock, DockNote } from '@components/ui/portal/KeeperDock';
+import { portalPath, PORTAL_ROUTES } from '@utils/constants';
 import { loadTenant } from '@lib/tenant';
 import { Icon } from '@components/ui/icons';
 import { PageSkeleton, RowSkeleton } from '@components/ui/portal/Skeleton';
@@ -225,7 +230,23 @@ export function EbayTrafficPage() {
   const [tenant, setTenant] = useState(undefined);
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
-  const { status, total, listings, days, sales, error, pulling, pull } = useEbayTraffic(tenant?.id);
+  const { status, total, listings, days, sales, error, pulling, pull, onShop, bringToShop } = useEbayTraffic(tenant?.id);
+  const keeper = useKeeper(tenant?.id);
+  const agent = tenant?.store?.agent?.name || 'Your assistant';
+  const names = useCategoryNames(tenant?.id);
+  const sections = useMemo(() => names.departments.map((d) => ({ path: d.path, label: d.label })), [names.departments]);
+  const [bringing, setBringing] = useState(null);
+  const [brought, setBrought] = useState(null);
+
+  async function bring(ids) {
+    if (bringing || !ids.length) return;
+    setBrought(null);
+    setBringing({ done: 0, total: ids.length });
+    const result = await bringToShop(ids, sections, (done, all) => setBringing({ done, total: all }));
+    setBringing(null);
+    setBrought(result);
+    await keeper.adopt();
+  }
   const [only, setOnly] = useState(null);
   const [sort, setSort] = useState({ key: 'stake', dir: -1 });
   const [find, setFind] = useState('');
@@ -314,6 +335,9 @@ export function EbayTrafficPage() {
 
   const click = (key) => setSort((s) => (s.key === key ? { key, dir: -s.dir } : { key, dir: -1 }));
   const filtered = only || find.trim();
+  const notYet = shown.filter((r) => !onShop.has(String(r.listing_id)));
+  const skippedWhy = brought?.skipped?.length
+    ? `${brought.skipped.length} not added: ${brought.skipped[0].reason}${brought.skipped.length > 1 ? ', and others' : ''}.` : null;
 
   return (
     <div className={styles.page}>
@@ -411,6 +435,12 @@ export function EbayTrafficPage() {
             {/* A filter you can see and dismiss. Applying one was a click on a
                 band and removing it was the same click again, which nobody
                 finds by accident. */}
+            {notYet.length > 0 && (
+              <button type="button" className={styles.bring} disabled={Boolean(bringing)} onClick={() => bring(notYet.map((r) => String(r.listing_id)))}>
+                Add {notYet.length === 1 ? 'it' : `these ${notYet.length}`} to your shop
+              </button>
+            )}
+
             {filtered ? (
               <button type="button" className={styles.chip}
                 onClick={() => { setOnly(null); setFind(''); }}>
@@ -447,21 +477,21 @@ export function EbayTrafficPage() {
             {pulling && Array.from({ length: 6 }, (_, i) => <RowSkeleton key={`s${i}`} i={i} />)}
 
             {!pulling && shown.map((r, i) => (
-              <a key={r.listing_id} className={`${styles.row} ${i < 3 && r.stake > 0 ? styles.urgent : ''}`}
-                href={`https://www.ebay.co.uk/itm/${r.listing_id}`}
-                target="_blank" rel="noreferrer noopener">
+              <div key={r.listing_id} className={`${styles.row} ${i < 3 && r.stake > 0 ? styles.urgent : ''}`}>
                 {r.image_url
                   ? <img className={styles.thumb} src={r.image_url} alt="" loading="lazy" />
                   : <span className={`${styles.thumb} ${styles.thumbEmpty}`} aria-hidden="true" />}
 
                 <span className={styles.who}>
-                  <span className={styles.name}>
+                  <a className={styles.name} href={`https://www.ebay.co.uk/itm/${r.listing_id}`} target="_blank" rel="noreferrer noopener">
                     {r.title ?? r.listing_id}
                     <Icon name="IconOut" className={styles.out} />
-                  </span>
+                  </a>
                   <span className={styles.sub}>
                     <span className={`${styles.tag} ${styles[r.verdict]}`}>{VERDICTS[r.verdict].label}</span>
                     {r.price != null && <span data-num>{gbp(r.price, r.currency ?? 'GBP')}</span>}
+                    <ShopMark item={onShop.get(String(r.listing_id))} disabled={Boolean(bringing)}
+                      onAdd={() => bring([String(r.listing_id)])} />
                     {r.lastSoldAt && (
                       <span className={styles.won}>
                         sold <span data-num>{dayName(r.lastSoldAt)}</span>{r.afterWindow ? ', after this window' : ''}
@@ -488,7 +518,7 @@ export function EbayTrafficPage() {
                     {r.stake ? gbp(r.stake) : '--'}
                   </span>
                 )}
-              </a>
+              </div>
             ))}
 
             {shown.length === 0 && (
@@ -497,6 +527,33 @@ export function EbayTrafficPage() {
           </div>
         </section>
       )}
+
+      <KeeperDock keeper={keeper} agent={agent}>
+        {bringing && (
+          <DockNote line={`Bringing ${bringing.done ? `${bringing.done} of ` : ''}${bringing.total} from eBay`}
+            note={`Each one goes to ${agent} as it lands.`} progress={bringing.done / bringing.total} />
+        )}
+        {!bringing && brought && (brought.added.length > 0 || skippedWhy) && (
+          <DockNote line={`${brought.added.length} added to your products as drafts.`}
+            note={skippedWhy ?? `Review them under New from eBay once ${agent} has filled them in.`}
+            onDismiss={() => setBrought(null)} />
+        )}
+      </KeeperDock>
     </div>
+  );
+}
+
+// On the shop, waiting in Products, or one tap to bring it over.
+function ShopMark({ item, onAdd, disabled }) {
+  if (item?.status === 'live') {
+    return <Link className={styles.onShop} to={portalPath(`${PORTAL_ROUTES.PRODUCTS}?open=${item.id}`)}>On your shop</Link>;
+  }
+  if (item) {
+    return <Link className={styles.inProducts} to={portalPath(`${PORTAL_ROUTES.PRODUCTS}?open=${item.id}`)}>In Products, not live</Link>;
+  }
+  return (
+    <button type="button" className={styles.addOne} disabled={disabled} onClick={onAdd}>
+      <Icon name="IconPlus" width="11" height="11" />Add to shop
+    </button>
   );
 }

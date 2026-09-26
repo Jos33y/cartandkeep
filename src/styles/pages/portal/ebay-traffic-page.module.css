@@ -509,3 +509,50 @@
 .stepLatest { margin-top: 2px; font-size: var(--t-micro); color: var(--c-ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stepLatest a { color: inherit; text-decoration: underline; text-decoration-color: var(--c-line-strong); text-underline-offset: 2px; }
 .stepLatest a:hover { color: var(--c-ink); }
+
+a.name { text-decoration: none; }
+a.name:hover { text-decoration: underline; text-decoration-color: var(--c-line-mid); text-underline-offset: 3px; }
+a.name:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; border-radius: var(--r-sm); }
+
+/* Whether the listing is on her shop: the one fact that turns this page from a report into a to-do. */
+.bring {
+  margin-left: auto;
+  min-height: 36px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font-size: var(--t-label);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.bring:hover:not(:disabled) { background: var(--c-raised); }
+.bring:disabled { opacity: 0.55; cursor: not-allowed; }
+.bring:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+.onShop, .inProducts, .addOne {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px var(--s-2);
+  border-radius: var(--r-sm);
+  font-family: var(--font-ui);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.onShop { background: var(--c-positive-wash); color: var(--c-positive); }
+.inProducts { background: var(--c-info-wash); color: var(--c-info); }
+.addOne { border: 1px solid var(--c-line-mid); background: var(--c-surface); color: var(--c-ink); cursor: pointer; }
+.addOne:hover:not(:disabled) { background: var(--c-raised); border-color: var(--c-line-strong); }
+.addOne:disabled { opacity: 0.55; cursor: not-allowed; }
+.onShop:focus-visible, .inProducts:focus-visible, .addOne:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+@media (max-width: 760px) {
+  .bring { margin-left: 0; flex-basis: 100%; }
+  .tools { flex-wrap: wrap; }
+}

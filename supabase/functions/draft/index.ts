@@ -324,6 +324,26 @@ function mergeDetails(raw: unknown, original: Record<string, string>) {
 
 const CARE = new Set(['biocide', 'supplement', 'electrical', 'branded', 'sealed']);
 
+// Careful goods are imported, never refused; each brings the one question that decides whether it can sell.
+// An answer listed in holds keeps it off the shop, with the hold named, until she changes it.
+const CARE_QUESTIONS: Record<string, { id: string; question: string; options: string[]; detail: string | null; holds: string[]; hold: string }> = {
+  electrical: {
+    id: 'care-electrical', question: 'What does it plug into?',
+    options: ['A UK mains plug', 'USB or batteries', 'A plug that is not UK'], detail: 'Power',
+    holds: ['A plug that is not UK'], hold: 'Needs a UK plug or a fitted adaptor',
+  },
+  branded: {
+    id: 'care-branded', question: 'Is this genuine stock, bought from the brand or a seller it authorises?',
+    options: ['Yes, genuine', 'Not sure'], detail: null,
+    holds: ['Not sure'], hold: 'Genuine stock not confirmed',
+  },
+  supplement: {
+    id: 'care-supplement', question: 'Is it a food supplement sold legally in the UK, with its label in English?',
+    options: ['Yes', 'Not sure'], detail: null,
+    holds: ['Not sure'], hold: 'Supplement not confirmed for UK sale',
+  },
+};
+
 type Section = { path: string; label: string };
 
 async function draftFor(product: Record<string, any>, sections: Section[]) {
@@ -385,6 +405,7 @@ async function draftFor(product: Record<string, any>, sections: Section[]) {
   const paths = new Set(sections.map((s) => s.path));
   const merged = mergeDetails(parsed.details, specs);
   const copy = customerCopy(String(parsed.description ?? '').trim(), [...tidyDone(parsed.done), ...merged.removed]);
+  const care: string[] = [...new Set<string>((Array.isArray(parsed.care) ? parsed.care : []).filter((c: string) => CARE.has(c)))];
 
   return {
     version: 2,
@@ -398,8 +419,8 @@ async function draftFor(product: Record<string, any>, sections: Section[]) {
     details: merged.details,
     in_the_box: emptyish(clip(parsed.in_the_box, 400)),
     section: paths.has(parsed.section) ? parsed.section : null,
-    care: (Array.isArray(parsed.care) ? parsed.care : []).filter((c: string) => CARE.has(c)),
-    decide: tidyDecide(parsed.decide),
+    care,
+    decide: [...tidyDecide(parsed.decide), ...care.filter((c) => CARE_QUESTIONS[c]).map((c) => CARE_QUESTIONS[c])],
     done: copy.done,
     // Anything unexpected falls back to standard, the class that grants the most rights.
     returns_class: ['standard', 'sealed', 'none'].includes(parsed.returns_class) ? parsed.returns_class : 'standard',

@@ -239,25 +239,19 @@
 
 /* Floats, rather than sitting as a bar of disabled buttons when nothing is ticked. */
 .selection {
-  position: fixed;
-  left: 50%;
-  bottom: var(--s-5);
-  z-index: var(--z-drawer);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--s-2);
-  max-width: calc(100vw - var(--s-6));
   padding: var(--s-2) var(--s-2) var(--s-2) var(--s-4);
   border-radius: 12px;
   background: var(--c-ink);
   color: var(--c-base);
   box-shadow: 0 20px 50px rgba(42, 39, 35, 0.28), 0 2px 6px rgba(42, 39, 35, 0.2);
-  transform: translateX(-50%);
   animation: lift var(--dur-settle) var(--ease-out) both;
 }
 
-@keyframes lift { from { opacity: 0; transform: translate(-50%, 16px); } }
+@keyframes lift { from { opacity: 0; transform: translateY(16px); } }
 
 .selCount { display: flex; align-items: baseline; gap: 6px; padding-right: var(--s-3); margin-right: var(--s-1); border-right: 1px solid rgba(250, 246, 239, 0.18); font-size: var(--t-label); }
 .selCount b { font-size: var(--t-lead); font-weight: 500; }
@@ -306,7 +300,7 @@
   .cols { display: none; }
   .ghost { grid-template-columns: 1fr; }
   .ghost > :not(.ghostName) { display: none; }
-  .selection { left: var(--s-3); right: var(--s-3); bottom: var(--s-3); transform: none; animation: none; }
+  .selection { animation: none; }
   .selGo, .selButton { flex: 1; }
 }
 
@@ -316,47 +310,3 @@
 
 .dot[data-tone='warning'] { background: var(--c-warning); }
 
-/* Keeper's progress: one strip, above the filters, so no filter can hide it. */
-.keeper {
-  display: flex;
-  align-items: center;
-  gap: var(--s-5);
-  padding: var(--s-4) var(--s-5);
-  background: var(--c-surface);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-lg);
-  box-shadow: var(--e-1);
-  animation: rise var(--dur-enter) var(--ease-out) both;
-}
-
-.keeperText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--s-1); }
-.keeperLine { font-size: var(--t-body); font-weight: 500; line-height: var(--lh-snug); }
-.keeperLine b { font-weight: 600; }
-.keeperNote { font-size: var(--t-caption); color: var(--c-ink-soft); line-height: var(--lh-snug); }
-
-.keeperTrack { display: block; height: 4px; margin-top: var(--s-2); border-radius: var(--r-full); background: var(--c-sunk); overflow: hidden; }
-.keeperTrack i { display: block; height: 100%; border-radius: inherit; background: var(--c-info); transition: width var(--dur-settle) var(--ease-out); }
-.keeper:not([data-running]) .keeperTrack i { background: var(--c-positive); }
-
-.keeperActions { display: flex; align-items: center; gap: var(--s-2); flex: none; }
-
-.keeperClose {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--r-md);
-  color: var(--c-ink-faint);
-}
-
-.keeperClose:hover { background: var(--c-sunk); color: var(--c-ink); }
-.keeperClose:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
-
-@media (max-width: 720px) {
-  .keeper { flex-direction: column; align-items: stretch; gap: var(--s-3); padding: var(--s-4); }
-  .keeperActions { justify-content: flex-end; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .keeper, .keeperTrack i { animation: none; transition: none; }
-}

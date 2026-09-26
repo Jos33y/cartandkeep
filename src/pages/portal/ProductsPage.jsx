@@ -8,9 +8,10 @@ import { PageSkeleton } from '@components/ui/portal/Skeleton';
 import { Tip } from '@components/ui/portal/primitives';
 import { Icon } from '@components/ui/icons';
 import {
-  useCatalogue, categoryCounts, isLive, isReady, isNeedsYou, isBlocked, isArchived,
+  useCatalogue, categoryCounts, isLive, isReady, isNeedsYou, isBlocked, isArchived, isNewFromEbay,
 } from '@hooks/useCatalogue';
 import { useKeeper } from '@hooks/useKeeper';
+import { KeeperDock } from '@components/ui/portal/KeeperDock';
 import { stepsFor, columnsFor, isOpen } from '@lib/readiness';
 import { useCategoryNames } from '@hooks/useCategoryNames';
 import { sectionOf } from '@utils/categories';
@@ -22,11 +23,14 @@ const FILTERS = [
   { key: 'needs', label: 'Needs you', tone: 'warning' },
   { key: 'blocked', label: 'Blocked', tone: 'negative' },
   { key: 'live', label: 'Live', tone: 'positive' },
+  { key: 'imported', label: 'New from eBay' },
   { key: 'all', label: 'All' },
   { key: 'archived', label: 'Archived' },
 ];
 
-const MATCH = { live: isLive, archived: isArchived, blocked: isBlocked, needs: isNeedsYou, ready: isReady, all: () => true };
+const MATCH = {
+  live: isLive, archived: isArchived, blocked: isBlocked, needs: isNeedsYou, ready: isReady, imported: isNewFromEbay, all: () => true,
+};
 
 // What the biggest gap card says, per step.
 const GAP = {
@@ -64,6 +68,7 @@ export function ProductsPage() {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(null);
   const [adding, setAdding] = useState(false);
+  const [asking, setAsking] = useState(false);
   const [open, setOpen] = useState(null);
 
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
@@ -171,12 +176,16 @@ export function ProductsPage() {
   const allPicked = visible.length > 0 && visible.every((p) => picked.has(p.id));
 
   async function fillIn() {
+    if (asking) return;
+    setAsking(true);
     setFailed(null);
     try {
       await keeper.ask(undrafted.map((p) => p.id), categories);
       setPicked(new Set());
     } catch (e) {
       setFailed(e?.message ?? `${agentName} could not start. Try again.`);
+    } finally {
+      setAsking(false);
     }
   }
 
@@ -214,7 +223,7 @@ export function ProductsPage() {
   const rest = columns.filter((c) => !c.gate);
   const left = tally.total - tally.done;
   const pct = (n) => `${tally.total ? (n / tally.total) * 100 : 0}%`;
-  const filters = FILTERS.filter((f) => f.key !== 'archived' || counts.archived > 0);
+  const filters = FILTERS.filter((f) => (f.key !== 'archived' || counts.archived > 0) && (f.key !== 'imported' || counts.imported > 0));
   const gapCopy = gap && GAP[gap.key];
 
   const header = (c) => {
@@ -325,12 +334,6 @@ export function ProductsPage() {
         </section>
       )}
 
-      {keeper.summary && (
-        <KeeperStrip summary={keeper.summary} agent={agentName} titleOf={(id) => rows.find((r) => r.id === id)?.title}
-          onOpen={(id) => openSheet(id, 'checks')} onDismiss={keeper.dismiss}
-          onRetry={(ids) => keeper.ask(ids, categories)} />
-      )}
-
       <div className={styles.toolbar}>
         <div className={styles.tabs} role="group" aria-label="Filter products">
           {filters.map((f) => (
@@ -422,12 +425,14 @@ export function ProductsPage() {
         )}
       </div>
 
+      <KeeperDock keeper={keeper} agent={agentName} titleOf={(id) => rows.find((r) => r.id === id)?.title}
+        onOpen={(id) => openSheet(id, 'checks')} onRetry={(ids) => keeper.ask(ids, categories)}>
       {picked.size > 0 && (
         <div className={styles.selection} role="region" aria-label="Selected products">
           <span className={styles.selCount}><b data-num>{picked.size}</b> selected</span>
           {undrafted.length > 0 && (
-            <button type="button" className={styles.selButton} disabled={busy} onClick={fillIn}>
-              Fill in {plural(undrafted.length, 'product')} with {agentName}
+            <button type="button" className={styles.selButton} disabled={busy || asking} onClick={fillIn}>
+              {asking ? `Handing over to ${agentName}` : `Fill in ${plural(undrafted.length, 'product')} with ${agentName}`}
             </button>
           )}
           {pickedLive.length > 0 && (
@@ -448,6 +453,7 @@ export function ProductsPage() {
           {failed && <p className={styles.selError} role="alert">{failed}</p>}
         </div>
       )}
+      </KeeperDock>
 
       {openProduct && (
         <ProductSheet
@@ -469,61 +475,16 @@ export function ProductsPage() {
   );
 }
 
-// One place for Keeper's progress on the page, whatever filter is showing.
-function KeeperStrip({ summary, agent, titleOf, onOpen, onDismiss, onRetry }) {
-  const { total, finished, running, done, failed, withQuestions } = summary;
-  const firstQuestion = withQuestions[0];
-  return (
-    <section className={styles.keeper} data-running={running || undefined} aria-live="polite">
-      <div className={styles.keeperText}>
-        {running ? (
-          <>
-            <p className={styles.keeperLine}>
-              {agent} is filling in <b data-num>{Math.min(finished + 1, total)}</b> of <b data-num>{total}</b>
-            </p>
-            <p className={styles.keeperNote}>This carries on if you close the portal.</p>
-          </>
-        ) : (
-          <>
-            <p className={styles.keeperLine}>
-              {agent} filled in <b data-num>{done}</b>{total > 1 ? ` of ${total}` : ''}.
-              {withQuestions.length > 0 && <> {plural(withQuestions.length, 'has a question', 'have a question')} for you.</>}
-              {withQuestions.length === 0 && done > 0 && ' Nothing to ask you.'}
-            </p>
-            {failed.length > 0 && (
-              <p className={styles.keeperNote}>
-                Could not fill in {failed.map((j) => titleOf(j.product_id) ?? 'a product').join(', ')}: {failed[0].error}
-              </p>
-            )}
-          </>
-        )}
-        <span className={styles.keeperTrack} aria-hidden="true"><i style={{ width: `${(finished / total) * 100}%` }} /></span>
-      </div>
-      {!running && (
-        <div className={styles.keeperActions}>
-          {failed.length > 0 && (
-            <button type="button" className={styles.quiet} onClick={() => onRetry(failed.map((j) => j.product_id))}>Try again</button>
-          )}
-          {firstQuestion && (
-            <button type="button" className={styles.quiet} onClick={() => onOpen(firstQuestion)}>
-              Answer {withQuestions.length === 1 ? 'it' : 'the first'}
-            </button>
-          )}
-          <button type="button" className={styles.keeperClose} aria-label="Dismiss" onClick={onDismiss}>
-            <Icon name="IconX" width="14" height="14" />
-          </button>
-        </div>
-      )}
-    </section>
-  );
-}
-
 const EMPTY = {
   ready: {
     title: 'Nothing is waiting to go live',
     body: (c) => (c.blocked
       ? `${plural(c.blocked, 'product is', 'products are')} blocked on a step. A product arrives here once the first group of squares is done.`
       : `${c.live ? `All ${c.live} of your products are on the shop. ` : ''}A new one arrives here once the first group of squares is done.`),
+  },
+  imported: {
+    title: 'Nothing new from eBay',
+    body: () => 'Listings you bring over from the eBay Traffic page wait here until they go live.',
   },
   needs: {
     title: 'Nothing is waiting on you',

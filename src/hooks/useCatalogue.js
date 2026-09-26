@@ -75,6 +75,10 @@ export function checksFor(p) {
   return decide.length || done.length ? { decide, done } : null;
 }
 
+// A label to copy off the bottle: flagged by the first import script, or tagged a biocide by the agent, until she answers.
+export const needsLabel = (p) => Boolean(p.derived_fields?.hazard_suspect
+  || ((p.derived_fields?.draft?.care ?? []).includes('biocide') && !p.derived_fields?.hazard_checked));
+
 export const openDecisions = (p) => (checksFor(p)?.decide ?? []).filter((d) => !d.answer).length;
 export const checksUnread = (p) => openDecisions(p) > 0;
 
@@ -88,7 +92,12 @@ export function missing(p) {
   // Present in derived_fields means a script guessed it and nobody confirmed.
   if (p.derived_fields?.returns_class) out.push('Returns class unconfirmed');
 
-  if (p.derived_fields?.hazard_suspect && !p.hazard) out.push('Hazard data missing');
+  if (needsLabel(p) && !p.hazard) out.push('Hazard data missing');
+
+  // An answer that means it cannot sell yet, such as a plug that is not UK, holds it with the reason named.
+  for (const q of checksFor(p)?.decide ?? []) {
+    if (q.answer && q.holds?.includes(q.answer)) out.push(q.hold);
+  }
 
   if (p.availability === 'out_of_stock' || p.availability === 'discontinued') {
     out.push('Marked unavailable');
@@ -155,6 +164,8 @@ export const isLive = (p) => p.status === 'live' && !p.is_sample;
  */
 export const isArchived = (p) => p.status === 'archived';
 export const isReady = (p) => !isLive(p) && !isArchived(p) && blockers(p).length === 0;
+// Brought over from an eBay listing and not on the shop yet: her review queue for imports.
+export const isNewFromEbay = (p) => !isLive(p) && !isArchived(p) && Boolean(p.derived_fields?.imported);
 // Only a question stands between it and the shop: a tap, not a problem.
 export const isNeedsYou = (p) => !isLive(p) && !isArchived(p) && missing(p).length === 0 && openDecisions(p) > 0;
 export const isBlocked = (p) => !isLive(p) && !isArchived(p) && missing(p).length > 0;
@@ -496,6 +507,7 @@ export function useCatalogue(tenantId) {
     live: state.rows.filter(isLive).length,
     ready: state.rows.filter(isReady).length,
     needs: state.rows.filter(isNeedsYou).length,
+    imported: state.rows.filter(isNewFromEbay).length,
     blocked: state.rows.filter(isBlocked).length,
     all: state.rows.length,
     archived: state.rows.filter(isArchived).length,
@@ -518,6 +530,9 @@ export function useCatalogue(tenantId) {
  * is surfaced: silently correct behaviour is indistinguishable from a bug.
  */
 export const CATEGORY_MIN = 3;
+
+// Below this, once the shop's fee and postage are paid, a unit rarely pays for itself. The floor the shop was first filled with.
+export const PRICE_FLOOR = 8;
 
 // Every new listing starts with this many on the shop unless she changes it.
 export const NEW_LISTING_STOCK = 5;

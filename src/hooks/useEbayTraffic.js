@@ -74,6 +74,48 @@ export const VERDICTS = {
 export function useEbayTraffic(tenantId) {
   const [state, setState] = useState({ status: 'loading', total: null, listings: [], days: [], sales: [], error: null });
   const [pulling, setPulling] = useState(false);
+  const [onShop, setOnShop] = useState(() => new Map());
+
+  // Which listings already have a shop product: copied from the listing, or published to eBay from the portal.
+  const loadShop = useCallback(async () => {
+    if (!tenantId) return;
+    const [copied, published] = await Promise.all([
+      supabase.from('store_products').select('id, status, source_ref')
+        .eq('tenant_id', tenantId).eq('source_kind', 'ebay_listing'),
+      supabase.from('candidates').select('ebay, store_products ( id, status )')
+        .eq('tenant_id', tenantId).not('ebay', 'is', null),
+    ]);
+    const map = new Map();
+    for (const p of copied.data ?? []) map.set(String(p.source_ref), { id: p.id, status: p.status });
+    for (const c of published.data ?? []) {
+      const p = (c.store_products ?? [])[0];
+      if (p && c.ebay?.listing_id) map.set(String(c.ebay.listing_id), { id: p.id, status: p.status });
+    }
+    setOnShop(map);
+  }, [tenantId]);
+
+  useEffect(() => { loadShop(); }, [loadShop]);
+
+  // Ten listings a call, so a long run reports as it goes and one bad listing costs only itself.
+  const bringToShop = useCallback(async (listingIds, sections, onProgress) => {
+    const added = [];
+    const skipped = [];
+    for (let i = 0; i < listingIds.length; i += 10) {
+      const chunk = listingIds.slice(i, i + 10);
+      const { data, error } = await supabase.functions.invoke('ebay-import', {
+        body: { tenant_id: tenantId, listing_ids: chunk, sections },
+      });
+      if (error || data?.error) {
+        skipped.push(...chunk.map((id) => ({ listing_id: id, reason: data?.error ?? error.message })));
+      } else {
+        added.push(...(data.added ?? []));
+        skipped.push(...(data.skipped ?? []));
+      }
+      onProgress?.(Math.min(i + chunk.length, listingIds.length), listingIds.length);
+    }
+    await loadShop();
+    return { added, skipped };
+  }, [tenantId, loadShop]);
 
   const load = useCallback(async () => {
     if (!tenantId) return;
@@ -151,5 +193,5 @@ export function useEbayTraffic(tenantId) {
     return data;
   }, [tenantId, load]);
 
-  return { ...state, pulling, pull, reload: load };
+  return { ...state, pulling, pull, reload: load, onShop, bringToShop };
 }

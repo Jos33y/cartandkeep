@@ -1,0 +1,83 @@
+/* Pinned where her eye is, whatever she has scrolled to: Keeper's progress above the selection. */
+.dock {
+  position: fixed;
+  left: 50%;
+  bottom: var(--s-5);
+  z-index: var(--z-drawer);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  width: max-content;
+  max-width: calc(100vw - var(--s-6));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.dock > * { pointer-events: auto; max-width: 100%; }
+
+
+@keyframes lift { from { opacity: 0; transform: translateY(16px); } }
+
+/* Keeper's progress: dark like the selection, so the two read as one control surface. */
+.keeper {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  width: min(560px, calc(100vw - var(--s-6)));
+  padding: var(--s-3) var(--s-2) var(--s-3) var(--s-4);
+  border-radius: 12px;
+  background: var(--c-ink);
+  color: var(--c-base);
+  box-shadow: 0 20px 50px rgba(42, 39, 35, 0.28), 0 2px 6px rgba(42, 39, 35, 0.2);
+  animation: lift var(--dur-settle) var(--ease-out) both;
+}
+
+.keeperText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.keeperLine { font-size: var(--t-label); font-weight: 500; line-height: var(--lh-snug); }
+.keeperLine b { font-weight: 600; }
+.keeperNote { font-size: var(--t-caption); color: #cfc6b8; line-height: var(--lh-snug); }
+
+.keeperTrack { display: block; height: 3px; margin-top: var(--s-2); border-radius: var(--r-full); background: rgba(250, 246, 239, 0.16); overflow: hidden; }
+.keeperTrack i { display: block; height: 100%; border-radius: inherit; background: var(--c-base); transition: width var(--dur-settle) var(--ease-out); }
+
+.keeperActions { display: flex; align-items: center; gap: var(--s-1); flex: none; }
+
+.keeperButton {
+  min-height: 36px;
+  padding: 0 var(--s-3);
+  border: 1px solid rgba(250, 246, 239, 0.22);
+  border-radius: var(--r-md);
+  color: var(--c-base);
+  font-size: var(--t-label);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.keeperButton:hover { background: rgba(250, 246, 239, 0.08); }
+
+.keeperClose {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  color: #cfc6b8;
+}
+
+.keeperClose:hover { background: rgba(250, 246, 239, 0.08); color: var(--c-base); }
+.keeperButton:focus-visible, .keeperClose:focus-visible { outline: 2px solid var(--c-base); outline-offset: 2px; }
+
+@media (max-width: 760px) {
+  .keeper { width: auto; flex-wrap: wrap; }
+  .keeperText { flex-basis: 100%; }
+  .keeperActions { margin-left: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .keeper, .keeperTrack i { animation: none; transition: none; }
+}
+
+@media (max-width: 760px) {
+  .dock { left: var(--s-3); right: var(--s-3); bottom: var(--s-3); width: auto; transform: none; align-items: stretch; }
+}

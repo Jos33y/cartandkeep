@@ -1,4 +1,4 @@
-import { checksFor, openDecisions, isLive } from '@hooks/useCatalogue';
+import { checksFor, openDecisions, isLive, needsLabel } from '@hooks/useCatalogue';
 import { formatGbp } from '@utils/formatGbp';
 
 // Gate steps mirror blockers() in useCatalogue. Change both together.
@@ -58,7 +58,7 @@ function judge(key, p) {
         : { state: 'check', note: `${open} to decide before it sells` };
     }
     case 'hazard':
-      if (!p.derived_fields?.hazard_suspect) return { state: 'none', note: 'Not a chemical' };
+      if (!needsLabel(p)) return { state: 'none', note: 'Not a chemical' };
       return p.hazard
         ? { state: 'done', note: `Label warning: ${p.hazard.signal}` }
         : { state: 'missing', note: 'Looks like a chemical. Copy the label warning across.' };
@@ -94,7 +94,7 @@ export function stepsFor(product, steps = STEPS) {
 
 // The hazard column only exists when something in the catalogue is flagged.
 export function columnsFor(rows) {
-  const flagged = rows.some((r) => r.derived_fields?.hazard_suspect);
+  const flagged = rows.some(needsLabel);
   return STEPS.filter((s) => !s.flagged || flagged);
 }
 

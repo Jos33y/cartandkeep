@@ -67,13 +67,19 @@ export function useKeeper(tenantId, { onFinished } = {}) {
   const ask = useCallback(async (productIds, sections = [], { quiet = false } = {}) => {
     if (!tenantId || !productIds.length) return;
     const busy = new Set(jobs.filter(isOpen).map((j) => j.product_id));
-    const added = [];
-    // One at a time: a product already waiting (another tab) is skipped rather than failing the rest.
-    for (const id of productIds.filter((x) => !busy.has(x))) {
-      const { data, error } = await supabase.from('keeper_jobs')
-        .insert({ tenant_id: tenantId, product_id: id, sections }).select(FIELDS).single();
-      if (!error) added.push(data);
-      else if (error.code !== '23505') throw new Error(error.message);
+    const fresh = productIds.filter((x) => !busy.has(x)).map((id) => ({ tenant_id: tenantId, product_id: id, sections }));
+    if (!fresh.length) return;
+    let added = [];
+    const all = await supabase.from('keeper_jobs').insert(fresh).select(FIELDS);
+    if (!all.error) added = all.data ?? [];
+    else if (all.error.code !== '23505') throw new Error(all.error.message);
+    else {
+      // Another tab got some of these first: add the rest one by one and skip the clashes.
+      for (const row of fresh) {
+        const { data, error } = await supabase.from('keeper_jobs').insert(row).select(FIELDS).single();
+        if (!error) added.push(data);
+        else if (error.code !== '23505') throw new Error(error.message);
+      }
     }
     if (!added.length) return;
 
@@ -88,6 +94,20 @@ export function useKeeper(tenantId, { onFinished } = {}) {
     setJobs((prev) => [...added, ...prev]);
     kick();
   }, [tenantId, jobs, kick]);
+
+  // Jobs another function queued (the eBay import): pick them up, show them as a batch and start the work.
+  const adopt = useCallback(async () => {
+    const open = await read(null);
+    const fresh = open.filter((j) => !jobs.some((x) => x.id === j.id));
+    if (!fresh.length) return;
+    const first = fresh.reduce((a, j) => (j.created_at < a ? j.created_at : a), fresh[0].created_at);
+    setSince((s) => (s && s < first ? s : first));
+    setBatch((b) => (b && jobs.some((j) => b.ids.has(j.id) && isOpen(j))
+      ? { since: b.since, ids: new Set([...b.ids, ...fresh.map((j) => j.id)]) }
+      : { since: first, ids: new Set(fresh.map((j) => j.id)) }));
+    setJobs((prev) => [...fresh, ...prev]);
+    kick();
+  }, [jobs, read, kick]);
 
   const summary = useMemo(() => {
     const inBatch = batch ? jobs.filter((j) => batch.ids.has(j.id)) : [];
@@ -107,5 +127,5 @@ export function useKeeper(tenantId, { onFinished } = {}) {
   const lastFor = useCallback((productId) => jobs.find((j) => j.product_id === productId) ?? null, [jobs]);
   const dismiss = useCallback(() => setBatch((b) => (b && jobs.some((j) => b.ids.has(j.id) && isOpen(j)) ? b : null)), [jobs]);
 
-  return { ask, stateOf, lastFor, summary, dismiss };
+  return { ask, adopt, stateOf, lastFor, summary, dismiss };
 }

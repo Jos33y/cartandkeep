@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@lib/supabase';
-import { blockers, checksUnread, isLive, isArchived } from '@hooks/useCatalogue';
+import { blockers, checksUnread, isLive, isArchived, needsLabel } from '@hooks/useCatalogue';
 import { summarise } from '@lib/readiness';
 
 /*
@@ -145,7 +145,7 @@ export function useShopDashboard(tenantId) {
 
     const returns = rows.filter((p) => p.derived_fields?.returns_class);
     const checks = rows.filter(checksUnread);
-    const hazard = rows.filter((p) => p.derived_fields?.hazard_suspect && !p.hazard);
+    const hazard = rows.filter((p) => needsLabel(p) && !p.hazard);
     const toSend = paid.filter((o) => !o.dispatched_at);
     const lowStock = rows.filter((p) => typeof p.stock === 'number' && p.stock > 0 && p.stock < LOW_STOCK);
     const noCopy = rows.filter((p) => !p.description?.trim() && !p.derived_fields?.draft);

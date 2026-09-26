@@ -8,7 +8,7 @@ import { Icon } from '@components/ui/icons';
 import { formatGbp } from '@utils/formatGbp';
 import { visibleSpecs, hiddenSpecs } from '@utils/specs';
 import {
-  blockers, isLive, isArchived, marginFor, checksFor, money, whole, CATEGORY_MIN,
+  blockers, isLive, isArchived, marginFor, checksFor, money, whole, needsLabel, CATEGORY_MIN, PRICE_FLOOR,
 } from '@hooks/useCatalogue';
 import { stepsFor } from '@lib/readiness';
 import row from '@styles/ui/portal/product-row.module.css';
@@ -132,8 +132,9 @@ function buildPatch(product, form, checks, draft) {
   // Saving the sheet is her approval of the returns class shown in it.
   delete derived.returns_class;
 
-  if (product.derived_fields?.hazard_suspect && (form.hazardNone || form.signal)) {
+  if (needsLabel(product) && (form.hazardNone || form.signal)) {
     delete derived.hazard_suspect;
+    derived.hazard_checked = true;
     patch.hazard = form.hazardNone ? null : {
       signal: form.signal, h: form.statements.split('\n').map((l) => l.trim()).filter(Boolean), p: [],
     };
@@ -433,6 +434,7 @@ export function ProductSheet({
                 <input className={row.bare} data-num inputMode="decimal" value={form.price} onChange={(e) => change('price', e.target.value)} />
               </span>
             </label>
+            <FloorNote price={form.price} postageCost={form.postageCost} fees={fees} />
             <VariantsPanel product={product} busy={busy} run={run} onAdd={addVariant} onSave={saveVariant} onRemove={removeVariant} />
           </div>
         ) },
@@ -532,7 +534,7 @@ export function ProductSheet({
             </label>
           </div>
         ) },
-        product.derived_fields?.hazard_suspect && { key: 'hazard', title: 'Label warning', body: (
+        needsLabel(product) && { key: 'hazard', title: 'Label warning', body: (
           <div className={row.panel}>
             <p className={row.guessed}>
               If the bottle has a warning label, the shop has to show the same warning next to the price. Copy across what is printed on it.
@@ -742,6 +744,19 @@ export function ProductSheet({
         </footer>
       </aside>
     </>
+  );
+}
+
+// A quiet note, never a block: under the floor the shop rarely covers a unit once fees and postage are paid.
+function FloorNote({ price, postageCost, fees }) {
+  const m = marginFor({ price, landedCost: 0, postageCost, fees });
+  if (!m || m.store.net >= PRICE_FLOOR) return null;
+  const withPostage = Number(postageCost) > 0;
+  return (
+    <p className={row.thin}>
+      After the shop&apos;s fee{withPostage ? ' and your postage' : ''}, <span data-num>{formatGbp(m.store.net)}</span> is left
+      for the goods and you. Under <span data-num>{formatGbp(PRICE_FLOOR)}</span> a sale rarely pays for itself.
+    </p>
   );
 }
 
