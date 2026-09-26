@@ -1,11 +1,8 @@
-import { useMemo } from 'react';
 import { VanIcon } from '@components/ui/store/icons';
 import { deliveryEstimate, deliveryLabel, dispatchLabel } from '@utils/delivery';
 import { formatGbp } from '@utils/formatGbp';
+import { freeOver, postage } from '@lib/storeConfig';
 import styles from '@styles/ui/store/delivery-estimate.module.css';
-
-const FREE_OVER = 40;
-const POSTAGE = 3.95;
 
 /*
  * A date, not a duration.
@@ -21,14 +18,11 @@ const POSTAGE = 3.95;
  */
 export function DeliveryEstimate({ product, compact = false }) {
   const price = Number(product.price);
-  const free = price >= FREE_OVER;
+  const threshold = freeOver();
+  const free = price >= threshold;
 
-  // Recomputed on every render, which matters: the answer changes at 2pm and a
-  // page left open through lunch should not still be promising today.
-  const estimate = useMemo(
-    () => deliveryEstimate(product.dispatch_days),
-    [product.dispatch_days],
-  );
+  // Not memoised: the answer changes at the cutoff, and a page left open past it must stop promising today.
+  const estimate = deliveryEstimate(product.dispatch_days);
 
   return (
     <div className={styles.wrap} data-compact={compact || undefined}>
@@ -36,7 +30,7 @@ export function DeliveryEstimate({ product, compact = false }) {
       <p className={styles.text}>
         <span className={styles.date}>{deliveryLabel(estimate)}</span>
         <span className={styles.detail}>
-          {free ? 'Free UK delivery' : `${formatGbp(POSTAGE)} delivery, free over ${formatGbp(FREE_OVER)}`}
+          {free ? 'Free UK delivery' : `${formatGbp(postage())} delivery, free from ${formatGbp(threshold)}`}
           {estimate.known && <>. {dispatchLabel(estimate)}</>}
           {!estimate.known && <>. Estimated on our usual dispatch times.</>}
         </span>

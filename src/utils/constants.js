@@ -133,7 +133,7 @@ export const PORTAL_NAV_SECTIONS = [
       { route: PORTAL_ROUTES.CUSTOMERS, label: 'Customers', icon: 'IconPeople' },
       { route: PORTAL_ROUTES.REQUESTS, label: 'Requests', icon: 'IconAsk' },
       { route: PORTAL_ROUTES.SUBSCRIBERS, label: 'Mailing list', icon: 'IconEnvelope' },
-      { route: PORTAL_ROUTES.INTEREST, label: 'Interest', icon: 'IconEye' },
+      { route: PORTAL_ROUTES.INTEREST, label: 'Interest', icon: 'IconHeart' },
       { route: PORTAL_ROUTES.FOUND, label: 'Being found', icon: 'IconSearch' },
     ],
   },

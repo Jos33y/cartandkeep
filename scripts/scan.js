@@ -46,7 +46,26 @@ const SKIP = [
   // Account risk: counterfeit reports and brand takedowns land on a young account
   'iphone', 'ipad', 'macbook', 'airpods',
   'rolex', 'omega', 'gucci', 'prada', 'chanel', 'burberry', 'moncler', 'nike', 'adidas', 'ralph',
+  // Fragrance: the most counterfeit-reported branded goods on eBay
+  'edp', 'edt', 'parfum', 'perfume', 'aftershave', 'cologne', 'fragrance', 'eau', 'homme', 'femme',
+  // Alcohol needs eBay's approval; gas canisters cannot go by post; nicotine is restricted
+  'whisky', 'whiskey', 'vodka', 'gin', 'rum', 'prosecco', 'champagne', 'liqueur', '70cl', '75cl',
+  'butane', 'propane', 'flogas', 'calor',
+  'nicorette', 'nicotinell', 'nicotine', 'vape', 'vapes',
 ];
+// Fragrance houses, caught by brand when the shelf name never says EDP: "Hugo Boss Bottled 50ml Spray".
+// Only when sold by the millilitre or as a spray, so a Calvin Klein wallet still goes through.
+const SCENT_HOUSES = /\b(hugo boss|hugo|boss bottled|jimmy choo|calvin klein|paco rabanne|rabanne|dkny|issey miyake|lacoste|diesel|police|ghost|ariana grande|vera wang|clinique|armaf|afnan|marc jacobs|thierry mugler|mugler|dolce|gabbana|versace|davidoff|azzaro|carolina herrera|ysl|yves saint laurent|guess|britney spears|katy perry|elizabeth arden|lancome|givenchy|dior|tom ford|montblanc|joop|cacharel|nina ricci|kenzo|moschino|michael kors|hollister|jean paul gaultier|playboy|beyonce|rihanna|jennifer lopez|lattafa|eternity|obsession|euphoria|daisy dream|212 ladies|lovestruck)\b/;
+const BY_ML = /\b\d+(\.\d+)?\s?ml\b|\bspray\b/;
+
+// The shop's own name is read too: "jimmy choo illicit" says nothing, "Jimmy Choo Illicit 60ml EDP" does.
+const risky = (q, seed) => {
+  const text = `${q} ${seed ?? ''}`.toLowerCase();
+  const words = text.split(/[^a-z0-9]+/);
+  // With no shop name to check the size against, the house alone decides: these lines were all scent.
+  const scent = SCENT_HOUSES.test(text) && (BY_ML.test(text) || !String(seed ?? '').trim());
+  return SKIP.some((w) => words.includes(w)) || scent;
+};
 let skipped = 0;
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
@@ -59,8 +78,7 @@ function readQueries(file) {
     const [head, ...rest] = line.split('#');
     const q = head.trim();
     if (!q || seen.has(q)) continue;
-    const words = q.toLowerCase().split(/\s+/);
-    if (SKIP.some((w) => words.includes(w))) { skipped += 1; continue; }
+    if (risky(q, rest.join('#'))) { skipped += 1; continue; }
     seen.add(q);
     out.push({ q, seed: rest.join('#').trim() || null });
   }
@@ -110,9 +128,10 @@ async function main() {
   const maxGoods = Number(arg('max-goods', 40));
   const fromCsv = arg('from-csv');
   // New and fixed price only. A market of used gear is not one she can source.
+  // UK sellers only, matching the gate, or the two count different markets.
   const filter = arg('condition', 'new') === 'any'
-    ? 'buyingOptions:{FIXED_PRICE}'
-    : 'conditions:{NEW},buyingOptions:{FIXED_PRICE}';
+    ? 'buyingOptions:{FIXED_PRICE},itemLocationCountry:GB'
+    : 'conditions:{NEW},buyingOptions:{FIXED_PRICE},itemLocationCountry:GB';
   const cfg = {
     ...D,
     band: arg('band', D.band),
@@ -231,6 +250,8 @@ function readScan(path) {
 }
 
 function report(rows, { csvPath, outPath, cfg, minGoods, maxGoods, scanned }) {
+  // Applied again here so a re-judge from an old scan drops them too.
+  for (const r of rows) if (r.outcome === 'gate' && risky(r.q, r.seed)) r.outcome = 'account_risk';
   const tally = rows.reduce((o, r) => ({ ...o, [r.outcome]: (o[r.outcome] ?? 0) + 1 }), {});
   const keep = rows.filter((r) => r.outcome === 'gate');
 

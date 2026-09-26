@@ -10,10 +10,10 @@
  * carried on each group so any line can be checked against the document.
  *
  * state:    done | active | queued | client
+ * screen:   the portal route a client item is done on, for the button beside it
+ * why:      one plain line on why a committed item is not delivered yet
  * superseded: delivered, and the method behind it has since been replaced.
  *           The line stays because the work happened and was handed over.
- * blocking: the thing an item waits on, so the page can count without a
- *           hardcoded number going stale the moment something ships.
  */
 
 export const SCOPE_VERSION = '2.1';
@@ -51,45 +51,48 @@ export const DELIVERABLE_GROUPS = [
         label: 'Financial dashboard in the portal',
         detail:
           'Revenue, platform fees, promoted listings, postage, packaging, returns provision and cost of goods, per product and per channel. Built, and now carrying your real eBay sales with the fees eBay actually charged. TikTok Shop comes in from its own report.',
-        state: 'active',
+        state: 'done',
+        date: '2026-09-22',
       },
       {
         label: 'Custom store live',
         detail:
-          'cartandkeep.com, guest checkout ready and taking card payments. The full path has been tested end to end: an order placed, paid, confirmed by email, stock taken off and a receipt issued. Your trading details are in. What is left is the products going on sale.',
-        state: 'active',
+          'cartandkeep.com is live, with guest checkout taking card payments. The full path has been tested end to end: an order placed, paid, confirmed by email, stock taken off and a receipt issued.',
+        state: 'done',
       },
       {
         label: 'First batch of products listed on the store',
         detail: 'The seeded batch was cleared out on 22 September rather than left as drafts nobody had read. What is in the shop now are the products your eBay listings have actually sold, and what follows comes from the research board.',
-        state: 'active',
+        state: 'done',
       },
       {
         label: 'Multi-category structure ready from day one',
         detail: 'Departments from the catalogue, and sections of your own that you name and fill, plus a price band. Category pages, sub-sections and sorting are built.',
-        state: 'active',
+        state: 'done',
+        date: '2026-09-24',
       },
       {
         label: 'Blog module active, format ready for the first posts',
         detail: 'Markdown files, an index and a post page. First piece written, a buying guide on what a house runs out of.',
-        state: 'active',
+        state: 'done', date: '2026-08-18',
       },
       {
         label: 'Legal pages live',
         detail: 'Six pages: terms of sale, privacy, returns and refunds, delivery, cookies, and how reviews work. Rewritten on 25 September with the law each clause answers to. The decisions that are yours are in the review pack rather than on the live pages, and the pages are final once you have marked it up.',
-        state: 'active',
+        state: 'done',
+        date: '2026-08-18',
       },
       {
         label: 'TikTok Shop bio updated with cartandkeep.com',
+        why: 'Not done yet. Five minutes in TikTok Shop, now the domain is live.',
         detail: 'Five minutes, once the domain resolves.',
         state: 'queued',
-        blocking: 'store',
       },
       {
         label: 'Daily listing workload absorbed across TikTok Shop and the store',
+        why: 'Starts in month two, by the scope.',
         detail: 'eBay Store 2 activation is month two by the scope, once the base is proven.',
         state: 'queued',
-        blocking: 'store',
       },
     ],
   },
@@ -99,53 +102,58 @@ export const DELIVERABLE_GROUPS = [
     section: 'Section 4',
     note: 'Seventeen items, all committed live before end of month one. Each is built into the store as it goes up rather than added afterwards.',
     items: [
-      { label: 'Page titles across every page', state: 'active' },
-      { label: 'Meta descriptions across every page', state: 'active' },
+      { label: 'Page titles across every page', state: 'done' },
+      { label: 'Meta descriptions across every page', state: 'done' },
       { label: 'Clean SEO-friendly URL structure', detail: '/c/department and /p/product, no query strings.', state: 'done', date: '2026-08-18' },
       {
         label: 'XML sitemap generated and submitted to Google',
+        why: 'Built. Waits on Google Search Console.',
         detail: 'Generated from the live catalogue, so it lists what a visitor can actually see. Submission waits on the domain.',
         state: 'active',
       },
       { label: 'Robots.txt configured', state: 'done', date: '2026-08-18' },
       {
         label: 'Google Search Console verified and connected',
+        why: 'Domain verification in progress.',
         detail: 'Domain verification in progress.',
         state: 'queued',
-        blocking: 'store',
       },
-      { label: 'Bing Webmaster Tools verified and connected', state: 'queued', blocking: 'store' },
+      { label: 'Bing Webmaster Tools verified and connected',
+        why: 'Not started.', state: 'queued' },
       {
         label: 'Schema markup on products, articles and organisation',
         detail: 'Organisation, website, shop, product, breadcrumb and article. No invented ratings: those wait for real reviews.',
-        state: 'active',
+        state: 'done',
       },
       { label: 'LLMS.txt for AI model citations', state: 'done', date: '2026-08-18' },
-      { label: 'Image compression and optimisation across all assets', detail: 'Sized, lazy loaded and served at two densities. Source photographs are supplier resolution.', state: 'active' },
+      { label: 'Image compression and optimisation across all assets', detail: 'Sized, lazy loaded and served at two densities. Source photographs are supplier resolution.', state: 'done' },
       {
         label: 'Internal linking between products, categories and blog posts',
         detail: 'Products, departments, the blog and every legal page all reach each other. Nothing in the shop is more than two taps from anything else.',
-        state: 'active',
+        state: 'done',
       },
-      { label: '301 redirects configured where relevant', state: 'queued', blocking: 'store' },
+      { label: '301 redirects configured where relevant',
+        why: 'Not started.', state: 'queued' },
       {
         label: 'Basic keyword targeting on category pages',
         detail: 'Each department carries a title and description built from its name, its count and its price floor.',
-        state: 'active',
+        state: 'done',
       },
-      { label: 'Core Web Vitals passing', detail: 'LCP, INP, CLS', state: 'queued', blocking: 'store' },
+      { label: 'Core Web Vitals passing',
+        why: 'Not started.', detail: 'LCP, INP, CLS', state: 'queued' },
       {
         label: 'Blog module ready in markdown format',
         detail: 'A post is a markdown file dropped in a folder. No editor to learn and nothing to update by hand.',
-        state: 'active',
+        state: 'done', date: '2026-08-18',
       },
       {
         label: 'One SEO-optimised landing page live at launch',
         detail: 'The About page. Written for the words somebody types when they are checking whether a shop is real.',
-        state: 'active',
+        state: 'done',
       },
       {
         label: 'SEO progress report',
+        why: 'Waits on Google Search Console.',
         detail:
           'Monthly, kept under Being found month by month, so you can see the line from nothing to the first clicks rather than a document that lands and is filed. It cannot start until Google Search Console is verified and connected, which is still being set up, so no report has gone out yet. Until then Being found shows what stops Google listing each product.',
         state: 'active',
@@ -188,10 +196,10 @@ export const DELIVERABLE_GROUPS = [
         label: 'Cart abandonment',
         detail:
           'Per product, which is the useful half: what went into a basket and came back out again. Basket level abandonment follows the first checkouts.',
-        state: 'active',
+        state: 'done', date: '2026-09-24',
       },
-      { label: 'Sales', detail: 'Your eBay sales are in, with what each one took and what eBay charged for it. The shop\u2019s own follow its first order.', state: 'active' },
-      { label: 'Revenue', detail: 'By month and by channel, from your eBay account today and from the shop as it sells.', state: 'active' },
+      { label: 'Sales', detail: 'Your eBay sales are in, with what each one took and what eBay charged for it. The shop\u2019s own follow its first order.', state: 'done', date: '2026-09-22' },
+      { label: 'Revenue', detail: 'By month and by channel, from your eBay account today and from the shop as it sells.', state: 'done', date: '2026-09-22' },
       {
         label: 'Traffic sources',
         detail:
@@ -236,11 +244,13 @@ export const DELIVERABLE_GROUPS = [
       },
       {
         label: 'Category level profit and loss',
+        why: 'Not built.',
         detail: 'The same figures grouped by department. Not built.',
         state: 'queued',
       },
       {
         label: 'Alerts when a product or category goes negative margin',
+        why: 'Follows cost tracking.',
         detail:
           'Follows cost tracking, since there is nothing to compare a price against without it. The machinery that sends a scheduled alert is built and running: low stock uses it already.',
         state: 'queued',
@@ -388,12 +398,6 @@ export const DELIVERABLE_GROUPS = [
         date: '2026-09-04',
       },
       {
-        label: 'Decisions on the shortlisted products',
-        detail:
-          'Approve, reject or defer in the portal. The first approved product is now listed on eBay, so this is the step that decides what follows it. Rejecting with a reason is what stops the same kind of product coming back.',
-        state: 'client',
-      },
-      {
         label: 'Review the legal pages',
         detail:
           'A review pack in Word: every clause as a customer reads it, the law it answers to, and the decisions only you can make, numbered. Mark it up and every change is carried into the shop exactly as you word it.',
@@ -403,7 +407,7 @@ export const DELIVERABLE_GROUPS = [
         label: 'Your own name as the legal name',
         detail:
           'Under Settings, Who is selling. As a sole trader the law requires your own name beside Cart & Keep on every receipt and legal page. The field currently holds a company name with no company number, and the screen now says so.',
-        state: 'client',
+        screen: '/settings', state: 'client',
       },
       {
         label: 'Your trading name and address',
@@ -424,16 +428,15 @@ export const DELIVERABLE_GROUPS = [
         date: '2026-09-22',
       },
       {
-        label: 'Product descriptions',
-        detail:
-          'Under Products. Most of what is in the shop still has none. It is the only thing on a product page that argues for the purchase, Google will not list a product without one, and a description written from a supplier feed title is the feed title with more words. There is a draft written for you on each one to work from.',
-        state: 'client',
+        label: 'Delivery, returns and the words on your shop',
+        detail: 'Done. Your delivery offer, your returns rule and the lines at the top of the shop, all set by you in Settings.',
+        screen: '/settings', state: 'done',
       },
       {
         label: 'Your carrier rate card',
         detail:
-          'Under Settings. Four postcode surcharges, all currently zero, which means the shop absorbs whatever the carrier charges extra to reach the Highlands and the islands.',
-        state: 'client',
+          'Done. You chose not to charge extra for the Highlands, the islands and Northern Ireland, so the shop covers what the carrier adds to reach them.',
+        screen: '/settings', state: 'done',
       },
     ],
   },
@@ -446,9 +449,16 @@ export const DELIVERABLES = flat;
 // Only what the scope commits to for month one. Work delivered early is real
 // and it is not a month one obligation, so counting it here would flatter the
 // figure and the figure is the point.
+const COMMITTED = ['month-one', 'seo', 'analytics'];
+
 const committed = DELIVERABLE_GROUPS
-  .filter((g) => g.key === 'month-one' || g.key === 'seo' || g.key === 'analytics')
+  .filter((g) => COMMITTED.includes(g.key))
   .flatMap((g) => g.items);
+
+// The same list tally() counts, so a figure on the status page and the rows under it can never disagree.
+export const committedItems = () => DELIVERABLE_GROUPS
+  .filter((g) => COMMITTED.includes(g.key))
+  .flatMap((g) => g.items.map((i) => ({ ...i, group: g.label })));
 
 export function tally() {
   const count = (s) => committed.filter((i) => i.state === s).length;
@@ -456,10 +466,6 @@ export function tally() {
     done: count('done'),
     active: count('active'),
     queued: count('queued'),
-    // Only what is genuinely untouched and waiting. Anything built and
-    // awaiting launch is `active` and counting it here would keep the number
-    // high while the work was finishing, which is the opposite of the point.
-    blockedByStore: committed.filter((i) => i.blocking === 'store').length,
     client: flat.filter((i) => i.state === 'client').length,
     total: committed.length,
   };

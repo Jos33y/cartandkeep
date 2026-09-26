@@ -1,0 +1,93 @@
+.track { position: relative; margin: 0; padding-top: var(--s-5); }
+
+/* Height comes from the busiest day, so a day of twelve can never run through the baseline. */
+.plot {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--days), minmax(0, 1fr));
+  align-items: end;
+  height: calc(var(--rows) * 7px + 6px);
+  border-bottom: 1px solid var(--c-line-mid);
+}
+
+.day {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 2px;
+  height: 100%;
+  padding-bottom: 3px;
+  overflow: hidden;
+}
+
+.dot {
+  display: block;
+  flex: none;
+  width: min(5px, 72%);
+  aspect-ratio: 1;
+  border-radius: var(--r-full);
+  background: color-mix(in srgb, var(--c-ink) 38%, transparent);
+  animation: rise var(--dur-enter) var(--ease-out) both;
+  animation-delay: calc(var(--i) * 9ms);
+}
+
+.fresh { background: var(--c-brand-strong); }
+.replaced { background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c-ink) 40%, transparent); }
+.fresh.replaced { box-shadow: inset 0 0 0 1px var(--c-brand-strong); }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.pin {
+  position: absolute;
+  top: calc(var(--s-5) * -1);
+  bottom: 0;
+  left: calc(var(--at) * 100%);
+  border-left: 1px dashed var(--c-ink-soft);
+}
+
+.pinLabel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateX(-100%);
+  margin-left: -4px;
+  padding: 1px var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--c-ink);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--c-base);
+}
+
+/* Near the start the label would run off the left edge, so it sits on the other side of the line. */
+.pinRight .pinLabel { transform: none; margin-left: 4px; }
+
+.axis { position: relative; height: 18px; margin-top: var(--s-2); }
+
+.tick {
+  position: absolute;
+  top: 0;
+  left: calc(var(--at) * 100%);
+  transform: translateX(-50%);
+  font-family: var(--font-data);
+  font-size: var(--t-micro);
+  white-space: nowrap;
+  color: var(--c-ink-faint);
+}
+
+.start { left: 0; transform: none; }
+.end { left: auto; right: 0; transform: none; color: var(--c-ink); }
+
+/* Month names collide with the start date at phone width; the two ends carry the span. */
+@media (max-width: 480px) {
+  .tick:not(.start):not(.end) { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot { animation: none; }
+}

@@ -289,6 +289,13 @@ const IconCaret = (p) => (
   </svg>
 );
 
+// Interest: what shoppers want, as distinct from Traffic, which is what eBay shows.
+const IconHeart = (p) => (
+  <svg {...base} {...p}>
+    <path d="M10 16.25S3 12.3 3 7.6A3.6 3.6 0 0 1 10 6.3a3.6 3.6 0 0 1 7 1.3c0 4.7-7 8.65-7 8.65Z" />
+  </svg>
+);
+
 const IconPlus = (p) => (
   <svg {...base} {...p}>
     <path d="M10 4.5v11M4.5 10h11" />
@@ -328,6 +335,7 @@ export const ICONS = {
   IconFilter,
   IconCaret,
   IconPlus,
+  IconHeart,
 };
 
 export function Icon({ name, ...rest }) {

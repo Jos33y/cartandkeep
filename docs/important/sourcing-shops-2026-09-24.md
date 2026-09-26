@@ -19,8 +19,8 @@ The core of the category. Fill valves, cartridges, seals, fuses, hinges, fixings
 | Shop | Where the name came from | State |
 |---|---|---|
 | screwfix.com | supplier list | answers, but its sitemap lists 599 category pages and no products; product data sits in page state. Needs its own reader |
-| toolstation.com | supplier list | **collecting.** 35,744 product urls. Rate-limits at 4 workers (429); running at 2 workers, 800ms |
-| wickes.co.uk | 8 September probe | **349 priced, 37,117 named from its sitemap.** Served empty pages from 4am to evening, answering again at 18:20. Running at 2 workers, 800ms |
+| toolstation.com | supplier list | **collected, 35,705 products.** Rate-limits above 1 worker; collected at 1 worker, 1s pause |
+| wickes.co.uk | 8 September probe | **612 priced, 37,117 named from its sitemap.** Serves empty pages after about 260 pages at any speed tried, so collection stopped; prices are checked by link for the cards that pass |
 | selcobw.com | supplier list | to probe |
 | howetools.co.uk | supplier list | to probe |
 | diy.com (B&Q) | from memory | 503 on everything, 24 September. Try again another day |
@@ -85,26 +85,73 @@ Replacement pumps, fittings and parts for equipment people already own.
 | kmsdirect.co.uk | supplier list | answered 8 September. To probe |
 | halfords.com | from memory | to probe. Car care only: parts that fit a named vehicle are car sizing and stay out |
 
+
+### Care and daily living, for older buyers
+
+Added 25 September. The category four of her ten early sales came from, and the one the care files proved again: 53 cards from two files.
+
+| Shop | What it holds | Why it fits | State |
+|---|---|---|---|
+| essentialaids.com | thousands of daily living aids: grab rails, raised toilet seats, kitchen and dressing aids | the widest care catalogue in the UK, the same shape as Complete Care's best cards | **answered 25 Sept.** 6,600 urls, prices on the page. Collect with the page reader |
+| abilitysuperstore.com | mobility, bathing, daily living | a second large care catalogue to price against | to probe |
+| connevans.co.uk | hearing: amplified phones, flashing doorbells, TV listeners, vibrating alarms | "big button amplified phone" is an exact search | answered 25 Sept, but no sitemap of products and no product data on the page. Needs its own reader |
+| medisave.co.uk | blood pressure monitors, pill organisers, thermometers | named health products an older buyer searches for | to probe |
+
+### Household and gifts, for older buyers
+
+Catalogues written for the same buyer, carrying household, care and Christmas in one place.
+
+| Shop | What it holds | Why it fits | State |
+|---|---|---|---|
+| easylifegroup.com | problem-solver gadgets, mobility aids, winter warmers, Christmas gifts | household, care and seasonal for one buyer | answered 25 Sept, but its sitemap errors and product data comes from a search service. Needs its own reader |
+| coopersofstortford.co.uk | household gadgets, garden, seasonal and Christmas | strong in the weeks before Christmas | refused, Cloudflare challenge |
+| jmldirect.com | named "as seen on TV" household products | people search the product name they saw advertised | refused, Cloudflare challenge |
+| studio.co.uk | household, Christmas decorations and gifts | mass-market Christmas, useful to compare against | to probe |
+| lakeland.co.uk | kitchen and cupboard items, spare lids and parts for its own lines | named kitchen products; "Lakeland replacement lid" is a real search | **answered 25 Sept.** Shopify, about 12,000 products. Collect with the Shopify reader |
+
+### Christmas, where the search is forced
+
+Christmas listings need to be live by early November. Halloween, five weeks out, is too late to source, list and rank.
+
+| Shop | What it holds | Why it fits | State |
+|---|---|---|---|
+| festive-lights.com | Christmas lights, replacement bulbs, fuses, connectors, tree stands | "replacement fuse for Christmas lights" is the something-broke search, every December | to probe |
+| lights4fun.co.uk | fairy lights, battery candles, replacement parts | named, repeat buys; often Shopify | to probe |
+| smyths-toys.com | toys and LEGO by set number | the largest named-product Christmas searches; worth buying only on offer | to probe |
+| hobbycraft.co.uk | Christmas craft, advent kits, wreath supplies | named craft kits | to probe |
+
+### More household parts
+
+| Shop | What it holds | State |
+|---|---|---|
+| partmaster.co.uk, espares.co.uk | vacuum bags and filters, washer belts, oven bulbs, cooker hood filters, by model number | to probe (already listed above) |
+| plumbworld.co.uk, plumbnation.co.uk | tap cartridges, fill valves, shower parts, by part number | to probe |
+| bulbs.co.uk | bulbs by cap and fitting: GU10, B22, oven and fridge | to probe |
+
+### Not worth probing for this buyer
+
+Fireworks and sparklers are explosives. Costumes and clothing are sized. Perfume and aftershave gift sets are the most counterfeit-reported goods on eBay and are held back as account risk by the scan since 25 September.
+
 ---
 
 ## Collected so far
 
-State at 24 September 2026, evening. Nothing here is a guess; counts are the lines in each shelf's `.jsonl`.
+State at 25 September 2026, evening. Nothing here is a guess; counts are the lines in each shelf's `.jsonl`.
 
 | Shop | Products | How | Barcodes |
 |---|---|---|---|
 | B&M | 10,416 | pages | no |
 | Savers | 6,432 | pages | no |
-| QD Stores | 4,717 | Shopify feed | no |
+| QD Stores | 4,717, not drafted yet: its marketplace titles need their own query rule | Shopify feed | no |
 | Home Bargains | 4,460 with seasonal | page data | no |
 | The Works | 3,386, UK pages only | pages | in the SKU, where it passes the checksum |
 | Complete Care Shop | 1,952 | Shopify feed | no |
 | Poundland | 1,487 | Shopify feed | yes |
-| Toolstation | 1,118 so far, of about 35,700 | pages, running | no |
-| Wickes | 349 priced, 37,117 named | pages, then its sitemap | no |
-| **Total priced** | **about 34,300** | | |
+| Toolstation | 35,705 | pages | no |
+| Wickes | 612 priced, 37,117 named | pages, then its sitemap | no |
+| **Total priced** | **about 68,900** | | |
 
-Refused: The Range, Superdrug, Boots, CareCo, and B&Q for now.
+Refused: The Range, Superdrug, Boots, CareCo, JML, Coopers of Stortford, and B&Q for now.
 
 ### Where the records are
 
@@ -128,16 +175,17 @@ Get-ChildItem research\shelf\shelf-*.jsonl | ForEach-Object { '{0,-40} {1}' -f $
 
 ### eBay, so far
 
+As the Overview read on 25 September, evening.
+
 | | Count |
 |---|---|
-| Queries checked | 1,000 |
-| Sent to her | 93 |
-| Waiting for review | 72 |
-| Approved | 3 |
-| Live | 1 |
-| Rejected | 17 |
+| Phrases scanned | about 5,000 |
+| Waiting for her review | 178 |
+| Approved | 13 |
+| Live | 5 |
+| Queries still drafted and unchecked | about 44,600 |
 
-The slow step is eBay, not the shelves: 5,000 calls a day clears three or four 450-query files. Application Growth Check 260923-000021 asks for 25,000.
+The slow step is eBay, not the shelves. 5,000 calls a day clears two 450-phrase files with their gates, about 60 to 70 cards. Application Growth Check 260923-000021 for more calls was **declined on 25 September**, so the order the files are scanned in is what decides how fast the best products are found.
 
 ---
 
@@ -193,6 +241,8 @@ AliExpress, Banggood, LightInTheBox, MiniInTheBox and SaleYee ship from China.
 
 ## Order of work
 
-1. Probe the rest of the forced-search shops. Plumbing and care are done: Toolstation, Wickes and Complete Care Shop answered; Screwfix needs its own reader.
-2. Apply to the three trade suppliers that fit the parts side: Geko, UKSM Trade, TB Trade. Record their answers to the three questions in `cksuppliers.csv`.
-3. Once a supplier publishes a feed, match it against the candidates the same way the shelves are matched now, so a candidate can arrive with both a shelf to buy from and a supplier to ship from.
+1. Probe the care and older-buyer shops first, in this order: Essential Aids, Easylife, Connevans, JML, Coopers of Stortford, Lakeland. Then the Christmas shops, while there is still time to list before November.
+   `node scripts/probes/shop-probe.mjs --base=<url>` settles each in about a minute.
+2. Probe the rest of the forced-search shops. Plumbing and care are done: Toolstation, Wickes and Complete Care Shop answered; Screwfix needs its own reader.
+3. Apply to the three trade suppliers that fit the parts side: Geko, UKSM Trade, TB Trade. Record their answers to the three questions in `cksuppliers.csv`.
+4. Once a supplier publishes a feed, match it against the candidates the same way the shelves are matched now, so a candidate can arrive with both a shelf to buy from and a supplier to ship from.

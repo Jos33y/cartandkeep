@@ -40,6 +40,8 @@
    */
   --c-positive-wash: #e9f0e7;
   --c-warning-wash: #f7eedc;
+  /* Amber that holds its contrast on the ink panel, where --c-warning goes muddy. */
+  --c-warning-on-dark: #eccb93;
   --c-negative-wash: #f9e8e3;
   --c-info: #4a6b80;
   --c-info-wash: #e7eef2;

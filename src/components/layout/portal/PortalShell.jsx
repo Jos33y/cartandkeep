@@ -1,23 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { PORTAL_NAV_SECTIONS, portalPath } from '@utils/constants';
 import { Icon } from '@components/ui/icons';
 import { ScrollToTop } from '@components/layout/shared/ScrollToTop';
+import { PortalTopbar } from '@components/layout/portal/PortalTopbar';
+import { CommandPalette } from '@components/layout/portal/CommandPalette';
 import { useAccount } from '@hooks/useAccount';
 import { useAwaitingCount } from '@hooks/useThreads';
+import { useRecordVisit, screenFor } from '@hooks/usePortalVisits';
 import { loadTenant } from '@lib/tenant';
-import { supabase } from '@lib/supabase';
 import { useNoIndex } from '@hooks/useNoIndex';
 import styles from '@styles/layout/portal/portal-shell.module.css';
 
-/*
- * The actual mark, not a letter in a box.
- *
- * The sidebar drew a dark rounded square with a C in it, which is not the logo
- * and never was. The basket and ampersand are what is on the favicon, the app
- * icon and the shop, so the one place she looks at all day was the one place
- * showing something else.
- */
+// The basket and ampersand from the favicon and the shop, not a letter in a box.
 function Mark({ className }) {
   return (
     <svg viewBox="0 0 30 30" className={className} fill="none" role="img" aria-label="Cart and Keep">
@@ -30,30 +25,74 @@ function Mark({ className }) {
 
 export function PortalShell({ children }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { pathname } = useLocation();
   const burgerRef = useRef(null);
+  const navRef = useRef(null);
+  const returnFocusRef = useRef(null);
   const account = useAccount();
   useNoIndex();
 
-  /*
-   * What is waiting, carried on every screen.
-   *
-   * A conversation nobody answers is worse than no conversation, so the count
-   * has to be visible from wherever she is rather than found by opening the
-   * screen it lives on. One head request against the partial index in 0067,
-   * not two hundred rows nobody is looking at.
-   *
-   * `loadTenant` is cached after the first call, so this costs no round trip
-   * on any screen that has already read it, which is all of them.
-   */
   const [tenantId, setTenantId] = useState(null);
   useEffect(() => { loadTenant().then((t) => setTenantId(t?.id ?? null)); }, []);
   const badges = { awaiting: useAwaitingCount(tenantId) };
+  const previousAt = useRecordVisit(tenantId, pathname);
+
+  const openSearch = useCallback(() => {
+    returnFocusRef.current = document.activeElement;
+    setDrawerOpen(false);
+    setSearchOpen(true);
+  }, []);
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    requestAnimationFrame(() => returnFocusRef.current?.focus?.());
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        if (searchOpen) closeSearch(); else openSearch();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [searchOpen, openSearch, closeSearch]);
+
+  // Fades only on the side with more to see, so the edge of the rail says whether it scrolls.
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return undefined;
+    const update = () => {
+      nav.toggleAttribute('data-more-above', nav.scrollTop > 2);
+      nav.toggleAttribute('data-more-below', nav.scrollTop + nav.clientHeight < nav.scrollHeight - 2);
+    };
+    update();
+    nav.addEventListener('scroll', update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(nav);
+    return () => {
+      nav.removeEventListener('scroll', update);
+      ro.disconnect();
+    };
+  }, []);
+
+  // The current screen is kept in view: on a laptop Settings otherwise loads below the rail's fold.
+  useEffect(() => {
+    const nav = navRef.current;
+    const link = nav?.querySelector('[aria-current="page"]');
+    if (!link) return;
+    const margin = 48;
+    const top = link.offsetTop - nav.offsetTop;
+    const bottom = top + link.offsetHeight;
+    if (top - margin < nav.scrollTop) nav.scrollTop = Math.max(0, top - margin);
+    else if (bottom + margin > nav.scrollTop + nav.clientHeight) nav.scrollTop = bottom + margin - nav.clientHeight;
+  }, [pathname]);
 
   // A scrim with no keyboard dismissal leaves a keyboard user stuck behind it.
   useEffect(() => {
-    if (!drawerOpen) return;
+    if (!drawerOpen) return undefined;
     const onKey = (e) => {
       if (e.key === 'Escape') {
         setDrawerOpen(false);
@@ -64,15 +103,9 @@ export function PortalShell({ children }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [drawerOpen]);
 
-  const initial = account.email ? account.email[0].toUpperCase() : '';
-
   return (
     <div className={styles.shell}>
       <a href="#portal-main" className={styles.skip}>Skip to content</a>
-
-      {/* The storefront has mounted this since it was built and the portal
-          never did, so scrolling to the foot of Products and opening Orders
-          landed at the foot of Orders. */}
       <ScrollToTop />
 
       <aside className={`${styles.sidebar} ${drawerOpen ? styles.open : ''}`} id="portal-sidebar" aria-label="Portal">
@@ -82,7 +115,7 @@ export function PortalShell({ children }) {
           <span className={styles.brandSub}>Operations</span>
         </div>
 
-        <nav className={styles.nav} aria-label="Sections">
+        <nav ref={navRef} className={styles.nav} aria-label="Sections">
           {PORTAL_NAV_SECTIONS.map((section) => (
             <div key={section.key} className={styles.section}>
               <p className={styles.sectionLabel}>{section.label}</p>
@@ -96,10 +129,7 @@ export function PortalShell({ children }) {
                 >
                   <Icon name={item.icon} className={styles.icon} />
                   <span>{item.label}</span>
-
-                  {/* Absent at zero rather than showing one. A nought beside
-                      Messages every day is furniture, and furniture is what
-                      the count stops being read as the moment it appears. */}
+                  {/* Absent at zero: a nought beside Messages every day stops being read. */}
                   {item.badge && badges[item.badge] > 0 && (
                     <span className={styles.badge} data-num>
                       {badges[item.badge]}
@@ -111,30 +141,6 @@ export function PortalShell({ children }) {
             </div>
           ))}
         </nav>
-
-        <div className={styles.account}>
-          {account.email && (
-            <div className={styles.who}>
-              <span className={styles.avatar} aria-hidden="true">{initial}</span>
-              <span className={styles.whoText}>
-                <span className={styles.whoEmail} title={account.email}>{account.email}</span>
-                {account.role && <span className={styles.whoRole}>{account.role}</span>}
-              </span>
-            </div>
-          )}
-
-          <button
-            className={styles.signOut}
-            disabled={signingOut}
-            onClick={async () => {
-              setSigningOut(true);
-              await supabase.auth.signOut();
-            }}
-          >
-            <Icon name="IconExit" className={styles.icon} />
-            <span>{signingOut ? 'Signing out' : 'Sign out'}</span>
-          </button>
-        </div>
       </aside>
 
       {drawerOpen && (
@@ -149,46 +155,34 @@ export function PortalShell({ children }) {
       )}
 
       <div className={styles.body}>
-        <header className={styles.topbar}>
-          <button
-            ref={burgerRef}
-            className={styles.burger}
-            aria-label="Open menu"
-            aria-expanded={drawerOpen}
-            aria-controls="portal-sidebar"
-            onClick={() => setDrawerOpen(true)}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
-          <span className={styles.crumb}>{titleFor(pathname)}</span>
-        </header>
+        <PortalTopbar
+          crumb={crumbFor(pathname)}
+          account={account}
+          tenantId={tenantId}
+          previousAt={previousAt}
+          burgerRef={burgerRef}
+          drawerOpen={drawerOpen}
+          onOpenMenu={() => setDrawerOpen(true)}
+          onOpenSearch={openSearch}
+        />
 
         <main id="portal-main" className={styles.main}>
           {children}
         </main>
       </div>
+
+      <CommandPalette open={searchOpen} onClose={closeSearch} />
     </div>
   );
 }
 
-/*
- * The crumb, from the nav rather than from the path.
- *
- * Taking the first segment broke as soon as a route nested: /ebay/traffic read
- * as "Ebay", and /orders/:reference/slip reads as "Orders". The nav already
- * holds the name each route is called, so it is the honest source, and a route
- * with no nav entry falls back to the last segment rather than the first.
- */
-function titleFor(pathname) {
-  if (pathname === '/') return 'Overview';
-
-  const named = PORTAL_NAV_SECTIONS
-    .flatMap((s) => s.items)
-    .find((i) => i.route !== '/' && pathname.startsWith(portalPath(i.route)));
-  if (named) return named.label;
-
+// From the nav, not the path: /ebay/traffic is "Traffic" and /orders/AB12/slip is "Orders".
+function crumbFor(pathname) {
+  const screen = screenFor(pathname);
+  for (const s of PORTAL_NAV_SECTIONS) {
+    const item = s.items.find((i) => i.route === screen);
+    if (item) return { section: s.label, page: item.label };
+  }
   const last = pathname.split('/').filter(Boolean).pop();
-  return last ? last.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase()) : 'Overview';
+  return { section: null, page: last ? last.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase()) : 'Overview' };
 }

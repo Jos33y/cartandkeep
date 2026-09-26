@@ -7,6 +7,7 @@ export const STATUS_PHASES = [
   {
     key: 'foundations',
     label: 'Foundations',
+    purpose: 'Your domain, email and the secure setup everything else runs on.',
     items: [
       { label: 'Domains registered', detail: 'cartandkeep.com', state: 'done', date: '2026-07-26' },
       { label: 'Business email active', detail: 'support@cartandkeep.com', state: 'done', date: '2026-07-26' },
@@ -17,6 +18,7 @@ export const STATUS_PHASES = [
   {
     key: 'portal',
     label: 'Operations portal',
+    purpose: 'Where you review products, make decisions and see each one\u2019s progress.',
     items: [
       { label: 'Status page live', state: 'done', date: '2026-07-26' },
       { label: 'Portal sign in', state: 'done', date: '2026-07-27' },
@@ -36,6 +38,7 @@ export const STATUS_PHASES = [
   {
     key: 'research',
     label: 'Research pipeline',
+    purpose: 'How products are found and checked before they reach you.',
     items: [
       { label: 'Seller Hub research access', detail: 'Terapeak, research areas only. Now read from eBay\u2019s live listings instead, so the figures come through the connection to your account rather than a separate tool.', state: 'done', superseded: true, date: '2026-08-03' },
       { label: 'Research pipeline data sources', state: 'done', date: '2026-08-03' },
@@ -64,6 +67,7 @@ export const STATUS_PHASES = [
   {
     key: 'ebay',
     label: 'Your eBay account',
+    purpose: 'Your eBay listings, sales and edits, read and changed from the portal.',
     items: [
       { label: 'eBay account connected to the portal', detail: 'granted by you and revocable by you, so listings, sales and traffic can be read and written without anyone sharing a password', state: 'done', date: '2026-09-18' },
       { label: 'Listing to eBay from the portal', detail: 'the photographs, title, description and price you approved go up as a listing, with the category eBay itself chooses from the title', state: 'done', date: '2026-09-22' },
@@ -78,6 +82,7 @@ export const STATUS_PHASES = [
   {
     key: 'store',
     label: 'Custom store',
+    purpose: 'cartandkeep.com: the shop, checkout, card payments and its legal pages.',
     items: [
       { label: 'Brand identity and app icons', detail: 'the basket and ampersand mark, at every size a phone and a browser ask for', state: 'done', date: '2026-08-17' },
       { label: 'Storefront built', detail: 'shop front, departments, product pages, search, basket', state: 'done', date: '2026-08-18' },
@@ -108,18 +113,19 @@ export const STATUS_PHASES = [
       { label: 'A delivery change reaches every page at once', detail: 'the shop front, the basket, the checkout and the emails now read your delivery settings from the same place, so a threshold you change is the one every customer is shown and charged', state: 'done', date: '2026-09-24' },
       { label: 'Ask us to stock it', detail: 'a page rather than an email, so a request arrives with what they want, what they pay for it now and where they buy it. Anything asked for twice is grouped so you can see it.', state: 'done', date: '2026-08-21' },
       { label: 'Mailing list', detail: 'a box in the footer, an unsubscribe link that works without signing in to anything, and the list exportable to a spreadsheet whenever you want it', state: 'done', date: '2026-08-21' },
-      { label: 'Custom store live', due: 'Once the first products are approved and on sale', detail: 'cartandkeep.com. The shop is built and tested end to end, including a full order taken, paid and confirmed, and it takes card payments now. Your trading details are in. What is left is the products going on sale.', state: 'active' },
+      { label: 'Custom store live', detail: 'cartandkeep.com. The shop is built and tested end to end, including a full order taken, paid and confirmed, and it takes card payments now. Your trading details are in.', state: 'done' },
       { label: 'Questions before buying', detail: 'a box on every product. Somebody asks, you get an email, and they get a link back to the answer. No account for them and no chat window sitting on the shop pretending somebody is always there.', state: 'done', date: '2026-08-25' },
       { label: 'Questions about a whole basket', detail: 'they send the lot as one question, and you see exactly what they were looking at, priced as it was at the moment they asked', state: 'done', date: '2026-08-25' },
       { label: 'Questions about an order', detail: 'on the order page they already have, so nothing new to keep and no reference to type out', state: 'done', date: '2026-08-25' },
       { label: 'A receipt they can keep', detail: 'prints properly, and stays right as the order moves. It says paid, dispatched or refunded as it happens, so they can check it later rather than writing to ask.', state: 'done', date: '2026-08-25' },
       { label: 'A price you can give one person', detail: 'quote for what is in their basket, inside the conversation, good until a date you choose and usable once. It is not a sale price and it is never shown to anybody else.', state: 'active' },
-      { label: 'Products approved and on sale', detail: 'the ones your eBay listings have actually sold went on first. The seeded drafts were cleared out rather than left sitting unread, and what follows comes from the research board.', state: 'active' },
+      { label: 'Products approved and on sale', detail: 'the ones your eBay listings have actually sold went on first. The seeded drafts were cleared out rather than left sitting unread, and what follows comes from the research board.', state: 'done' },
     ],
   },
   {
     key: 'shopfloor',
     label: 'Running the shop',
+    purpose: 'Orders, dispatch, messages, reviews and customers, day to day.',
     items: [
       { label: 'Orders visible in the portal', detail: 'what was bought, where it goes, and the address ready to copy onto a label', state: 'done', date: '2026-08-19' },
       { label: 'Dispatch and tracking from the portal', detail: 'mark a parcel gone, record who took it and the tracking number', state: 'done', date: '2026-08-19' },
@@ -143,6 +149,7 @@ export const STATUS_PHASES = [
   {
     key: 'reporting',
     label: 'Reporting',
+    purpose: 'What you make, where it sells and what stops Google listing it.',
     items: [
       { label: 'What stops Google listing each product', detail: 'under Being found. A mark for every gap on every product, one tap from the fix, with what is needed to appear kept apart from what only helps a product rank', state: 'done', date: '2026-09-24' },
       { label: 'Monthly search report', detail: 'clicks, how often Google showed the shop, and what changed, kept month by month so the line is visible. Starts once the shop is verified in Google Search Console, which is still being set up.', state: 'active' },
@@ -150,9 +157,8 @@ export const STATUS_PHASES = [
       { label: 'What you make on every channel', detail: 'the same product side by side on your shop, eBay and TikTok Shop, after every fee, postage, packaging and what it cost you', state: 'done', date: '2026-08-20' },
       { label: 'Your eBay and TikTok Shop sales in one place', detail: 'eBay comes straight from your account with the fees it actually charged, and TikTok Shop from its own report, so every figure covers all three channels rather than only the shop', state: 'done', date: '2026-09-22' },
       { label: 'A cost on anything that has sold', detail: 'what you paid for it and what postage costs you, typed once on the finance screen and applied to every sale of it, past and future. Until it is there the screen says what it does not know rather than showing a profit it cannot work out.', state: 'done', date: '2026-09-22' },
-      // Built, and it has nothing to show until something sells. Complete
-      // would be a screen of zeros calling itself finished.
-      { label: 'Financial dashboard live', detail: 'revenue, fees, promoted listings, postage, packaging, returns and cost of goods, per product and per channel. It fills as sales come in.', state: 'active' },
+      // Done once it carried real eBay sales: a dashboard showing real money is not a screen of zeros.
+      { label: 'Financial dashboard live', detail: 'revenue, fees, promoted listings, postage, packaging, returns and cost of goods, per product and per channel, carrying your real eBay sales with the fees eBay charged. The shop fills it as it sells.', state: 'done', date: '2026-09-22' },
     ],
   },
 ];

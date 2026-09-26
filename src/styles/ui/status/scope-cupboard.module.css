@@ -1,0 +1,107 @@
+/* Drawn in the icon set's line: two uprights and a plinth, so it reads as furniture rather than a chart. */
+.unit {
+  position: relative;
+  margin: 0;
+  padding: var(--s-4) var(--s-4) var(--s-3);
+  border: 1.5px solid color-mix(in srgb, var(--c-base) 38%, transparent);
+  border-bottom-width: 0;
+  border-radius: var(--r-md) var(--r-md) 0 0;
+}
+
+.unit::after {
+  content: '';
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  bottom: -6px;
+  height: 6px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--c-base) 38%, transparent);
+}
+
+.shelf { position: relative; padding-top: var(--s-2); }
+.shelf + .shelf { margin-top: var(--s-3); }
+
+/* Month two sits on its own shelf with a gap under it, so nobody adds it to the 42. */
+.apart { margin-bottom: var(--s-6); }
+.apart + .shelf { margin-top: 0; }
+.apart .plank { background: color-mix(in srgb, var(--c-brand-mid) 55%, transparent); }
+
+.label {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--c-base) 70%, transparent);
+}
+
+.count { font-family: var(--font-data); font-weight: 400; letter-spacing: 0; text-transform: none; }
+
+ul.row {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 22px));
+  gap: 4px;
+  align-items: end;
+  padding: 0 2px;
+}
+
+.plank {
+  display: block;
+  height: 3px;
+  margin: 0 calc(var(--s-4) * -1);
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--c-base) 38%, transparent);
+}
+
+.box {
+  position: relative;
+  aspect-ratio: 1 / 0.86;
+  border-radius: 2px;
+  animation: settle var(--dur-enter) var(--ease-out) both;
+  animation-delay: calc(var(--i) * 14ms);
+}
+
+/* A lid line across the top third: a box, not a bar segment. */
+.filled { background: var(--c-brand-mid); }
+.filled::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 28%;
+  height: 1px;
+  background: color-mix(in srgb, var(--c-ink) 22%, transparent);
+}
+
+.empty { border: 1px dashed color-mix(in srgb, var(--c-base) 42%, transparent); }
+
+.fresh::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--c-base);
+  box-shadow: 0 0 0 2px var(--c-ink);
+}
+
+@keyframes settle {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 480px) {
+  .unit { padding: var(--s-3) var(--s-3) var(--s-2); }
+  .plank { margin: 0 calc(var(--s-3) * -1); }
+  ul.row { gap: 3px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .box { animation: none; }
+}

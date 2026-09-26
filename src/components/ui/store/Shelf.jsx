@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { ProductCard } from '@components/ui/store/ProductCard';
+import { SectionGlyph } from '@components/ui/store/SectionGlyph';
 import { ArrowRightIcon, ChevronRightIcon } from '@components/ui/store/icons';
 import { formatGbp } from '@utils/formatGbp';
 import { STORE_ROUTES } from '@utils/constants';
@@ -8,18 +9,7 @@ import styles from '@styles/ui/store/shelf.module.css';
 
 const categoryPath = (slug) => STORE_ROUTES.CATEGORY.replace(':slug', slug);
 
-/*
- * The signature. A row per department, with the name held still in a panel
- * while the products scroll past it.
- *
- * The first version had no way to move the rail with a mouse. Snap scrolling
- * and an edge that bleeds off the container are thumb affordances and they say
- * nothing to a trackpad, so the shelf was unusable on the surface most of the
- * first traffic will arrive on.
- *
- * Arrows appear only when there is somewhere to go, and each one disables
- * itself at its end rather than sitting there doing nothing.
- */
+// One shelf of the hero's cupboard: the section at the end of the board, its products standing on it.
 export function Shelf({ group, limit = 8, onQuickView }) {
   const rail = useRef(null);
   const [edges, setEdges] = useState({ start: false, end: false });
@@ -27,8 +17,7 @@ export function Shelf({ group, limit = 8, onQuickView }) {
   const measure = useCallback(() => {
     const el = rail.current;
     if (!el) return;
-    // A pixel of slack, because a scrolled-to-the-end element is routinely a
-    // fraction short of its own scrollWidth on a fractional display scale.
+    // A pixel of slack: a rail scrolled to its end is often a fraction short on fractional display scales.
     setEdges({
       start: el.scrollLeft > 1,
       end: el.scrollLeft + el.clientWidth < el.scrollWidth - 1,
@@ -41,10 +30,7 @@ export function Shelf({ group, limit = 8, onQuickView }) {
     measure();
     el.addEventListener('scroll', measure, { passive: true });
 
-    // Guarded. Without it, an environment that lacks ResizeObserver throws in
-    // an effect and takes the whole shelf down rather than losing one
-    // measurement. The window resize listener covers the same ground less
-    // precisely, which is the right fallback.
+    // Without ResizeObserver the window listener is a coarser but safe fallback.
     let ro = null;
     if (typeof ResizeObserver !== 'undefined') {
       ro = new ResizeObserver(measure);
@@ -60,24 +46,24 @@ export function Shelf({ group, limit = 8, onQuickView }) {
     };
   }, [measure, group.slug]);
 
-  // One card plus its gutter, read off the DOM rather than hard coded, so the
-  // step stays right when the breakpoint changes the card width.
   function nudge(direction) {
     const el = rail.current;
     if (!el) return;
     const card = el.querySelector('li');
-    const step = card ? card.getBoundingClientRect().width + 16 : el.clientWidth * 0.8;
+    const gap = parseFloat(getComputedStyle(el).columnGap) || 16;
+    const step = card ? card.getBoundingClientRect().width + gap : el.clientWidth * 0.8;
     el.scrollBy({ left: direction * step * 2, behavior: 'smooth' });
   }
 
   const items = group.items.slice(0, limit);
   const cheapest = Math.min(...group.items.map((p) => Number(p.price)));
   const more = group.items.length - items.length;
+  const routed = group.route !== false;
 
   return (
     <section className={styles.shelf} aria-labelledby={`shelf-${group.slug}`}>
-      <div className={styles.panel}>
-        <div className={styles.panelTop}>
+      <div className={styles.end}>
+        <div className={styles.ticket}>
           <h2 id={`shelf-${group.slug}`} className={`${styles.name} wide`}>{group.name}</h2>
           <p className={styles.meta}>
             {group.items.length} {group.items.length === 1 ? 'product' : 'products'}
@@ -85,12 +71,11 @@ export function Shelf({ group, limit = 8, onQuickView }) {
           </p>
         </div>
 
-        <div className={styles.panelFoot}>
-          {/* Recently viewed has no route behind it. Price bands do, because
-              they are resolved by the category page like any department. */}
-          {group.route !== false ? (
+        <div className={styles.controls}>
+          {/* Recently viewed has no route; price bands do, through the category page. */}
+          {routed ? (
             <Link className={styles.go} to={categoryPath(group.slug)}>
-              Browse all {group.items.length}
+              <span>Browse all {group.items.length}</span>
               <ArrowRightIcon size={14} />
             </Link>
           ) : <span />}
@@ -118,11 +103,13 @@ export function Shelf({ group, limit = 8, onQuickView }) {
             </div>
           )}
         </div>
+
+        <span className={styles.object} aria-hidden="true">
+          <SectionGlyph name={group.name} size={48} className={styles.glyph} />
+          <i className={styles.objectShadow} />
+        </span>
       </div>
 
-      {/* The fades are the second affordance and they cost nothing: a card
-          disappearing under a soft edge reads as more to come, where a card
-          cut off by a hard container edge reads as a bug. */}
       <div className={styles.railWrap} data-start={edges.start || undefined} data-end={edges.end || undefined}>
         <ul className={styles.rail} ref={rail}>
           {items.map((product, i) => (
@@ -130,7 +117,7 @@ export function Shelf({ group, limit = 8, onQuickView }) {
               <ProductCard product={product} index={i} onQuickView={onQuickView} />
             </li>
           ))}
-          {more > 0 && group.route !== false && (
+          {more > 0 && routed && (
             <li className={styles.cell}>
               <Link className={styles.rest} to={categoryPath(group.slug)}>
                 <span className={styles.restN} data-price>+{more}</span>
@@ -141,6 +128,8 @@ export function Shelf({ group, limit = 8, onQuickView }) {
           )}
         </ul>
       </div>
+
+      <span className={styles.board} aria-hidden="true" />
     </section>
   );
 }

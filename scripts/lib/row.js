@@ -137,6 +137,15 @@ const squash = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
  * itself (Home Bargains: 80 x 85g in the title, 12 x 85g in the description),
  * so this is a sourcing hint and the picture still decides.
  */
+// Letters and digits together, or a long run of digits, that is not a size: "76449", "nm806l", "507a",
+// but not "2500ml", "40g", "60w" or "12in".
+const SIZE_TOKEN = /^\d+(\.\d+)?(ml|l|ltr|g|kg|mg|w|v|a|m|mm|cm|in|pc|pcs|pk|x|oz|lb|ft|kw|mah|gb|tb|p)$/;
+function modelsIn(text) {
+  return String(text ?? '').toLowerCase().split(/[^a-z0-9]+/)
+    .filter((t) => t.length >= 4 && /\d/.test(t) && (/[a-z]/.test(t) || /^\d{5,}$/.test(t) || /^\d{4}$/.test(t)))
+    .filter((t) => !SIZE_TOKEN.test(t) && !/^(19|20)\d\d$/.test(t));
+}
+
 export function matchOf(shelf, listing, entryTitle) {
   if (!shelf) return null;
   const title = entryTitle ?? listing?.title ?? '';
@@ -150,6 +159,20 @@ export function matchOf(shelf, listing, entryTitle) {
       ? { level: 'same_product_same_pack', via: 'barcode', ...packs }
       : { level: 'different_barcode', via: 'barcode', ...packs };
   }
+  // A set or model number in both titles is the same product: LEGO 76449, Wylex NM806L, Fluidmaster 507A.
+  // An accessory names what it fits: "Wall mount for Tapo C320WS" is not the camera.
+  const fitsOnly = /\b(for|fits|fit|compatible|replacement|spare|cover|case|mount|bracket|holder|stand|skin|strap|charger|cable|adapter|adaptor)\b/i;
+  const model = modelsIn(shelf.product).find((m) => modelsIn(title).includes(m));
+  if (model && fitsOnly.test(title) && !fitsOnly.test(String(shelf.product ?? ''))) {
+    return { level: 'unknown', via: `eBay listing names ${model} but reads as an accessory for it`, ...packs };
+  }
+  if (model) return { level: 'same_product_same_pack', via: `model ${model}`, ...packs };
+  // Two different set numbers are two different sets: LEGO 75421 against a listing for 75406.
+  const setNo = (t) => modelsIn(t).filter((m) => /^\d{4,6}$/.test(m));
+  if (setNo(shelf.product).length && setNo(title).length) {
+    return { level: 'different_product', via: `set ${setNo(shelf.product)[0]} against ${setNo(title)[0]}`, ...packs };
+  }
+
   const brand = squash(shelf.brand);
   if (!brand) return { level: 'unknown', via: 'no brand on the shelf', ...packs };
   // A shop may file the maker (Thornton & Ross) where eBay names the product brand (Flexitol).

@@ -7,6 +7,7 @@
   gap: 6px;
   font-size: var(--t-caption);
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .in::before, .low::before, .made::before, .gone::before {
@@ -21,7 +22,7 @@
 .in::before { background: var(--c-brand); }
 
 /* Gold, not red. Two left is good news for anyone who wants one. */
-.low { color: #8a6412; }
+.low { color: var(--c-gold-text); }
 .low::before { background: var(--c-gold); }
 
 .made { color: var(--c-ink-soft); }

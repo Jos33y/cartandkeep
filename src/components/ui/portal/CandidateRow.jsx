@@ -52,7 +52,9 @@ function evidenceOf(a) {
   const e = a.entry;
   if (!e) return { icon: 'IconInfo', tone: 'muted', text: 'No recent seller in the sample' };
   if (a.entryLoses) {
-    return { icon: 'IconInfo', tone: 'warning', text: `A ${fb(e.seller_feedback)} seller is at ${formatGbp(e.price)}, where this loses money` };
+    // Losing at the small seller's price is half the answer; the other half is where it starts to pay.
+    const pays = a.floor != null ? `, and pays from ${formatGbp(a.floor)}` : '';
+    return { icon: 'IconInfo', tone: 'warning', text: `A ${fb(e.seller_feedback)} seller is at ${formatGbp(e.price)}, where this loses money${pays}` };
   }
   if (e.proved && a.trusted) {
     return { icon: 'IconCheck', tone: 'positive', text: `A ${fb(e.seller_feedback)} seller is converting at ${formatGbp(e.price)}` };
@@ -188,8 +190,10 @@ export function CandidateRow({
             <span className={styles.none}>Check pack first</span>
           ) : a.entryLoses ? (
             <>
-              <span className={`${styles.none} ${styles.loses}`}>Loses money</span>
-              <span className={styles.figFoot}>at <span data-num>{formatGbp(a.entry.price)}</span></span>
+              {a.floor != null
+                ? <span className={styles.none}>Pays from <span data-num>{formatGbp(a.floor)}</span></span>
+                : <span className={`${styles.none} ${styles.loses}`}>Loses money</span>}
+              <span className={styles.figFoot}>loses at <span data-num>{formatGbp(a.entry.price)}</span></span>
             </>
           ) : a.entry?.proved && a.goods == null ? (
             <>
@@ -376,7 +380,8 @@ function Split({ a }) {
     { key: 'fees', label: 'eBay fees', value: a.fees },
     { key: 'post', label: 'Postage, packing, returns', value: a.postage },
     { key: 'goods', label: costed ? 'Goods' : 'Goods, at most', value: goods },
-    { key: 'keep', label: 'You keep', value: Math.max(0, keep) },
+    // The bar cannot draw a loss, but the figure must say it: this read £0.00 on a £12.63 loss.
+    { key: 'keep', label: keep < 0 ? 'You lose' : 'You keep', value: Math.max(0, keep), shown: Math.abs(keep) },
   ];
   const total = parts.reduce((s, p) => s + p.value, 0) || 1;
 
@@ -390,8 +395,10 @@ function Split({ a }) {
       <dl className={styles.splitKey}>
         {parts.map((p) => (
           <div key={p.key} className={styles.splitItem}>
-            <dt><i className={styles[`seg_${p.key}`]} />{p.label}</dt>
-            <dd data-num className={p.key === 'keep' ? styles.splitKeep : undefined}>{formatGbp(p.value)}</dd>
+            <dt><i className={styles[p.key === 'keep' && keep < 0 ? 'seg_lose' : `seg_${p.key}`]} />{p.label}</dt>
+            <dd data-num className={p.key === 'keep' ? (keep < 0 ? styles.splitLoses : styles.splitKeep) : undefined}>
+              {formatGbp(p.shown ?? p.value)}
+            </dd>
           </div>
         ))}
       </dl>

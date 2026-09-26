@@ -1,6 +1,6 @@
 /* An open shelving unit in the brand sage. Every object is drawn in the icon set's line, so the hero looks the same whatever the catalogue's photographs look like. */
 
-.figure { --wood: var(--c-sage-deep); --wood-dark: #4c5e47; --back: #ebe2d1; margin: 0; }
+.figure { --wood: var(--c-sage-deep); --wood-dark: var(--c-wood-dark); --back: var(--c-shelf-back); margin: 0; }
 
 .whole { position: relative; display: block; color: inherit; text-decoration: none; }
 .whole:focus-visible { outline: 3px solid var(--c-action-strong); outline-offset: 6px; border-radius: 8px; }
@@ -31,7 +31,7 @@
 }
 
 .shelfLink { transition: background var(--dur) var(--ease); }
-.shelfLink:hover { background: linear-gradient(180deg, color-mix(in srgb, #f3ecdf 88%, #000) 0%, #f3ecdf 22%); }
+.shelfLink:hover { background: linear-gradient(180deg, color-mix(in srgb, var(--c-shelf-back-lit) 88%, #000) 0%, var(--c-shelf-back-lit) 22%); }
 .shelfLink:focus-visible { outline: 3px solid var(--c-action-strong); outline-offset: -3px; }
 
 /* Objects drop onto the shelf one after another, then stand still until a pointer reaches them. */

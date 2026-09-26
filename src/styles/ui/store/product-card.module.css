@@ -2,6 +2,7 @@
 
 .card {
   position: relative;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -14,10 +15,11 @@
 
 .card:hover { border-color: var(--c-line-mid); transform: translateY(-3px); box-shadow: var(--e-2); }
 
-/* The whole product in view on a warm ground; white packshot backgrounds multiply into it. */
+/* Every photograph on the same white mount, so a packshot and a room shot sit the same way in one row. */
 .frame {
   position: relative;
   aspect-ratio: 1;
+  padding: 8%;
   background: var(--c-warm);
   display: grid;
   place-items: center;
@@ -27,13 +29,14 @@
 .image {
   width: 100%;
   height: 100%;
-  padding: 8%;
   object-fit: contain;
-  mix-blend-mode: multiply;
+  background: var(--c-surface);
+  border-radius: var(--r-md);
+  box-shadow: 0 0 0 1px var(--c-line), 0 2px 6px color-mix(in srgb, var(--c-ink-deep) 6%, transparent);
   transition: transform 500ms var(--ease);
 }
 
-.card:hover .image { transform: scale(1.04); }
+.card:hover .image { transform: scale(1.03); }
 
 .noImage { font-size: var(--t-caption); color: var(--c-faint); }
 
@@ -46,7 +49,7 @@
   border-radius: 5px;
   background: var(--c-sage-wash);
   border: 1px solid var(--c-brand-mid);
-  color: #3f5139;
+  color: var(--c-sage-ink);
   font-size: 0.625rem;
   font-weight: 600;
   letter-spacing: 0.1em;
@@ -56,7 +59,7 @@
 .flagSale {
   background: var(--c-gold-wash);
   border-color: var(--c-gold-line);
-  color: #6b4f14;
+  color: var(--c-gold-ink);
   text-transform: none;
   letter-spacing: 0;
   font-size: 0.6875rem;
@@ -77,20 +80,38 @@
 }
 
 .tool {
+  position: relative;
   display: grid;
   place-items: center;
   width: 40px;
   height: 40px;
   border: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 1px 2px rgba(30, 28, 25, 0.08);
+  background: none;
   color: var(--c-ink-soft);
   cursor: pointer;
   transition: color 150ms var(--ease);
 }
 
-@media (pointer: coarse) { .tool { width: var(--tap); height: var(--tap); } }
+/* The visible disc, drawn inside the hit area so touch keeps 44px without covering the photograph. */
+.tool::before {
+  content: '';
+  position: absolute;
+  inset: var(--tool-inset, 0);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c-surface) 94%, transparent);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--c-ink-deep) 8%, transparent);
+}
+
+.tool svg { position: relative; }
+.tool:focus-visible { outline: none; }
+.tool:focus-visible::before { box-shadow: 0 0 0 2px var(--c-action-strong); }
+
+@media (pointer: coarse) {
+  .tools { top: 0; right: 0; gap: 0; }
+  .tool { --tool-inset: 6px; width: var(--tap); height: var(--tap); }
+  /* Tapping the card opens the product, so touch keeps only the heart. */
+  .tool[data-look] { display: none; }
+}
 
 .tool:hover { color: var(--c-ink); }
 .tool[data-on] { color: var(--c-action-text); }
@@ -106,6 +127,7 @@
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-width: 0;
   padding: var(--s-3);
   border-top: 1px solid var(--c-line);
 }
@@ -169,7 +191,7 @@
   border: 0;
   border-radius: var(--r-full);
   background: var(--c-action-strong);
-  color: #fff;
+  color: var(--c-on-action);
   font: inherit;
   font-size: var(--t-label);
   font-weight: 600;

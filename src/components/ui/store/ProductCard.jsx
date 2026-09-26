@@ -68,7 +68,7 @@ export function ProductCard({ product, index = 0, onQuickView }) {
 
         <div className={styles.tools}>
           {onQuickView && (
-            <button type="button" className={styles.tool} aria-label={`Quick look at ${product.title}`} onClick={() => onQuickView(product)}>
+            <button type="button" className={styles.tool} data-look aria-label={`Quick look at ${product.title}`} onClick={() => onQuickView(product)}>
               <SearchIcon size={16} />
             </button>
           )}

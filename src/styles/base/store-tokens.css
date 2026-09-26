@@ -32,6 +32,16 @@
      against white, so a category tile can carry a label. */
   --c-sage-deep: #5e7359;
   --c-sage-wash: #eef2ec;
+  /* Text on the sage wash. */
+  --c-sage-ink: #3f5139;
+
+  /* The drawn cupboard: the hero unit and every shelf on the home page share it. */
+  --c-wood-dark: #4c5e47;
+  --c-shelf-back: #ebe2d1;
+  --c-shelf-back-lit: #f3ecdf;
+
+  /* Text and icons on the terracotta action. */
+  --c-on-action: #ffffff;
 
   /* A price reduction, and nothing else. It exists so a sale flag never has
      to borrow terracotta, which means the buy action and has to keep meaning
@@ -39,6 +49,9 @@
   --c-gold: #b08430;
   --c-gold-wash: #f6eedc;
   --c-gold-line: #e4ce9c;
+  /* Gold as text: low stock on white, and the sale flag. */
+  --c-gold-text: #8a6412;
+  --c-gold-ink: #6b4f14;
 
   /* Metadata on a card: the leaf category, a review count, a strikethrough.
      One step lighter than --c-ink-faint, which is the portal's quietest. */

@@ -1,57 +1,46 @@
-import { Link } from 'react-router';
-import {
-  SCOPE_VERSION,
-  groupsFor,
-  lastUpdated,
-  tally,
-} from '@data/deliverables';
+import { SCOPE_VERSION, SCOPE_DATE, MONTH_ONE_DUE, groupsFor, tally } from '@data/deliverables';
 import { StateIcon } from '@components/status/StateIcon';
+import { StatusHeader } from '@components/layout/status/StatusHeader';
 import styles from '@styles/pages/status/deliverables-page.module.css';
 
-const SUPERSEDED_LABEL = 'Since replaced';
+// The checklist to hold against the contract: one line per item. The story lives on the status page.
+const COMMITTED = ['month-one', 'seo', 'analytics'];
+const AFTER = ['early', 'with-you'];
 
-const STATE_LABEL = {
-  done: 'Complete',
-  active: 'In progress',
-  queued: 'Waiting',
-  client: 'With you',
-};
+const fmt = (iso, opts) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', ...opts })
+  .format(new Date(`${iso}T12:00:00Z`));
 
-const fmt = (iso, opts) =>
-  new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', ...opts }).format(
-    new Date(`${iso}T12:00:00Z`),
-  );
-
-function Row({ item }) {
-  return (
-    <li className={`${styles.row} ${item.superseded ? styles.rowOld : ''}`}>
-      <StateIcon state={item.state} className={styles.icon} pulseClass={styles.pulse} />
-      <span className={styles.rowMain}>
-        <span className={styles.rowLabel}>
-          {item.label}
-          {item.superseded ? <span className={styles.tag}>{SUPERSEDED_LABEL}</span> : null}
-        </span>
-        {item.detail ? <span className={styles.rowDetail}>{item.detail}</span> : null}
-      </span>
-      <span className={`${styles.stateText} ${styles[item.state] ?? ''}`.trim()}>
-        {STATE_LABEL[item.state]}
-      </span>
-    </li>
-  );
+function outcome(item, groupKey) {
+  const hers = groupKey === 'with-you';
+  if (item.state === 'done') {
+    const word = hers ? 'Done by you' : 'Delivered';
+    return { tone: 'done', text: item.date ? `${word}, ${fmt(item.date, { day: 'numeric', month: 'short' })}` : word };
+  }
+  if (item.state === 'client') return { tone: 'hers', text: 'With you' };
+  return { tone: 'open', text: item.why ?? 'Not yet' };
 }
 
-function Group({ group }) {
+function Section({ group }) {
+  const done = group.items.filter((i) => i.state === 'done').length;
   return (
-    <section className={styles.block}>
-      <div className={styles.blockHead}>
-        <h2 className={styles.blockLabel}>{group.label}</h2>
-        <span className={styles.blockCount}>{group.section}</span>
-      </div>
-      {group.note ? <p className={styles.blockNote}>{group.note}</p> : null}
+    <section className={styles.section} aria-labelledby={`s-${group.key}`}>
+      <header className={styles.sectionHead}>
+        <h2 id={`s-${group.key}`} className={styles.sectionTitle}>{group.label}</h2>
+        <span className={styles.ref}>{group.section}</span>
+        {group.key === 'month-one' && <span className={styles.ref}>Due {fmt(MONTH_ONE_DUE, { day: 'numeric', month: 'long' })}</span>}
+        <span className={styles.count} data-num>{done} of {group.items.length}</span>
+      </header>
       <ul className={styles.list}>
-        {group.items.map((item) => (
-          <Row key={item.label} item={item} />
-        ))}
+        {group.items.map((item) => {
+          const o = outcome(item, group.key);
+          return (
+            <li key={item.label} className={`${styles.line} ${styles[o.tone]}`}>
+              <StateIcon state={item.state === 'done' ? 'done' : item.state === 'client' ? 'client' : 'queued'} className={styles.icon} />
+              <span className={styles.label}>{item.label}</span>
+              <span className={styles.outcome}>{o.text}</span>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
@@ -59,77 +48,27 @@ function Group({ group }) {
 
 export function DeliverablesPage() {
   const t = tally();
-  const updated = lastUpdated();
-
-  // Reading the counts off the data rather than writing them means a shipped
-  // item moves every number on the page at once, and none of them can be
-  // stale while the list underneath is current.
-  const figures = [
-    { value: t.done, label: 'Done' },
-    { value: t.active, label: 'In build' },
-    { value: t.queued, label: 'Waiting' },
-    { value: t.client, label: 'With you' },
-  ];
 
   return (
     <div className={styles.page}>
-      <header className={styles.head}>
-        <Link className={styles.back} to="/">Status</Link>
-        <span className={styles.crumb}>Deliverables</span>
-      </header>
+      <StatusHeader on="deliverables" />
 
-      <section className={styles.hero}>
-        <h1 className={styles.title}>Delivery status</h1>
+      <div className={styles.intro}>
+        <h1 className={styles.title}>The signed scope.</h1>
         <p className={styles.lede}>
-          Every deliverable in the signed scope, with where it stands. This counts what was
-          promised, not what has been built, so it reads lower than the build progress on the
-          status page. Nothing is left off, including the items that are not done.
+          Engagement Scope {SCOPE_VERSION}, signed {fmt(SCOPE_DATE, { day: 'numeric', month: 'long', year: 'numeric' })}.{' '}
+          <strong className={styles.lead} data-num>{t.done} of {t.total}</strong> delivered.
         </p>
+      </div>
 
-        <ul className={styles.tally}>
-          {figures.map((f) => (
-            <li key={f.label}>
-              <span className={styles.tallyFigure}>{f.value}</span>
-              <span className={styles.tallyLabel}>{f.label}</span>
-            </li>
-          ))}
-        </ul>
-
-        {/*
-          * Rewritten on 19 August, because it had stopped being true.
-          *
-          * The store being unbuilt used to be the whole explanation. It is
-          * built now, and what stands between these columns has changed shape:
-          * the domain pointing at it, and a handful of things only she can
-          * supply. Leaving the old sentence up would have been a page
-          * explaining a blockage that had moved.
-          */}
-        <p className={styles.explain}>
-          The shop is built. What is left is the domain pointing at it and{' '}
-          <strong>{t.client}</strong> things only you can supply, from your trading name to the
-          product descriptions. <strong>{t.blockedByStore}</strong> of the{' '}
-          <strong>{t.total}</strong> committed items wait on the shop being publicly live, and
-          several of those then need real orders before they show you anything, which is time
-          passing rather than work outstanding.
-        </p>
-      </section>
-
-      {groupsFor(['month-one', 'seo', 'analytics']).map((group) => (
-        <Group key={group.key} group={group} />
-      ))}
-
-      {groupsFor(['early', 'with-you']).map((group) => (
-        <Group key={group.key} group={group} />
-      ))}
+      {groupsFor(COMMITTED).map((g) => <Section key={g.key} group={g} />)}
+      <div className={styles.after}>
+        {groupsFor(AFTER).map((g) => <Section key={g.key} group={g} />)}
+      </div>
 
       <footer className={styles.foot}>
-        <span>
-          Against Engagement Scope version {SCOPE_VERSION}
-          {updated ? `, updated ${fmt(updated, { day: 'numeric', month: 'long' })}` : ''}
-        </span>
-        <a className={styles.footLink} href="mailto:hello@thebrickdev.com">
-          hello@thebrickdev.com
-        </a>
+        <span>Built by The Brick Dev Studios</span>
+        <a className={styles.footLink} href="mailto:hello@thebrickdev.com">hello@thebrickdev.com</a>
       </footer>
     </div>
   );

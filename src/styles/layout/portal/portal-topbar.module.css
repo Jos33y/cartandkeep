@@ -1,0 +1,400 @@
+/* Frosted because it sits over scrolling content, which is the job the blur was invented for. */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  height: var(--bar-h);
+  padding: 0 var(--s-6);
+  background: color-mix(in srgb, var(--c-base) 84%, transparent);
+  backdrop-filter: blur(12px) saturate(1.15);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.burger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  margin-left: calc(var(--s-3) * -1);
+  padding: var(--s-3);
+}
+
+.burger span { display: block; width: 16px; height: 1.5px; background: var(--c-ink); }
+
+.crumb {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  min-width: 0;
+  font-size: var(--t-label);
+  white-space: nowrap;
+}
+
+.crumbSection { color: var(--c-ink-faint); }
+.crumbSep { color: var(--c-line-mid); }
+
+.crumbPage {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--c-ink);
+  font-weight: 560;
+}
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-left: auto;
+  min-width: 0;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 248px;
+  height: 36px;
+  padding: 0 var(--s-2) 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  box-shadow: var(--e-1);
+  color: var(--c-ink-faint);
+  font-size: var(--t-label);
+  text-align: left;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.search:hover { border-color: var(--c-control); color: var(--c-ink-soft); box-shadow: var(--e-2); }
+
+.searchIcon { width: 16px; height: 16px; flex: none; }
+.searchText { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.kbd {
+  flex: none;
+  padding: 1px var(--s-2);
+  border: 1px solid var(--c-line);
+  border-bottom-width: 2px;
+  border-radius: var(--r-sm);
+  background: var(--c-sunk);
+  color: var(--c-ink-faint);
+  font-family: var(--font-data);
+  font-size: var(--t-micro);
+  line-height: 1.5;
+}
+
+.visit {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  max-width: 360px;
+  height: 36px;
+  padding: 0 var(--s-3);
+  border: 1px solid transparent;
+  border-radius: var(--r-full);
+  background: var(--c-sunk);
+  color: var(--c-ink-soft);
+  font-size: var(--t-caption);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.visit:hover, .visit[aria-expanded='true'] { background: var(--c-surface); border-color: var(--c-line-mid); color: var(--c-ink); }
+
+.visitText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.visitSkeleton {
+  width: 220px;
+  height: 36px;
+  border-radius: var(--r-full);
+  background: var(--c-sunk);
+}
+
+.dot {
+  position: relative;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-full);
+  background: var(--c-line-mid);
+}
+
+.positive { background: var(--c-positive); }
+.warning { background: var(--c-warning); }
+.negative { background: var(--c-negative); }
+.quiet { background: transparent; box-shadow: inset 0 0 0 1.5px var(--c-control); }
+
+/* A soft ring on the green dot only: recent is the state worth noticing at a glance. */
+.positive::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  box-shadow: 0 0 0 3px var(--c-positive-wash);
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  height: 36px;
+  padding: 0 var(--s-1) 0 var(--s-1);
+  border-radius: var(--r-md);
+  transition: background var(--dur) var(--ease);
+}
+
+.account:hover, .account[aria-expanded='true'] { background: var(--c-sunk); }
+
+.avatar, .avatarLarge {
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: var(--r-sm);
+  background: var(--c-ink);
+  color: var(--c-base);
+  font-family: var(--font-data);
+  font-weight: 500;
+}
+
+.avatar { width: 28px; height: 28px; font-size: var(--t-caption); }
+.avatarLarge { width: 36px; height: 36px; font-size: var(--t-label); }
+
+.caret {
+  width: 16px;
+  height: 16px;
+  color: var(--c-ink-faint);
+  transition: transform var(--dur-settle) var(--ease-out);
+}
+
+.caretOpen { transform: rotate(180deg); }
+
+.popover {
+  position: fixed;
+  z-index: var(--z-modal);
+  max-width: calc(100vw - var(--s-4));
+  max-height: calc(100dvh - var(--bar-h) - var(--s-5));
+  overflow-y: auto;
+  padding: var(--s-4);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e-3);
+  transform-origin: top right;
+  animation: open var(--dur-settle) var(--ease-out) both;
+}
+
+@keyframes cellIn {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes open {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.accountPanel { width: 300px; }
+.lastVisit [data-num] { white-space: nowrap; }
+.visitPanel { width: 380px; }
+
+.who { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
+.whoText { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+
+.whoEmail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-ink);
+}
+
+.whoRole {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.lastVisit {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-sunk);
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+}
+
+.lastIcon { width: 16px; height: 16px; flex: none; color: var(--c-ink-faint); }
+
+.signOut {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: var(--tap);
+  margin-top: var(--s-3);
+  padding: 0 var(--s-3);
+  border-top: 1px solid var(--c-line);
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  text-align: left;
+}
+
+.signOut:hover:not(:disabled) { color: var(--c-ink); background: var(--c-sunk); }
+.signOut:disabled { opacity: 0.6; cursor: default; }
+.signOutIcon { width: 18px; height: 18px; flex: none; color: var(--c-ink-faint); }
+
+.panelHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.panelTitle { font-size: var(--t-body); }
+.panelNote { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+/* A fortnight as fourteen cells: attendance is read as a shape before any number. */
+.strip {
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  gap: 4px;
+  margin-bottom: var(--s-4);
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.cell::before {
+  content: '';
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--r-sm);
+  border: 1px dashed var(--c-line-mid);
+  animation: cellIn var(--dur-enter) var(--ease-out) both;
+  animation-delay: calc(var(--i) * 18ms);
+}
+
+.cell[data-level='1']::before { border: 0; background: var(--c-brand-mid); }
+.cell[data-level='2']::before { border: 0; background: var(--c-brand); }
+.cell[data-level='3']::before { border: 0; background: var(--c-brand-strong); box-shadow: inset 0 0 0 2px var(--c-positive); }
+
+.cell[data-today]::before { outline: 1.5px solid var(--c-ink); outline-offset: 1.5px; }
+
+.cellLabel {
+  font-family: var(--font-data);
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+}
+
+.cell[data-today] .cellLabel { color: var(--c-ink); font-weight: 500; }
+
+.dayList {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--c-line);
+}
+
+.day {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--c-line);
+}
+
+.dayHead {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: var(--s-3);
+  font-size: var(--t-label);
+}
+
+.dayDate { color: var(--c-ink); font-weight: 500; }
+.dayTimes { font-size: var(--t-caption); color: var(--c-ink-soft); }
+.dayVisits { min-width: 56px; text-align: right; font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+ul.screens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+}
+
+.screen {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 2px var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--c-sunk);
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+}
+
+.opens {
+  padding: 0 5px;
+  border-radius: var(--r-full);
+  background: var(--c-surface);
+  font-size: var(--t-micro);
+  color: var(--c-ink);
+}
+
+.panelEmpty {
+  padding: var(--s-3);
+  border: 1px dashed var(--c-line-mid);
+  border-radius: var(--r-md);
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+}
+
+.panelFoot {
+  margin-top: var(--s-3);
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+}
+
+/* Below this the search gives up its width first, so the client line never loses its last words. */
+@media (max-width: 1180px) {
+  .search { width: 36px; justify-content: center; padding: 0; box-shadow: none; }
+  .searchText, .kbd { display: none; }
+}
+
+@media (max-width: 900px) {
+  .topbar { padding: 0 var(--s-4); gap: var(--s-2); }
+  .burger { display: flex; }
+  .crumbSection, .crumbSep { display: none; }
+  .search { width: var(--tap); height: var(--tap); justify-content: center; padding: 0; box-shadow: none; }
+  .searchText, .kbd { display: none; }
+  .searchIcon { width: 18px; height: 18px; }
+  .visit { width: var(--tap); height: var(--tap); justify-content: center; padding: 0; }
+  .visitText { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .visitSkeleton { width: var(--tap); height: var(--tap); }
+  .account { height: var(--tap); }
+
+}
+
+@media (max-width: 599px) {
+  .visitPanel, .accountPanel { width: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popover, .cell::before { animation: none; }
+  .search, .visit, .account, .caret { transition: none; }
+}

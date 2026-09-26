@@ -296,6 +296,8 @@ button:disabled { cursor: default; }
 .splitItem dt i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; }
 .splitItem dd { color: var(--c-ink); }
 .splitKeep { color: var(--c-positive) !important; font-weight: 500; }
+.splitLoses { color: var(--c-negative) !important; font-weight: 500; }
+.seg_lose { background: var(--c-negative); }
 
 .seen {
   display: grid;

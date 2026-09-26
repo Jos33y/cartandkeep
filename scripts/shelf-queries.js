@@ -224,7 +224,9 @@ const COLOURS = new Set(['black', 'white', 'grey', 'gray', 'navy', 'blue', 'red'
 const EXTRAS = /\s(?:with|w\/)\s|\s[-–|]\s|,|\(/i
 
 function words (name) {
+  // Accents folded, not dropped: "Cafetière" was drafting as "cafeti re".
   return name.split(EXTRAS)[0].split(SIZE)[0]
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9 ]+/g, ' ')
     .split(/\s+/)
@@ -244,7 +246,9 @@ for (const r of rows) {
   const aid = AID.test(`${r.name || ''} ${r.category || ''}`)
   if (!args.all && !aid && (SIZED.test(r.category || '') || SIZED_NAME.test(r.name || ''))) { refused.sized++; continue }
   if (!Number.isFinite(price) || price < MIN || price > MAX) { refused.price++; continue }
-  if (r.in_stock === 'no') { refused.stock++; continue }
+  // --with-out-of-stock keeps lines listed ahead of their stock: Lakeland's Christmas range read
+  // "unavailable, more stock expected 5th October", which is when it is worth being ready.
+  if (r.in_stock === 'no' && !args['with-out-of-stock']) { refused.stock++; continue }
   // A shop that sells one person three of something cannot restock a listing.
   if (cap != null && cap < MIN_QTY) { refused.capped++; continue }
 

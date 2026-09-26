@@ -1,52 +1,85 @@
-/* The panel holds still while the goods move past it. That is the whole idea,
-   and it is why the name does not scroll away with the rail. */
+/* One shelf of the hero's cupboard: the section stands at the end of the board and the products stand on it. */
 
 .shelf {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--s-3);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'end' 'rail' 'board';
 }
 
 @media (min-width: 900px) {
-  .shelf { grid-template-columns: 212px 1fr; gap: var(--s-4); align-items: stretch; }
-}
-
-.panel {
-  background: var(--c-warm);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-card);
-  padding: var(--s-4);
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--s-4);
-  flex-wrap: wrap;
-}
-
-/* Name, count, link and arrows stay together at the top, beside the first card, not 250px below it. */
-@media (min-width: 900px) {
-  .panel {
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: flex-start;
-    gap: var(--s-5);
-    padding: var(--s-5) var(--s-4);
+  .shelf {
+    grid-template-columns: 212px minmax(0, 1fr);
+    grid-template-areas: 'end rail' 'board board';
+    column-gap: var(--s-4);
   }
 }
 
-.panelTop { min-width: 0; }
+/* Phone: one line above the rail, the object beside the name. */
+.end {
+  grid-area: end;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: 'object ticket' 'object controls';
+  column-gap: var(--s-3);
+  align-items: center;
+  padding-bottom: var(--s-3);
+}
 
-.panelFoot {
+@media (min-width: 900px) {
+  .end {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s-5);
+    /* Matches the rail's headroom, so the panel and the cards start level. */
+    margin-top: 6px;
+    padding: var(--s-5) var(--s-4) 0;
+    border-radius: 3px var(--r-card) 0 0;
+    border-left: 8px solid var(--c-sage-deep);
+    /* The same shaded back as the hero's shelves. */
+    background: linear-gradient(180deg, color-mix(in srgb, var(--c-shelf-back) 90%, var(--c-ink-deep)) 0, var(--c-shelf-back) 36px);
+  }
+}
+
+.ticket { grid-area: ticket; min-width: 0; }
+
+.name { font-size: 1.25rem; line-height: 1.08; }
+@media (min-width: 900px) { .name { font-size: 1.4375rem; } }
+
+.meta { margin-top: var(--s-1); font-size: var(--t-caption); color: var(--c-ink-soft); }
+@media (min-width: 900px) { .meta { margin-top: var(--s-2); } }
+
+.controls {
+  grid-area: controls;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--s-3);
   flex-wrap: wrap;
+  min-width: 0;
 }
 
-/* Arrows only. Drag to scroll was the alternative and it fights text
-   selection, breaks the click through to a product, and has no keyboard. */
+.go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-ink);
+  text-decoration: none;
+}
+
+/* The underline sits on the text, not the tap area, so it stays tight under the words. */
+.go span { border-bottom: 1.5px solid var(--c-sage-deep); padding-bottom: 2px; }
+.go svg { transition: transform 180ms var(--ease); }
+.go:hover svg { transform: translateX(3px); }
+.go:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; border-radius: 4px; }
+
 .arrows { display: flex; gap: var(--s-1); }
+
+/* Touch swipes the rail; the arrows are for a mouse or trackpad. */
+@media (hover: none) { .arrows { display: none; } }
 
 .arrow {
   width: 36px;
@@ -60,88 +93,100 @@
   transition: border-color 150ms var(--ease), opacity 150ms var(--ease);
 }
 
-.arrow:hover:not(:disabled) { border-color: var(--c-brand); }
-
-/* Disabled rather than hidden, so the pair does not jump position as the rail
-   reaches an end. */
+.arrow:hover:not(:disabled) { border-color: var(--c-sage-deep); }
+.arrow:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+/* Disabled rather than hidden, so the pair does not move at the rail's ends. */
 .arrow:disabled { opacity: 0.32; cursor: default; }
 
-.name { font-size: 1.25rem; line-height: 1.08; }
-@media (min-width: 900px) { .name { font-size: 1.4375rem; } }
-
-.meta { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--c-faint); }
-
-.go {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: var(--tap);
-  font-size: var(--t-label);
-  font-weight: 500;
-  color: var(--c-ink);
-  text-decoration: none;
-  border-bottom: 1.5px solid var(--c-brand);
-  padding-bottom: 2px;
-  align-self: flex-start;
+.object {
+  grid-area: object;
+  position: relative;
+  display: grid;
+  place-items: end center;
+  padding-bottom: 3px;
+  color: var(--c-sage-deep);
+  animation: drop 620ms cubic-bezier(0.34, 1.56, 0.64, 1) 200ms both;
 }
 
-.go svg { transition: transform 180ms var(--ease); }
-.go:hover svg { transform: translateX(3px); }
+@media (min-width: 900px) {
+  .object { margin-top: auto; align-self: center; padding-bottom: 2px; }
+}
 
-/* The fades are the second affordance. A card disappearing under a soft edge
-   reads as more to come; a card cut off by a hard container edge reads as a
-   bug. Each side only appears when there is something under it. */
-.railWrap { position: relative; min-width: 0; }
+.glyph { width: 44px; height: auto; stroke-width: 2; }
+@media (min-width: 900px) { .glyph { width: 96px; } }
+
+.objectShadow {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 70%;
+  height: 5px;
+  margin-left: -35%;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c-ink-deep) 16%, transparent);
+  filter: blur(1px);
+}
+
+@media (min-width: 900px) { .objectShadow { height: 7px; } }
+
+.railWrap { grid-area: rail; position: relative; min-width: 0; }
 
 .railWrap::before,
 .railWrap::after {
   content: '';
   position: absolute;
   top: 0;
-  bottom: var(--s-2);
+  bottom: 0;
   width: 44px;
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
   opacity: 0;
   transition: opacity 200ms var(--ease);
 }
 
-.railWrap::before {
-  left: 0;
-  background: linear-gradient(to right, var(--c-base), transparent);
-}
-
-.railWrap::after {
-  right: 0;
-  background: linear-gradient(to left, var(--c-base), transparent);
-}
-
+.railWrap::before { left: 0; background: linear-gradient(to right, var(--c-base), transparent); }
+.railWrap::after { right: 0; background: linear-gradient(to left, var(--c-base), transparent); }
 .railWrap[data-start]::before { opacity: 1; }
 .railWrap[data-end]::after { opacity: 1; }
 
-/* ul. outranks the reset's ul[class] { padding: 0 }, which was eating the rail's right and bottom padding. */
+/* ul. outranks the reset's ul[class] padding. Top padding is headroom for the hover lift; the bottom is flush with the board. */
 ul.rail {
   list-style: none;
-  padding: 0 var(--s-4) var(--s-2) 0;
-  margin: 0;
+  margin: 0 calc(var(--s-4) * -1) 0 0;
+  padding: 6px var(--s-4) 0 0;
   display: flex;
+  align-items: stretch;
   gap: var(--s-3);
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
-  /* Bleeds past the container on a phone so the next card is visibly cut off,
-     which is the only reliable way to say "this scrolls" without an arrow. */
-  margin-right: calc(var(--s-4) * -1);
 }
 
-.rail::-webkit-scrollbar { display: none; }
+ul.rail::-webkit-scrollbar { display: none; }
+
+/* Same element and specificity as the rule above, so the desktop override wins. */
+@media (min-width: 900px) {
+  ul.rail { margin-right: 0; padding-right: 0; gap: var(--s-4); }
+}
+
+/* min-width: 0, or the longest section name sets the card's width. */
+.cell { flex: 0 0 176px; min-width: 0; scroll-snap-align: start; }
+@media (min-width: 620px) { .cell { flex-basis: 205px; } }
+
+/* The board: a lit top edge over the darker front, as on the hero unit. */
+.board {
+  grid-area: board;
+  display: block;
+  height: 12px;
+  margin-right: calc(var(--s-4) * -1);
+  border-radius: 3px 0 0 3px;
+  background: linear-gradient(180deg, var(--c-sage-deep) 0 4px, var(--c-wood-dark) 4px);
+  box-shadow: 0 14px 18px -14px color-mix(in srgb, var(--c-ink-deep) 55%, transparent);
+}
 
 @media (min-width: 900px) {
-  .rail { margin-right: 0; padding-right: 0; gap: var(--s-4); }
+  .board { height: 14px; margin: 0 -6px; border-radius: 4px; }
 }
-
-.cell { flex: 0 0 176px; scroll-snap-align: start; }
-@media (min-width: 620px) { .cell { flex-basis: 205px; } }
 
 .rest {
   display: flex;
@@ -160,11 +205,18 @@ ul.rail {
   transition: border-color 180ms var(--ease);
 }
 
-.rest:hover { border-color: var(--c-brand); }
+.rest:hover { border-color: var(--c-sage-deep); }
 .restN { font-size: 1.75rem; color: var(--c-sage-deep); }
 .restLabel { font-size: var(--t-label); color: var(--c-ink-soft); line-height: 1.3; }
 .rest svg { margin-top: var(--s-2); color: var(--c-sage-deep); }
 
+@keyframes drop {
+  from { opacity: 0; transform: translateY(-24px); }
+  60% { opacity: 1; }
+  to { opacity: 1; transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .object { animation: none; }
   .go svg, .rest, .arrow, .railWrap::before, .railWrap::after { transition: none; }
 }

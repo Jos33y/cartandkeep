@@ -4,13 +4,17 @@
   min-height: 100dvh;
 }
 
-/* The rail sits on the sunk surface so the working area reads as the page and
-   the navigation as furniture around it. */
+/* Pinned to the viewport, so the rail never scrolls away with a long page and the nav scrolls on its own. */
 .sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: var(--s-5) var(--s-3) 0;
+  /* 3px short of the scale on each side, handed to the nav so focus rings are not clipped by its scroll box. */
+  padding: var(--s-5) calc(var(--s-3) - 3px) 0;
   background: var(--c-sunk);
   border-right: 1px solid var(--c-line);
 }
@@ -20,7 +24,8 @@
   grid-template-columns: 26px 1fr;
   align-items: center;
   column-gap: var(--s-3);
-  padding: 0 var(--s-2) var(--s-4);
+  padding: 0 calc(var(--s-2) + 3px) var(--s-4);
+  margin: 0 3px;
   border-bottom: 1px solid var(--c-line-mid);
 }
 
@@ -48,8 +53,23 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--s-5) 0;
+  overscroll-behavior: contain;
+  /* No scrollbar: it took its width from the links, and the fades below say the rail scrolls. */
+  scrollbar-width: none;
+  padding: var(--s-5) 3px var(--s-6);
+  --fade-top: 0px;
+  --fade-bottom: 0px;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent 100%);
+  transition: --fade-top var(--dur-settle) var(--ease), --fade-bottom var(--dur-settle) var(--ease);
 }
+
+.nav::-webkit-scrollbar { display: none; }
+.nav[data-more-above] { --fade-top: 28px; }
+.nav[data-more-below] { --fade-bottom: 40px; }
+
+/* Registered so the fades ease in rather than snap. */
+@property --fade-top { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --fade-bottom { syntax: '<length>'; inherits: false; initial-value: 0px; }
 
 .section { display: flex; flex-direction: column; gap: 2px; }
 
@@ -80,18 +100,15 @@
 
 .icon { width: 18px; height: 18px; flex: none; color: var(--c-ink-faint); }
 
-/* The one count in the rail.
-   Wash and ink rather than a solid terracotta fill, because terracotta on this
-   platform marks an action and a count is a state. It is the only thing in the
-   navigation that is not a label, which is enough to make it read. */
+/* Ink, not terracotta: a count is a state, not an action. */
 .badge {
   margin-left: auto;
   flex: none;
   min-width: 20px;
   padding: 1px var(--s-2);
   border-radius: var(--r-full);
-  background: var(--c-action-wash);
-  color: var(--c-action-text);
+  background: var(--c-ink);
+  color: var(--c-base);
   font-size: var(--t-micro);
   font-weight: 600;
   text-align: center;
@@ -109,17 +126,17 @@
 .link:hover { color: var(--c-ink); background: var(--c-line); }
 .link:hover .icon { color: var(--c-ink-soft); }
 
-/* Active is raised back to the page surface, so the rail reads as depth
-   rather than as a heavier font. */
+/* Raised back to the page surface, marked in sage: terracotta is kept for buy, send and submit. */
 .active {
   background: var(--c-base);
   border-color: var(--c-line-mid);
+  box-shadow: var(--e-1);
   color: var(--c-ink);
   font-weight: 500;
 }
 
 .active:hover { background: var(--c-base); }
-.active .icon { color: var(--c-action-text); }
+.active .icon { color: var(--c-ink); }
 
 .active::before {
   content: '';
@@ -129,112 +146,18 @@
   transform: translateY(-50%);
   width: 2px;
   height: 16px;
-  background: var(--c-action);
+  background: var(--c-brand);
   border-radius: 1px;
 }
 
-/* Attached to the rail, not floating at the bottom of it. */
-.account {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  margin: 0 calc(var(--s-3) * -1);
-  padding: var(--s-4) var(--s-3);
-  border-top: 1px solid var(--c-line-mid);
-}
-
-.who { display: flex; align-items: center; gap: var(--s-3); min-width: 0; padding: 0 var(--s-2); }
-
-.avatar {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  flex: none;
-  border-radius: var(--r-sm);
-  background: var(--c-ink);
-  color: var(--c-base);
-  font-family: var(--font-data);
-  font-size: var(--t-caption);
-  font-weight: 500;
-}
-
-.whoText { display: flex; flex-direction: column; min-width: 0; }
-
-.whoEmail {
-  font-size: var(--t-caption);
-  color: var(--c-ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.whoRole {
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--c-ink-faint);
-}
-
-.signOut {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  min-height: var(--tap);
-  padding: 0 var(--s-3);
-  border-radius: var(--r-sm);
-  text-align: left;
-  font-size: var(--t-caption);
-  color: var(--c-ink-faint);
-}
-
-.signOut:hover:not(:disabled) { color: var(--c-ink); background: var(--c-line); }
-.signOut:hover:not(:disabled) .icon { color: var(--c-ink-soft); }
-.signOut:disabled { opacity: 0.6; cursor: default; }
-
 .body { display: flex; flex-direction: column; min-width: 0; background: var(--c-base); }
-
-.topbar {
-  display: none;
-  align-items: center;
-  gap: var(--s-3);
-  height: var(--bar-h);
-  padding: 0 var(--s-4);
-  border-bottom: 1px solid var(--c-line);
-  background: var(--c-base);
-  position: sticky;
-  top: 0;
-  z-index: var(--z-sticky);
-}
-
-.burger {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-  min-width: var(--tap);
-  min-height: var(--tap);
-  margin-left: calc(var(--s-3) * -1);
-  padding: var(--s-3);
-}
-
-.burger span { display: block; width: 16px; height: 1.5px; background: var(--c-ink); }
-
-.crumb {
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--c-ink-faint);
-}
 
 .main {
   flex: 1;
   width: 100%;
   max-width: var(--shell-max);
   margin-inline: auto;
-  padding: var(--s-7) var(--s-6) var(--s-8);
+  padding: var(--s-6) var(--s-6) var(--s-8);
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -266,11 +189,14 @@
     inset: 0 auto 0 0;
     width: var(--rail-w);
     z-index: var(--z-drawer);
+    height: 100dvh;
     transform: translateX(-100%);
-    transition: transform var(--dur-settle) var(--ease);
+    /* Hidden once parked, or its links stay in the tab order off screen. */
+    visibility: hidden;
+    transition: transform var(--dur-settle) var(--ease), visibility 0s linear var(--dur-settle);
   }
 
-  .open { transform: translateX(0); }
+  .open { transform: translateX(0); visibility: visible; transition-delay: 0s; box-shadow: var(--e-3); }
 
   .link { min-height: var(--tap); }
 
@@ -282,10 +208,9 @@
     background: rgb(42 39 35 / 30%);
   }
 
-  .topbar { display: flex; }
   .main { padding: var(--s-5) var(--s-4) var(--s-8); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sidebar, .link { transition: none; }
+  .sidebar, .link, .nav { transition: none; }
 }

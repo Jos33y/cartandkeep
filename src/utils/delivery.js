@@ -1,3 +1,5 @@
+import { storeConfig } from '@lib/storeConfig';
+
 /*
  * When it turns up.
  *
@@ -5,14 +7,22 @@
  * what somebody decides on, and it is the highest value sentence we can put on
  * a product page with data we already hold.
  *
- * Everything here is computed in Europe/London. A cutoff of 2pm means 2pm
+ * Everything here is computed in Europe/London. A 10am cutoff means 10am
  * where the parcel is, and a shopper in Lagos looking at a UK shop should see
  * the UK answer.
  */
 
-const CUTOFF_HOUR = 14;
-const TRANSIT_MIN = 2;
-const TRANSIT_MAX = 3;
+// Her dispatch cutoff and transit days, read from settings on every call so a change in Settings reaches the next render.
+const timings = () => {
+  const { cutoffHour, transitMin, transitMax } = storeConfig().delivery;
+  return { cutoffHour, transitMin, transitMax };
+};
+
+// 10 reads 10am, 12 reads midday, 13 reads 1pm.
+export function hourLabel(hour) {
+  if (hour === 12) return 'midday';
+  return hour < 12 ? `${hour}am` : `${hour - 12}pm`;
+}
 
 /*
  * England and Wales bank holidays.
@@ -84,8 +94,9 @@ function addWorkingDays(iso, n) {
  * than a date. Zero means same day, which is a claim, and it should only ever
  * be there because somebody put it there.
  */
-export function deliveryEstimate(dispatchDays, now = new Date()) {
+export function deliveryEstimate(dispatchDays, now = new Date(), times = timings()) {
   const { iso: today, hour } = londonParts(now);
+  const { cutoffHour, transitMin, transitMax } = times;
 
   if (!KNOWN_YEARS.has(Number(today.slice(0, 4)))) {
     if (import.meta.env?.DEV) {
@@ -94,22 +105,22 @@ export function deliveryEstimate(dispatchDays, now = new Date()) {
   }
 
   const known = dispatchDays !== null && dispatchDays !== undefined;
-  const days = known ? Number(dispatchDays) : TRANSIT_MIN;
+  const days = known ? Number(dispatchDays) : transitMin;
 
   // Same day only if it is a working day and we are inside the cutoff.
   let leaves;
   if (known && days === 0) {
-    leaves = isWorkingDay(today) && hour < CUTOFF_HOUR ? today : nextWorkingDay(today);
+    leaves = isWorkingDay(today) && hour < cutoffHour ? today : nextWorkingDay(today);
   } else {
-    const from = isWorkingDay(today) && hour < CUTOFF_HOUR ? today : nextWorkingDay(today);
+    const from = isWorkingDay(today) && hour < cutoffHour ? today : nextWorkingDay(today);
     leaves = known ? addWorkingDays(from, days) : from;
   }
 
   return {
     known,
     leaves,
-    from: addWorkingDays(leaves, TRANSIT_MIN),
-    to: addWorkingDays(leaves, TRANSIT_MAX),
+    from: addWorkingDays(leaves, transitMin),
+    to: addWorkingDays(leaves, transitMax),
     sameDay: known && days === 0 && leaves === today,
   };
 }
@@ -143,7 +154,7 @@ export function deliveryLabel(estimate) {
 
 export function dispatchLabel(estimate, now = new Date()) {
   const { iso: today } = londonParts(now);
-  if (estimate.sameDay) return 'Sent today if ordered before 2pm';
+  if (estimate.sameDay) return `Sent today if ordered before ${hourLabel(timings().cutoffHour)}`;
   if (estimate.leaves === nextWorkingDay(today)) return 'Sent the next working day';
   return `Leaves us ${formatDeliveryDay(estimate.leaves)}`;
 }

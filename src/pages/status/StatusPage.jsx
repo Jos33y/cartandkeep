@@ -1,259 +1,236 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import {
-  STATUS_ITEMS,
-  STATE_LABEL,
-  SUPERSEDED_LABEL,
-  activeItems,
-  upcomingPhases,
-  completedByMonth,
-  nextDated,
-  lastUpdated,
-} from '@data/statusItems';
-import { LogoMark } from '@components/ui/shared/Logo';
+import { STATUS_PHASES, SUPERSEDED_LABEL, lastUpdated } from '@data/statusItems';
+import { DELIVERABLES, DELIVERABLE_GROUPS, committedItems, tally } from '@data/deliverables';
+import { StatusHeader, portalHref } from '@components/layout/status/StatusHeader';
 import { StateIcon } from '@components/status/StateIcon';
+import { ScopeCupboard } from '@components/status/ScopeCupboard';
+import { DeliveryTrack } from '@components/status/DeliveryTrack';
+import { useStatusLastVisit } from '@hooks/useStatusLastVisit';
 import styles from '@styles/pages/status/status-page.module.css';
 
-const NAV_THRESHOLD = 20;
+// What it does for her business first: the shop she sells through before the plumbing under it.
+const ORDER = ['store', 'shopfloor', 'ebay', 'research', 'portal', 'reporting', 'foundations'];
 
-const fmt = (iso, opts) =>
-  new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', ...opts }).format(new Date(`${iso}T12:00:00Z`));
+// Top shelf first and set apart: month two is not part of the 42.
+const SHELVES = [
+  { key: 'early', label: 'Month two, early', apart: true },
+  { key: 'month-one', label: 'Month one' },
+  { key: 'seo', label: 'SEO' },
+  { key: 'analytics', label: 'Analytics' },
+];
 
-// Same host, different subdomain. Hardcoding cartandkeep.com would break for
-// the next tenant, and dev serves all three from one document.
-function portalUrl() {
-  if (typeof window === 'undefined') return '/';
-  const { protocol, hostname } = window.location;
-  if (hostname.startsWith('status.')) {
-    return `${protocol}//${hostname.replace(/^status\./, 'portal.')}`;
-  }
-  return '/?portal';
-}
+const TZ = 'Europe/London';
+const fmt = (iso, opts) => new Intl.DateTimeFormat('en-GB', { timeZone: TZ, ...opts }).format(new Date(`${iso}T12:00:00Z`));
+const dayKey = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(d);
+const sentence = (text) => (text ? text.charAt(0).toUpperCase() + text.slice(1) : text);
 
-function Chevron({ open }) {
-  return (
-    <svg viewBox="0 0 16 16" className={`${styles.chev} ${open ? styles.chevOpen : ''}`} aria-hidden="true">
-      <path d="M4 6.5L8 10.5 12 6.5" fill="none" stroke="currentColor" strokeWidth="1.6"
-        strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function Row({ item, showPhase = false, showDate = false }) {
+function Row({ item, isNew, side }) {
   return (
     <li className={`${styles.row} ${item.superseded ? styles.rowOld : ''}`}>
-      <StateIcon state={item.state} className={styles.icon} pulseClass={styles.pulse} />
+      <StateIcon state={item.state === 'done' ? 'done' : 'queued'} className={styles.icon} />
       <span className={styles.rowMain}>
         <span className={styles.rowLabel}>
           {item.label}
-          {item.superseded ? <span className={styles.tag}>{SUPERSEDED_LABEL}</span> : null}
+          {isNew && <span className={styles.new}>New</span>}
+          {item.superseded && <span className={styles.tag}>{SUPERSEDED_LABEL}</span>}
         </span>
-        {item.detail ? <span className={styles.rowDetail}>{item.detail}</span> : null}
-        {item.due ? <span className={styles.rowDue}>{item.due}</span> : null}
-        {showPhase ? <span className={styles.rowPhase}>{item.phase}</span> : null}
+        {item.detail && <span className={styles.rowDetail}>{sentence(item.detail)}</span>}
       </span>
-      <span className={styles.rowState}>
-        {showDate && item.date ? (
-          <span className={styles.rowDate}>{fmt(item.date, { day: '2-digit', month: 'short' })}</span>
-        ) : (
-          <span className={`${styles.stateText} ${styles[item.state] ?? ''}`.trim()}>{STATE_LABEL[item.state]}</span>
-        )}
-      </span>
+      <span className={styles.rowSide}>{side}</span>
     </li>
   );
 }
 
 export function StatusPage() {
-  const [openHistory, setOpenHistory] = useState(false);
-  const [showAllMonths, setShowAllMonths] = useState(false);
-  const [current, setCurrent] = useState('now');
+  const lastVisit = useStatusLastVisit();
+  const seen = lastVisit ? dayKey(lastVisit) : null;
+  const isNew = (item) => Boolean(seen && item.state === 'done' && item.date && item.date > seen);
 
-  // Work whose method has since been replaced is delivered, and it is not
-  // part of what is live, so it is counted separately rather than inflating
-  // the bar she reads.
-  const live = STATUS_ITEMS.filter((i) => !i.superseded);
-  const replaced = STATUS_ITEMS.length - live.length;
-  const done = live.filter((i) => i.state === 'done').length;
-  const total = live.length;
-  const running = activeItems();
-  const upcoming = upcomingPhases();
-  const history = completedByMonth();
-  const next = nextDated();
+  const scope = tally();
+  const shelves = SHELVES.map((s) => ({ ...s, items: DELIVERABLE_GROUPS.find((g) => g.key === s.key)?.items ?? [] }))
+    .filter((s) => s.items.length);
+  const waiting = DELIVERABLES.filter((i) => i.state === 'client');
+  const byHer = DELIVERABLE_GROUPS.find((g) => g.key === 'with-you')?.items.filter((i) => i.state === 'done') ?? [];
+  const notYet = committedItems().filter((i) => i.state !== 'done');
   const updated = lastUpdated();
-  const queued = total - done - running.length;
-  const pct = Math.round((done / total) * 100);
 
-  const visibleHistory = showAllMonths ? history : history.slice(0, 1);
-  const hiddenMonths = history.length - visibleHistory.length;
+  const phases = ORDER.map((key) => STATUS_PHASES.find((p) => p.key === key)).filter(Boolean)
+    .map((p) => ({
+      ...p,
+      done: p.items.filter((i) => i.state === 'done').sort((a, b) => (b.date ?? '').localeCompare(a.date ?? '')),
+    }))
+    .filter((p) => p.done.length);
 
-  // Chrome earns its place by length. Below this the whole page is one screen.
-  const showNav = total > NAV_THRESHOLD;
-
-  const sections = [
-    { id: 'now', label: 'In progress', count: running.length },
-    { id: 'next', label: 'Coming up', count: queued },
-    { id: 'done', label: 'Completed', count: done },
-  ].filter((s) => s.count > 0);
+  const allDone = phases.flatMap((p) => p.done);
+  const [current, setCurrent] = useState(phases[0]?.key);
 
   useEffect(() => {
-    if (!showNav) return;
-    const nodes = sections.map((s) => document.getElementById(s.id)).filter(Boolean);
-    if (!nodes.length) return;
-
-    const io = new IntersectionObserver(
-      (entries) => {
-        const seen = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (seen[0]) setCurrent(seen[0].target.id);
-      },
-      { rootMargin: '-96px 0px -60% 0px' },
-    );
-
+    const nodes = phases.map((p) => document.getElementById(`delivered-${p.key}`)).filter(Boolean);
+    const io = new IntersectionObserver((entries) => {
+      const top = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+      if (top) setCurrent(top.target.id.replace('delivered-', ''));
+    }, { rootMargin: '-80px 0px -65% 0px' });
     nodes.forEach((n) => io.observe(n));
     return () => io.disconnect();
-  }, [showNav, sections.length]);
+  }, [phases.length]);
 
-  function jump(e, id) {
+  const jump = (e, id) => {
     e.preventDefault();
-    const el = document.getElementById(id);
-    if (!el) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-  }
+    document.getElementById(id)?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  };
 
   return (
     <div className={styles.page}>
-      <header className={styles.head}>
-        {/* The real mark, not the letter C placeholder that had been here
-            since July. Pure path data, so it needs no font and cannot flash a
-            fallback. 32px, because below that it switches to the solid variant
-            and this header has the room. */}
-        <LogoMark size={32} className={styles.mark} />
-        <span className={styles.wordmark}>Cart &amp; Keep</span>
-        <Link className={styles.headLink} to="/deliverables">Deliverables</Link>
-        <a className={styles.signIn} href={portalUrl()}>Sign in</a>
-      </header>
+      <StatusHeader on="status" />
 
-      <section className={styles.hero}>
-        <p className={styles.verdict}>
-          <StateIcon state={running.length ? 'active' : 'queued'} className={styles.verdictIcon}
-            pulseClass={styles.pulse} />
-          <span>{running.length ? 'Build in progress' : 'No work in progress'}</span>
-        </p>
-
-        {next ? (
-          <p className={styles.next}>
-            Next up, {next.label.toLowerCase()}
-            <span className={styles.nextDue}>{next.due}</span>
-          </p>
-        ) : null}
-
-        <div className={styles.line} role="progressbar" aria-valuemin={0} aria-valuemax={total}
-          aria-valuenow={done} aria-label="Build milestones complete">
-          <span className={styles.lineFill} style={{ width: `${pct}%` }} />
-          <span className={styles.lineActive} style={{ width: `${Math.round((running.length / total) * 100)}%` }} />
+      <section className={styles.hero} aria-labelledby="status-title">
+        <div className={styles.heroText}>
+          <div className={styles.heroTop}>
+            <p className={styles.eyebrow}>Delivery status</p>
+            {updated && <p className={styles.updated}>Updated {fmt(updated, { day: 'numeric', month: 'long' })}</p>}
+          </div>
+          <h1 id="status-title" className={styles.title}>
+            <span className={styles.titleFigure}>{scope.done} of {scope.total}</span> delivered.
+          </h1>
+          <p className={styles.lead}>Every filled box works today. The top shelf is month two, done early.</p>
+          {waiting.length > 0 && (
+            <a className={styles.waitingLink} href="#waiting" onClick={(e) => jump(e, 'waiting')}>
+              <span className={styles.waitingDot} aria-hidden="true" />
+              {waiting.length} waiting on you
+            </a>
+          )}
         </div>
-
-        <ul className={styles.tally}>
-          <li><span className={styles.tallyFigure}>{done}</span><span className={styles.tallyLabel}>Built</span></li>
-          <li><span className={styles.tallyFigure}>{running.length}</span><span className={styles.tallyLabel}>In progress</span></li>
-          <li><span className={styles.tallyFigure}>{queued}</span><span className={styles.tallyLabel}>Coming up</span></li>
-        </ul>
-
-        <p className={styles.meta}>
-          <span className={styles.metaNum}>{done}</span> of <span className={styles.metaNum}>{total}</span> build
-          milestones complete{replaced ? `, with ${replaced} since replaced by a better method` : ''}
-          {updated ? `. Updated ${fmt(updated, { day: 'numeric', month: 'long' })}` : ''}
-        </p>
+        <div className={styles.heroArt}>
+          <ScopeCupboard shelves={shelves} isNew={isNew} />
+          <p className={styles.legend} aria-hidden="true">
+            <span className={styles.keyFilled} /> Delivered
+            <span className={styles.keyEmpty} /> Not yet
+          </p>
+        </div>
       </section>
 
-      {showNav && (
-        <nav className={styles.nav} aria-label="Sections">
-          {sections.map((s) => (
-            <a
-              key={s.id}
-              href={`#${s.id}`}
-              onClick={(e) => jump(e, s.id)}
-              aria-current={current === s.id ? 'true' : undefined}
-              className={`${styles.pill} ${current === s.id ? styles.pillOn : ''}`}
-            >
-              {s.label}
-              <span className={styles.pillCount}>{s.count}</span>
-            </a>
-          ))}
-        </nav>
-      )}
-
-      {running.length > 0 && (
-        <section id="now" className={`${styles.block} ${styles.live}`}>
-          <div className={styles.blockHead}>
-            <h2 className={styles.blockLabel}>In progress</h2>
-            <span className={styles.blockCount}>{running.length}</span>
-          </div>
-          <ul className={styles.list}>
-            {running.map((item) => (
-              <Row key={item.label} item={item} showPhase />
+      {waiting.length > 0 && (
+        <section id="waiting" className={styles.waiting} aria-labelledby="waiting-title">
+          <header className={styles.sectionHead}>
+            <h2 id="waiting-title" className={styles.sectionTitle}>Waiting on you</h2>
+          </header>
+          <ol className={styles.tasks}>
+            {waiting.map((item, i) => (
+              <li key={item.label} className={styles.task}>
+                <span className={styles.taskNo} data-num>{String(i + 1).padStart(2, '0')}</span>
+                <span className={styles.taskMain}>
+                  <span className={styles.taskLabel}>{item.label}</span>
+                  <span className={styles.taskDetail}>{item.detail}</span>
+                </span>
+                {item.screen && (
+                  <a className={styles.taskLink} href={portalHref(item.screen)}>
+                    Open in the portal
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
+                  </a>
+                )}
+              </li>
             ))}
-          </ul>
-        </section>
-      )}
+          </ol>
 
-      {upcoming.length > 0 && (
-        <section id="next" className={styles.block}>
-          <div className={styles.blockHead}>
-            <h2 className={styles.blockLabel}>Coming up</h2>
-            <span className={styles.blockCount}>{queued}</span>
-          </div>
-          {upcoming.map((phase) => (
-            <div key={phase.key} className={styles.phase}>
-              <p className={styles.phaseLabel}>{phase.label}</p>
-              <ul className={styles.list}>
-                {phase.items.map((item) => (
-                  <Row key={item.label} item={item} />
+          {byHer.length > 0 && (
+            <div className={styles.byHer}>
+              <p className={styles.byHerTitle}>Done by you</p>
+              <ul className={styles.byHerList}>
+                {byHer.map((item) => (
+                  <li key={item.label} title={item.detail}>
+                    <StateIcon state="done" className={styles.byHerIcon} />
+                    {item.label}
+                  </li>
                 ))}
               </ul>
             </div>
-          ))}
+          )}
         </section>
       )}
 
-      {history.length > 0 && (
-        <section id="done" className={styles.block}>
-          {/* Shut by default. The log only grows, and it is the part nobody
-              opens twice. */}
-          <button
-            type="button"
-            className={styles.disclosure}
-            aria-expanded={openHistory}
-            aria-controls="completed-list"
-            onClick={() => setOpenHistory((v) => !v)}
-          >
-            <span className={styles.blockLabel}>Completed</span>
-            <span className={styles.blockCount}>{done}</span>
-            <Chevron open={openHistory} />
-          </button>
-
-          <div id="completed-list" hidden={!openHistory}>
-            {visibleHistory.map((group) => (
-              <div key={group.key} className={styles.phase}>
-                <p className={styles.phaseLabel}>{fmt(`${group.key}-01`, { month: 'long', year: 'numeric' })}</p>
-                <ul className={styles.list}>
-                  {group.items.map((item) => (
-                    <Row key={item.label} item={item} showPhase showDate />
-                  ))}
-                </ul>
-              </div>
-            ))}
-
-            {hiddenMonths > 0 && (
-              <button type="button" className={styles.more} onClick={() => setShowAllMonths(true)}>
-                Show {hiddenMonths} earlier {hiddenMonths === 1 ? 'month' : 'months'}
-              </button>
+      <div className={styles.delivered}>
+        <nav className={styles.index} aria-label="Delivered">
+          <p className={styles.indexTitle}>Delivered</p>
+          <ul className={styles.indexList}>
+            {phases.map((p) => {
+              const fresh = p.done.filter(isNew).length;
+              return (
+                <li key={p.key}>
+                  <a href={`#delivered-${p.key}`} onClick={(e) => jump(e, `delivered-${p.key}`)}
+                    aria-current={current === p.key ? 'true' : undefined}
+                    className={`${styles.indexLink} ${current === p.key ? styles.indexOn : ''}`}>
+                    <span className={styles.indexLabel}>{p.label}</span>
+                    {fresh > 0 && <span className={styles.indexNew} title={`${fresh} new since your last visit`}>{fresh} new</span>}
+                    <span className={styles.indexCount} data-num>{p.done.length}</span>
+                  </a>
+                </li>
+              );
+            })}
+            {notYet.length > 0 && (
+              <li>
+                <a href="#not-yet" onClick={(e) => jump(e, 'not-yet')} className={`${styles.indexLink} ${styles.indexNotYet}`}>
+                  <span className={styles.indexLabel}>Not yet</span>
+                  <span className={styles.indexCount} data-num>{notYet.length}</span>
+                </a>
+              </li>
             )}
-          </div>
-        </section>
-      )}
+          </ul>
+        </nav>
+
+        <div className={styles.groups}>
+          <section className={styles.arrived} aria-labelledby="arrived-title">
+            <h2 id="arrived-title" className={styles.arrivedTitle}>When it arrived</h2>
+            <DeliveryTrack items={allDone} lastVisit={lastVisit} />
+          </section>
+
+          {phases.map((p) => (
+            <section key={p.key} id={`delivered-${p.key}`} className={styles.group} aria-labelledby={`h-${p.key}`}>
+              <header className={styles.groupHead}>
+                <h2 id={`h-${p.key}`} className={styles.groupTitle}>{p.label}</h2>
+                <span className={styles.groupCount} data-num>{p.done.length}</span>
+                {p.purpose && <p className={styles.groupPurpose}>{p.purpose}</p>}
+              </header>
+              <ul className={styles.list}>
+                {p.done.map((item) => (
+                  <Row key={item.label} item={item} isNew={isNew(item)}
+                    side={item.date
+                      ? <time className={styles.rowDate} dateTime={item.date}>{fmt(item.date, { day: 'numeric', month: 'short' })}</time>
+                      : <span className={styles.rowDate}>Delivered</span>} />
+                ))}
+              </ul>
+            </section>
+          ))}
+
+          {notYet.length > 0 && (
+            <section id="not-yet" className={`${styles.group} ${styles.notYet}`} aria-labelledby="h-not-yet">
+              <header className={styles.groupHead}>
+                <h2 id="h-not-yet" className={styles.groupTitle}>Not yet</h2>
+                <span className={styles.groupCount} data-num>{notYet.length}</span>
+                <p className={styles.groupPurpose}>From the signed scope, with the one thing each is waiting on.</p>
+              </header>
+              <ul className={styles.list}>
+                {notYet.map((item) => (
+                  <li key={item.label} className={styles.notRow}>
+                    <StateIcon state="queued" className={styles.icon} />
+                    <span className={styles.rowMain}>
+                      <span className={styles.rowLabel}>{item.label}</span>
+                      {item.why && <span className={styles.why}>{item.why}</span>}
+                    </span>
+                    <span className={styles.rowSide}><span className={styles.rowGroup}>{item.group}</span></span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+      </div>
+
+      <Link className={styles.scope} to="/deliverables">
+        <span>See the signed scope, item by item</span>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4" /></svg>
+      </Link>
 
       <footer className={styles.foot}>
         <span>Built by The Brick Dev Studios</span>

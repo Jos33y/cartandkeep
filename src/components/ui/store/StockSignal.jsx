@@ -35,7 +35,7 @@ export function StockSignal({ product, size = 'normal' }) {
   if (stock !== null && stock > 0 && stock <= LOW) {
     return (
       <p className={styles.low} data-size={size}>
-        Only <span data-price>{stock}</span> left
+        Only {stock} left
       </p>
     );
   }
