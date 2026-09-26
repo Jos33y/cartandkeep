@@ -1,4 +1,4 @@
-.header { padding-bottom: var(--s-4); }
+.header { padding-bottom: var(--s-2); }
 
 .crumbs {
   display: flex;
@@ -22,12 +22,12 @@
   flex: none;
   display: grid;
   place-items: end center;
-  width: 64px;
-  padding-bottom: 7px;
+  width: 52px;
+  padding-bottom: 6px;
   color: var(--c-sage-deep);
 }
 
-.glyph { width: 40px; height: auto; stroke-width: 2; animation: drop 560ms cubic-bezier(0.34, 1.56, 0.64, 1) 80ms both; }
+.glyph { width: 32px; height: auto; stroke-width: 2; animation: drop 560ms cubic-bezier(0.34, 1.56, 0.64, 1) 80ms both; }
 
 .ledge {
   position: absolute;
@@ -40,14 +40,14 @@
 }
 
 @media (min-width: 900px) {
-  .object { width: 76px; }
-  .glyph { width: 48px; }
+  .object { width: 60px; }
+  .glyph { width: 38px; }
 }
 
 .words { min-width: 0; }
 
-.title { font-size: clamp(1.625rem, 1.2rem + 1.4vw, 2.375rem); line-height: 1.04; color: var(--c-ink); }
-.meta { margin-top: var(--s-1); font-size: var(--t-label); color: var(--c-ink-soft); }
+.title { font-size: clamp(1.5rem, 1.1rem + 1.1vw, 2.125rem); line-height: 1.04; color: var(--c-ink); }
+.meta { margin-top: 2px; font-size: var(--t-label); color: var(--c-ink-soft); }
 .meta [data-num], .meta [data-price] { font-family: inherit; color: var(--c-ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 
 @keyframes drop {

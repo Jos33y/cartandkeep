@@ -2,7 +2,8 @@ import styles from '@styles/ui/store/load-track.module.css';
 
 // How far through the results you are, as a track that fills, with the button that fills it further.
 export function LoadTrack({ shown, total, pageSize, busy, onMore }) {
-  if (!total || total <= 0) return null;
+  // One page holds everything: nothing to track.
+  if (!total || total <= pageSize) return null;
   const done = shown >= total;
   const next = Math.min(pageSize, total - shown);
   return (

@@ -1,7 +1,8 @@
 /* Frosted because the grid scrolls under it; that is the job the blur does. */
 .bar {
   position: sticky;
-  top: var(--store-bar-h);
+  top: var(--store-header-h, var(--store-bar-h));
+  transition: top 220ms var(--ease);
   z-index: calc(var(--z-sticky) - 1);
   margin: 0 calc(var(--s-4) * -1);
   padding: var(--s-2) var(--s-4);
@@ -11,7 +12,7 @@
   border-bottom: 1px solid var(--c-line);
 }
 
-@media (min-width: 900px) { .bar { margin: 0; padding: var(--s-3) 0; } }
+@media (min-width: 900px) { .bar { margin: 0; padding: var(--s-2) 0; } }
 
 .row { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
 @media (min-width: 900px) { .row { gap: var(--s-3); } }
@@ -35,7 +36,7 @@
 .filtersBtn:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
 
 /* The rail takes over from the button once there is room for it. */
-@media (min-width: 1100px) { .filtersBtn { display: none; } }
+@media (min-width: 1024px) { .filtersBtn { display: none; } }
 
 .badge { font-family: inherit; display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--r-full); background: var(--c-ink); color: var(--c-on-dark); font-size: var(--t-micro); }
 

@@ -131,7 +131,14 @@ export function HeaderSearch({ rows, sections, sheet = false, onClose, inputRef:
   const showPanel = open && (sheet || sections.length > 0 || terms.length > 0);
 
   return (
-    <div ref={boxRef} className={styles.box} data-sheet={sheet || undefined} data-open={showPanel || undefined}>
+    <div
+      ref={boxRef}
+      className={styles.box}
+      data-sheet={sheet || undefined}
+      data-open={showPanel || undefined}
+      // Keyboard focus leaving closes the panel too; it only closed for a click outside, so tabbing on left it covering the page.
+      onBlur={(e) => { if (!sheet && !e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}
+    >
       <div className={styles.field}>
         <SearchIcon size={18} />
         <input
@@ -170,7 +177,7 @@ export function HeaderSearch({ rows, sections, sheet = false, onClose, inputRef:
                   <div key={s.slug} className={styles.shelf} {...rowProps(`s-${s.slug}`, categoryPath(s.slug))}>
                     <SectionGlyph name={s.name} size={28} className={styles.glyph} />
                     <span className={styles.shelfName}>{s.name}</span>
-                    <span className={styles.count}>{s.items.length}</span>
+                    <span className={styles.count}>{s.count ?? s.items?.length ?? 0}</span>
                   </div>
                 ))}
                 {!sections.length && <p className={styles.hint}>Type what you are looking for.</p>}
@@ -181,7 +188,7 @@ export function HeaderSearch({ rows, sections, sheet = false, onClose, inputRef:
               {results.sections.map((s) => (
                 <div key={s.slug} className={styles.row} {...rowProps(`s-${s.slug}`, categoryPath(s.slug))}>
                   <span className={styles.thumb}><SectionGlyph name={s.name} size={24} /></span>
-                  <span className={styles.rowText}><span className={styles.rowTitle}><Marked text={s.name} terms={terms} /></span><span className={styles.rowMeta}>Shelf, {s.items.length} products</span></span>
+                  <span className={styles.rowText}><span className={styles.rowTitle}><Marked text={s.name} terms={terms} /></span><span className={styles.rowMeta}>Shelf, {s.count ?? s.items?.length ?? 0} products</span></span>
                 </div>
               ))}
               {results.products.map((p) => (

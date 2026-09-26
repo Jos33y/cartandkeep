@@ -12,7 +12,7 @@
 .nav {
   position: relative;
   border-bottom: 1px solid var(--c-line);
-  margin-bottom: var(--s-5);
+  margin-bottom: var(--s-3);
 }
 
 .nav::after {
@@ -30,7 +30,7 @@
   display: flex;
   gap: var(--s-2);
   list-style: none;
-  padding: 0 0 var(--s-3);
+  padding: 0 0 var(--s-2);
   margin: 0;
   overflow-x: auto;
   scrollbar-width: none;

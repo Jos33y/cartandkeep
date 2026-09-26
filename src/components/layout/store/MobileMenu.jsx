@@ -56,7 +56,7 @@ export function MobileMenu({ open, onClose, sections, total, subtotal, threshold
               <Link to={categoryPath(s.slug)} className={styles.tile}>
                 <SectionGlyph name={s.name} size={36} className={styles.glyph} />
                 <span className={styles.tileName}>{s.name}</span>
-                <span className={styles.tileCount}>{s.items.length}</span>
+                <span className={styles.tileCount}>{s.count ?? s.items?.length ?? 0}</span>
               </Link>
             </li>
           ))}

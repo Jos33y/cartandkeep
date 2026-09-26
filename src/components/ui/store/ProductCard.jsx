@@ -18,7 +18,7 @@ const productPath = (slug) => STORE_ROUTES.PRODUCT.replace(':slug', slug);
 const ARRIVES = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'UTC' });
 
 // An article, not a link: buttons cannot live inside an anchor. The title's link stretches over the card instead.
-export function ProductCard({ product, index = 0, onQuickView, shelfName = null, onPrefetch = null }) {
+export function ProductCard({ product, index = 0, onQuickView, shelfName = null, onPrefetch = null, hideSection = false }) {
   const { add } = useBasket();
   const { has, toggle } = useSaved();
   const names = useCategoryNames();
@@ -29,7 +29,7 @@ export function ProductCard({ product, index = 0, onQuickView, shelfName = null,
   const image2x = imageAt(product.image_url, 800);
   // Hidden on a shelf that already carries the same name.
   const own = shopSectionOf(product, names);
-  const sectionName = own && own !== shelfName ? own : null;
+  const sectionName = !hideSection && own && own !== shelfName ? own : null;
   // Browse results summarise sizes as a count and carry their own buyable flag; a full product lists them.
   const hasVariants = (product.variantCount ?? product.variants?.length ?? 0) > 0;
   const buyable = product.buyable ?? anyBuyable(product);

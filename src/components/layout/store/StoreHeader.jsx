@@ -2,11 +2,12 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom';
 import { Link, NavLink, useLocation } from 'react-router';
 import { Logo } from '@components/ui/shared/Logo';
-import { CloseIcon, GridIcon, HeartIcon, MenuIcon, SearchIcon } from '@components/ui/store/icons';
-import { SectionGlyph } from '@components/ui/store/SectionGlyph';
+import { CloseIcon, HeartIcon, MenuIcon, SearchIcon } from '@components/ui/store/icons';
 import { useBasket } from '@context/BasketContext';
 import { useSaved } from '@hooks/useSaved';
 import { useSections } from '@hooks/useSections';
+import { useGroups } from '@hooks/useCatalogue';
+import { visibleGroups } from '@utils/categories';
 import { freeOver } from '@lib/storeConfig';
 import { priceGroups } from '@utils/categories';
 import { STORE_ROUTES } from '@utils/constants';
@@ -35,7 +36,10 @@ function useGlide(railRef, deps) {
 export function StoreHeader() {
   const { count, subtotal } = useBasket();
   const { ids } = useSaved();
-  const { rows, sections } = useSections();
+  const { rows } = useSections();
+  // The rail's sections and counts come from the database: the old list stopped at 1,000 and split same-named sections in two.
+  const { groups, total: shopTotal } = useGroups();
+  const sections = useMemo(() => visibleGroups(groups), [groups]);
   const { pathname } = useLocation();
   const threshold = freeOver();
   const bands = useMemo(() => priceGroups(rows), [rows]);
@@ -56,13 +60,24 @@ export function StoreHeader() {
   const { box, place, rest } = useGlide(rail, [pathname, sections.length]);
   const closeMenu = useCallback(() => setMenu(false), []);
 
+  // The header's real height, rail and all, published for anything that pins under it. It changes as the rail tucks away.
+  useEffect(() => {
+    const el = header.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const root = document.documentElement;
+    const ro = new ResizeObserver(() => root.style.setProperty('--store-header-h', `${Math.round(el.getBoundingClientRect().height)}px`));
+    ro.observe(el);
+    return () => { ro.disconnect(); root.style.removeProperty('--store-header-h'); };
+  }, []);
+
   // Scrolling down tucks the shelf rail away; any scroll up brings it back.
   useEffect(() => {
     let last = window.scrollY;
     const onScroll = () => {
       const y = window.scrollY;
       setStuck(y > 8);
-      if (Math.abs(y - last) > 6) setTucked(y > 160 && y > last);
+      // No tucking: collapsing the rail changed the header's height mid-scroll, which moved the page under the pointer and jolted the pinned toolbar.
+      if (Math.abs(y - last) > 6) setTucked(false);
       last = y;
     };
     onScroll();
@@ -96,8 +111,8 @@ export function StoreHeader() {
   useEffect(() => { setSearching(false); }, [pathname]);
 
   const shelves = [
-    { key: 'all', label: 'Everything', to: STORE_ROUTES.SHOP, count: rows.length, all: true },
-    ...sections.map((s) => ({ key: s.slug, label: s.name, to: categoryPath(s.slug), count: s.items.length })),
+    { key: 'all', label: 'Everything', to: STORE_ROUTES.SHOP, count: shopTotal, all: true },
+    ...sections.map((s) => ({ key: s.slug, label: s.name, to: categoryPath(s.slug), count: s.count })),
     ...bands.map((b) => ({ key: b.slug, label: b.name, to: categoryPath(b.slug), band: true })),
   ];
 
@@ -154,11 +169,6 @@ export function StoreHeader() {
                   onFocus={(e) => place(e.currentTarget)}
                   onBlur={rest}
                 >
-                  {s.all
-                    ? <GridIcon size={18} className={styles.shelfGlyph} />
-                    : s.band
-                      ? <span className={styles.shelfBand} aria-hidden="true">£</span>
-                      : <SectionGlyph name={s.label} size={22} className={styles.shelfGlyph} />}
                   {s.label}
                   {s.count != null && <span className={styles.count}>{s.count}</span>}
                 </NavLink>
@@ -185,7 +195,7 @@ export function StoreHeader() {
           open={menu}
           onClose={closeMenu}
           sections={sections}
-          total={rows.length}
+          total={shopTotal}
           subtotal={subtotal}
           threshold={threshold}
           count={count}

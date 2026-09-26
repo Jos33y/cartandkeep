@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
 import { CategoryHeader } from '@components/ui/store/CategoryHeader';
-import { CategoryNav } from '@components/ui/store/CategoryNav';
 import { BrowseToolbar } from '@components/ui/store/BrowseToolbar';
 import { FilterPanel } from '@components/ui/store/FilterPanel';
 import { LoadTrack } from '@components/ui/store/LoadTrack';
@@ -13,7 +12,7 @@ import { CloseIcon } from '@components/ui/store/icons';
 import { useBrowse, useFacets, useGroups, prefetchProduct } from '@hooks/useCatalogue';
 import { useBrowseParams } from '@hooks/useBrowseParams';
 import { useTenant } from '@hooks/useTenant';
-import { findGroup, visibleGroups } from '@utils/categories';
+import { findGroup } from '@utils/categories';
 import { formatGbp } from '@utils/formatGbp';
 import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/pages/store/category-page.module.css';
@@ -111,7 +110,8 @@ export function CategoryPage({ everything = false }) {
   const priceMin = everything ? Math.min(...groups.map((g) => g.priceMin)) : group?.priceMin;
   const priceMax = everything ? Math.max(...groups.map((g) => g.priceMax)) : group?.priceMax;
   const path = everything ? STORE_ROUTES.SHOP : STORE_ROUTES.CATEGORY.replace(':slug', group?.slug ?? '');
-  const panel = <FilterPanel facets={facets} filters={filters} update={update} groups={visibleGroups(groups)} everything={everything} />;
+  // Sections are the header rail's job; the filter rail is only filters.
+  const panel = <FilterPanel facets={facets} filters={filters} update={update} />;
   const loading = browse.status === 'loading' && browse.items.length === 0;
 
   return (
@@ -125,7 +125,7 @@ export function CategoryPage({ everything = false }) {
         />
       )}
 
-      <CategoryNav groups={visibleGroups(groups)} total={shopTotal} />
+      {/* No section tabs here: the header's shelf rail already carries them on every page, and a second row cost the short laptop its first row of products. */}
       <CategoryHeader name={name} count={count} priceMin={priceMin} priceMax={priceMax} glyph={everything ? 'box' : null} />
 
       <div className={styles.layout}>

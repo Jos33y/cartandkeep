@@ -1,20 +1,11 @@
-import { Link } from 'react-router';
-import { ChevronRightIcon } from '@components/ui/store/icons';
 import { SectionGlyph } from '@components/ui/store/SectionGlyph';
 import { formatGbp } from '@utils/formatGbp';
-import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/ui/store/category-header.module.css';
 
-// A compact head, so the first row of products is on the first screen: the section's drawn object on its own short shelf, the name, and the range.
+// A compact head, so the first row of products is on the first screen of the shortest laptop: the section's object on a short ledge, the name, the range. The tabs above are the way up, so there is no breadcrumb.
 export function CategoryHeader({ name, count = null, priceMin = null, priceMax = null, glyph = null }) {
   return (
     <header className={styles.header}>
-      <nav className={styles.crumbs} aria-label="Breadcrumb">
-        <Link to={STORE_ROUTES.HOME}>Shop</Link>
-        <ChevronRightIcon size={13} />
-        <span aria-current="page">{name}</span>
-      </nav>
-
       <div className={styles.head}>
         <span className={styles.object} aria-hidden="true">
           <SectionGlyph name={glyph ?? name} size={48} className={styles.glyph} />

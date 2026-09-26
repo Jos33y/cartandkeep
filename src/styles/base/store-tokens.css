@@ -143,3 +143,6 @@
 /* The store header's height, for anything that sticks under it. Matches store-header.module.css. */
 :root { --store-bar-h: 64px; }
 @media (min-width: 1024px) { :root { --store-bar-h: 72px; } }
+
+/* Anything focused or jumped to lands below the sticky header, never under it. */
+html { scroll-padding-top: calc(var(--store-header-h, var(--store-bar-h)) + var(--s-4)); }

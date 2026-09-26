@@ -26,11 +26,11 @@ function useColumns(active) {
   return cols;
 }
 
-function Cells({ products, from, onQuickView, shelfName, onPrefetch }) {
+function Cells({ products, from, onQuickView, shelfName, onPrefetch, hideSection = false }) {
   return products.map((product, i) => (
     // --i is set here rather than on the card, because the delay is read on this element.
     <li key={product.id} className={styles.cell} style={{ '--i': from + i }}>
-      <ProductCard product={product} index={from + i} onQuickView={onQuickView} shelfName={shelfName} onPrefetch={onPrefetch} />
+      <ProductCard product={product} index={from + i} onQuickView={onQuickView} shelfName={shelfName} onPrefetch={onPrefetch} hideSection={hideSection} />
     </li>
   ));
 }
@@ -45,7 +45,7 @@ export function ProductGrid({ products, onQuickView, shelfName = null, shelves =
   if (density) {
     return (
       <ul className={`${styles.grid} ${styles.fluid}`} data-density={density} data-animate={animate || undefined}>
-        <Cells products={products} from={0} onQuickView={onQuickView} shelfName={shelfName} onPrefetch={onPrefetch} />
+        <Cells products={products} from={0} onQuickView={onQuickView} shelfName={shelfName} onPrefetch={onPrefetch} hideSection />
       </ul>
     );
   }

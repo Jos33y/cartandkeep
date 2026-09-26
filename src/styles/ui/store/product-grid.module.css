@@ -64,9 +64,15 @@
 ul.fluid {
   --card-min: 208px;
   grid-template-columns: repeat(auto-fill, minmax(min(var(--card-min), calc(50% - var(--s-2))), 1fr));
-  gap: var(--s-4) var(--s-3);
+  gap: 12px 10px;
 }
 
 ul.fluid[data-density='dense'] { --card-min: 164px; }
 
-@media (min-width: 900px) { ul.fluid { gap: var(--s-5) var(--s-4); } }
+@media (min-width: 900px) { ul.fluid { gap: 16px 14px; } }
+
+/* A short laptop gets smaller cards, one more across, so the first row still lands on the first screen. */
+@media (min-width: 1024px) and (max-height: 700px) {
+  ul.fluid { --card-min: 160px; }
+  ul.fluid[data-density='dense'] { --card-min: 136px; }
+}

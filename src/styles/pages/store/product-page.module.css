@@ -300,3 +300,10 @@
   .addBtn, .sticky, .save { transition: none; }
   .save[data-saved] svg { animation: none; }
 }
+
+/* A short laptop: tighter above the fold, so Add to basket is on the first screen. */
+@media (min-width: 1024px) and (max-height: 700px) {
+  .crumbs { padding: var(--s-3) 0; }
+  .title { font-size: 1.5rem; }
+  .buyCard { margin-top: var(--s-4); padding-top: var(--s-4); }
+}

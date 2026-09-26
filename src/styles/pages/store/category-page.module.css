@@ -2,34 +2,37 @@
   width: 100%;
   max-width: var(--store-max);
   margin: 0 auto;
-  padding: var(--s-4) var(--s-4) var(--s-8);
+  padding: var(--s-3) var(--s-4) var(--s-8);
 }
 
-@media (min-width: 900px) { .page { padding: var(--s-5) var(--s-5) var(--s-8); } }
+@media (min-width: 900px) { .page { padding: var(--s-3) var(--s-5) var(--s-8); } }
 
 /* Rail beside the results once there is room for both; below that the rail becomes the sheet. */
 .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); align-items: start; }
 
 .rail { display: none; }
 
-@media (min-width: 1100px) {
-  .layout { grid-template-columns: 240px minmax(0, 1fr); }
+@media (min-width: 1024px) {
+  .layout { grid-template-columns: 232px minmax(0, 1fr); gap: var(--s-5); }
   .rail {
     display: block;
     position: sticky;
-    top: calc(var(--store-bar-h) + var(--s-4));
-    max-height: calc(100dvh - var(--store-bar-h) - var(--s-6));
+    top: calc(var(--store-header-h, var(--store-bar-h)) + var(--s-3));
+    max-height: calc(100dvh - var(--store-header-h, var(--store-bar-h)) - var(--s-5));
+    transition: top 220ms var(--ease);
+    scroll-padding: var(--s-4) 0;
     overflow-y: auto;
     padding-right: var(--s-2);
-    scrollbar-width: thin;
+    scrollbar-width: none;
+    mask-image: linear-gradient(180deg, #000 calc(100% - 28px), transparent);
   }
 }
 
-@media (min-width: 1440px) { .layout { grid-template-columns: 264px minmax(0, 1fr); gap: var(--s-7); } }
+@media (min-width: 1440px) { .layout { grid-template-columns: 256px minmax(0, 1fr); gap: var(--s-6); } }
 
 .main { min-width: 0; }
 
-.results { padding-top: var(--s-5); transition: opacity 160ms var(--ease); }
+.results { padding-top: var(--s-4); transition: opacity 160ms var(--ease); }
 /* While a new filter loads, the old results stay but step back, so nothing jumps and it is clear something is happening. */
 .results[data-refreshing] { opacity: 0.55; }
 
@@ -41,7 +44,7 @@ ul.skeletons {
   list-style: none;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(var(--card-min), calc(50% - var(--s-2))), 1fr));
-  gap: var(--s-4) var(--s-3);
+  gap: 12px 10px;
 }
 
 ul.skeletons[data-density='dense'] { --card-min: 164px; }
@@ -141,4 +144,12 @@ ul.skeletons[data-density='dense'] { --card-min: 164px; }
 @media (prefers-reduced-motion: reduce) {
   .scrim, .sheet { animation: none; }
   .results { transition: none; }
+}
+
+/* On a browse page the toolbar is pinned too, so focus lands below both. */
+:global(html):has(.page .main) { scroll-padding-top: calc(var(--store-header-h, var(--store-bar-h)) + 72px); }
+
+@media (min-width: 1024px) and (max-height: 700px) {
+  ul.skeletons { --card-min: 160px; }
+  ul.skeletons[data-density='dense'] { --card-min: 136px; }
 }
