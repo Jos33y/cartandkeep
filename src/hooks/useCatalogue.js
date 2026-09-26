@@ -89,9 +89,6 @@ export function missing(p) {
   if (!(Number(p.price) > 0)) out.push('No price');
   if (!p.image_url) out.push('No photograph');
 
-  // Present in derived_fields means a script guessed it and nobody confirmed.
-  if (p.derived_fields?.returns_class) out.push('Returns class unconfirmed');
-
   if (needsLabel(p) && !p.hazard) out.push('Hazard data missing');
 
   // An answer that means it cannot sell yet, such as a plug that is not UK, holds it with the reason named.
@@ -128,10 +125,19 @@ export function missing(p) {
   return out;
 }
 
-// The release guard: what is missing, then any question still open.
+// A returns class suggested and not yet approved: one tap for her, so it is a question, not a gap.
+export const returnsToConfirm = (p) => Boolean(p.derived_fields?.returns_class);
+
+// Everything she is asked for: open questions, and a returns class to approve.
+export const forHer = (p) => openDecisions(p) + (returnsToConfirm(p) ? 1 : 0);
+
+// The release guard: what is missing, then what is waiting on her.
 export function blockers(p) {
+  const out = missing(p);
+  if (returnsToConfirm(p)) out.push('Returns to confirm');
   const open = openDecisions(p);
-  return open ? [...missing(p), `${open} to decide`] : missing(p);
+  if (open) out.push(`${open} to decide`);
+  return out;
 }
 
 export function warnings(p) {
@@ -167,7 +173,7 @@ export const isReady = (p) => !isLive(p) && !isArchived(p) && blockers(p).length
 // Brought over from an eBay listing and not on the shop yet: her review queue for imports.
 export const isNewFromEbay = (p) => !isLive(p) && !isArchived(p) && Boolean(p.derived_fields?.imported);
 // Only a question stands between it and the shop: a tap, not a problem.
-export const isNeedsYou = (p) => !isLive(p) && !isArchived(p) && missing(p).length === 0 && openDecisions(p) > 0;
+export const isNeedsYou = (p) => !isLive(p) && !isArchived(p) && missing(p).length === 0 && forHer(p) > 0;
 export const isBlocked = (p) => !isLive(p) && !isArchived(p) && missing(p).length > 0;
 
 /*

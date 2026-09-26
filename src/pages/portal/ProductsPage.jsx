@@ -310,7 +310,7 @@ export function ProductsPage() {
             <ul className={styles.legend}>
               <li><StepMark state="done" size="sm" /><b data-num>{tally.done}</b> done</li>
               <li><StepMark state="wait" size="sm" /><b data-num>{tally.wait}</b> waiting for you</li>
-              <li><StepMark state="check" size="sm" /><b data-num>{tally.check}</b> to read</li>
+              {tally.check > 0 && <li><StepMark state="check" size="sm" /><b data-num>{tally.check}</b> to read</li>}
               <li><StepMark state="missing" size="sm" /><b data-num>{tally.missing}</b> missing</li>
             </ul>
           </div>

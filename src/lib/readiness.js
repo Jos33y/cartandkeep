@@ -1,4 +1,4 @@
-import { checksFor, openDecisions, isLive, needsLabel } from '@hooks/useCatalogue';
+import { checksFor, openDecisions, needsLabel, isLive } from '@hooks/useCatalogue';
 import { formatGbp } from '@utils/formatGbp';
 
 // Gate steps mirror blockers() in useCatalogue. Change both together.
@@ -52,10 +52,10 @@ function judge(key, p) {
       const open = openDecisions(p);
       if (!c?.decide.length) return { state: 'done', note: c?.done.length ? 'Fixed for you' : 'Nothing to decide' };
       if (!open) return { state: 'done', note: 'Decided' };
-      // Already on sale, so a new question is a to-do, not a blocker.
+      // A question for her is waiting on her, never a failure.
       return isLive(p)
         ? { state: 'wait', note: `${open} new to decide` }
-        : { state: 'check', note: `${open} to decide before it sells` };
+        : { state: 'wait', note: `${open} to decide before it sells` };
     }
     case 'hazard':
       if (!needsLabel(p)) return { state: 'none', note: 'Not a chemical' };

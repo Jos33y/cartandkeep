@@ -8,7 +8,7 @@ import { Icon } from '@components/ui/icons';
 import { formatGbp } from '@utils/formatGbp';
 import { visibleSpecs, hiddenSpecs } from '@utils/specs';
 import {
-  blockers, isLive, isArchived, marginFor, checksFor, money, whole, needsLabel, CATEGORY_MIN, PRICE_FLOOR,
+  blockers, isLive, isArchived, isBlocked, isNeedsYou, marginFor, checksFor, money, whole, needsLabel, CATEGORY_MIN, PRICE_FLOOR,
 } from '@hooks/useCatalogue';
 import { stepsFor } from '@lib/readiness';
 import row from '@styles/ui/portal/product-row.module.css';
@@ -18,6 +18,8 @@ const thumb = (url) => (url ? url.replace(/\/s-l\d+\./, '/s-l225.') : null);
 const top = (path) => String(path ?? '').split('|')[0]?.trim() || null;
 const asText = (v) => (v === null || v === undefined ? '' : String(v));
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+
+const HEAD_LABEL = { archived: 'Archived', live: 'Live', blocked: 'Blocked', question: 'Needs you', ready: 'Ready' };
 
 const TITLE_KINDS = [
   { key: 'search', hint: 'Search first' },
@@ -587,8 +589,9 @@ export function ProductSheet({
   ].filter(Boolean);
 
   const chips = groups.flatMap((g) => g.items);
+  const headState = archived ? 'archived' : live ? 'live' : isBlocked(product) ? 'blocked' : isNeedsYou(product) ? 'question' : 'ready';
   const markOf = (key) => {
-    if (key === 'checks') return openAnswers ? (live ? 'wait' : 'check') : 'done';
+    if (key === 'checks') return openAnswers ? 'wait' : 'done';
     return steps[key]?.state ?? 'none';
   };
   const jump = (key) => document.getElementById(`sheet-${key}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -622,9 +625,9 @@ export function ProductSheet({
             <div className={styles.idText}>
               <h2 id={`sheet-title-${product.id}`} className={styles.title}>{product.title}</h2>
               <p className={styles.meta}>
-                <span className={styles.state} data-state={archived ? 'archived' : live ? 'live' : blockers(product).length ? 'blocked' : 'ready'}>
+                <span className={styles.state} data-state={headState}>
                   <i aria-hidden="true" />
-                  {archived ? 'Archived' : live ? 'Live' : blockers(product).length ? 'Blocked' : 'Ready'}
+                  {HEAD_LABEL[headState]}
                 </span>
                 <span className={styles.where}>{shelfLabel}</span>
                 {!archived && !reading && keeper && (

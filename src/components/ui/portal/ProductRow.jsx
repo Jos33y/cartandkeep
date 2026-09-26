@@ -1,5 +1,5 @@
 import { formatGbp } from '@utils/formatGbp';
-import { isLive, isArchived, isNeedsYou, isBlocked, openDecisions } from '@hooks/useCatalogue';
+import { isLive, isArchived, isNeedsYou, isBlocked } from '@hooks/useCatalogue';
 import { stepsFor } from '@lib/readiness';
 import { StepMark, StepBar, STATE_WORD } from '@components/ui/portal/product/StepMark';
 import styles from '@styles/ui/portal/product-row.module.css';
@@ -13,7 +13,7 @@ function stateOf(product) {
   return isNeedsYou(product) ? 'question' : 'ready';
 }
 
-const STATE_LABEL = { live: 'Live', ready: 'Ready', blocked: 'Blocked', archived: 'Archived' };
+const STATE_LABEL = { live: 'Live', ready: 'Ready', question: 'Needs you', blocked: 'Blocked', archived: 'Archived' };
 
 export function ProductRow({ product, columns, selected, onSelect, onOpen, index = 0, where, keeper, agent }) {
   const steps = stepsFor(product, columns);
@@ -67,7 +67,7 @@ export function ProductRow({ product, columns, selected, onSelect, onOpen, index
               : (
                 <span className={styles.state}>
                   <i aria-hidden="true" />
-                  {state === 'question' ? `${openDecisions(product)} ${openDecisions(product) === 1 ? 'question' : 'questions'}` : STATE_LABEL[state]}
+                  {STATE_LABEL[state]}
                 </span>
               )}
             <span className={styles.where}>{where}</span>

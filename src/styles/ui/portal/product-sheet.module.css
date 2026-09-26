@@ -99,6 +99,7 @@
 .state[data-state='live'] { background: var(--c-positive-wash); color: var(--c-positive); }
 .state[data-state='ready'] { background: var(--c-info-wash); color: var(--c-info); }
 .state[data-state='blocked'] { background: var(--c-negative-wash); color: var(--c-negative); }
+.state[data-state='question'] { background: var(--c-warning-wash); color: var(--c-warning); }
 .state[data-state='archived'] { background: var(--c-sunk); color: var(--c-ink-faint); }
 
 .price { font-size: var(--t-figure); font-weight: 500; letter-spacing: -0.02em; }
