@@ -46,7 +46,7 @@ export function ShelfUnit({ sections }) {
       <span className={styles.top} aria-hidden="true" />
       <div className={styles.carcass}>
         {rows.map((row, r) => (real
-          ? <Shelf key={row.slug} row={r} kinds={objectsFor(row.name, r)} label={row.name} count={row.items.length} to={categoryPath(row.slug)} />
+          ? <Shelf key={row.slug} row={r} kinds={objectsFor(row.name, r)} label={row.name} count={row.count ?? row.items?.length ?? 0} to={categoryPath(row.slug)} />
           : <Shelf key={r} row={r} kinds={row} />))}
       </div>
       <span className={styles.feet} aria-hidden="true"><i /><i /></span>

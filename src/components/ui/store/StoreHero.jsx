@@ -53,7 +53,7 @@ export function StoreHero({ groups }) {
               {sections.slice(0, 6).map((g) => (
                 <Link key={g.slug} to={categoryPath(g.slug)} className={styles.chip}>
                   {g.name}
-                  <span className={styles.chipCount}>{g.items.length}</span>
+                  <span className={styles.chipCount}>{g.count ?? g.items?.length ?? 0}</span>
                 </Link>
               ))}
             </div>

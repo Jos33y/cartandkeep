@@ -4,6 +4,7 @@ import { ArrowRightIcon, CloseIcon, SearchIcon } from '@components/ui/store/icon
 import { SectionGlyph } from '@components/ui/store/SectionGlyph';
 import { imageAt, leafOf } from '@utils/categories';
 import { formatGbp } from '@utils/formatGbp';
+import { useBrowse } from '@hooks/useCatalogue';
 import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/layout/store/header-search.module.css';
 
@@ -46,7 +47,7 @@ function Rotating({ words }) {
   );
 }
 
-export function HeaderSearch({ rows, sections, sheet = false, onClose, inputRef: externalRef }) {
+export function HeaderSearch({ sections, sheet = false, onClose, inputRef: externalRef }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const listId = useId();
@@ -56,23 +57,20 @@ export function HeaderSearch({ rows, sections, sheet = false, onClose, inputRef:
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(sheet);
   const [active, setActive] = useState(-1);
-  const examples = useExamples(rows);
+  // A small sample of the shop for the rotating examples; the search itself asks the database, typo-tolerant, a moment after typing stops.
+  const sample = useBrowse({}, { limit: 24 });
+  const examples = useExamples(sample.items);
+  const [asked, setAsked] = useState('');
+  useEffect(() => { const t = setTimeout(() => setAsked(query.trim()), 180); return () => clearTimeout(t); }, [query]);
 
   const terms = useMemo(() => query.toLowerCase().split(/\s+/).filter((t) => t.length > 1), [query]);
+  const found = useBrowse({ q: asked, sort: 'relevance' }, { limit: MAX_RESULTS, enabled: asked.length > 1 });
 
   const results = useMemo(() => {
     if (!terms.length) return { sections: [], products: [] };
     const matchedSections = sections.filter((s) => terms.every((t) => s.name.toLowerCase().includes(t))).slice(0, 3);
-    const scored = [];
-    for (const p of rows) {
-      const hay = `${p.title} ${leafOf(p.category_path) ?? ''}`.toLowerCase();
-      if (!terms.every((t) => hay.includes(t))) continue;
-      const title = p.title.toLowerCase();
-      scored.push({ p, score: (title.startsWith(terms[0]) ? 2 : 0) + (title.includes(terms.join(' ')) ? 1 : 0) });
-    }
-    scored.sort((a, b) => b.score - a.score);
-    return { sections: matchedSections, products: scored.slice(0, MAX_RESULTS).map((s) => s.p), total: scored.length };
-  }, [terms, rows, sections]);
+    return { sections: matchedSections, products: found.items, total: found.total ?? 0 };
+  }, [terms, sections, found.items, found.total]);
 
   // Every row the keyboard can land on, in the order it is drawn.
   const options = useMemo(() => {

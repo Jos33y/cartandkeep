@@ -7,6 +7,7 @@ import { StockSignal } from '@components/ui/store/StockSignal';
 import { anyBuyable } from '@hooks/useStoreProducts';
 import { ArrowRightIcon, BasketIcon, CloseIcon, PlusIcon, ReturnIcon } from '@components/ui/store/icons';
 import { useBasket } from '@context/BasketContext';
+import { useProduct } from '@hooks/useCatalogue';
 import { trackQuickView } from '@lib/analytics';
 import { returnsTerms } from '@lib/storeConfig';
 import { formatGbp } from '@utils/formatGbp';
@@ -40,8 +41,11 @@ function fly(src, from, to, onDone) {
 }
 
 // Look without leaving the shelf: the product is lifted off its card, and set back down on close.
-export function QuickView({ product, onClose }) {
+export function QuickView({ product: card, onClose }) {
   const { add } = useBasket();
+  // A browse card carries two photographs and a size count; the full product has every photograph and the sizes. Usually already fetched when the card was hovered.
+  const { product: full } = useProduct(card?.slug);
+  const product = card && full && full.id === card.id ? full : card;
   const names = useCategoryNames();
   const [added, setAdded] = useState(false);
   const [inBasket, setInBasket] = useState(false);
@@ -144,7 +148,7 @@ export function QuickView({ product, onClose }) {
   if (!product) return null;
 
   const images = Array.isArray(product.images) && product.images.length
-    ? product.images
+    ? product.images.filter(Boolean)
     : [product.image_url].filter(Boolean);
 
   // A browse card summarises sizes as a count and brings its own buyable flag.

@@ -73,3 +73,13 @@ ol.stops {
 @media (prefers-reduced-motion: reduce) {
   .stop::after, .mark { animation: none; }
 }
+
+/* Short screens: smaller stops and one line of day text each, the same three facts in half the height. */
+@media (max-height: 820px) and (min-width: 760px) {
+  .mark { width: 30px; height: 30px; margin-bottom: 6px; }
+  .mark svg { width: 16px; height: 16px; }
+  .stop:not([data-last])::after { top: 14px; left: 36px; }
+  .title { font-size: var(--t-caption); }
+  .day { font-size: var(--t-micro); }
+  .estimate { margin-top: 2px; }
+}

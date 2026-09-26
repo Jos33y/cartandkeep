@@ -5,15 +5,23 @@ import { ProductGridSkeleton } from '@components/ui/store/Skeleton';
 import { OfflineNotice } from '@components/ui/store/OfflineNotice';
 import { PromiseBand } from '@components/ui/store/PromiseBand';
 import { QuickView } from '@components/ui/store/QuickView';
-import { useStoreProducts } from '@hooks/useStoreProducts';
-import { useTenant } from '@hooks/useTenant';
-import { useCategoryNames } from '@hooks/useCategoryNamesStore';
-import { groupCategories, visibleGroups } from '@utils/categories';
+import { useBrowse, useGroups } from '@hooks/useCatalogue';
+import { visibleGroups } from '@utils/categories';
 import styles from '@styles/pages/store/home-page.module.css';
 
 const LEFTOVER = 'Everything else';
 
 // Shelves below the first two mount as they come near the screen, so a long catalogue does not draw every card at once.
+const SHELF_SIZE = 8;
+
+// One shelf's first eight cards, fetched only once the shelf is near the screen.
+function LoadedShelf({ group, onQuickView }) {
+  const { items, status } = useBrowse({ keys: group.keys }, { limit: SHELF_SIZE });
+  if (status === 'loading' && items.length === 0) return <div className={styles.shelfHold} aria-hidden="true" />;
+  if (items.length === 0) return null;
+  return <Shelf group={{ ...group, items }} onQuickView={onQuickView} />;
+}
+
 function LazyShelf({ group, onQuickView, eager }) {
   const ref = useRef(null);
   const [near, setNear] = useState(eager);
@@ -27,23 +35,21 @@ function LazyShelf({ group, onQuickView, eager }) {
 
   return (
     <div ref={ref} className={styles.shelfSlot}>
-      {near ? <Shelf group={group} onQuickView={onQuickView} /> : <div className={styles.shelfHold} aria-hidden="true" />}
+      {near ? <LoadedShelf group={group} onQuickView={onQuickView} /> : <div className={styles.shelfHold} aria-hidden="true" />}
     </div>
   );
 }
 
 export function HomePage() {
-  const tenant = useTenant();
-  const tenantId = tenant === undefined ? undefined : (tenant?.id ?? null);
-  const { status, rows, error } = useStoreProducts(tenantId);
+  // Sections and counts from the database; each shelf then fetches its own first eight. Only live products, whoever is signed in.
+  const { status, groups: all, total, error } = useGroups();
   const [peek, setPeek] = useState(null);
-  const names = useCategoryNames();
 
   const groups = useMemo(() => {
-    const all = visibleGroups(groupCategories(rows, { names }));
+    const shown = visibleGroups(all);
     // With no sections yet, the leftover bucket is the whole shop and should say so.
-    return all.length === 1 && all[0].path === LEFTOVER ? [{ ...all[0], name: 'Everything in the shop' }] : all;
-  }, [rows, names]);
+    return shown.length === 1 && shown[0].path === LEFTOVER ? [{ ...shown[0], name: 'Everything in the shop' }] : shown;
+  }, [all]);
 
 
   if (status === 'loading') {
@@ -68,7 +74,7 @@ export function HomePage() {
     );
   }
 
-  if (rows.length === 0) {
+  if (total === 0) {
     return (
       <div className={styles.page}>
         <div className={styles.wrap}>

@@ -5,11 +5,9 @@ import { Logo } from '@components/ui/shared/Logo';
 import { CloseIcon, HeartIcon, MenuIcon, SearchIcon } from '@components/ui/store/icons';
 import { useBasket } from '@context/BasketContext';
 import { useSaved } from '@hooks/useSaved';
-import { useSections } from '@hooks/useSections';
-import { useGroups } from '@hooks/useCatalogue';
+import { useCards, useGroups } from '@hooks/useCatalogue';
 import { visibleGroups } from '@utils/categories';
 import { freeOver } from '@lib/storeConfig';
-import { priceGroups } from '@utils/categories';
 import { STORE_ROUTES } from '@utils/constants';
 import { HeaderSearch } from './HeaderSearch';
 import { BasketRing } from './BasketRing';
@@ -36,19 +34,14 @@ function useGlide(railRef, deps) {
 export function StoreHeader() {
   const { count, subtotal } = useBasket();
   const { ids } = useSaved();
-  const { rows } = useSections();
   // The rail's sections and counts come from the database: the old list stopped at 1,000 and split same-named sections in two.
   const { groups, total: shopTotal } = useGroups();
   const sections = useMemo(() => visibleGroups(groups), [groups]);
   const { pathname } = useLocation();
   const threshold = freeOver();
-  const bands = useMemo(() => priceGroups(rows), [rows]);
-
-  // Only saves that are still on sale: a count of products the customer can no longer buy is a count that misleads.
-  const savedCount = useMemo(() => {
-    const live = new Set(rows.map((p) => p.id));
-    return ids.filter((id) => live.has(id)).length;
-  }, [ids, rows]);
+  // Only saves that are still on sale: the saved cards come back live-only, so their count is the honest one.
+  const savedLive = useCards(ids);
+  const savedCount = savedLive.status === 'ready' ? savedLive.items.length : 0;
 
   const header = useRef(null);
   const rail = useRef(null);
@@ -113,7 +106,6 @@ export function StoreHeader() {
   const shelves = [
     { key: 'all', label: 'Everything', to: STORE_ROUTES.SHOP, count: shopTotal, all: true },
     ...sections.map((s) => ({ key: s.slug, label: s.name, to: categoryPath(s.slug), count: s.count })),
-    ...bands.map((b) => ({ key: b.slug, label: b.name, to: categoryPath(b.slug), band: true })),
   ];
 
   return (
@@ -128,7 +120,7 @@ export function StoreHeader() {
         </Link>
 
         <div className={styles.search}>
-          <HeaderSearch rows={rows} sections={sections} inputRef={searchInput} />
+          <HeaderSearch sections={sections} inputRef={searchInput} />
         </div>
 
         <div className={styles.tools}>
@@ -183,7 +175,7 @@ export function StoreHeader() {
       {searching && createPortal(
         <div className={styles.sheet} role="dialog" aria-modal="true" aria-label="Search the shop">
           <div className={styles.sheetTop}>
-            <HeaderSearch rows={rows} sections={sections} sheet onClose={() => setSearching(false)} />
+            <HeaderSearch sections={sections} sheet onClose={() => setSearching(false)} />
             <button type="button" className={styles.icon} aria-label="Close search" onClick={() => setSearching(false)}><CloseIcon /></button>
           </div>
         </div>,

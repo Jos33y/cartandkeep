@@ -56,8 +56,10 @@ export function Shelf({ group, limit = 8, onQuickView }) {
   }
 
   const items = group.items.slice(0, limit);
-  const cheapest = Math.min(...group.items.map((p) => Number(p.price)));
-  const more = group.items.length - items.length;
+  // The group's own count and lowest price when it has them: the items here are only the first page.
+  const total = group.count ?? group.items.length;
+  const cheapest = group.priceMin ?? Math.min(...group.items.map((p) => Number(p.priceFrom ?? p.price)));
+  const more = total - items.length;
   const routed = group.route !== false;
 
   return (
@@ -66,7 +68,7 @@ export function Shelf({ group, limit = 8, onQuickView }) {
         <div className={styles.ticket}>
           <h2 id={`shelf-${group.slug}`} className={`${styles.name} wide`}>{group.name}</h2>
           <p className={styles.meta}>
-            {group.items.length} {group.items.length === 1 ? 'product' : 'products'}
+            {total} {total === 1 ? 'product' : 'products'}
             {Number.isFinite(cheapest) && <> &middot; from <span data-price>{formatGbp(cheapest)}</span></>}
           </p>
         </div>
@@ -75,7 +77,7 @@ export function Shelf({ group, limit = 8, onQuickView }) {
           {/* Recently viewed has no route; price bands do, through the category page. */}
           {routed ? (
             <Link className={styles.go} to={categoryPath(group.slug)}>
-              <span>Browse all {group.items.length}</span>
+              <span>Browse all {total}</span>
               <ArrowRightIcon size={14} />
             </Link>
           ) : <span />}

@@ -12,6 +12,7 @@ import { CloseIcon } from '@components/ui/store/icons';
 import { useBrowse, useFacets, useGroups, prefetchProduct } from '@hooks/useCatalogue';
 import { useBrowseParams } from '@hooks/useBrowseParams';
 import { useTenant } from '@hooks/useTenant';
+import { trackSearch } from '@lib/analytics';
 import { findGroup } from '@utils/categories';
 import { formatGbp } from '@utils/formatGbp';
 import { deliveryEstimate, formatDeliveryDay } from '@utils/delivery';
@@ -81,6 +82,11 @@ export function CategoryPage({ everything = false }) {
   const ready = everything || Boolean(group);
   const browse = useBrowse(ready ? scoped : { ...scoped, keys: ['\u0000none'] });
   const { facets } = useFacets(ready ? scoped : { ...scoped, keys: ['\u0000none'] });
+
+  // A search is recorded once its result count is known: a term with none is somebody telling her what to stock.
+  useEffect(() => {
+    if (filters.q && browse.status === 'ready' && browse.total !== null) trackSearch(filters.q, browse.total);
+  }, [filters.q, browse.status, browse.total]);
 
   const activeCount = (filters.q ? 1 : 0) + (filters.min !== null || filters.max !== null ? 1 : 0)
     + (filters.dispatchMax !== null ? 1 : 0) + (filters.inStock ? 1 : 0) + filters.brands.length;
@@ -175,6 +181,12 @@ export function CategoryPage({ everything = false }) {
               <div className={styles.empty}>
                 <p className={styles.emptyLead}>Nothing matches all of that.</p>
                 <p className={styles.emptyNote}>Take one filter off to widen it.</p>
+                {/* The best moment to ask for a request: they have already typed what they want. */}
+                {filters.q && (
+                  <Link className={styles.back} to={`${STORE_ROUTES.REQUEST}?for=${encodeURIComponent(filters.q)}&from=search`}>
+                    Ask us to stock it
+                  </Link>
+                )}
                 <div className={styles.emptyActions}>
                   {filters.q && <button type="button" onClick={() => update({ q: null })}>Remove “{filters.q}”</button>}
                   {filters.brands.length > 0 && <button type="button" onClick={() => update({ brands: [] })}>Any brand</button>}

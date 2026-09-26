@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
 import { ProductGrid } from '@components/ui/store/ProductGrid';
@@ -6,8 +6,7 @@ import { ProductGridSkeleton } from '@components/ui/store/Skeleton';
 import { QuickView } from '@components/ui/store/QuickView';
 import { ArrowRightIcon } from '@components/ui/store/icons';
 import { useSaved } from '@hooks/useSaved';
-import { useStoreProducts } from '@hooks/useStoreProducts';
-import { useTenant } from '@hooks/useTenant';
+import { useCards } from '@hooks/useCatalogue';
 import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/pages/store/saved-page.module.css';
 
@@ -23,14 +22,8 @@ export function SavedPage() {
   const { ids } = useSaved();
   const [peek, setPeek] = useState(null);
 
-  const tenant = useTenant();
-  const tenantId = tenant === undefined ? undefined : (tenant?.id ?? null);
-  const { status, rows } = useStoreProducts(tenantId);
-
-  const saved = useMemo(() => {
-    const byId = new Map(rows.map((p) => [p.id, p]));
-    return ids.map((id) => byId.get(id)).filter(Boolean);
-  }, [rows, ids]);
+  // Only the saved products are fetched, live ones only, in the order they were saved.
+  const { status, items: saved } = useCards(ids);
 
   // Anything saved that is no longer in the catalogue. Said out loud rather
   // than quietly dropped, because "I saved six things and now there are five"

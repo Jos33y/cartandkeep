@@ -15,44 +15,47 @@ import { Specifications } from '@components/ui/store/Specifications';
 import { SupplierText } from '@components/ui/store/SupplierText';
 import { Shelf } from '@components/ui/store/Shelf';
 import { BasketIcon, ChevronRightIcon, HeartIcon, PlusIcon } from '@components/ui/store/icons';
-import { anyBuyable, useStoreProducts } from '@hooks/useStoreProducts';
+import { anyBuyable } from '@hooks/useStoreProducts';
+import { useBrowse, useGroups, useProduct } from '@hooks/useCatalogue';
 import { useBasket } from '@context/BasketContext';
 import { useRecentlyViewed } from '@hooks/useRecentlyViewed';
 import { useSaved } from '@hooks/useSaved';
 import { useCategoryNames } from '@hooks/useCategoryNamesStore';
-import { useTenant } from '@hooks/useTenant';
 import { trackProductView } from '@lib/analytics';
 import { formatGbp } from '@utils/formatGbp';
 import { STORE_ROUTES } from '@utils/constants';
-import { groupCategories, imageAt, visibleGroups } from '@utils/categories';
+import { imageAt, visibleGroups } from '@utils/categories';
 import { shopSectionOf } from '@utils/categoryNames';
 import styles from '@styles/pages/store/product-page.module.css';
 
 const LEFTOVER = 'Everything else';
 const categoryPath = (slug) => STORE_ROUTES.CATEGORY.replace(':slug', slug);
 
-// Somewhere to go next: her section when it has at least two others, otherwise the rest of the shop.
-function nextShelf(rows, product, names) {
-  const groups = visibleGroups(groupCategories(rows, { names }));
-  const others = (g) => g.items.filter((p) => p.id !== product.id);
-  const own = groups.find((g) => g.path !== LEFTOVER && g.items.some((p) => p.id === product.id));
-  if (own && others(own).length >= 2) return { ...own, items: others(own) };
+// The group this product's cards fall in, by the same rule as the database: her section key, else the top of eBay's path.
+const groupKeyOf = (p) => (p.section || String(p.category_path ?? '').split('|')[0] || '').trim();
 
-  const rest = rows.filter((p) => p.id !== product.id);
-  if (rest.length === 0) return null;
-  // One leftover group is the whole shop and has a route; several groups do not share one.
-  const whole = groups.length === 1 ? groups[0] : null;
-  return whole
-    ? { ...whole, name: 'Everything in the shop', items: rest }
-    : { slug: 'shop', name: 'Everything in the shop', items: rest, route: false };
+// Somewhere to go next: her section when it has at least two others, otherwise the rest of the shop. Nine fetched, this one dropped.
+function NextShelf({ product, own }) {
+  const inSection = own && own.path !== LEFTOVER && own.count >= 3;
+  const { items } = useBrowse(inSection ? { keys: own.keys } : {}, { limit: 9 });
+  const others = items.filter((p) => p.id !== product.id).slice(0, 8);
+  if (others.length === 0) return null;
+  const group = inSection
+    ? { ...own, items: others, count: own.count - 1 }
+    : { slug: 'shop', name: 'Everything in the shop', items: others, route: false };
+  return (
+    <section className={styles.wrap} aria-labelledby="next">
+      <h2 id="next" className={`${styles.nextTitle} wide`}>Also on the shelf</h2>
+      <Shelf group={group} limit={8} />
+    </section>
+  );
 }
 
 export function ProductPage() {
   const { slug } = useParams();
-  const tenant = useTenant();
-  // undefined while the tenant loads, null when there is none: the products hook treats them differently.
-  const tenantId = tenant === undefined ? undefined : (tenant?.id ?? null);
-  const { status, rows } = useStoreProducts(tenantId);
+  // One product by its address, and the section list for its breadcrumb; never the whole catalogue.
+  const { status, product } = useProduct(slug);
+  const { groups } = useGroups();
   const { add } = useBasket();
   const { record } = useRecentlyViewed();
   const { has, toggle } = useSaved();
@@ -67,7 +70,6 @@ export function ProductPage() {
   const sideRef = useRef(null);
   const [stuck, setStuck] = useState(false);
 
-  const product = useMemo(() => rows.find((p) => p.slug === slug), [rows, slug]);
 
   useEffect(() => { setChosen(null); }, [product?.id]);
   useEffect(() => { setQty(1); setAdded(false); setInBasket(false); }, [slug]);
@@ -96,7 +98,7 @@ export function ProductPage() {
     return () => ro.disconnect();
   }, [product?.id]);
 
-  const next = useMemo(() => (product ? nextShelf(rows, product, names) : null), [rows, product, names]);
+  const own = useMemo(() => (product ? visibleGroups(groups).find((g) => g.keys.includes(groupKeyOf(product))) ?? null : null), [groups, product]);
 
   if (status === 'loading') {
     return <div className={styles.page}><div className={styles.wrap}><div className={styles.loading} /></div></div>;
@@ -125,7 +127,7 @@ export function ProductPage() {
   const buyable = anyBuyable(product);
   const ready = hasVariants ? Boolean(chosen) : buyable;
   const section = shopSectionOf(product, names);
-  const sectionGroup = section ? visibleGroups(groupCategories(rows, { names })).find((g) => g.name === section) : null;
+  const sectionGroup = section && own?.name === section ? own : null;
   const label = hasVariants && !chosen ? 'Choose one first' : added ? 'Added to basket' : 'Add to basket';
   // Never more than she has: the stepper stops at the stock figure when there is one.
   const stock = Number(chosen?.stock ?? product.stock);
@@ -274,12 +276,7 @@ export function ProductPage() {
         <Reviews product={product} />
       </div>
 
-      {next && (
-        <section className={styles.wrap} aria-labelledby="next">
-          <h2 id="next" className={`${styles.nextTitle} wide`}>Also on the shelf</h2>
-          <Shelf group={next} limit={8} />
-        </section>
-      )}
+      <NextShelf product={product} own={own} />
 
       <div className={styles.sticky} data-shown={stuck || undefined} aria-hidden={!stuck}>
         <div className={styles.stickyInner}>

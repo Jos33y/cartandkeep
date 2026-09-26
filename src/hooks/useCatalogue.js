@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTenant } from '@hooks/useTenant';
 import { useCategoryNames } from '@hooks/useCategoryNamesStore';
-import { PAGE_SIZE, fetchFacets, fetchGroupCounts, fetchPage, fetchProduct, filterArgs } from '@lib/catalogue';
+import { PAGE_SIZE, fetchCardsByIds, fetchFacets, fetchGroupCounts, fetchPage, fetchProduct, filterArgs } from '@lib/catalogue';
 import { withVariants } from '@hooks/useStoreProducts';
 import { groupsFromCounts } from '@utils/categories';
 
@@ -43,12 +43,12 @@ export function useGroups() {
 }
 
 const pageCache = new Map();
-const keyOf = (tenantId, filters) => JSON.stringify([filterArgs(tenantId, filters), filters?.sort ?? 'featured']);
+const keyOf = (tenantId, filters, limit) => JSON.stringify([filterArgs(tenantId, filters), filters?.sort ?? 'featured', limit]);
 
 // Pages of cards for a filter: the first page, then "show more" appends; the next page is fetched ahead so it lands instantly.
-export function useBrowse(filters) {
+export function useBrowse(filters, { limit = PAGE_SIZE, enabled = true } = {}) {
   const tenantId = useTenantId();
-  const key = tenantId ? keyOf(tenantId, filters) : null;
+  const key = tenantId && enabled ? keyOf(tenantId, filters, limit) : null;
   const [state, setState] = useState(() => {
     const hit = key ? pageCache.get(key) : null;
     return hit ? { status: 'ready', ...hit, error: null } : { status: 'loading', items: [], total: null, error: null };
@@ -58,8 +58,8 @@ export function useBrowse(filters) {
 
   const prefetch = useCallback((k, offset) => {
     if (!tenantId) return;
-    ahead.current = { key: k, offset, promise: fetchPage(tenantId, filters, { offset }).catch(() => null) };
-  }, [tenantId, filters]);
+    ahead.current = { key: k, offset, promise: fetchPage(tenantId, filters, { offset, limit }).catch(() => null) };
+  }, [tenantId, filters, limit]);
 
   useEffect(() => {
     if (tenantId === undefined || !key) return undefined;
@@ -71,7 +71,7 @@ export function useBrowse(filters) {
     const id = ++request.current;
     const controller = new AbortController();
     setState((s) => ({ ...s, status: s.items.length ? 'refreshing' : 'loading', error: null }));
-    fetchPage(tenantId, filters, { signal: controller.signal })
+    fetchPage(tenantId, filters, { signal: controller.signal, limit })
       .then(({ items, total }) => {
         if (id !== request.current) return;
         const value = { items, total };
@@ -94,8 +94,8 @@ export function useBrowse(filters) {
     try {
       const pending = ahead.current?.key === key && ahead.current.offset === offset
         ? ahead.current.promise
-        : fetchPage(tenantId, filters, { offset });
-      const page = (await pending) ?? await fetchPage(tenantId, filters, { offset });
+        : fetchPage(tenantId, filters, { offset, limit });
+      const page = (await pending) ?? await fetchPage(tenantId, filters, { offset, limit });
       // Keyed by id, so a product that moved between pages while they loaded is never shown twice.
       const seen = new Set(state.items.map((p) => p.id));
       const items = [...state.items, ...page.items.filter((p) => !seen.has(p.id))];
@@ -107,7 +107,7 @@ export function useBrowse(filters) {
       console.error('[store] more products did not load', error);
       setState((s) => ({ ...s, status: 'error', error }));
     }
-  }, [key, state, tenantId, filters, prefetch]);
+  }, [key, state, tenantId, filters, prefetch, limit]);
 
   return {
     status: state.status,
@@ -116,7 +116,7 @@ export function useBrowse(filters) {
     error: state.error,
     hasMore: state.total !== null && state.items.length < state.total,
     loadMore,
-    pageSize: PAGE_SIZE,
+    pageSize: limit,
   };
 }
 
@@ -181,4 +181,21 @@ export function prefetchProduct(tenantId, slug) {
   const key = `${tenantId}:${slug}`;
   if (!tenantId || !slug || productCache.has(key)) return;
   fetchProduct(tenantId, slug).then((row) => { if (row) remember(productCache, key, withVariants(row)); }).catch(() => {});
+}
+
+// Saved products as cards, live ones only; the difference from the ids given is what has gone.
+export function useCards(ids) {
+  const tenantId = useTenantId();
+  const key = tenantId ? `${tenantId}:${(ids ?? []).join(',')}` : null;
+  const [state, setState] = useState({ status: 'loading', items: [] });
+  useEffect(() => {
+    if (!key) return undefined;
+    if (!ids?.length) { setState({ status: 'ready', items: [] }); return undefined; }
+    let live = true;
+    fetchCardsByIds(tenantId, ids)
+      .then((items) => { if (live) setState({ status: 'ready', items }); })
+      .catch((error) => { console.error('[store] saved products did not load', error); if (live) setState({ status: 'error', items: [] }); });
+    return () => { live = false; };
+  }, [key]);
+  return state;
 }

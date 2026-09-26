@@ -91,3 +91,20 @@ export async function fetchProduct(tenantId, slug) {
   if (error) throw error;
   return data;
 }
+
+const CARD_COLUMNS = 'id, slug, title, price, compare_at, image_url, image_2, brand, section, category_path, group_key, availability, buyable, stock, dispatch_days, position, variant_count, price_from, price_to';
+
+// Cards for a list of ids, such as saved products, in the order given. Only live, non-sample products come back, so anything missing has gone.
+export async function fetchCardsByIds(tenantId, ids) {
+  if (!ids?.length) return [];
+  const { data, error } = await supabase
+    .from('store_cards')
+    .select(CARD_COLUMNS)
+    .eq('tenant_id', tenantId)
+    .eq('status', 'live')
+    .eq('is_sample', false)
+    .in('id', ids.slice(0, 200));
+  if (error) throw error;
+  const byId = new Map((data ?? []).map((r) => [r.id, toCard(r)]));
+  return ids.map((id) => byId.get(id)).filter(Boolean);
+}
