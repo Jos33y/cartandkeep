@@ -429,3 +429,22 @@
   .status { flex-basis: 100%; }
   .foot .go, .foot .quiet { flex: 1; }
 }
+
+/* While Keeper reads: the boxes it will fill say so, and stop once it answers. */
+.by[data-pending] { animation: waiting 1.4s var(--ease) infinite; }
+@keyframes waiting { 50% { opacity: 0.35; } }
+
+/* Where a value has just landed, the box warms once and settles. */
+.sheet [data-arrived] input,
+.sheet [data-arrived] textarea,
+.sheet [data-arrived] select,
+.sheet [data-arrived][role='radiogroup'] > label[data-on] {
+  animation: arrive 1.6s var(--ease-out);
+}
+
+@keyframes arrive { from { background: var(--c-info-wash); box-shadow: 0 0 0 3px var(--c-info-wash); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .by[data-pending], .sheet [data-arrived] input, .sheet [data-arrived] textarea,
+  .sheet [data-arrived] select, .sheet [data-arrived][role='radiogroup'] > label[data-on] { animation: none; }
+}

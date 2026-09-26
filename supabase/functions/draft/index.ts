@@ -253,15 +253,15 @@ const DRAFT_TOOL = {
 
 // The prompt asks for screen words; this enforces it, because the model has already slipped twice.
 const FIELD_WORDS: Array<[RegExp, string]> = [
-  [/\bcurrent_returns_class\b/gi, 'the returns policy'],
-  [/\breturns_class\b/gi, 'the returns policy'],
-  [/\bsupplier_text\b/gi, 'what the supplier wrote'],
-  [/\bin_the_box\b/gi, 'what is in the box'],
-  [/\bcategory_path\b/gi, 'the section'],
-  [/\bimage_url\b/gi, 'the photograph'],
-  [/\bcurrent_title\b/gi, 'the title'],
-  [/\bprice_gbp\b/gi, 'the price'],
-  [/\bspecifications\b/gi, 'the details'],
+  [/\b(the )?current_returns_class\b/gi, 'the returns policy'],
+  [/\b(the )?returns_class\b/gi, 'the returns policy'],
+  [/\b(the )?supplier_text\b/gi, 'what the supplier wrote'],
+  [/\b(the )?in_the_box\b/gi, 'what is in the box'],
+  [/\b(the )?category_path\b/gi, 'the section'],
+  [/\b(the )?image_url\b/gi, 'the photograph'],
+  [/\b(the )?current_title\b/gi, 'the title'],
+  [/\b(the )?price_gbp\b/gi, 'the price'],
+  [/\b(the )?specifications\b/gi, 'the details'],
 ];
 
 const NOT_A_FINDING = [
@@ -303,21 +303,23 @@ function tidyDecide(raw: unknown) {
   return out;
 }
 
-// The model returns a cleaned list; any original fact it dropped without saying so is put back, not lost.
+// The model's removals stand (eBay filler like "Item Height: uca222"), but each one is named so nothing goes silently.
+// Brand has its own field, so it is not repeated in the details.
 function mergeDetails(raw: unknown, original: Record<string, string>) {
   const out: Array<{ name: string; value: string }> = [];
   const names = new Set<string>();
   for (const d of (Array.isArray(raw) ? raw : []) as Array<Record<string, unknown>>) {
     const name = clip(d?.name, 60);
     const value = emptyish(clip(d?.value, 200));
-    if (!name || !value || names.has(name.toLowerCase())) continue;
+    if (!name || !value || names.has(name.toLowerCase()) || /^brand$/i.test(name)) continue;
     names.add(name.toLowerCase());
     out.push({ name, value });
   }
-  for (const [name, value] of Object.entries(original)) {
-    if (!names.has(name.trim().toLowerCase()) && !out.some((d) => d.value === value)) out.push({ name: name.trim(), value });
-  }
-  return out;
+  const kept = new Set(out.map((d) => d.value.toLowerCase()));
+  const removed = Object.entries(original)
+    .filter(([name, value]) => !/^brand$/i.test(name.trim()) && !names.has(name.trim().toLowerCase()) && !kept.has(value.toLowerCase()))
+    .map(([name, value]) => `Took "${name.trim()}: ${value}" out of the details`);
+  return { details: out, removed };
 }
 
 const CARE = new Set(['biocide', 'supplement', 'electrical', 'branded', 'sealed']);
@@ -381,7 +383,8 @@ async function draftFor(product: Record<string, any>, sections: Section[]) {
   const titles = parsed.titles ?? {};
   const brandName = emptyish(clip(parsed.brand?.name, 60));
   const paths = new Set(sections.map((s) => s.path));
-  const copy = customerCopy(String(parsed.description ?? '').trim(), tidyDone(parsed.done));
+  const merged = mergeDetails(parsed.details, specs);
+  const copy = customerCopy(String(parsed.description ?? '').trim(), [...tidyDone(parsed.done), ...merged.removed]);
 
   return {
     version: 2,
@@ -392,7 +395,7 @@ async function draftFor(product: Record<string, any>, sections: Section[]) {
     },
     description: copy.description,
     brand: { name: brandName, real: Boolean(parsed.brand?.real) && Boolean(brandName) },
-    details: mergeDetails(parsed.details, specs),
+    details: merged.details,
     in_the_box: emptyish(clip(parsed.in_the_box, 400)),
     section: paths.has(parsed.section) ? parsed.section : null,
     care: (Array.isArray(parsed.care) ? parsed.care : []).filter((c: string) => CARE.has(c)),
@@ -408,14 +411,89 @@ async function draftFor(product: Record<string, any>, sections: Section[]) {
   };
 }
 
+// Constant time, so a wrong secret takes as long to refuse as a nearly right one.
+function sameSecret(a: string, b: string) {
+  if (!a || !b || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+async function storedSchedulerSecret() {
+  const { data } = await db.from('app_config').select('value').eq('key', 'scheduler_secret').maybeSingle();
+  return data?.value ?? '';
+}
+
+function cleanSections(raw: unknown): Section[] {
+  return (Array.isArray(raw) ? raw : [])
+    .filter((s) => s && typeof s.path === 'string' && s.path)
+    .slice(0, 80)
+    .map((s) => ({ path: s.path.slice(0, 200), label: String(s.label ?? s.path).slice(0, 80) }));
+}
+
+const PRODUCT_FIELDS = 'id, tenant_id, title, brand, condition, category_path, price, specifications, in_the_box, source_description, image_url, returns_class';
+const PER_CALL = 4;
+const AT_ONCE = 2;
+
+async function runJob(job: Record<string, any>) {
+  try {
+    const { data: product, error } = await db.from('store_products').select(PRODUCT_FIELDS)
+      .eq('id', job.product_id).eq('tenant_id', job.tenant_id).single();
+    if (error || !product) throw new Error('The product is no longer there.');
+
+    const draft = await draftFor(product, cleanSections(job.sections));
+    if (!draft.description) throw new Error('The draft came back empty.');
+
+    const { error: wErr } = await db.rpc('set_product_draft', { p_id: product.id, p_draft: draft });
+    if (wErr) throw new Error(wErr.message);
+
+    await db.from('keeper_jobs').update({
+      state: 'done', finished_at: new Date().toISOString(), error: null,
+      result: { questions: draft.decide.length, sorted: draft.done.length },
+    }).eq('id', job.id);
+    return true;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[draft] job', job.id, message);
+    // Three tries, then it stops and says why; a busy moment at Anthropic usually clears on the next go.
+    await db.from('keeper_jobs').update(job.attempts >= 3
+      ? { state: 'failed', finished_at: new Date().toISOString(), error: message }
+      : { state: 'queued', error: message }).eq('id', job.id);
+    return false;
+  }
+}
+
+async function workQueue(tenant: string | null) {
+  const { data: jobs, error } = await db.rpc('claim_keeper_jobs', { p_limit: PER_CALL, p_tenant: tenant });
+  if (error) throw new Error(error.message);
+  const list = (jobs ?? []) as Array<Record<string, any>>;
+  let done = 0;
+  for (let i = 0; i < list.length; i += AT_ONCE) {
+    const results = await Promise.all(list.slice(i, i + AT_ONCE).map(runJob));
+    done += results.filter(Boolean).length;
+  }
+  return { claimed: list.length, done };
+}
+
 Deno.serve(async (req) => {
   const origin = req.headers.get('origin');
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(origin) });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405, origin);
 
+  let body: { productId?: string; sections?: Section[]; queue?: boolean; tenant_id?: string };
+  try { body = await req.json(); } catch { return json({ error: 'Bad body' }, 400, origin); }
+
+  // The schedule works every shop's queue; it proves itself with the scheduler secret.
+  const sent = req.headers.get('x-scheduler-secret');
+  if (sent) {
+    if (!sameSecret(sent, await storedSchedulerSecret())) return json({ error: 'Not authorised' }, 401, origin);
+    try { return json(await workQueue(null), 200, origin); } catch (err) {
+      return json({ error: err instanceof Error ? err.message : String(err) }, 500, origin);
+    }
+  }
+
   const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
   if (!token) return json({ error: 'Not authorised' }, 401, origin);
-
   const asUser = createClient(SUPABASE_URL, ANON_KEY, {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { persistSession: false },
@@ -423,26 +501,25 @@ Deno.serve(async (req) => {
   const { data: who } = await asUser.auth.getUser();
   if (!who?.user) return json({ error: 'Not authorised' }, 401, origin);
 
-  let body: { productId?: string; sections?: Section[] };
-  try { body = await req.json(); } catch { return json({ error: 'Bad body' }, 400, origin); }
-  if (!body.productId) return json({ error: 'productId is required' }, 400, origin);
+  // The portal kicks its own shop's queue so she does not wait for the next minute.
+  if (body.queue) {
+    if (!body.tenant_id) return json({ error: 'tenant_id is required' }, 400, origin);
+    const { data: member } = await asUser.rpc('has_tenant', { t: body.tenant_id });
+    if (member !== true) return json({ error: 'Not authorised' }, 401, origin);
+    try { return json(await workQueue(body.tenant_id), 200, origin); } catch (err) {
+      return json({ error: err instanceof Error ? err.message : String(err) }, 500, origin);
+    }
+  }
 
-  const sections = (Array.isArray(body.sections) ? body.sections : [])
-    .filter((s) => s && typeof s.path === 'string' && s.path)
-    .slice(0, 80)
-    .map((s) => ({ path: s.path.slice(0, 200), label: String(s.label ?? s.path).slice(0, 80) }));
+  if (!body.productId) return json({ error: 'productId is required' }, 400, origin);
 
   try {
     // Under her own session, so the tenant policy decides which products she can draft.
-    const { data: product, error } = await asUser
-      .from('store_products')
-      .select('id, title, brand, condition, category_path, price, specifications, in_the_box, source_description, image_url, returns_class')
-      .eq('id', body.productId)
-      .single();
-
+    const { data: product, error } = await asUser.from('store_products').select(PRODUCT_FIELDS)
+      .eq('id', body.productId).single();
     if (error || !product) return json({ error: 'No such product' }, 404, origin);
 
-    const draft = await draftFor(product, sections);
+    const draft = await draftFor(product, cleanSections(body.sections));
     if (!draft.description) throw new Error('The draft came back empty.');
 
     const { error: wErr } = await db.rpc('set_product_draft', { p_id: product.id, p_draft: draft });

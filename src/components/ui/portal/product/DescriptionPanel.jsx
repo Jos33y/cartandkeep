@@ -1,17 +1,16 @@
 import row from '@styles/ui/portal/product-row.module.css';
-import styles from '@styles/ui/portal/product-sheet.module.css';
 
 // Controlled by the sheet, which owns the one save. Her words stay in the box; another version only shows when it differs.
 export function DescriptionPanel({
-  value, onChange, suggested, alternative, onUseAlternative, sourceText, agent,
+  value, onChange, badge, arrived, alternative, onUseAlternative, sourceText, agent,
 }) {
   return (
     <div className={row.panel}>
-      <label className={row.field}>
+      <label className={row.field} data-arrived={arrived || undefined}>
         <span className={row.split}>
           <span className={row.label}>
             What would you tell somebody in a shop who picked this up
-            {suggested && <span className={styles.by}>{agent}</span>}
+            {badge}
           </span>
           <span className={row.count} data-num>{value.trim().length}</span>
         </span>

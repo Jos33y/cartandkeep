@@ -8,8 +8,9 @@ import { PageSkeleton } from '@components/ui/portal/Skeleton';
 import { Tip } from '@components/ui/portal/primitives';
 import { Icon } from '@components/ui/icons';
 import {
-  useCatalogue, categoryCounts, isLive, isReady, isBlocked, isArchived,
+  useCatalogue, categoryCounts, isLive, isReady, isNeedsYou, isBlocked, isArchived,
 } from '@hooks/useCatalogue';
+import { useKeeper } from '@hooks/useKeeper';
 import { stepsFor, columnsFor, isOpen } from '@lib/readiness';
 import { useCategoryNames } from '@hooks/useCategoryNames';
 import { sectionOf } from '@utils/categories';
@@ -18,20 +19,21 @@ import styles from '@styles/pages/portal/products-page.module.css';
 
 const FILTERS = [
   { key: 'ready', label: 'Ready', tone: 'info' },
+  { key: 'needs', label: 'Needs you', tone: 'warning' },
   { key: 'blocked', label: 'Blocked', tone: 'negative' },
   { key: 'live', label: 'Live', tone: 'positive' },
   { key: 'all', label: 'All' },
   { key: 'archived', label: 'Archived' },
 ];
 
-const MATCH = { live: isLive, archived: isArchived, blocked: isBlocked, ready: isReady, all: () => true };
+const MATCH = { live: isLive, archived: isArchived, blocked: isBlocked, needs: isNeedsYou, ready: isReady, all: () => true };
 
 // What the biggest gap card says, per step.
 const GAP = {
   photo: { all: 'No product has a photograph', one: 'has no photograph', many: 'have no photograph', body: 'Nothing goes live without one.', go: 'Add a photograph to' },
   price: { all: 'No product has a price', one: 'has no price', many: 'have no price', body: 'Nothing goes live without one.', go: 'Price' },
   returns: { all: 'Every product has returns to confirm', one: 'has returns to confirm', many: 'have returns to confirm', body: 'A script guessed them, and the customer email quotes the answer.', go: 'Confirm returns on' },
-  checks: { all: 'Every product has contradictions to read', one: 'has supplier contradictions to read', many: 'have supplier contradictions to read', body: 'They cannot go live until someone has read them.', go: 'Read the checks on' },
+  checks: { all: 'Every product has a question for you', one: 'has a question for you', many: 'have a question for you', body: 'One tap each, then they can go live.', go: 'Answer the question on' },
   hazard: { all: 'Every product needs its label warning', one: 'needs its label warning', many: 'need their label warning', body: 'The warning on the bottle has to show next to the price.', go: 'Add the warning to' },
   stock: { all: 'Everything is off sale', one: 'is off sale', many: 'are off sale', body: 'Marked unavailable, or none left.', go: 'Check stock on' },
   description: { all: 'No product has a description', one: 'has no description', many: 'have no description', body: 'Google will not list a product without one.', go: 'Write one for' },
@@ -62,14 +64,14 @@ export function ProductsPage() {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(null);
   const [adding, setAdding] = useState(false);
-  const [drafting, setDrafting] = useState(null);
   const [open, setOpen] = useState(null);
 
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
   const catalogue = useCatalogue(tenant?.id);
   const agentName = tenant?.store?.agent?.name || 'Your assistant';
-  const { status, rows, counts, reload, publish, unpublish, create, draftMany } = catalogue;
+  const { status, rows, counts, reload, publish, unpublish, create } = catalogue;
+  const keeper = useKeeper(tenant?.id, { onFinished: reload });
 
   const setView = (next) => {
     const merged = { filter, gap: gapKey, ...next };
@@ -135,8 +137,8 @@ export function ProductsPage() {
   }, [visible, columns]);
 
   const undrafted = useMemo(
-    () => rows.filter((r) => picked.has(r.id) && !isArchived(r) && r.derived_fields?.draft?.version !== 2),
-    [rows, picked],
+    () => rows.filter((r) => picked.has(r.id) && !isArchived(r) && !keeper.stateOf(r.id) && r.derived_fields?.draft?.version !== 2),
+    [rows, picked, keeper],
   );
 
   // A selection carried in from the dashboard's "Draft all" count.
@@ -168,17 +170,13 @@ export function ProductsPage() {
   const pickedDraft = rows.filter((r) => picked.has(r.id) && !isLive(r) && !isArchived(r));
   const allPicked = visible.length > 0 && visible.every((p) => picked.has(p.id));
 
-  async function runDrafts() {
-    const ids = undrafted.map((p) => p.id);
+  async function fillIn() {
     setFailed(null);
-    setDrafting({ done: 0, total: ids.length });
     try {
-      const failures = await draftMany(ids, (done, total) => setDrafting({ done, total }), categories);
-      if (failures.length) setFailed(`${failures.length} of ${ids.length} were not filled in: ${failures.join(', ')}`);
+      await keeper.ask(undrafted.map((p) => p.id), categories);
+      setPicked(new Set());
     } catch (e) {
-      setFailed(e?.message ?? 'The drafts did not run.');
-    } finally {
-      setDrafting(null);
+      setFailed(e?.message ?? `${agentName} could not start. Try again.`);
     }
   }
 
@@ -245,7 +243,7 @@ export function ProductsPage() {
           <h1 className={styles.title}>Products</h1>
           <p className={styles.sub}>
             {status === 'loading' ? 'Reading the catalogue'
-              : `${counts.live} on the shop${counts.ready ? `, ${counts.ready} ready to go live` : ''}${counts.blocked ? `, ${counts.blocked} blocked` : ''}. `}
+              : `${counts.live} on the shop${counts.ready ? `, ${counts.ready} ready to go live` : ''}${counts.needs ? `, ${counts.needs} with a question for you` : ''}${counts.blocked ? `, ${counts.blocked} blocked` : ''}. `}
             {status === 'ready' && (left
               ? <><span data-num>{left}</span> {left === 1 ? 'step' : 'steps'} from complete.</>
               : 'Every step is done.')}
@@ -327,6 +325,12 @@ export function ProductsPage() {
         </section>
       )}
 
+      {keeper.summary && (
+        <KeeperStrip summary={keeper.summary} agent={agentName} titleOf={(id) => rows.find((r) => r.id === id)?.title}
+          onOpen={(id) => openSheet(id, 'checks')} onDismiss={keeper.dismiss}
+          onRetry={(ids) => keeper.ask(ids, categories)} />
+      )}
+
       <div className={styles.toolbar}>
         <div className={styles.tabs} role="group" aria-label="Filter products">
           {filters.map((f) => (
@@ -384,7 +388,7 @@ export function ProductsPage() {
 
         {status === 'ready' && visible.map((product, i) => (
           <ProductRow key={product.id} index={i} product={product} columns={columns}
-            where={product.section ? labels.get(product.section) : null}
+            where={labels.get(sectionOf(product)) ?? 'Odds and ends'} keeper={keeper.stateOf(product.id)} agent={agentName}
             selected={picked.has(product.id)} onSelect={select} onOpen={openSheet} />
         ))}
 
@@ -422,18 +426,18 @@ export function ProductsPage() {
         <div className={styles.selection} role="region" aria-label="Selected products">
           <span className={styles.selCount}><b data-num>{picked.size}</b> selected</span>
           {undrafted.length > 0 && (
-            <button type="button" className={styles.selButton} disabled={busy || drafting !== null} onClick={runDrafts}>
-              {drafting ? `${agentName} is on ${drafting.done} of ${drafting.total}` : `Fill in ${plural(undrafted.length, 'product')} with ${agentName}`}
+            <button type="button" className={styles.selButton} disabled={busy} onClick={fillIn}>
+              Fill in {plural(undrafted.length, 'product')} with {agentName}
             </button>
           )}
           {pickedLive.length > 0 && (
-            <button type="button" className={styles.selButton} disabled={busy || drafting !== null}
+            <button type="button" className={styles.selButton} disabled={busy}
               onClick={() => go(unpublish, pickedLive.map((p) => p.id))}>
               Take {pickedLive.length} off the shop
             </button>
           )}
           {pickedDraft.length > 0 && (
-            <button type="button" className={styles.selGo} disabled={busy || drafting !== null}
+            <button type="button" className={styles.selGo} disabled={busy}
               onClick={() => go(publish, pickedDraft.map((p) => p.id))}>
               Take {pickedDraft.length} live
             </button>
@@ -458,9 +462,59 @@ export function ProductsPage() {
           tenantId={tenant?.id}
           returnDays={Number(tenant?.store?.returns?.days) || null}
           agent={agentName}
+          keeper={keeper}
         />
       )}
     </div>
+  );
+}
+
+// One place for Keeper's progress on the page, whatever filter is showing.
+function KeeperStrip({ summary, agent, titleOf, onOpen, onDismiss, onRetry }) {
+  const { total, finished, running, done, failed, withQuestions } = summary;
+  const firstQuestion = withQuestions[0];
+  return (
+    <section className={styles.keeper} data-running={running || undefined} aria-live="polite">
+      <div className={styles.keeperText}>
+        {running ? (
+          <>
+            <p className={styles.keeperLine}>
+              {agent} is filling in <b data-num>{Math.min(finished + 1, total)}</b> of <b data-num>{total}</b>
+            </p>
+            <p className={styles.keeperNote}>This carries on if you close the portal.</p>
+          </>
+        ) : (
+          <>
+            <p className={styles.keeperLine}>
+              {agent} filled in <b data-num>{done}</b>{total > 1 ? ` of ${total}` : ''}.
+              {withQuestions.length > 0 && <> {plural(withQuestions.length, 'has a question', 'have a question')} for you.</>}
+              {withQuestions.length === 0 && done > 0 && ' Nothing to ask you.'}
+            </p>
+            {failed.length > 0 && (
+              <p className={styles.keeperNote}>
+                Could not fill in {failed.map((j) => titleOf(j.product_id) ?? 'a product').join(', ')}: {failed[0].error}
+              </p>
+            )}
+          </>
+        )}
+        <span className={styles.keeperTrack} aria-hidden="true"><i style={{ width: `${(finished / total) * 100}%` }} /></span>
+      </div>
+      {!running && (
+        <div className={styles.keeperActions}>
+          {failed.length > 0 && (
+            <button type="button" className={styles.quiet} onClick={() => onRetry(failed.map((j) => j.product_id))}>Try again</button>
+          )}
+          {firstQuestion && (
+            <button type="button" className={styles.quiet} onClick={() => onOpen(firstQuestion)}>
+              Answer {withQuestions.length === 1 ? 'it' : 'the first'}
+            </button>
+          )}
+          <button type="button" className={styles.keeperClose} aria-label="Dismiss" onClick={onDismiss}>
+            <Icon name="IconX" width="14" height="14" />
+          </button>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -470,6 +524,10 @@ const EMPTY = {
     body: (c) => (c.blocked
       ? `${plural(c.blocked, 'product is', 'products are')} blocked on a step. A product arrives here once the first group of squares is done.`
       : `${c.live ? `All ${c.live} of your products are on the shop. ` : ''}A new one arrives here once the first group of squares is done.`),
+  },
+  needs: {
+    title: 'Nothing is waiting on you',
+    body: () => 'Products land here when the only thing left is a question for you.',
   },
   blocked: {
     title: 'Nothing is blocked',

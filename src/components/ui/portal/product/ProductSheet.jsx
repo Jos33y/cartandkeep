@@ -168,9 +168,9 @@ function dropKept(id) {
 }
 
 export function ProductSheet({
-  product, focus, onClose, catalogue, categories, categoryCount, fees, tenantId, returnDays, agent,
+  product, focus, onClose, catalogue, categories, categoryCount, fees, tenantId, returnDays, agent, keeper,
 }) {
-  const { publish, unpublish, saveSheet, saveImages, removeImage, draftCopy,
+  const { unpublish, saveSheet, saveImages, removeImage,
     addVariant, saveVariant, removeVariant, archive, unarchive } = catalogue;
 
   const draft = product.derived_fields?.draft ?? null;
@@ -194,8 +194,13 @@ export function ProductSheet({
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(null);
   const [saved, setSaved] = useState(null);
-  const [reading, setReading] = useState(false);
-  const [readFailed, setReadFailed] = useState(null);
+  const [askFailed, setAskFailed] = useState(null);
+  const [arrived, setArrived] = useState(() => new Set());
+  const [landed, setLanded] = useState(null);
+  const job = keeper?.stateOf(product.id) ?? null;
+  const reading = Boolean(job);
+  const last = keeper?.lastFor(product.id);
+  const readFailed = askFailed ?? (last?.state === 'failed' ? last.error : null);
   const [archiving, setArchiving] = useState(false);
   const [reason, setReason] = useState('');
 
@@ -205,15 +210,21 @@ export function ProductSheet({
   useEffect(() => {
     if (draftStamp === seenStamp.current) return;
     seenStamp.current = draftStamp;
+    const fresh = Object.keys(start.suggested).filter((k) => !touched.current.has(k));
     setForm((f) => {
       const next = { ...f };
-      for (const k of Object.keys(start.suggested)) if (!touched.current.has(k)) next[k] = start.form[k];
+      for (const k of fresh) next[k] = start.form[k];
       return next;
     });
-  }, [draftStamp, start]);
+    setArrived(new Set(fresh));
+    setLanded({ questions: (draft?.decide ?? []).length });
+    const t = setTimeout(() => setArrived(new Set()), 1800);
+    return () => clearTimeout(t);
+  }, [draftStamp, start, draft]);
 
   const change = (key, value) => {
     touched.current.add(key);
+    setLanded(null);
     setForm((f) => {
       const next = { ...f, [key]: value };
       writeKept(product.id, next, touched.current);
@@ -224,18 +235,16 @@ export function ProductSheet({
   const sections = useMemo(() => (categories ?? []).map((c) => ({ path: c.path, label: c.label })), [categories]);
 
   async function askAgent() {
-    setReading(true);
-    setReadFailed(null);
-    try { await draftCopy(product.id, sections); } catch (e) { setReadFailed(e?.message ?? 'That did not come back.'); } finally { setReading(false); }
+    setAskFailed(null);
+    try { await keeper.ask([product.id], sections, { quiet: true }); } catch (e) { setAskFailed(e?.message ?? 'That did not start.'); }
   }
 
   // The agent reads each product once, on first open, so the sheet arrives filled in.
   const asked = useRef(false);
   useEffect(() => {
-    if (asked.current || archived || draft?.version === 2) return;
+    if (asked.current || archived || draft?.version === 2 || job || !keeper) return;
     asked.current = true;
     askAgent();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const closeRef = useRef(null);
@@ -312,8 +321,14 @@ export function ProductSheet({
       : form.specs.map((s, i) => (i === at ? { ...s, value: option } : s)));
   }
 
-  const by = (key) => (start.suggested[key] && !touched.current.has(key)
-    ? <span className={styles.by}>{agent}</span> : null);
+  const FILLABLE = ['title', 'description', 'specs', 'inTheBox', 'brand', 'section', 'returnsClass'];
+  const by = (key) => {
+    if (reading && FILLABLE.includes(key) && !touched.current.has(key)) {
+      return <span className={styles.by} data-pending="">{agent}</span>;
+    }
+    return start.suggested[key] && !touched.current.has(key) ? <span className={styles.by}>{agent}</span> : null;
+  };
+  const fx = (key) => ({ 'data-arrived': arrived.has(key) || undefined });
 
   const titles = draft?.version === 2
     ? TITLE_KINDS.map((k) => ({ ...k, text: draft.titles?.[k.key] })).filter((t) => t.text)
@@ -354,7 +369,7 @@ export function ProductSheet({
                 ))}
               </div>
             )}
-            <label className={row.field}>
+            <label className={row.field} {...fx('title')}>
               <span className={row.split}>
                 <span className={row.label}>Title{by('title')}</span>
                 <span className={row.count} data-num data-over={form.title.trim().length > 80 || undefined}>{form.title.trim().length}/80</span>
@@ -366,7 +381,7 @@ export function ProductSheet({
         ) },
         { key: 'description', title: 'Description', body: (
           <DescriptionPanel value={form.description} onChange={(v) => change('description', v)}
-            suggested={Boolean(by('description'))} agent={agent} sourceText={product.source_description}
+            badge={by('description')} arrived={arrived.has('description')} agent={agent} sourceText={product.source_description}
             alternative={draft?.version === 2 && !draft.applied_at && product.description?.trim()
               && draft.description !== form.description ? draft.description : null}
             onUseAlternative={() => change('description', draft.description)} />
@@ -374,7 +389,7 @@ export function ProductSheet({
         { key: 'details', title: 'Details', body: (
           <div className={row.panel}>
             <span className={row.label}>Listed under the description{by('specs')}</span>
-            <ul className={row.specs}>
+            <ul className={row.specs} {...fx('specs')}>
               {form.specs.map((s, i) => (
                 <li key={i} className={row.spec}>
                   <input className={row.input} value={s.key} placeholder="Capacity" aria-label="Detail name"
@@ -392,11 +407,11 @@ export function ProductSheet({
               <Icon name="IconPlus" width="14" height="14" /> Add a detail
             </button>
             <div className={row.pair}>
-              <label className={row.field}>
+              <label className={row.field} {...fx('inTheBox')}>
                 <span className={row.label}>What is in the box{by('inTheBox')}</span>
                 <input className={row.input} value={form.inTheBox} onChange={(e) => change('inTheBox', e.target.value)} />
               </label>
-              <label className={row.field}>
+              <label className={row.field} {...fx('brand')}>
                 <span className={row.label}>Brand{by('brand')}</span>
                 <input className={row.input} value={form.brand} onChange={(e) => change('brand', e.target.value)}
                   placeholder="Leave empty if it has none" autoComplete="off" />
@@ -479,7 +494,7 @@ export function ProductSheet({
                 It needs {CATEGORY_MIN} to get its own section on the shop; until then these sit in Odds and ends.
               </p>
             )}
-            <label className={row.field}>
+            <label className={row.field} {...fx('section')}>
               <span className={row.label}>Section{by('section')}</span>
               <select className={row.input} value={form.section} onChange={(e) => change('section', e.target.value)}>
                 {!ebayTop && <option value="">Odds and ends</option>}
@@ -497,7 +512,8 @@ export function ProductSheet({
         { key: 'returns', title: 'Returns', body: (
           <div className={row.panel}>
             {by('returnsClass') && draft?.returns_reason && <p className={row.guessed}>{draft.returns_reason}</p>}
-            <div className={row.choices} role="radiogroup" aria-label="Returns">
+            {by('returnsClass') && <span className={row.label}>Suggested{by('returnsClass')}</span>}
+            <div className={row.choices} role="radiogroup" aria-label="Returns" {...fx('returnsClass')}>
               {returns.map((r) => (
                 <label key={r.value} className={row.choice} data-on={form.returnsClass === r.value || undefined}>
                   <input type="radio" name={`returns-${product.id}`} value={r.value}
@@ -577,7 +593,14 @@ export function ProductSheet({
 
   const status = failed ? <span className={styles.failed}>{failed}</span>
     : saved ? <span className={styles.saved}><Icon name="IconCheck" width="14" height="14" />{saved}</span>
-      : reading ? <span>{agent} is reading this product and filling it in</span>
+      : reading ? <span>{agent} is reading this product. The marked boxes fill in when it is done.</span>
+        : landed && landed.questions > 0 ? (
+          <span>
+            {agent} filled it in. {landed.questions === 1 ? '1 question' : `${landed.questions} questions`} for you.
+            <button type="button" className={styles.again} onClick={() => jump('checks')}>Go to it</button>
+          </span>
+        )
+        : landed ? <span>{agent} filled it in. Read it over and save.</span>
         : invalid && dirty === false ? <span className={styles.failed}>{invalid}</span>
           : !live && !archived && stops.length ? <span>Before it can go live: {stops.join(', ').toLowerCase()}</span>
             : dirty ? <span>Not saved yet</span> : null;
@@ -602,11 +625,11 @@ export function ProductSheet({
                   {archived ? 'Archived' : live ? 'Live' : blockers(product).length ? 'Blocked' : 'Ready'}
                 </span>
                 <span className={styles.where}>{shelfLabel}</span>
-                {!archived && !reading && (
+                {!archived && !reading && keeper && (
                   <button type="button" className={styles.again} onClick={askAgent}>Ask {agent} again</button>
                 )}
               </p>
-              {readFailed && <p className={styles.failedLine}>{agent} could not read it: {readFailed}</p>}
+              {readFailed && !reading && <p className={styles.failedLine}>{agent} could not fill it in: {readFailed}</p>}
             </div>
             <span className={styles.price} data-num>{formatGbp(product.price)}</span>
           </div>

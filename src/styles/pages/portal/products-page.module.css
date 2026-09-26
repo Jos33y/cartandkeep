@@ -313,3 +313,50 @@
 @media (prefers-reduced-motion: reduce) {
   .summary, .meter span, .colTrack i, .emptyCard, .selection, .tab, .col { animation: none; transition: none; }
 }
+
+.dot[data-tone='warning'] { background: var(--c-warning); }
+
+/* Keeper's progress: one strip, above the filters, so no filter can hide it. */
+.keeper {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  padding: var(--s-4) var(--s-5);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e-1);
+  animation: rise var(--dur-enter) var(--ease-out) both;
+}
+
+.keeperText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--s-1); }
+.keeperLine { font-size: var(--t-body); font-weight: 500; line-height: var(--lh-snug); }
+.keeperLine b { font-weight: 600; }
+.keeperNote { font-size: var(--t-caption); color: var(--c-ink-soft); line-height: var(--lh-snug); }
+
+.keeperTrack { display: block; height: 4px; margin-top: var(--s-2); border-radius: var(--r-full); background: var(--c-sunk); overflow: hidden; }
+.keeperTrack i { display: block; height: 100%; border-radius: inherit; background: var(--c-info); transition: width var(--dur-settle) var(--ease-out); }
+.keeper:not([data-running]) .keeperTrack i { background: var(--c-positive); }
+
+.keeperActions { display: flex; align-items: center; gap: var(--s-2); flex: none; }
+
+.keeperClose {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  color: var(--c-ink-faint);
+}
+
+.keeperClose:hover { background: var(--c-sunk); color: var(--c-ink); }
+.keeperClose:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+@media (max-width: 720px) {
+  .keeper { flex-direction: column; align-items: stretch; gap: var(--s-3); padding: var(--s-4); }
+  .keeperActions { justify-content: flex-end; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .keeper, .keeperTrack i { animation: none; transition: none; }
+}

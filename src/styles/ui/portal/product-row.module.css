@@ -400,3 +400,29 @@
 @media (prefers-reduced-motion: reduce) {
   .primary, .ghost, .choice, .input, .textarea, .control { animation: none; transition: none; }
 }
+
+/* A question for her is not a failure: amber, the colour of waiting on someone. */
+.row[data-state='question'] { --row-state: var(--c-warning); }
+.row[data-state='question'] .state { background: var(--c-warning-wash); color: var(--c-warning); }
+
+/* Keeper working on this row. The dot breathes so the list says so without anyone opening it. */
+.keeper {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  padding: 1px 7px 1px 6px;
+  border-radius: var(--r-sm);
+  background: var(--c-info-wash);
+  color: var(--c-info);
+  font-size: var(--t-micro);
+  font-weight: 600;
+}
+
+.keeper i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: breathe 1.4s var(--ease) infinite; }
+
+@keyframes breathe { 50% { opacity: 0.25; transform: scale(0.7); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .keeper i { animation: none; }
+}

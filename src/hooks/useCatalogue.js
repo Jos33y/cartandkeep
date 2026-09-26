@@ -78,8 +78,8 @@ export function checksFor(p) {
 export const openDecisions = (p) => (checksFor(p)?.decide ?? []).filter((d) => !d.answer).length;
 export const checksUnread = (p) => openDecisions(p) > 0;
 
-// The release guard: anything here keeps a product off the shop, with the reason named.
-export function blockers(p) {
+// What is missing from a product, apart from questions for her. Anything here keeps it off the shop.
+export function missing(p) {
   const out = [];
 
   if (!(Number(p.price) > 0)) out.push('No price');
@@ -89,9 +89,6 @@ export function blockers(p) {
   if (p.derived_fields?.returns_class) out.push('Returns class unconfirmed');
 
   if (p.derived_fields?.hazard_suspect && !p.hazard) out.push('Hazard data missing');
-
-  const open = openDecisions(p);
-  if (open) out.push(`${open} to decide`);
 
   if (p.availability === 'out_of_stock' || p.availability === 'discontinued') {
     out.push('Marked unavailable');
@@ -120,6 +117,12 @@ export function blockers(p) {
   }
 
   return out;
+}
+
+// The release guard: what is missing, then any question still open.
+export function blockers(p) {
+  const open = openDecisions(p);
+  return open ? [...missing(p), `${open} to decide`] : missing(p);
 }
 
 export function warnings(p) {
@@ -152,7 +155,9 @@ export const isLive = (p) => p.status === 'live' && !p.is_sample;
  */
 export const isArchived = (p) => p.status === 'archived';
 export const isReady = (p) => !isLive(p) && !isArchived(p) && blockers(p).length === 0;
-export const isBlocked = (p) => !isLive(p) && !isArchived(p) && blockers(p).length > 0;
+// Only a question stands between it and the shop: a tap, not a problem.
+export const isNeedsYou = (p) => !isLive(p) && !isArchived(p) && missing(p).length === 0 && openDecisions(p) > 0;
+export const isBlocked = (p) => !isLive(p) && !isArchived(p) && missing(p).length > 0;
 
 /*
  * Margin, computed in the browser from the same rates the view uses.
@@ -373,74 +378,6 @@ export function useCatalogue(tenantId) {
     await load();
   }, [state.rows, load]);
 
-  // Through the draft function: the key cannot live in a browser, and it reads the row under her session.
-  const draftCopy = useCallback(async (id, sections = []) => {
-    const { data: session } = await supabase.auth.getSession();
-    const token = session?.session?.access_token;
-    if (!token) throw new Error('Signed out. Sign in and try again.');
-
-    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/draft`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId: id, sections }),
-    });
-
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body?.error ?? `The draft did not come back (${res.status}).`);
-
-    await load();
-    return body.draft;
-  }, [load]);
-
-  /*
-   * Drafting a run of them.
-   *
-   * Sequential, not parallel. Seventy eight requests fired at once is a rate
-   * limit and a bill arriving together, and worse, one rejection takes the
-   * whole batch with it. One at a time means a failure costs that product and
-   * nothing else, and the ones already done are already saved.
-   *
-   * Reported as it goes rather than at the end, because this is minutes rather
-   * than seconds, and a button that says nothing for four minutes is a button
-   * somebody presses again.
-   *
-   * One reload at the end rather than one per product. Reloading after each
-   * would be seventy eight full reads of the whole catalogue.
-   */
-  const draftMany = useCallback(async (ids, onProgress, sections = []) => {
-    const { data: session } = await supabase.auth.getSession();
-    const token = session?.session?.access_token;
-    if (!token) throw new Error('Signed out. Sign in and try again.');
-
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/draft`;
-    const failures = [];
-    let done = 0;
-
-    for (const id of ids) {
-      try {
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ productId: id, sections }),
-        });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body?.error ?? `Failed (${res.status})`);
-        }
-      } catch (e) {
-        // Named by title rather than by id, because an id tells her nothing
-        // about which product to go and look at.
-        const row = state.rows.find((r) => r.id === id);
-        failures.push(`${row?.title ?? id}: ${e?.message ?? 'failed'}`);
-      }
-      done += 1;
-      onProgress?.(done, ids.length);
-    }
-
-    await load();
-    return failures;
-  }, [state.rows, load]);
-
   /*
    * Adding one.
    *
@@ -558,6 +495,7 @@ export function useCatalogue(tenantId) {
   const counts = useMemo(() => ({
     live: state.rows.filter(isLive).length,
     ready: state.rows.filter(isReady).length,
+    needs: state.rows.filter(isNeedsYou).length,
     blocked: state.rows.filter(isBlocked).length,
     all: state.rows.length,
     archived: state.rows.filter(isArchived).length,
@@ -566,7 +504,6 @@ export function useCatalogue(tenantId) {
   return {
     ...state, counts, reload: load,
     publish, unpublish, saveSheet, saveImages, removeImage, create,
-    draftCopy, draftMany,
     addVariant, saveVariant, removeVariant,
     archive, unarchive,
   };

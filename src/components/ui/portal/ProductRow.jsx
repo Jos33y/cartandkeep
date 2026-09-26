@@ -1,21 +1,21 @@
 import { formatGbp } from '@utils/formatGbp';
-import { blockers, isLive, isArchived } from '@hooks/useCatalogue';
+import { isLive, isArchived, isNeedsYou, isBlocked, openDecisions } from '@hooks/useCatalogue';
 import { stepsFor } from '@lib/readiness';
 import { StepMark, StepBar, STATE_WORD } from '@components/ui/portal/product/StepMark';
 import styles from '@styles/ui/portal/product-row.module.css';
 
 const thumb = (url) => (url ? url.replace(/\/s-l\d+\./, '/s-l225.') : null);
-const leaf = (path) => String(path ?? '').split('|').pop()?.trim() || null;
 
-export function stateOf(product) {
+function stateOf(product) {
   if (isArchived(product)) return 'archived';
   if (isLive(product)) return 'live';
-  return blockers(product).length ? 'blocked' : 'ready';
+  if (isBlocked(product)) return 'blocked';
+  return isNeedsYou(product) ? 'question' : 'ready';
 }
 
 const STATE_LABEL = { live: 'Live', ready: 'Ready', blocked: 'Blocked', archived: 'Archived' };
 
-export function ProductRow({ product, columns, selected, onSelect, onOpen, index = 0, where }) {
+export function ProductRow({ product, columns, selected, onSelect, onOpen, index = 0, where, keeper, agent }) {
   const steps = stepsFor(product, columns);
   const gate = steps.filter((s) => s.gate);
   const rest = steps.filter((s) => !s.gate);
@@ -62,8 +62,15 @@ export function ProductRow({ product, columns, selected, onSelect, onOpen, index
         <span className={styles.text}>
           <span className={styles.title}>{product.title}</span>
           <span className={styles.meta}>
-            <span className={styles.state}><i aria-hidden="true" />{STATE_LABEL[state]}</span>
-            <span className={styles.where}>{where ?? leaf(product.category_path) ?? 'Everything else'}</span>
+            {keeper
+              ? <span className={styles.keeper}><i aria-hidden="true" />{keeper === 'queued' ? `${agent}, next` : agent}</span>
+              : (
+                <span className={styles.state}>
+                  <i aria-hidden="true" />
+                  {state === 'question' ? `${openDecisions(product)} ${openDecisions(product) === 1 ? 'question' : 'questions'}` : STATE_LABEL[state]}
+                </span>
+              )}
+            <span className={styles.where}>{where}</span>
             <span className={styles.score} data-num>{done}/{counted.length}</span>
           </span>
         </span>
