@@ -34,14 +34,14 @@ export function CategoryNav({ groups: all, total }) {
               "show me all of them", which is a different page. */}
           <NavLink to={STORE_ROUTES.SHOP} end className={styles.chip}>
             Everything
-            <span className={styles.count} data-price>{total}</span>
+            <span className={styles.count} data-num>{Number(total).toLocaleString('en-GB')}</span>
           </NavLink>
         </li>
         {groups.map((group) => (
           <li key={group.slug}>
             <NavLink to={categoryPath(group.slug)} className={styles.chip}>
               {group.name}
-              <span className={styles.count} data-num>{group.items.length}</span>
+              <span className={styles.count} data-num>{(group.count ?? group.items?.length ?? 0).toLocaleString('en-GB')}</span>
             </NavLink>
           </li>
         ))}

@@ -25,6 +25,8 @@ const COMPONENT = /\b(mlcc|smd|smt|resistor|res|cap|capacitor|inductor|ic|mcu|tr
 
 // Trade quantities: packs of 100, 100 metre drums. Her buyer wants one.
 const BULK = /\b(pk|pack|box|bag|x)\s?(50|100|200|250|500|1000)\b|\b(50|100|200|250|500|1000)\s?(pk|pack|pcs?)\b|\b\d{3,}\s?m\b|\b(reel|drum)\b/;
+// IT room kit: racks and cabinets are trade purchases, bulky and dear. StarTech's opened the first file.
+const IT_ROOM = /\b(server|rack|racks|rackmount|patch panel|cabinet|enclosure|\d+u)\b/;
 // Sized clothing, which the rest of the pipeline also leaves out.
 const SIZED_BRAND = /workwear|clothing|footwear|apparel/;
 
@@ -67,6 +69,7 @@ for (const map of productMaps) {
       if (SIZED_BRAND.test(slug)) { notChosen += 1; continue; }
       if (COMPONENT.test(words)) { parts += 1; continue; }
       if (BULK.test(words)) { parts += 1; continue; }
+      if (IT_ROOM.test(words)) { parts += 1; continue; }
       if (!brands && !CONSUMER.test(words)) { notChosen += 1; continue; }
     }
     const brand = title(brandSlug);
@@ -74,6 +77,15 @@ for (const map of productMaps) {
   }
   await new Promise((r) => setTimeout(r, 500));
 }
+
+// No prices to order by, so brands take turns: every file samples every brand instead of opening on one.
+const queues = new Map();
+for (const r of rows) { if (!queues.has(r.brand)) queues.set(r.brand, []); queues.get(r.brand).push(r); }
+const mixed = [];
+for (let i = 0; mixed.length < rows.length; i += 1) {
+  for (const q of queues.values()) if (q[i]) mixed.push(q[i]);
+}
+rows.splice(0, rows.length, ...mixed);
 
 const cell = (v) => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 const cols = ['shop', 'url', 'name', 'brand', 'price', 'category', 'availability'];

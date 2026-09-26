@@ -139,3 +139,7 @@
   font-feature-settings: 'tnum' 1;
   letter-spacing: -0.01em;
 }
+
+/* The store header's height, for anything that sticks under it. Matches store-header.module.css. */
+:root { --store-bar-h: 64px; }
+@media (min-width: 1024px) { :root { --store-bar-h: 72px; } }

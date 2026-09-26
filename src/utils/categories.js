@@ -35,7 +35,7 @@ export function leafOf(path) {
 export const LEFTOVER_NAME = 'Odds and ends';
 
 // A slug she set wins; otherwise one from her name when she renamed it; otherwise eBay's. The eBay one is kept as an alias when it moved.
-function addressOf(path, names) {
+export function addressOf(path, names) {
   const legacy = categorySlug(path);
   const row = (names ?? []).find((n) => n.path === path);
   const own = row?.slug || (row?.name && row.name !== path ? categorySlug(row.name) : null);
@@ -198,4 +198,79 @@ export function findGroup(groups, slug) {
 export function imageAt(url, size = 500) {
   if (!url) return null;
   return url.replace(/\/s-l\d+\./, `/s-l${size}.`);
+}
+
+// Groups from the database's counts, with the same rules as groupCategories: under the threshold folds into the leftover group, her order first, then biggest.
+export function groupsFromCounts(counts, { min = 3, label = 'Everything else', names = [] } = {}) {
+  const positionOf = (path) => (names ?? []).find((n) => n.path === path)?.position ?? null;
+  const main = [];
+  const tail = [];
+  for (const c of counts ?? []) {
+    if (c.key && c.key !== label && c.count >= min) main.push(c);
+    else tail.push(c);
+  }
+
+  const groups = main.map((c) => ({
+    path: c.key,
+    keys: [c.key],
+    name: displayName(c.key, names),
+    ...addressOf(c.key, names),
+    hidden: isHidden(c.key, names),
+    count: c.count,
+    priceMin: c.priceMin,
+    priceMax: c.priceMax,
+    images: c.images,
+  }));
+
+  // Two groups that read the same to a shopper are one shelf: her own section and an eBay department she renamed to the same words.
+  const byName = new Map();
+  for (const g of groups) {
+    const same = byName.get(g.name.toLowerCase());
+    if (!same) { byName.set(g.name.toLowerCase(), g); continue; }
+    same.keys.push(...g.keys);
+    same.count += g.count;
+    same.priceMin = Math.min(same.priceMin, g.priceMin);
+    same.priceMax = Math.max(same.priceMax, g.priceMax);
+    same.images = [...same.images, ...g.images].slice(0, 3);
+    same.aliases = [...new Set([...(same.aliases ?? []), g.slug, ...(g.aliases ?? [])])].filter((a) => a !== same.slug);
+    same.hidden = same.hidden && g.hidden;
+  }
+  groups.length = 0;
+  groups.push(...byName.values());
+
+  groups.sort((a, b) => {
+    const pa = positionOf(a.path);
+    const pb = positionOf(b.path);
+    if (pa !== null && pb !== null && pa !== pb) return pa - pb;
+    if (pa !== null && pb === null) return -1;
+    if (pa === null && pb !== null) return 1;
+    return b.count - a.count || a.name.localeCompare(b.name);
+  });
+
+  if (tail.length) {
+    groups.push({
+      path: label,
+      keys: tail.map((c) => c.key),
+      name: LEFTOVER_NAME,
+      slug: categorySlug(LEFTOVER_NAME),
+      aliases: [categorySlug(label)],
+      hidden: false,
+      count: tail.reduce((n, c) => n + c.count, 0),
+      priceMin: Math.min(...tail.map((c) => c.priceMin)),
+      priceMax: Math.max(...tail.map((c) => c.priceMax)),
+      images: tail.flatMap((c) => c.images).slice(0, 3),
+    });
+  }
+
+  // Different names that still make the same address: the later one falls back to its eBay address, or a numbered one.
+  const taken = new Set();
+  for (const group of groups) {
+    if (taken.has(group.slug)) {
+      const free = (group.aliases ?? []).find((a) => !taken.has(a));
+      group.slug = free ?? `${group.slug}-${[...taken].filter((t) => t.startsWith(group.slug)).length + 1}`;
+      group.aliases = (group.aliases ?? []).filter((a) => a !== group.slug);
+    }
+    taken.add(group.slug);
+  }
+  return groups;
 }

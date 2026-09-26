@@ -9,14 +9,16 @@ import { anyBuyable } from '@hooks/useStoreProducts';
 import { imageAt } from '@utils/categories';
 import { shopSectionOf } from '@utils/categoryNames';
 import { formatGbp } from '@utils/formatGbp';
+import { deliveryEstimate } from '@utils/delivery';
 import { STORE_ROUTES } from '@utils/constants';
 import { CheckIcon, EyeIcon, HeartIcon, PlusIcon } from '@components/ui/store/icons';
 import styles from '@styles/ui/store/product-card.module.css';
 
 const productPath = (slug) => STORE_ROUTES.PRODUCT.replace(':slug', slug);
+const ARRIVES = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'UTC' });
 
 // An article, not a link: buttons cannot live inside an anchor. The title's link stretches over the card instead.
-export function ProductCard({ product, index = 0, onQuickView, shelfName = null }) {
+export function ProductCard({ product, index = 0, onQuickView, shelfName = null, onPrefetch = null }) {
   const { add } = useBasket();
   const { has, toggle } = useSaved();
   const names = useCategoryNames();
@@ -28,8 +30,11 @@ export function ProductCard({ product, index = 0, onQuickView, shelfName = null 
   // Hidden on a shelf that already carries the same name.
   const own = shopSectionOf(product, names);
   const sectionName = own && own !== shelfName ? own : null;
-  const hasVariants = product.variants?.length > 0;
-  const buyable = anyBuyable(product);
+  // Browse results summarise sizes as a count and carry their own buyable flag; a full product lists them.
+  const hasVariants = (product.variantCount ?? product.variants?.length ?? 0) > 0;
+  const buyable = product.buyable ?? anyBuyable(product);
+  const second = product.images?.[1] && product.images[1] !== product.image_url ? imageAt(product.images[1], 500) : null;
+  const arrives = buyable ? ARRIVES.format(new Date(`${deliveryEstimate(product.dispatch_days).to}T12:00:00Z`)) : null;
   const saved = has(product.id);
 
   const saving = !hasVariants && product.compare_at != null
@@ -46,7 +51,11 @@ export function ProductCard({ product, index = 0, onQuickView, shelfName = null 
   }
 
   return (
-    <article className={styles.card}>
+    <article
+      className={styles.card}
+      onPointerEnter={onPrefetch ? () => onPrefetch(product.slug) : undefined}
+      onFocus={onPrefetch ? () => onPrefetch(product.slug) : undefined}
+    >
       <div className={styles.frame}>
         {image && !broken ? (
           <img
@@ -61,6 +70,8 @@ export function ProductCard({ product, index = 0, onQuickView, shelfName = null 
         ) : (
           <span className={styles.noImage}>No photograph yet</span>
         )}
+        {/* The second photograph waits underneath and shows on hover, where there is a pointer to hover with. */}
+        {second && !broken && <img className={`${styles.image} ${styles.second}`} src={second} alt="" loading="lazy" decoding="async" />}
 
         {saving > 0 && <span className={`${styles.flag} ${styles.flagSale}`}>Save {formatGbp(saving)}</span>}
         {product.is_sample && <span className={styles.flag}>Sample</span>}
@@ -93,6 +104,7 @@ export function ProductCard({ product, index = 0, onQuickView, shelfName = null 
         {/* The line is reserved whether or not it has anything to say, so every card in a row is the same height. */}
         <div className={styles.signal}>
           <StockSignal product={product} size="small" />
+          {arrives && <span className={styles.arrives}>Arrives by {arrives}</span>}
         </div>
 
         <div className={styles.foot}>

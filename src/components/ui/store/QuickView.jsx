@@ -147,8 +147,9 @@ export function QuickView({ product, onClose }) {
     ? product.images
     : [product.image_url].filter(Boolean);
 
-  const hasVariants = product.variants?.length > 0;
-  const buyable = anyBuyable(product);
+  // A browse card summarises sizes as a count and brings its own buyable flag.
+  const hasVariants = (product.variantCount ?? product.variants?.length ?? 0) > 0;
+  const buyable = product.buyable ?? anyBuyable(product);
   // The cheapest when there are variants: quick view carries no chooser, so one figure would be wrong for some sizes.
   const from = hasVariants && product.priceFrom !== product.priceTo;
   const price = hasVariants ? product.priceFrom : Number(product.price);

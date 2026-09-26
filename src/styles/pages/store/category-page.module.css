@@ -2,52 +2,143 @@
   width: 100%;
   max-width: var(--store-max);
   margin: 0 auto;
-  padding: var(--s-5) var(--s-4) var(--s-8);
-  display: flex;
-  flex-direction: column;
+  padding: var(--s-4) var(--s-4) var(--s-8);
 }
 
 @media (min-width: 900px) { .page { padding: var(--s-5) var(--s-5) var(--s-8); } }
 
-.empty {
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-card);
-  background: var(--c-surface);
-  padding: var(--s-6) var(--s-5);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--s-3);
+/* Rail beside the results once there is room for both; below that the rail becomes the sheet. */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); align-items: start; }
+
+.rail { display: none; }
+
+@media (min-width: 1100px) {
+  .layout { grid-template-columns: 240px minmax(0, 1fr); }
+  .rail {
+    display: block;
+    position: sticky;
+    top: calc(var(--store-bar-h) + var(--s-4));
+    max-height: calc(100dvh - var(--store-bar-h) - var(--s-6));
+    overflow-y: auto;
+    padding-right: var(--s-2);
+    scrollbar-width: thin;
+  }
 }
 
-.emptyLead { font-size: var(--t-lead); font-weight: 500; }
+@media (min-width: 1440px) { .layout { grid-template-columns: 264px minmax(0, 1fr); gap: var(--s-7); } }
 
-.emptyAction {
-  min-height: var(--tap);
+.main { min-width: 0; }
+
+.results { padding-top: var(--s-5); transition: opacity 160ms var(--ease); }
+/* While a new filter loads, the old results stay but step back, so nothing jumps and it is clear something is happening. */
+.results[data-refreshing] { opacity: 0.55; }
+
+/* ul. outranks the reset; the same fluid columns as the grid, so nothing moves when the cards arrive. */
+ul.skeletons {
+  --card-min: 208px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--card-min), calc(50% - var(--s-2))), 1fr));
+  gap: var(--s-4) var(--s-3);
+}
+
+ul.skeletons[data-density='dense'] { --card-min: 164px; }
+
+.empty { padding: var(--s-8) var(--s-4); text-align: center; }
+.emptyLead { font-size: 1.125rem; font-weight: 600; color: var(--c-ink); }
+.emptyNote { margin-top: var(--s-2); font-size: var(--t-label); color: var(--c-ink-soft); }
+.emptyActions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-2); margin-top: var(--s-5); }
+
+.emptyActions button {
+  min-height: 40px;
   padding: 0 var(--s-4);
-  border-radius: var(--r-control);
   border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-full);
   background: var(--c-surface);
   font-size: var(--t-label);
-  font-weight: 500;
+  font-weight: 600;
   color: var(--c-ink);
 }
 
-.gone { font-size: var(--ts-section); margin: var(--s-6) 0 var(--s-3); }
-.goneNote { font-size: var(--t-body); color: var(--c-ink-soft); }
-.goneDetail { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--c-faint); }
+.emptyActions button:hover { border-color: var(--c-ink); }
 
+.gone { padding: var(--s-8) 0; }
+.gone h1 { font-size: var(--ts-section); }
+.gone p { margin-top: var(--s-2); color: var(--c-ink-soft); }
+
+/* Navigation, not a purchase, so ink rather than terracotta. */
 .back {
-  align-self: flex-start;
   display: inline-flex;
   align-items: center;
   min-height: var(--tap);
   margin-top: var(--s-4);
   padding: 0 var(--s-5);
-  border-radius: var(--r-control);
-  background: var(--c-action-strong);
-  color: #fff;
+  border-radius: var(--r-full);
+  background: var(--c-ink);
+  color: var(--c-on-dark);
   font-size: var(--t-label);
-  font-weight: 500;
-  text-decoration: none;
+  font-weight: 600;
+}
+
+/* The filter sheet: rises from the bottom, the count on its one button. */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: color-mix(in srgb, var(--c-ink-deep) 45%, transparent);
+  animation: fade 200ms var(--ease) both;
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 560px;
+  max-height: 88dvh;
+  border-radius: 20px 20px 0 0;
+  background: var(--c-base);
+  box-shadow: var(--e-3);
+  outline: none;
+  animation: rise 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sheetHead { position: relative; display: flex; align-items: center; justify-content: center; padding: var(--s-4) var(--s-4) var(--s-3); border-bottom: 1px solid var(--c-line); }
+.grip { position: absolute; top: 8px; left: 50%; width: 40px; height: 4px; margin-left: -20px; border-radius: var(--r-full); background: var(--c-line-mid); }
+.sheetTitle { font-size: 1rem; font-weight: 600; }
+.sheetClose { position: absolute; right: var(--s-3); top: 50%; margin-top: -20px; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; color: var(--c-ink); }
+.sheetClose:hover { background: var(--c-warm); }
+
+.sheetBody { flex: 1; overflow-y: auto; padding: var(--s-4); overscroll-behavior: contain; }
+
+.sheetFoot {
+  display: flex;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4) calc(var(--s-3) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--c-line);
+  background: var(--c-base);
+}
+
+.sheetClear { min-height: 48px; padding: 0 var(--s-3); font-size: var(--t-label); font-weight: 600; color: var(--c-ink); text-decoration: underline; text-underline-offset: 3px; }
+
+.sheetShow {
+  flex: 1;
+  min-height: 48px;
+  border-radius: var(--r-full);
+  background: var(--c-ink);
+  color: var(--c-on-dark);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rise { from { transform: translateY(100%); } to { transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .scrim, .sheet { animation: none; }
+  .results { transition: none; }
 }

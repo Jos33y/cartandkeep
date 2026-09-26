@@ -244,3 +244,22 @@
   .card:hover { transform: none; }
   .card:hover .image { transform: none; }
 }
+
+/* Browse cards: the second photograph over the first, shown on hover. */
+.second { position: absolute; inset: 8%; width: 84%; height: 84%; opacity: 0; transition: opacity 260ms var(--ease); }
+@media (hover: hover) and (pointer: fine) {
+  .card:hover .second { opacity: 1; }
+}
+
+.signal { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; min-width: 0; }
+.arrives { font-size: var(--t-micro); color: var(--c-ink-soft); white-space: nowrap; }
+.arrives::before { content: ''; display: inline-block; width: 3px; height: 3px; margin-right: var(--s-2); border-radius: 50%; background: var(--c-line-strong); vertical-align: middle; }
+
+@media (prefers-reduced-motion: reduce) { .second { transition: none; } }
+
+/* On a narrow card the arrival day takes its own line, without the separator dot leading it. */
+.card { container-type: inline-size; }
+@container (max-width: 210px) {
+  .arrives { flex-basis: 100%; }
+  .arrives::before { display: none; }
+}

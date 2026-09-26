@@ -1,164 +1,198 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
 import { CategoryHeader } from '@components/ui/store/CategoryHeader';
-import { CategoryControls, SORTS } from '@components/ui/store/CategoryControls';
 import { CategoryNav } from '@components/ui/store/CategoryNav';
+import { BrowseToolbar } from '@components/ui/store/BrowseToolbar';
+import { FilterPanel } from '@components/ui/store/FilterPanel';
+import { LoadTrack } from '@components/ui/store/LoadTrack';
 import { ProductGrid } from '@components/ui/store/ProductGrid';
 import { QuickView } from '@components/ui/store/QuickView';
-import { CategoryNavSkeleton, ProductGridSkeleton } from '@components/ui/store/Skeleton';
-import { useStoreProducts } from '@hooks/useStoreProducts';
+import { ProductCardSkeleton } from '@components/ui/store/Skeleton';
+import { CloseIcon } from '@components/ui/store/icons';
+import { useBrowse, useFacets, useGroups, prefetchProduct } from '@hooks/useCatalogue';
+import { useBrowseParams } from '@hooks/useBrowseParams';
 import { useTenant } from '@hooks/useTenant';
-import { STORE_ROUTES } from '@utils/constants';
-import { allGroups, findGroup } from '@utils/categories';
-import { shopSectionOf } from '@utils/categoryNames';
+import { findGroup, visibleGroups } from '@utils/categories';
 import { formatGbp } from '@utils/formatGbp';
+import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/pages/store/category-page.module.css';
-import { useCategoryNames } from '@hooks/useCategoryNamesStore';
 
-/*
- * One department.
- *
- * Groups are derived from whatever is in stock, so a slug can stop existing
- * between one visit and the next. That case gets a page saying so with a way
- * back, rather than an empty grid under a heading for something that is gone.
- */
-/*
- * `everything` is the /shop route rather than a department.
- *
- * There was no all-products page at all: home is a hero and shelves, and
- * /c/:slug is one department, so "Keep shopping" and "Everything in the shop"
- * both landed on a landing page. This is the same page with the whole
- * catalogue in it, which means the sub-sections become departments and the
- * sort works exactly as it does everywhere else.
- */
+// Old price-band pages are filters now.
+const BANDS = { 'under-20': 20 };
+const DENSITY_KEY = 'ck.density';
+
+function useDensity() {
+  const [density, setDensity] = useState(() => {
+    try { return window.localStorage.getItem(DENSITY_KEY) === 'dense' ? 'dense' : 'roomy'; } catch { return 'roomy'; }
+  });
+  const choose = (d) => { setDensity(d); try { window.localStorage.setItem(DENSITY_KEY, d); } catch { /* private mode */ } };
+  return [density, choose];
+}
+
+// The phone and tablet filters: a sheet from the bottom, with the result count on its one button.
+function FilterSheet({ open, onClose, total, onClear, children }) {
+  const panel = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const html = document.documentElement;
+    const before = html.style.overflow;
+    html.style.overflow = 'hidden';
+    panel.current?.focus();
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => { html.style.overflow = before; document.removeEventListener('keydown', onKey); };
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return (
+    <div className={styles.scrim} onClick={onClose}>
+      <div className={styles.sheet} role="dialog" aria-modal="true" aria-label="Filters" ref={panel} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.sheetHead}>
+          <span className={styles.grip} aria-hidden="true" />
+          <h2 className={styles.sheetTitle}>Filters</h2>
+          <button type="button" className={styles.sheetClose} onClick={onClose} aria-label="Close filters"><CloseIcon size={18} /></button>
+        </div>
+        <div className={styles.sheetBody}>{children}</div>
+        <div className={styles.sheetFoot}>
+          <button type="button" className={styles.sheetClear} onClick={onClear}>Clear all</button>
+          <button type="button" className={styles.sheetShow} onClick={onClose}>
+            {total === null ? 'Show products' : `Show ${total.toLocaleString('en-GB')} ${total === 1 ? 'product' : 'products'}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// A section, or the whole shop, a page of cards at a time. Everything about the view lives in the address.
 export function CategoryPage({ everything = false }) {
   const { slug } = useParams();
   const tenant = useTenant();
-  const tenantId = tenant === undefined ? undefined : (tenant?.id ?? null);
-  const { status, rows, error } = useStoreProducts(tenantId);
-
-  const [leaf, setLeaf] = useState(null);
-  const [sort, setSort] = useState('featured');
+  const tenantId = tenant?.id ?? null;
+  const { status: groupsStatus, groups, total: shopTotal } = useGroups();
+  const { filters, update, clear, active } = useBrowseParams();
+  const [density, setDensity] = useDensity();
+  const [sheet, setSheet] = useState(false);
   const [peek, setPeek] = useState(null);
 
-  // Departments and price bands, so /c/under-20 resolves the same way
-  // /c/pet-supplies does.
-  const names = useCategoryNames();
-  /*
-   * Not filtered by hidden.
-   *
-   * This resolves a route, and hidden means off the navigation rather than
-   * deleted. Somebody holding a link to a department she has taken out of
-   * the nav should still reach it rather than get a not found.
-   */
-  const groups = useMemo(() => allGroups(rows, { names }), [rows, names]);
-  const group = useMemo(() => {
-    if (everything) {
-      return rows.length ? { name: 'Everything in the shop', slug: 'shop', items: rows } : null;
-    }
-    return findGroup(groups, slug);
-  }, [everything, rows, groups, slug]);
+  const group = useMemo(() => (everything ? null : findGroup(groups, slug)), [everything, groups, slug]);
+  const scoped = useMemo(() => ({ ...filters, keys: group?.keys ?? null }), [filters, group]);
+  const ready = everything || Boolean(group);
+  const browse = useBrowse(ready ? scoped : { ...scoped, keys: ['\u0000none'] });
+  const { facets } = useFacets(ready ? scoped : { ...scoped, keys: ['\u0000none'] });
 
-  // Moving between departments must not carry a sub-section that does not
-  // exist in the new one, which would show an empty grid for no reason.
-  useEffect(() => { setLeaf(null); setSort('featured'); }, [slug, everything]);
+  const activeCount = (filters.q ? 1 : 0) + (filters.min !== null || filters.max !== null ? 1 : 0)
+    + (filters.dispatchMax !== null ? 1 : 0) + (filters.inStock ? 1 : 0) + filters.brands.length;
 
-  // Leaf categories with two or more behind them. A chip that narrows fifteen
-  // products to one is a worse version of scrolling.
-  // Her sections as filters on the whole-shop page only. Inside a department the only sub-sections are eBay's, which never show.
-  const keyOf = (p) => shopSectionOf(p, names);
-  const leaves = useMemo(() => {
-    if (!group || !everything) return [];
-    const tally = new Map();
-    for (const p of group.items) {
-      const name = keyOf(p);
-      if (name) tally.set(name, (tally.get(name) ?? 0) + 1);
-    }
-    return [...tally.entries()]
-      .filter(([, n]) => n > 1)
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [group, everything, names]);
+  if (!everything && BANDS[slug]) {
+    return <Navigate to={`${STORE_ROUTES.SHOP}?max=${BANDS[slug]}`} replace />;
+  }
 
-  const visible = useMemo(() => {
-    if (!group) return [];
-    const filtered = leaf ? group.items.filter((p) => keyOf(p) === leaf) : group.items;
-    const fn = SORTS[sort]?.fn;
-    return fn ? [...filtered].sort(fn) : filtered;
-  }, [group, leaf, sort, everything, names]);
-
-  if (status === 'loading') {
+  if (!everything && groupsStatus === 'ready' && !group) {
     return (
       <section className={styles.page}>
-        <CategoryNavSkeleton />
-        <ProductGridSkeleton count={8} />
+        <div className={styles.gone}>
+          <h1 className="wide">Nothing on this shelf</h1>
+          <p>It may have been renamed or emptied.</p>
+          <Link className={styles.back} to={STORE_ROUTES.SHOP}>See everything in the shop</Link>
+        </div>
       </section>
     );
   }
 
-  if (status === 'error') {
-    return (
-      <section className={styles.page}>
-        <h1 className={`${styles.gone} wide`}>The shop did not load</h1>
-        <p className={styles.goneNote}>
-          Refresh the page, and if it keeps happening the problem is at our end
-          rather than yours.
-        </p>
-        {error?.message && <p className={styles.goneDetail}>{error.message}</p>}
-        <Link className={styles.back} to={STORE_ROUTES.HOME}>Back to the shop</Link>
-      </section>
-    );
+  // An old address, such as the eBay name before she renamed it, moves to the group's own, keeping the filters.
+  if (group && slug !== group.slug) {
+    return <Navigate to={`${STORE_ROUTES.CATEGORY.replace(':slug', group.slug)}${window.location.search}`} replace />;
   }
 
-  if (!group) {
-    return (
-      <section className={styles.page}>
-        <h1 className={`${styles.gone} wide`}>Nothing in this category</h1>
-        <p className={styles.goneNote}>It may have sold out or been renamed.</p>
-        <Link className={styles.back} to={STORE_ROUTES.HOME}>See everything in the shop</Link>
-      </section>
-    );
-  }
-
-  // An old address, such as the eBay name before she renamed it, moves to the group's own.
-  if (!everything && slug !== group.slug) {
-    return <Navigate to={STORE_ROUTES.CATEGORY.replace(':slug', group.slug)} replace />;
-  }
-
-  const path = everything ? STORE_ROUTES.SHOP : STORE_ROUTES.CATEGORY.replace(':slug', group.slug);
-  const cheapest = Math.min(...group.items.map((p) => Number(p.price)));
+  const name = everything ? 'Everything in the shop' : group?.name ?? '';
+  const count = everything ? (groupsStatus === 'ready' ? shopTotal : null) : group?.count ?? null;
+  const priceMin = everything ? Math.min(...groups.map((g) => g.priceMin)) : group?.priceMin;
+  const priceMax = everything ? Math.max(...groups.map((g) => g.priceMax)) : group?.priceMax;
+  const path = everything ? STORE_ROUTES.SHOP : STORE_ROUTES.CATEGORY.replace(':slug', group?.slug ?? '');
+  const panel = <FilterPanel facets={facets} filters={filters} update={update} groups={visibleGroups(groups)} everything={everything} />;
+  const loading = browse.status === 'loading' && browse.items.length === 0;
 
   return (
     <section className={styles.page}>
-      <Head
-        title={group.name}
-        description={`${group.items.length} ${group.items.length === 1 ? 'product' : 'products'} from ${formatGbp(cheapest)}, delivered from the UK. No account needed to buy.`}
-        path={path}
-      />
-      <CategoryNav groups={groups} total={rows.length} />
-
-      <CategoryHeader group={group} derived={Boolean(group.derived)} />
-
-      <CategoryControls
-        leaves={leaves}
-        leaf={leaf}
-        onLeaf={setLeaf}
-        sort={sort}
-        onSort={setSort}
-        count={visible.length}
-        total={group.items.length}
-      />
-
-      {visible.length > 0 ? (
-        <ProductGrid shelves products={visible} onQuickView={setPeek} shelfName={everything ? null : group.name} />
-      ) : (
-        <div className={styles.empty}>
-          <p className={styles.emptyLead}>Nothing in that sub-section right now.</p>
-          <button type="button" className={styles.emptyAction} onClick={() => setLeaf(null)}>
-            Show all of {group.name}
-          </button>
-        </div>
+      {name && (
+        <Head
+          title={name}
+          description={count ? `${count.toLocaleString('en-GB')} ${count === 1 ? 'product' : 'products'} from ${formatGbp(priceMin)}, delivered from the UK. No account needed to buy.` : undefined}
+          path={path}
+          noindex={active}
+        />
       )}
+
+      <CategoryNav groups={visibleGroups(groups)} total={shopTotal} />
+      <CategoryHeader name={name} count={count} priceMin={priceMin} priceMax={priceMax} glyph={everything ? 'box' : null} />
+
+      <div className={styles.layout}>
+        <aside className={styles.rail} aria-label="Filters">{panel}</aside>
+
+        <div className={styles.main}>
+          <BrowseToolbar
+            filters={filters}
+            update={update}
+            clear={clear}
+            total={browse.total}
+            of={count}
+            density={density}
+            onDensity={setDensity}
+            onOpenFilters={() => setSheet(true)}
+            activeCount={activeCount}
+            searchLabel={everything ? 'Search the shop' : `Search ${name}`}
+          />
+
+          <div className={styles.results} data-refreshing={browse.status === 'refreshing' || undefined}>
+            {loading && (
+              <ul className={styles.skeletons} data-density={density} aria-label="Loading products">
+                {Array.from({ length: 8 }, (_, i) => <li key={i}><ProductCardSkeleton /></li>)}
+              </ul>
+            )}
+
+            {!loading && browse.status === 'error' && browse.items.length === 0 && (
+              <div className={styles.empty}>
+                <p className={styles.emptyLead}>The products did not load.</p>
+                <p className={styles.emptyNote}>Refresh the page. If it keeps happening, the problem is at our end.</p>
+              </div>
+            )}
+
+            {!loading && browse.total === 0 && (
+              <div className={styles.empty}>
+                <p className={styles.emptyLead}>Nothing matches all of that.</p>
+                <p className={styles.emptyNote}>Take one filter off to widen it.</p>
+                <div className={styles.emptyActions}>
+                  {filters.q && <button type="button" onClick={() => update({ q: null })}>Remove “{filters.q}”</button>}
+                  {filters.brands.length > 0 && <button type="button" onClick={() => update({ brands: [] })}>Any brand</button>}
+                  {(filters.min !== null || filters.max !== null) && <button type="button" onClick={() => update({ min: null, max: null })}>Any price</button>}
+                  {filters.inStock && <button type="button" onClick={() => update({ inStock: false })}>Include out of stock</button>}
+                  {filters.dispatchMax !== null && <button type="button" onClick={() => update({ dispatchMax: null })}>Any delivery day</button>}
+                </div>
+              </div>
+            )}
+
+            {browse.items.length > 0 && (
+              <ProductGrid
+                products={browse.items}
+                density={density}
+                onQuickView={setPeek}
+                shelfName={everything ? null : name}
+                onPrefetch={(s) => prefetchProduct(tenantId, s)}
+              />
+            )}
+          </div>
+
+          {browse.items.length > 0 && (
+            <LoadTrack shown={browse.items.length} total={browse.total} pageSize={browse.pageSize} busy={browse.status === 'more'} onMore={browse.loadMore} />
+          )}
+        </div>
+      </div>
+
+      <FilterSheet open={sheet} onClose={() => setSheet(false)} total={facets?.total ?? browse.total} onClear={clear}>
+        {panel}
+      </FilterSheet>
 
       <QuickView product={peek} onClose={() => setPeek(null)} />
     </section>

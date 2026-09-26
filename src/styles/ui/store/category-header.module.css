@@ -1,13 +1,11 @@
-/* The one dark panel on the page: the department's name on ink, its object and products standing on a sage board. */
-
-.header { margin-bottom: var(--s-5); }
+.header { padding-bottom: var(--s-4); }
 
 .crumbs {
   display: flex;
   align-items: center;
   gap: var(--s-2);
   flex-wrap: wrap;
-  padding-bottom: var(--s-3);
+  padding-bottom: var(--s-4);
   font-size: var(--t-caption);
   color: var(--c-faint);
 }
@@ -16,92 +14,46 @@
 .crumbs a:hover { color: var(--c-ink); }
 .crumbs svg { color: var(--c-line-mid); }
 
-.unit {
+.head { display: flex; align-items: flex-end; gap: var(--s-4); min-width: 0; }
+
+/* The cupboard, once, where it names the page: the section's object standing on a short sage ledge. */
+.object {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--s-5);
-  padding: var(--s-5) var(--s-5) 0;
-  border-radius: var(--r-card);
-  background: var(--c-ink-deep);
-  color: var(--c-on-dark);
-  overflow: hidden;
-  box-shadow: inset 8px 0 0 var(--c-sage-deep);
-}
-
-@media (min-width: 760px) {
-  .unit { grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--s-6); min-height: 212px; padding: var(--s-7) var(--s-6) 0 var(--s-7); }
-  .label { align-self: center; }
-}
-
-.label { min-width: 0; padding-bottom: var(--s-4); }
-@media (min-width: 760px) { .label { padding-bottom: var(--s-6); } }
-
-.title { font-size: clamp(1.75rem, 4vw, 2.75rem); line-height: 1.02; color: var(--c-on-dark); }
-.meta { margin-top: var(--s-2); font-size: 0.9375rem; color: var(--c-on-dark-soft); }
-.meta [data-price] { color: var(--c-on-dark); }
-.note { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--c-on-dark-faint); }
-
-/* The shelf: the drawn object and up to three photographs on white mounts, all standing on one board. */
-.shelf {
-  position: relative;
-  display: flex;
-  align-items: flex-end;
-  gap: var(--s-3);
-  padding: 0 var(--s-2);
-  min-width: 0;
-}
-
-.object { position: relative; display: grid; place-items: end center; color: var(--c-sage-on-dark); padding-bottom: 4px; }
-.glyph { width: 64px; height: auto; stroke-width: 2; }
-@media (min-width: 760px) { .glyph { width: 84px; } }
-
-.shadow {
-  position: absolute;
-  bottom: 0;
-  left: 15%;
-  right: 15%;
-  height: 6px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--c-ink-deep) 60%, var(--c-sage-on-dark));
-  filter: blur(2px);
-  opacity: 0.6;
-}
-
-.item {
   flex: none;
+  display: grid;
+  place-items: end center;
   width: 64px;
-  height: 64px;
-  padding: 5px;
-  border-radius: 8px;
-  background: var(--c-surface);
-  box-shadow: 0 8px 14px -8px color-mix(in srgb, var(--c-ink-deep) 80%, transparent);
-  animation: drop 560ms cubic-bezier(0.34, 1.56, 0.64, 1) calc(160ms + var(--i) * 90ms) both;
+  padding-bottom: 7px;
+  color: var(--c-sage-deep);
 }
 
-@media (min-width: 760px) { .item { width: 88px; height: 88px; padding: 6px; } }
+.glyph { width: 40px; height: auto; stroke-width: 2; animation: drop 560ms cubic-bezier(0.34, 1.56, 0.64, 1) 80ms both; }
 
-.item img { width: 100%; height: 100%; object-fit: contain; }
-
-/* Runs past the shelf to the panel's right edge, like the board of a real unit. */
-.board {
+.ledge {
   position: absolute;
   left: 0;
-  right: calc(var(--s-5) * -1);
-  bottom: -14px;
-  height: 14px;
-  background: linear-gradient(180deg, var(--c-sage-on-dark) 0 4px, var(--c-sage-deep) 4px);
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--c-sage-deep) 0 2px, var(--c-wood-dark) 2px);
 }
 
-@media (min-width: 760px) { .board { right: calc(var(--s-6) * -1); } }
+@media (min-width: 900px) {
+  .object { width: 76px; }
+  .glyph { width: 48px; }
+}
 
-/* The panel's bottom edge is the board; the shelf sits on it. */
-.shelf { margin-bottom: 14px; }
+.words { min-width: 0; }
+
+.title { font-size: clamp(1.625rem, 1.2rem + 1.4vw, 2.375rem); line-height: 1.04; color: var(--c-ink); }
+.meta { margin-top: var(--s-1); font-size: var(--t-label); color: var(--c-ink-soft); }
+.meta [data-num], .meta [data-price] { font-family: inherit; color: var(--c-ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 
 @keyframes drop {
-  from { opacity: 0; transform: translateY(-18px); }
+  from { opacity: 0; transform: translateY(-14px); }
   60% { opacity: 1; }
   to { opacity: 1; transform: none; }
 }
 
-@media (prefers-reduced-motion: reduce) { .item { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .glyph { animation: none; } }

@@ -1,0 +1,126 @@
+.panel { display: flex; flex-direction: column; }
+
+.group { padding: var(--s-4) 0; border-bottom: 1px solid var(--c-line); }
+.group:first-child { padding-top: 0; }
+.group:last-child { border-bottom: 0; }
+
+.title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+  font-size: var(--t-caption);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-ink-soft);
+}
+
+.titleCount { font-size: var(--t-micro); font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--c-sage-deep); }
+
+/* ul. outranks the reset's ul[class] padding. */
+ul.links { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+
+.link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  min-height: 36px;
+  padding: 0 var(--s-2);
+  margin: 0 calc(var(--s-2) * -1);
+  border-radius: var(--r-control);
+  font-size: var(--t-label);
+  color: var(--c-ink);
+  text-decoration: none;
+  transition: background 140ms var(--ease);
+}
+
+.link:hover { background: var(--c-warm); }
+.link[aria-current='page'] { background: var(--c-sage-wash); color: var(--c-sage-ink); font-weight: 600; }
+.link[data-empty] { color: var(--c-faint); }
+
+.options { display: flex; flex-direction: column; gap: 2px; }
+
+.option,
+.switchRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 36px;
+  font-size: var(--t-label);
+  color: var(--c-ink);
+  cursor: pointer;
+}
+
+.option[data-empty] { color: var(--c-faint); }
+
+.option input { width: 17px; height: 17px; margin: 0; accent-color: var(--c-sage-deep); flex: none; }
+
+.optionLabel { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.n { flex: none; font-family: inherit; font-size: var(--t-caption); color: var(--c-faint); font-variant-numeric: tabular-nums; }
+
+/* A drawn switch rather than a box: on is sage, and it slides. */
+.switch {
+  flex: none;
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 38px;
+  height: 22px;
+  margin: 0;
+  border-radius: var(--r-full);
+  background: var(--c-line-mid);
+  cursor: pointer;
+  transition: background 180ms var(--ease);
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--c-surface);
+  box-shadow: var(--e-1);
+  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.switch:checked { background: var(--c-sage-deep); }
+.switch:checked::after { transform: translateX(16px); }
+.switch:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+.search {
+  width: 100%;
+  height: 36px;
+  margin-bottom: var(--s-2);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-control);
+  background: var(--c-surface);
+  font: inherit;
+  font-size: var(--t-label);
+  color: var(--c-ink);
+}
+
+.search:focus-visible { outline: 2px solid var(--c-sage-deep); outline-offset: 1px; }
+
+.more {
+  margin-top: var(--s-2);
+  font-size: var(--t-label);
+  font-weight: 600;
+  color: var(--c-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--c-sage-deep);
+  text-underline-offset: 4px;
+}
+
+.note { margin-top: var(--s-2); font-size: var(--t-micro); color: var(--c-faint); }
+
+@media (prefers-reduced-motion: reduce) {
+  .link, .switch, .switch::after { transition: none; }
+}

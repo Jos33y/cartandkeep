@@ -1,0 +1,66 @@
+.range { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.bars { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); align-items: end; gap: 3px; height: 44px; padding: 0 9px; }
+.bar { height: var(--h); border-radius: 3px 3px 1px 1px; background: var(--c-line-mid); transition: background 160ms var(--ease), height 260ms var(--ease-out); }
+.bar[data-lit] { background: var(--c-sage-deep); }
+
+/* Two native ranges stacked on one track: keyboard and screen readers work as they do on any slider. */
+.track { position: relative; height: 22px; }
+
+.track::before,
+.track::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: var(--r-full);
+}
+
+.track::before { left: 9px; right: 9px; background: var(--c-line); }
+.track::after { left: calc(9px + (100% - 18px) * var(--a)); right: calc(9px + (100% - 18px) * (1 - var(--b))); background: var(--c-sage-deep); }
+
+.track input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  background: none;
+  pointer-events: none;
+  appearance: none;
+  -webkit-appearance: none;
+  z-index: 1;
+}
+
+.track input::-webkit-slider-runnable-track { background: none; height: 22px; }
+.track input::-moz-range-track { background: none; }
+
+.track input::-webkit-slider-thumb {
+  pointer-events: auto;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: var(--c-surface);
+  border: 2px solid var(--c-sage-deep);
+  box-shadow: var(--e-1);
+  cursor: grab;
+}
+
+.track input::-moz-range-thumb {
+  pointer-events: auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--c-surface);
+  border: 2px solid var(--c-sage-deep);
+  cursor: grab;
+}
+
+.track input:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+.values { display: flex; align-items: baseline; gap: var(--s-2); font-size: var(--t-label); color: var(--c-ink); }
+.to { font-size: var(--t-caption); color: var(--c-faint); }
+
+@media (prefers-reduced-motion: reduce) { .bar { transition: none; } }

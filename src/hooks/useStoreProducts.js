@@ -25,7 +25,7 @@ const SHOW_DRAFTS = import.meta.env.VITE_STORE_SHOW_DRAFTS === 'true';
  * array and a range of its own price, so every consumer reads the same shape
  * whether or not the product has any.
  */
-function withVariants(row) {
+export function withVariants(row) {
   const { store_variants: raw, ...product } = row;
 
   const variants = [...(raw ?? [])].sort((a, b) => {

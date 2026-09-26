@@ -26,25 +26,34 @@ function useColumns(active) {
   return cols;
 }
 
-function Cells({ products, from, onQuickView, shelfName }) {
+function Cells({ products, from, onQuickView, shelfName, onPrefetch }) {
   return products.map((product, i) => (
     // --i is set here rather than on the card, because the delay is read on this element.
     <li key={product.id} className={styles.cell} style={{ '--i': from + i }}>
-      <ProductCard product={product} index={from + i} onQuickView={onQuickView} shelfName={shelfName} />
+      <ProductCard product={product} index={from + i} onQuickView={onQuickView} shelfName={shelfName} onPrefetch={onPrefetch} />
     </li>
   ));
 }
 
 // Shared by every page that lists products. With shelves, each row of cards stands on its own board, as in the cupboard.
-export function ProductGrid({ products, onQuickView, shelfName = null, shelves = false }) {
+export function ProductGrid({ products, onQuickView, shelfName = null, shelves = false, density = null, onPrefetch = null }) {
   const animate = !played;
   if (typeof window !== 'undefined') played = true;
   const cols = useColumns(shelves);
 
+  // With a density, columns come from the space available rather than the screen, so the same grid fits beside a filter rail or without one.
+  if (density) {
+    return (
+      <ul className={`${styles.grid} ${styles.fluid}`} data-density={density} data-animate={animate || undefined}>
+        <Cells products={products} from={0} onQuickView={onQuickView} shelfName={shelfName} onPrefetch={onPrefetch} />
+      </ul>
+    );
+  }
+
   if (!shelves) {
     return (
       <ul className={styles.grid} data-animate={animate || undefined}>
-        <Cells products={products} from={0} onQuickView={onQuickView} shelfName={shelfName} />
+        <Cells products={products} from={0} onQuickView={onQuickView} shelfName={shelfName} onPrefetch={onPrefetch} />
       </ul>
     );
   }
