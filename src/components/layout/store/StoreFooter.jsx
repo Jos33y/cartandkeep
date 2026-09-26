@@ -3,7 +3,8 @@ import { Link } from 'react-router';
 import { LogoMark } from '@components/ui/shared/Logo';
 import { InstagramIcon, MailIcon, TiktokIcon } from '@components/ui/store/icons';
 import { LEGAL_COLUMN, LEGAL_LINKS } from '@data/legal';
-import { useSections } from '@hooks/useSections';
+import { useGroups } from '@hooks/useCatalogue';
+import { visibleGroups } from '@utils/categories';
 import { STORE_ROUTES } from '@utils/constants';
 import { storeConfig, supportEmail, trader } from '@lib/storeConfig';
 import { Subscribe } from '@components/ui/store/Subscribe';
@@ -28,7 +29,8 @@ const PAYMENT = [
 ];
 
 export function StoreFooter() {
-  const { sections } = useSections();
+  const { groups } = useGroups();
+  const sections = visibleGroups(groups);
   const [payment, setPayment] = useState(PAYMENT);
   const [loaded, setLoaded] = useState(() => new Set());
   const { socials = {} } = storeConfig();

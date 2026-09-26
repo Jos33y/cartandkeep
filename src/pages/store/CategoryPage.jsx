@@ -14,6 +14,7 @@ import { useBrowseParams } from '@hooks/useBrowseParams';
 import { useTenant } from '@hooks/useTenant';
 import { findGroup } from '@utils/categories';
 import { formatGbp } from '@utils/formatGbp';
+import { deliveryEstimate, formatDeliveryDay } from '@utils/delivery';
 import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/pages/store/category-page.module.css';
 
@@ -114,6 +115,17 @@ export function CategoryPage({ everything = false }) {
   const panel = <FilterPanel facets={facets} filters={filters} update={update} />;
   const loading = browse.status === 'loading' && browse.items.length === 0;
 
+  // The arrival day most of these share, said once in the head; a card only states its own when it differs.
+  const arrivalOf = (p) => deliveryEstimate(p.dispatch_days).to;
+  const common = (() => {
+    const tally = new Map();
+    for (const p of browse.items) if (p.buyable !== false) tally.set(arrivalOf(p), (tally.get(arrivalOf(p)) ?? 0) + 1);
+    let best = null;
+    for (const [day, n] of tally) if (!best || n > best.n) best = { day, n };
+    return best && best.n >= Math.ceil(browse.items.length / 2) ? { ...best, all: best.n === browse.items.length } : null;
+  })();
+  const arrives = common ? `${common.all ? 'Arrives' : 'Most arrive'} by ${formatDeliveryDay(common.day)}` : null;
+
   return (
     <section className={styles.page}>
       {name && (
@@ -126,7 +138,7 @@ export function CategoryPage({ everything = false }) {
       )}
 
       {/* No section tabs here: the header's shelf rail already carries them on every page, and a second row cost the short laptop its first row of products. */}
-      <CategoryHeader name={name} count={count} priceMin={priceMin} priceMax={priceMax} glyph={everything ? 'box' : null} />
+      <CategoryHeader name={name} count={count} priceMin={priceMin} priceMax={priceMax} arrives={arrives} />
 
       <div className={styles.layout}>
         <aside className={styles.rail} aria-label="Filters">{panel}</aside>
@@ -180,6 +192,7 @@ export function CategoryPage({ everything = false }) {
                 onQuickView={setPeek}
                 shelfName={everything ? null : name}
                 onPrefetch={(s) => prefetchProduct(tenantId, s)}
+                commonArrival={common?.day ?? null}
               />
             )}
           </div>

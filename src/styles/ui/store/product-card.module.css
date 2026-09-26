@@ -218,9 +218,12 @@
 .add:disabled .addLabel { max-width: 5em; opacity: 1; }
 
 /* Hover only where hover is real; a tapped card on a phone would otherwise stay open. */
+/* Hover only where hover is real, and only on a card wide enough that the label cannot run over the price. */
 @media (hover: hover) {
-  .card:hover .add { gap: 5px; padding: 0 14px; }
-  .card:hover .addLabel { max-width: 5em; opacity: 1; }
+  @container (min-width: 232px) {
+    .card:hover .add { gap: 5px; padding: 0 14px; }
+    .card:hover .addLabel { max-width: 5em; opacity: 1; }
+  }
 }
 
 .add:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }

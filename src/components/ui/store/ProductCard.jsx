@@ -18,7 +18,7 @@ const productPath = (slug) => STORE_ROUTES.PRODUCT.replace(':slug', slug);
 const ARRIVES = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'UTC' });
 
 // An article, not a link: buttons cannot live inside an anchor. The title's link stretches over the card instead.
-export function ProductCard({ product, index = 0, onQuickView, shelfName = null, onPrefetch = null, hideSection = false }) {
+export function ProductCard({ product, index = 0, onQuickView, shelfName = null, onPrefetch = null, hideSection = false, commonArrival = null }) {
   const { add } = useBasket();
   const { has, toggle } = useSaved();
   const names = useCategoryNames();
@@ -34,7 +34,9 @@ export function ProductCard({ product, index = 0, onQuickView, shelfName = null,
   const hasVariants = (product.variantCount ?? product.variants?.length ?? 0) > 0;
   const buyable = product.buyable ?? anyBuyable(product);
   const second = product.images?.[1] && product.images[1] !== product.image_url ? imageAt(product.images[1], 500) : null;
-  const arrives = buyable ? ARRIVES.format(new Date(`${deliveryEstimate(product.dispatch_days).to}T12:00:00Z`)) : null;
+  // Said on the card only when it differs from the day the page already gives for most of them.
+  const arrivalDay = buyable ? deliveryEstimate(product.dispatch_days).to : null;
+  const arrives = arrivalDay && arrivalDay !== commonArrival ? ARRIVES.format(new Date(`${arrivalDay}T12:00:00Z`)) : null;
   const saved = has(product.id);
 
   const saving = !hasVariants && product.compare_at != null

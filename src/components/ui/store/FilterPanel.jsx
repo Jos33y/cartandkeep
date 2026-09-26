@@ -73,10 +73,11 @@ export function FilterPanel({ facets, filters, update, groups = null, everything
       )}
 
       <Group title="Price">
-        <PriceRange price={facets?.price} min={filters.min} max={filters.max} onCommit={(p) => update(p, { replace: true })} />
+        <PriceRange price={facets?.price} min={filters.min} max={filters.max} histogram={(facets?.total ?? 0) >= 12} onCommit={(p) => update(p, { replace: true })} />
       </Group>
 
-      {arrivals.length > 0 && (
+      {/* A filter only shows when it can narrow the list: one arrival day, or every product in stock, is not a choice. */}
+      {(arrivals.length > 1 || filters.dispatchMax !== null) && (
         <Group title="Arrives by">
           <div className={styles.options} role="radiogroup" aria-label="Arrives by">
             <label className={styles.option}>
@@ -95,6 +96,7 @@ export function FilterPanel({ facets, filters, update, groups = null, everything
         </Group>
       )}
 
+      {(filters.inStock || (facets && facets.in_stock < facets.total)) && (
       <Group title="Availability">
         <label className={styles.switchRow}>
           <span className={styles.optionLabel}>In stock only</span>
@@ -102,8 +104,9 @@ export function FilterPanel({ facets, filters, update, groups = null, everything
           <input className={styles.switch} type="checkbox" role="switch" checked={filters.inStock} onChange={(e) => update({ inStock: e.target.checked })} />
         </label>
       </Group>
+      )}
 
-      {brands.length > 0 && (
+      {(brands.length > 1 || filters.brands.length > 0) && (
         <Group title="Brand" count={filters.brands.length ? `${filters.brands.length} chosen` : null}>
           {brands.length > TOP_BRANDS && (
             <input

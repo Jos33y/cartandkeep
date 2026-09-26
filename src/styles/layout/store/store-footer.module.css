@@ -92,8 +92,9 @@ ul.list { display: flex; flex-direction: column; gap: 2px; padding: 0; list-styl
 
 ul.payment { display: flex; gap: var(--s-2); align-items: center; padding: 0; list-style: none; }
 
-.payMark { display: grid; place-items: center; padding: 3px 4px; border-radius: 4px; background: #fff; }
-.payMark img { display: block; height: 22px; width: auto; }
+/* Small, identical chips: the marks say what she accepts, they are not the footer's headline. */
+.payMark { display: grid; place-items: center; width: 40px; height: 26px; padding: 4px 6px; border-radius: 5px; background: var(--c-surface); }
+.payMark img { display: block; width: 100%; height: 100%; object-fit: contain; }
 
 /* Invisible until its image has actually loaded: a missing file must never show as an empty white frame. */
 .payMark:not([data-ready]) { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; padding: 0; }

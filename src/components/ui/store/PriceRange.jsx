@@ -3,7 +3,7 @@ import { formatGbp } from '@utils/formatGbp';
 import styles from '@styles/ui/store/price-range.module.css';
 
 // Prices as a shape: twelve bars for how many products sit at each price, with the chosen range lit and two handles to move it.
-export function PriceRange({ price, min, max, onCommit }) {
+export function PriceRange({ price, min, max, onCommit, histogram = true }) {
   const lo = Math.floor(Number(price?.min ?? 0));
   const hi = Math.ceil(Number(price?.max ?? 0));
   const [range, setRange] = useState([min ?? lo, max ?? hi]);
@@ -19,13 +19,14 @@ export function PriceRange({ price, min, max, onCommit }) {
 
   return (
     <div className={styles.range}>
-      <div className={styles.bars} aria-hidden="true">
+      {/* Below a dozen products the bars are a few spikes and dashes, which says nothing; the slider alone is clearer. */}
+      {histogram && <div className={styles.bars} aria-hidden="true">
         {buckets.map((n, i) => {
           const start = lo + i * width;
           const lit = start + width >= range[0] && start <= range[1];
-          return <span key={i} className={styles.bar} data-lit={lit || undefined} style={{ '--h': `${Math.max(6, (n / tallest) * 100)}%` }} />;
+          return <span key={i} className={styles.bar} data-lit={lit || undefined} data-zero={n === 0 || undefined} style={{ '--h': `${Math.max(6, (n / tallest) * 100)}%` }} />;
         })}
-      </div>
+      </div>}
 
       <div className={styles.track} style={{ '--a': (range[0] - lo) / (hi - lo), '--b': (range[1] - lo) / (hi - lo) }}>
         <input
