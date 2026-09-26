@@ -10,7 +10,7 @@
   grid-template-columns: minmax(0, 1fr);
   align-items: center;
   max-width: var(--store-max);
-  min-height: 40px;
+  min-height: 32px;
   margin: 0 auto;
   padding: 0 var(--s-3);
 }
@@ -38,7 +38,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
-  min-height: 40px;
+  min-height: 32px;
   min-width: 0;
   color: var(--c-on-dark);
   font-weight: 600;
@@ -86,7 +86,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 40px;
+  min-height: 32px;
   color: var(--c-on-dark-soft);
   font-size: var(--t-caption);
   font-weight: 500;

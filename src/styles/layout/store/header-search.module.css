@@ -5,7 +5,7 @@
   display: flex;
   align-items: center;
   gap: var(--s-3);
-  height: 46px;
+  height: 42px;
   padding: 0 var(--s-2) 0 var(--s-4);
   background: var(--c-surface);
   border: 1px solid var(--c-line-mid);
@@ -175,3 +175,24 @@
   .word, .panel { animation: none; }
   .field, .shelf, .row, .all { transition: none; }
 }
+
+/* The section being searched, as a chip inside the field: it reads as part of the query and one tap widens it to the whole shop. */
+.scope {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 40%;
+  height: 28px;
+  padding: 0 8px 0 10px;
+  border-radius: var(--r-full);
+  background: var(--c-sage-wash);
+  color: var(--c-sage-ink);
+  font-size: var(--t-caption);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scope:hover { background: color-mix(in srgb, var(--c-sage-deep) 18%, var(--c-sage-wash)); }
+.scope:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }

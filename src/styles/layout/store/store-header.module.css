@@ -20,12 +20,12 @@
   align-items: center;
   gap: var(--s-3);
   max-width: var(--store-max);
-  height: 64px;
+  height: 56px;
   margin: 0 auto;
   padding: 0 var(--s-3);
 }
 
-@media (min-width: 1024px) { .bar { gap: var(--s-5); padding: 0 var(--s-5); height: 72px; } }
+@media (min-width: 1024px) { .bar { gap: var(--s-5); padding: 0 var(--s-5); height: 60px; } }
 
 .mark { display: inline-flex; align-items: center; min-height: var(--tap); text-decoration: none; }
 
@@ -189,4 +189,43 @@ ul.shelves > li { display: flex; }
 @media (prefers-reduced-motion: reduce) {
   .glide, .shelf, .icon { transition: none; }
   .sheet { animation: none; }
+}
+
+/* Phone search: a pill with the word once there is room for it, the one tool that reads as the way into the shop. */
+.searchWord { display: none; }
+@media (min-width: 430px) and (max-width: 1023px) {
+  .searchButton {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    width: auto;
+    height: 40px;
+    gap: 6px;
+    padding: 0 14px 0 11px;
+    border-radius: var(--r-full);
+    background: var(--c-surface);
+    box-shadow: inset 0 0 0 1px var(--c-line-mid);
+  }
+  .searchWord { display: inline; font-size: var(--t-label); font-weight: 600; color: var(--c-ink); }
+}
+@media (max-width: 1023px) {
+  /* Neither the mark nor the search icon may be squeezed by the pill beside them. */
+  .mark, .mark svg, .searchButton svg { flex: none; }
+}
+
+/* Narrow phones: no room for the word, so search stays an icon but in the same outlined pill, still the one that stands apart. */
+@media (max-width: 429px) {
+  .searchButton { border-radius: var(--r-full); box-shadow: inset 0 0 0 1px var(--c-line-mid); background: var(--c-surface); }
+}
+
+/* The smallest phones: tighter gaps so the basket is never cut at the edge. */
+@media (max-width: 400px) {
+  .bar { gap: 6px; padding: 0 10px; }
+  .tools { gap: 2px; }
+  .icon, .saved { min-width: 40px; }
+}
+/* A 360px phone: the wordmark a size down, so all five controls fit with their full touch targets. */
+@media (max-width: 374px) {
+  .mark [class*='word'] { font-size: 1.0625rem; }
+  .mark { gap: 6px; }
 }

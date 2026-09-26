@@ -47,3 +47,11 @@
 @keyframes fill { from { transform: scaleX(0); } to { transform: none; } }
 
 @media (prefers-reduced-motion: reduce) { .segments i { animation: none; } }
+
+/* Short laptop screens: the window keeps its number and dates, the drawn days and the extra line give way. */
+@media (min-width: 1024px) and (max-height: 700px) {
+  .window { gap: 4px; }
+  .days { font-size: 1.25rem; }
+  .bar { display: none; }
+  .detail { display: none; }
+}

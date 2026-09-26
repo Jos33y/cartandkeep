@@ -16,9 +16,5 @@ set research = coalesce(research, '{}'::jsonb) || '{
 }'::jsonb
 where slug = 'cart-and-keep';
 
--- Verify
-select research->'brands' from tenants where slug = 'cart-and-keep';
-
-| ?column?                          |
-| --------------------------------- |
-| {"allow":[],"known":["iconsign"]} |
+-- Verify (run by hand; the pasted result that used to sit here broke a fresh rebuild)
+-- select research->'brands' from tenants where slug = 'cart-and-keep';

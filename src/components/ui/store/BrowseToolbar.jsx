@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
-import { ChevronDownIcon, CloseIcon, SearchIcon } from '@components/ui/store/icons';
+import { ChevronDownIcon, CloseIcon } from '@components/ui/store/icons';
 import { formatGbp } from '@utils/formatGbp';
 import { deliveryEstimate, formatDeliveryDay } from '@utils/delivery';
 import styles from '@styles/ui/store/browse-toolbar.module.css';
@@ -30,18 +29,7 @@ function chipsFor(filters) {
 }
 
 // Stays under the header while the grid scrolls: search within, what is filtered, how many, and in what order.
-export function BrowseToolbar({ filters, update, clear, total, of = null, density, onDensity, onOpenFilters, activeCount, searchLabel }) {
-  const [q, setQ] = useState(filters.q);
-  const typing = useRef(null);
-  useEffect(() => { setQ(filters.q); }, [filters.q]);
-
-  function onType(value) {
-    setQ(value);
-    clearTimeout(typing.current);
-    // Typing replaces the history entry, so Back undoes the search rather than each letter.
-    typing.current = setTimeout(() => update({ q: value }, { replace: true }), 280);
-  }
-
+export function BrowseToolbar({ filters, update, clear, total, of = null, density, onDensity, onOpenFilters, activeCount }) {
   const chips = chipsFor(filters);
   const sorts = filters.q ? SORT_LABELS : Object.fromEntries(Object.entries(SORT_LABELS).filter(([k]) => k !== 'relevance'));
 
@@ -54,15 +42,7 @@ export function BrowseToolbar({ filters, update, clear, total, of = null, densit
           {activeCount > 0 && <span className={styles.badge} data-num>{activeCount}</span>}
         </button>
 
-        <label className={styles.search}>
-          <SearchIcon size={16} />
-          <input type="search" value={q} onChange={(e) => onType(e.target.value)} placeholder={searchLabel} aria-label={searchLabel} />
-          {q && (
-            <button type="button" className={styles.clearQ} onClick={() => onType('')} aria-label="Clear the search">
-              <CloseIcon size={14} />
-            </button>
-          )}
-        </label>
+        {/* One search, in the header, which picks up this section as its scope. */}
 
         {/* The head already gives the section's total; here it only appears once a filter or search has narrowed it. */}
         <p className={styles.count} aria-live="polite">

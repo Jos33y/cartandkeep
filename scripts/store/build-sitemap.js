@@ -105,13 +105,23 @@ async function main() {
 
   // Departments are derived from what is in stock, so a category URL only
   // exists while something is in it.
-  const departments = new Set();
-  for (const p of products ?? []) {
-    const top = (p.category_path ?? '').split('|')[0]?.trim();
-    if (top) {
-      departments.add(top.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''));
-    }
+  // Section addresses exactly as the shop makes them: her name's address when she renamed one, hidden ones left out, small groups folded into Odds and ends.
+  const slugify = (v) => String(v).toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const { data: counts, error: countError } = await db.rpc('store_groups', { p_tenant: tenant.id });
+  if (countError) {
+    console.error('Could not read the sections:', countError.message);
+    process.exit(1);
   }
+  const { data: names } = await db.from('store_category_names').select('path, name, slug, hidden').eq('tenant_id', tenant.id);
+  const departments = new Set();
+  let leftover = false;
+  for (const g of counts ?? []) {
+    const row = (names ?? []).find((n) => n.path === g.group_key);
+    if (!g.group_key || g.group_key === 'Everything else' || Number(g.products) < 3) { leftover = true; continue; }
+    if (row?.hidden) continue;
+    departments.add(row?.slug || slugify(row?.name && row.name !== g.group_key ? row.name : g.group_key));
+  }
+  if (leftover) departments.add('odds-and-ends');
 
   const entries = [
     ...STATIC.map(([loc, freq, pri]) => url(loc, freq, pri)),

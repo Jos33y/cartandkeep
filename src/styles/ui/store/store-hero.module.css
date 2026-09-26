@@ -174,3 +174,8 @@ ul.proof {
   .primary, .primary svg, .secondary { transition: none; }
   .primary:hover { transform: none; }
 }
+
+/* Short laptop screens: the same words at a size that leaves room for the cupboard and the promises on the first screen. */
+@media (min-width: 900px) and (max-height: 760px) {
+  .title { font-size: clamp(2.25rem, 4vw, 3.25rem); }
+}

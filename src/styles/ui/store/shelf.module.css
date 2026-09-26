@@ -220,3 +220,9 @@ ul.rail::-webkit-scrollbar { display: none; }
   .object { animation: none; }
   .go svg, .rest, .arrow, .railWrap::before, .railWrap::after { transition: none; }
 }
+
+/* A shelf ends where its products end: three cards on a board built for six left a long bare run. The board still spans a full row. */
+@media (min-width: 900px) {
+  .shelf { width: fit-content; max-width: 100%; }
+  .shelf > :not(.end):not(.board) { min-width: 0; }
+}

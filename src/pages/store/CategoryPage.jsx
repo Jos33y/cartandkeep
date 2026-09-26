@@ -160,7 +160,6 @@ export function CategoryPage({ everything = false }) {
             onDensity={setDensity}
             onOpenFilters={() => setSheet(true)}
             activeCount={activeCount}
-            searchLabel={everything ? 'Search the shop' : `Search ${name}`}
           />
 
           <div className={styles.results} data-refreshing={browse.status === 'refreshing' || undefined}>

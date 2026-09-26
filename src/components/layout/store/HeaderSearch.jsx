@@ -49,7 +49,12 @@ function Rotating({ words }) {
 
 export function HeaderSearch({ sections, sheet = false, onClose, inputRef: externalRef }) {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  // On a section page the search looks inside it, shown as a chip that removes itself; everywhere else it searches the whole shop.
+  const onSection = pathname.startsWith('/c/') ? sections.find((s) => pathname === `/c/${s.slug}`) ?? null : null;
+  const [scoped, setScoped] = useState(true);
+  const scope = scoped ? onSection : null;
+  const resultsPath = (q) => `${scope ? categoryPath(scope.slug) : STORE_ROUTES.SHOP}?q=${encodeURIComponent(q)}`;
   const listId = useId();
   const ownRef = useRef(null);
   const inputRef = externalRef ?? ownRef;
@@ -64,7 +69,7 @@ export function HeaderSearch({ sections, sheet = false, onClose, inputRef: exter
   useEffect(() => { const t = setTimeout(() => setAsked(query.trim()), 180); return () => clearTimeout(t); }, [query]);
 
   const terms = useMemo(() => query.toLowerCase().split(/\s+/).filter((t) => t.length > 1), [query]);
-  const found = useBrowse({ q: asked, sort: 'relevance' }, { limit: MAX_RESULTS, enabled: asked.length > 1 });
+  const found = useBrowse({ q: asked, sort: 'relevance', keys: scope?.keys ?? null }, { limit: MAX_RESULTS, enabled: asked.length > 1 });
 
   const results = useMemo(() => {
     if (!terms.length) return { sections: [], products: [] };
@@ -78,7 +83,7 @@ export function HeaderSearch({ sections, sheet = false, onClose, inputRef: exter
     return [
       ...results.sections.map((s) => ({ key: `s-${s.slug}`, to: categoryPath(s.slug) })),
       ...results.products.map((p) => ({ key: `p-${p.id}`, to: STORE_ROUTES.PRODUCT.replace(':slug', p.slug) })),
-      { key: 'all', to: results.products.length ? `${STORE_ROUTES.SEARCH}?q=${encodeURIComponent(query.trim())}` : `${STORE_ROUTES.REQUEST}?for=${encodeURIComponent(query.trim())}&from=header%20search` },
+      { key: 'all', to: results.products.length ? resultsPath(query.trim()) : `${STORE_ROUTES.REQUEST}?for=${encodeURIComponent(query.trim())}&from=header%20search` },
     ];
   }, [terms, results, sections, query]);
 
@@ -89,7 +94,13 @@ export function HeaderSearch({ sections, sheet = false, onClose, inputRef: exter
   useEffect(() => { if (sheet) inputRef.current?.focus(); }, [sheet, inputRef]);
 
   // A new page closes the panel and clears it; the search has done its job.
-  useEffect(() => { setOpen(sheet); setQuery(''); }, [pathname, sheet]);
+  // On a browse page the box shows the search already applied, so there is one place to change it.
+  useEffect(() => {
+    setOpen(sheet);
+    setScoped(true);
+    const onBrowse = pathname === STORE_ROUTES.SHOP || pathname.startsWith('/c/');
+    setQuery(onBrowse ? new URLSearchParams(search).get('q') ?? '' : '');
+  }, [pathname, search, sheet]);
 
   useEffect(() => {
     if (sheet) return undefined;
@@ -112,7 +123,7 @@ export function HeaderSearch({ sections, sheet = false, onClose, inputRef: exter
     else if (e.key === 'Enter') {
       e.preventDefault();
       if (active >= 0 && options[active]) go(options[active].to);
-      else if (query.trim()) go(`${STORE_ROUTES.SEARCH}?q=${encodeURIComponent(query.trim())}`);
+      else if (query.trim()) go(resultsPath(query.trim()));
     }
   }
 
@@ -139,6 +150,12 @@ export function HeaderSearch({ sections, sheet = false, onClose, inputRef: exter
     >
       <div className={styles.field}>
         <SearchIcon size={18} />
+        {scope && (
+          <button type="button" className={styles.scope} onClick={() => { setScoped(false); inputRef.current?.focus(); }} aria-label={`Searching in ${scope.name}. Search the whole shop instead`}>
+            in {scope.name}
+            <CloseIcon size={12} />
+          </button>
+        )}
         <input
           ref={inputRef}
           className={styles.input}

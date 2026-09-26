@@ -124,8 +124,10 @@ export function StoreHeader() {
         </div>
 
         <div className={styles.tools}>
+          {/* On phones search is the first tool and says so: a pill with its word, not one icon among three. */}
           <button type="button" className={`${styles.icon} ${styles.searchButton}`} aria-label="Search" onClick={() => setSearching(true)}>
             <SearchIcon />
+            <span className={styles.searchWord} aria-hidden="true">Search</span>
           </button>
 
           <NavLink to={STORE_ROUTES.SAVED} className={styles.saved} data-has={savedCount > 0 || undefined} aria-label={savedCount ? `Saved, ${savedCount}` : 'Saved'}>

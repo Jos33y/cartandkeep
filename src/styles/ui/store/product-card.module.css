@@ -266,3 +266,17 @@
   .arrives { flex-basis: 100%; }
   .arrives::before { display: none; }
 }
+
+/* A calm grid: the add button is white with a terracotta plus, and fills terracotta only when you reach for it. The photographs lead. */
+.add {
+  background: var(--c-surface);
+  color: var(--c-action-strong);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c-action-strong) 55%, transparent);
+}
+.add:focus-visible,
+.add:active:not(:disabled),
+.add[data-added] { background: var(--c-action-strong); color: var(--c-on-action); box-shadow: none; }
+.add:disabled { background: var(--c-sunk); color: var(--c-faint); box-shadow: none; }
+@media (hover: hover) {
+  .card:hover .add:not(:disabled) { background: var(--c-action-strong); color: var(--c-on-action); box-shadow: none; }
+}
