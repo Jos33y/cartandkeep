@@ -1,5 +1,5 @@
-// Every email the shop sends. Six kinds: four write an order_emails row, which is
-// what makes a resend safe. low_stock and message carry their own guard.
+// Every email the platform sends. Seven kinds: four write an order_emails row, which is
+// what makes a resend safe. low_stock and message carry their own guard; pull_alert is the studio's.
 // Schedule 2 wording lives here because a confirmation is the durable medium.
 // CORS is duplicated below: the dashboard editor deploys one folder.
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -336,6 +336,41 @@ function reviewRequest(order: any, cfg: any) {
   };
 }
 
+// For the studio, not the shop: a morning pull that failed, or started working again. One per change.
+const PULL_NAMES: Record<string, string> = { ebay_traffic: 'eBay traffic', ebay_sales: 'eBay sales' };
+
+function pullAlert(a: { tenant: string; source: string; state: string; error?: string | null; last_ok_at?: string | null }) {
+  const what = PULL_NAMES[a.source] ?? a.source;
+  const recovered = a.state === 'recovered';
+  // "Fri 25 Sept, 08:02": parts joined by hand, because en-GB puts a comma after the weekday.
+  const part = (d: Date, t: string) => new Intl.DateTimeFormat('en-GB', { timeZone: LONDON, weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .formatToParts(d).find((p) => p.type === t)?.value ?? '';
+  const at = a.last_ok_at ? new Date(a.last_ok_at) : null;
+  const last = at ? `${part(at, 'weekday')} ${part(at, 'day')} ${part(at, 'month')}, ${part(at, 'hour')}:${part(at, 'minute')}` : null;
+  const reconnect = /reconnect/i.test(a.error ?? '');
+
+  const body = recovered
+    ? `
+<p style="margin:0 0 16px;font-size:16px;">${escape(what)} for ${escape(a.tenant)} is updating again.</p>
+<p style="margin:0;font-size:13px;color:#6B6459;">Nothing to do. You will hear again only if it stops.</p>`
+    : `
+<p style="margin:0 0 16px;font-size:16px;">${escape(what)} for ${escape(a.tenant)} did not update this morning.</p>
+<p style="margin:0 0 8px;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:#857D70">Reason</p>
+<p style="margin:0 0 20px;font-size:15px;">${escape(a.error ?? 'No reason was recorded.')}</p>
+<p style="margin:0 0 20px;font-size:15px;">${last ? `Last successful update: ${escape(last)}.` : 'It has not updated successfully yet.'} The portal shows those figures until the next pull works.</p>
+<p style="margin:0 0 20px;">
+  <a href="${escape(PORTAL)}/${reconnect ? 'settings' : 'ebay/traffic'}" style="color:#AD5438;">${reconnect ? 'Open Settings to reconnect eBay' : 'Open the portal'}</a>
+</p>
+<p style="margin:0;font-size:13px;color:#6B6459;">You will not get this again while it keeps failing. You will get one email when it works again.</p>`;
+
+  return {
+    subject: recovered
+      ? `${a.tenant}: ${what} is updating again`
+      : `${a.tenant}: ${what} did not update this morning`,
+    html: shell(recovered ? `${what} is updating again` : `${what} did not update`, body),
+  };
+}
+
 // One email per drop rather than one per order, which is what store_stock_alerts
 // is for.
 function lowStock(items: any[]) {
@@ -474,14 +509,14 @@ async function loadMessage(messageId: string) {
 
 // --- sending -----------------------------------------------------------------
 
-async function send(to: string, subject: string, html: string, replyTo: string) {
+async function send(to: string, subject: string, html: string, replyTo: string, from = FROM) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${RESEND_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ from: FROM, to, subject, html, reply_to: replyTo }),
+    body: JSON.stringify({ from, to, subject, html, reply_to: replyTo }),
   });
 
   const payload = await res.json().catch(() => ({}));
@@ -489,6 +524,8 @@ async function send(to: string, subject: string, html: string, replyTo: string) 
   return String(payload?.id ?? '');
 }
 
+// access_token is for the review link only and is never in a confirmation body.
+// No comments inside the select: the text goes to the database, which rejects them.
 async function loadOrder(orderId: string) {
   const { data, error } = await db
     .from('orders')
@@ -496,7 +533,6 @@ async function loadOrder(orderId: string) {
       id, tenant_id, reference, status, email, name, phone, address,
       subtotal, delivery, total, carrier, tracking_number, tracking_url,
       dispatched_at,
-      // The token, for the review link only. It is never in a confirmation body.
       access_token,
       order_items ( title, qty, unit_price, line_total, product_id, variant_label )
     `)
@@ -583,6 +619,30 @@ Deno.serve(async (req) => {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('[notify] low_stock', message);
+      return json({ error: message }, 500, origin);
+    }
+  }
+
+  // The studio's own alert. Service key only, because the address comes in the body.
+  if (kind === 'pull_alert') {
+    if (token !== SERVICE_KEY) return json({ error: 'Not authorised' }, 401, origin);
+
+    const a = body as Record<string, any>;
+    const to = String(a.to ?? '');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json({ error: 'A valid to address is required' }, 400, origin);
+    if (!a.tenant || !a.source || !['failing', 'recovered'].includes(a.state)) {
+      return json({ error: 'tenant, source and state are required' }, 400, origin);
+    }
+
+    // Same verified address as every other email, under a name that reads as an alert rather than the shop.
+    const address = FROM.match(/<([^>]+)>/)?.[1] ?? FROM;
+    const mail = pullAlert({ tenant: a.tenant, source: a.source, state: a.state, error: a.error, last_ok_at: a.last_ok_at });
+    try {
+      const providerId = await send(to, mail.subject, mail.html, to, `${a.tenant} alerts <${address}>`);
+      return json({ sent: 'pull_alert', id: providerId }, 200, origin);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[notify] pull_alert', message);
       return json({ error: message }, 500, origin);
     }
   }

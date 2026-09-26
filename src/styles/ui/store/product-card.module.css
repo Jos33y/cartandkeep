@@ -177,7 +177,7 @@
 .price { font-size: var(--ts-price); color: var(--c-ink); }
 .was { font-size: var(--t-caption); color: var(--c-faint); text-decoration: line-through; }
 
-/* The buy action, so it is terracotta; it sits under the photograph, never over it. */
+/* The buy action, so it is terracotta. A circle at rest so the photographs lead; it opens to a label when the card is pointed at or reached by keyboard. */
 .add,
 .choose {
   position: relative;
@@ -185,9 +185,11 @@
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  min-height: 40px;
-  padding: 0 14px;
+  justify-content: center;
+  gap: 0;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 11px;
   border: 0;
   border-radius: var(--r-full);
   background: var(--c-action-strong);
@@ -196,22 +198,49 @@
   font-size: var(--t-label);
   font-weight: 600;
   text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
-  transition: background 150ms var(--ease), transform 150ms var(--ease);
+  transition: background 150ms var(--ease), transform 150ms var(--ease), padding 220ms var(--ease-out), gap 220ms var(--ease-out);
 }
 
-@media (pointer: coarse) { .add, .choose { min-height: var(--tap); } }
+.addLabel {
+  display: inline-block;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-width 220ms var(--ease-out), opacity 160ms var(--ease);
+}
 
-.add:hover, .choose:hover { background: var(--c-action); }
-.add:active { transform: scale(0.97); }
+.add:focus-visible,
+.add:disabled { gap: 5px; padding: 0 14px; }
+
+.add:focus-visible .addLabel,
+.add:disabled .addLabel { max-width: 5em; opacity: 1; }
+
+/* Hover only where hover is real; a tapped card on a phone would otherwise stay open. */
+@media (hover: hover) {
+  .card:hover .add { gap: 5px; padding: 0 14px; }
+  .card:hover .addLabel { max-width: 5em; opacity: 1; }
+}
+
+.add:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+@media (pointer: coarse) { .add, .choose { min-width: var(--tap); height: var(--tap); } }
+
+.add:hover { background: var(--c-action); }
+.add:active { transform: scale(0.94); }
 .add[data-added] { background: var(--c-sage-deep); }
+.add[data-added] svg { animation: tick 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
 .add:disabled { background: var(--c-sunk); color: var(--c-faint); cursor: default; }
 
-.choose { background: var(--c-surface); color: var(--c-ink); box-shadow: inset 0 0 0 1px var(--c-line-mid); }
+.choose { padding: 0 14px; background: var(--c-surface); color: var(--c-ink); box-shadow: inset 0 0 0 1px var(--c-line-mid); }
 .choose:hover { background: var(--c-raised); }
 
+@keyframes tick { from { transform: scale(0.4); } to { transform: none; } }
+
 @media (prefers-reduced-motion: reduce) {
-  .card, .image, .tools, .tool, .add, .choose { transition: none; }
+  .card, .image, .tools, .tool, .add, .choose, .addLabel { transition: none; }
+  .add[data-added] svg { animation: none; }
   .card:hover { transform: none; }
   .card:hover .image { transform: none; }
 }

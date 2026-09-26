@@ -1,58 +1,97 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { Gallery } from '@components/ui/store/Gallery';
-import { DeliveryEstimate } from '@components/ui/store/DeliveryEstimate';
-import { ProductTerms } from '@components/ui/store/ProductTerms';
-import { StockSignal, isBuyable } from '@components/ui/store/StockSignal';
+import { ArrivalTrack } from '@components/ui/store/ArrivalTrack';
+import { FreeDeliveryBar } from '@components/ui/store/FreeDeliveryBar';
+import { StockSignal } from '@components/ui/store/StockSignal';
 import { anyBuyable } from '@hooks/useStoreProducts';
-import { ArrowRightIcon, BasketIcon, CloseIcon, PlusIcon } from '@components/ui/store/icons';
+import { ArrowRightIcon, BasketIcon, CloseIcon, PlusIcon, ReturnIcon } from '@components/ui/store/icons';
 import { useBasket } from '@context/BasketContext';
 import { trackQuickView } from '@lib/analytics';
+import { returnsTerms } from '@lib/storeConfig';
 import { formatGbp } from '@utils/formatGbp';
+import { shopSectionOf } from '@utils/categoryNames';
+import { useCategoryNames } from '@hooks/useCategoryNamesStore';
 import { STORE_ROUTES } from '@utils/constants';
-import { leafOf } from '@utils/categories';
 import styles from '@styles/ui/store/quick-view.module.css';
 
-/*
- * Look without leaving the grid.
- *
- * The point is not the modal, it is that browsing a general store means
- * checking twenty things and buying one. Making each check cost a page load
- * and a scroll back is what turns forty products into eight.
- *
- * It is a summary and a buy button, never a second product page. Anything that
- * needs reading is behind "Full details", because a dialog is the wrong place
- * to make somebody read.
- */
+const FLY_MS = 460;
+const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
+const still = () => typeof window === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Set by the card as it opens the dialog. Safari does not focus a clicked button, so focus cannot be relied on to say where it came from.
+let opener = null;
+export const quickViewFrom = (el) => { opener = el; };
+const cardPhotoOf = (el) => (el instanceof HTMLElement ? el.closest('article')?.querySelector('img') : null);
+
+// A copy of the photograph flown between two boxes above everything, so the dialog and the card never have to share an element.
+function fly(src, from, to, onDone) {
+  const ghost = document.createElement('img');
+  ghost.src = src;
+  ghost.alt = '';
+  ghost.className = styles.ghost;
+  document.body.appendChild(ghost);
+  const box = (r, round, pad) => ({
+    left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px`, borderRadius: round, padding: pad,
+  });
+  const run = ghost.animate([box(from.rect, from.round, from.pad), box(to.rect, to.round, to.pad)], { duration: FLY_MS, easing: EASE, fill: 'forwards' });
+  run.onfinish = () => { ghost.remove(); onDone(); };
+  return () => { run.cancel(); ghost.remove(); };
+}
+
+// Look without leaving the shelf: the product is lifted off its card, and set back down on close.
 export function QuickView({ product, onClose }) {
   const { add } = useBasket();
+  const names = useCategoryNames();
   const [added, setAdded] = useState(false);
+  const [inBasket, setInBasket] = useState(false);
   const [qty, setQty] = useState(1);
+  const [leaving, setLeaving] = useState(false);
+  const leavingRef = useRef(false);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   const panel = useRef(null);
   const closeBtn = useRef(null);
   const returnTo = useRef(null);
+  const origin = useRef(null);
+  const cancelFlight = useRef(null);
+
+  const frameOf = () => panel.current?.querySelector('[data-gallery-frame]');
+
+  // Every way out comes through here, so the photograph always goes back to its card.
+  const requestClose = useCallback(() => {
+    if (leavingRef.current) return;
+    const card = origin.current;
+    const frame = frameOf();
+    if (still() || !card || !frame || !card.isConnected) { closeRef.current(); return; }
+    leavingRef.current = true;
+    setLeaving(true);
+    const img = frame.querySelector('img');
+    frame.style.visibility = 'hidden';
+    cancelFlight.current?.();
+    cancelFlight.current = fly(
+      img?.currentSrc || card.currentSrc,
+      { rect: frame.getBoundingClientRect(), round: '14px', pad: '16px' },
+      { rect: card.getBoundingClientRect(), round: '6px', pad: '0px' },
+      () => { card.style.visibility = ''; closeRef.current(); },
+    );
+  }, []);
 
   useEffect(() => {
     if (!product) return undefined;
+    returnTo.current = opener ?? document.activeElement;
+    closeBtn.current?.focus({ preventScroll: true });
 
-    // Where focus came from, so it goes back there on close. Without this a
-    // keyboard user lands at the top of the document and has to find their
-    // place in the grid again.
-    returnTo.current = document.activeElement;
-    closeBtn.current?.focus();
-
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    // The viewport scrolls, so it is the viewport that is locked, with its scrollbar space kept so the page does not shift.
+    const html = document.documentElement;
+    const before = { overflow: html.style.overflow, gutter: html.style.scrollbarGutter };
+    html.style.overflow = 'hidden';
+    html.style.scrollbarGutter = 'stable';
 
     function onKey(e) {
-      if (e.key === 'Escape') { onClose(); return; }
+      if (e.key === 'Escape') { requestClose(); return; }
       if (e.key !== 'Tab') return;
-
-      // Focus stays inside. A dialog you can tab out of is a dialog that hides
-      // the page behind it while letting you operate it blind.
-      const focusable = panel.current?.querySelectorAll(
-        'a[href], button:not([disabled]), input, [tabindex]:not([tabindex="-1"])',
-      );
+      const focusable = panel.current?.querySelectorAll('a[href], button:not([disabled]), input, [tabindex]:not([tabindex="-1"])');
       if (!focusable?.length) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -63,14 +102,42 @@ export function QuickView({ product, onClose }) {
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = previous;
-      if (returnTo.current instanceof HTMLElement) returnTo.current.focus();
+      html.style.overflow = before.overflow;
+      html.style.scrollbarGutter = before.gutter;
+      opener = null;
+      if (returnTo.current instanceof HTMLElement) returnTo.current.focus({ preventScroll: true });
     };
-  }, [product, onClose]);
+  }, [product?.id, requestClose]);
+
+  // Lift the photograph off the card before the first paint, so the card is never seen empty and the dialog never seen without it.
+  useLayoutEffect(() => {
+    if (!product) return undefined;
+    const card = cardPhotoOf(opener ?? document.activeElement);
+    origin.current = card;
+    const frame = frameOf();
+    if (!card || !frame || still()) return undefined;
+
+    const from = card.getBoundingClientRect();
+    card.style.visibility = 'hidden';
+    frame.style.visibility = 'hidden';
+    cancelFlight.current = fly(
+      card.currentSrc,
+      { rect: from, round: '6px', pad: '0px' },
+      { rect: frame.getBoundingClientRect(), round: '14px', pad: '16px' },
+      () => { frame.style.visibility = ''; },
+    );
+    return () => {
+      cancelFlight.current?.();
+      card.style.visibility = '';
+    };
+  }, [product?.id]);
 
   useEffect(() => {
     setQty(1);
     setAdded(false);
+    setInBasket(false);
+    setLeaving(false);
+    leavingRef.current = false;
     if (product?.id) trackQuickView(product);
   }, [product?.id]);
 
@@ -82,36 +149,24 @@ export function QuickView({ product, onClose }) {
 
   const hasVariants = product.variants?.length > 0;
   const buyable = anyBuyable(product);
-
-  // The cheapest when there are variants, because quick view deliberately does
-  // not carry a chooser and a single figure on a range is a figure that is
-  // wrong for at least one size.
+  // The cheapest when there are variants: quick view carries no chooser, so one figure would be wrong for some sizes.
   const from = hasVariants && product.priceFrom !== product.priceTo;
   const price = hasVariants ? product.priceFrom : Number(product.price);
-  const saving = !hasVariants && product.compare_at != null
-    ? Number(product.compare_at) - price : 0;
-  const leaf = leafOf(product.category_path) ?? product.category;
+  const saving = !hasVariants && product.compare_at != null ? Number(product.compare_at) - price : 0;
+  const returnDays = Number(returnsTerms().days);
+  const section = shopSectionOf(product, names);
+  const productPath = STORE_ROUTES.PRODUCT.replace(':slug', product.slug);
 
   function onAdd() {
-    /*
-     * No chooser here on purpose.
-     *
-     * Quick view is a peek from a grid, and a size chooser inside a modal
-     * inside a grid is three levels of decision in a panel somebody opened to
-     * avoid navigating. A product with variants sends her to the page, which
-     * has the room for it.
-     */
-    // Handled by the button becoming a link instead, so this is unreachable.
-    // Left as a guard rather than removed, because `onAdd` is also wired to the
-    // Enter key on the quantity control.
-    if (hasVariants) return;
+    if (hasVariants || !buyable) return;
     add(product, qty);
     setAdded(true);
+    setInBasket(true);
     setTimeout(() => setAdded(false), 1600);
   }
 
   return (
-    <div className={styles.scrim} onClick={onClose}>
+    <div className={styles.scrim} data-leaving={leaving || undefined} onClick={requestClose}>
       <div
         className={styles.panel}
         ref={panel}
@@ -120,49 +175,41 @@ export function QuickView({ product, onClose }) {
         aria-labelledby="qv-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <button ref={closeBtn} type="button" className={styles.close} onClick={onClose} aria-label="Close">
+        <button ref={closeBtn} type="button" className={styles.close} onClick={requestClose} aria-label="Close">
           <CloseIcon size={18} />
         </button>
 
         <div className={styles.body}>
           <div className={styles.media}>
-            <Gallery images={images} title={product.title} />
+            <Gallery images={images} title={product.title} afterFrame={<span className={styles.board} aria-hidden="true" />} />
           </div>
 
           <div className={styles.detail}>
-            {leaf && <p className={styles.leaf}>{leaf}</p>}
+            {section && <p className={styles.section}>{section}</p>}
             <h2 id="qv-title" className={styles.title}>{product.title}</h2>
 
-            <div className={styles.stockRow}><StockSignal product={product} /></div>
-
-            <p className={styles.priceRow}>
-              {from && <span className={styles.from}>from</span>}
-              <span className={styles.price} data-price>{formatGbp(price)}</span>
-              {saving > 0 && (
-                <>
-                  <span className={styles.was} data-price>{formatGbp(product.compare_at)}</span>
-                  <span className={styles.saving}>Save {formatGbp(saving)}</span>
-                </>
-              )}
-            </p>
+            <div className={styles.priceRow}>
+              <p className={styles.price}>
+                {from && <span className={styles.from}>from</span>}
+                <span data-price>{formatGbp(price)}</span>
+                {saving > 0 && <span className={styles.was} data-price>{formatGbp(product.compare_at)}</span>}
+              </p>
+              <StockSignal product={product} />
+            </div>
 
             <div className={styles.buy}>
-              <div className={styles.qty}>
-                <button type="button" onClick={() => setQty((n) => Math.max(1, n - 1))} disabled={qty === 1} aria-label="One fewer">&minus;</button>
-                <span data-price aria-label={`Quantity ${qty}`}>{qty}</span>
-                <button type="button" onClick={() => setQty((n) => Math.min(20, n + 1))} aria-label="One more">+</button>
-              </div>
+              {!hasVariants && (
+                <div className={styles.qty}>
+                  <button type="button" onClick={() => setQty((n) => Math.max(1, n - 1))} disabled={qty === 1} aria-label="One fewer">&minus;</button>
+                  <span aria-label={`Quantity ${qty}`}>{qty}</span>
+                  <button type="button" onClick={() => setQty((n) => Math.min(20, n + 1))} aria-label="One more">+</button>
+                </div>
+              )}
               {hasVariants ? (
-                /* A link, not a dead button. It said "Choose a size" and did
-                   nothing when pressed, which is worse than a disabled control
-                   because it looks like it should work. */
-                <Link
-                  className={styles.addBtn}
-                  to={STORE_ROUTES.PRODUCT.replace(':slug', product.slug)}
-                  onClick={onClose}
-                >
-                  <PlusIcon size={18} />
+                // A link, not a dead button: the page has the room for a chooser.
+                <Link className={styles.addBtn} to={productPath} onClick={() => closeRef.current()}>
                   <span>Choose a size</span>
+                  <ArrowRightIcon size={17} />
                 </Link>
               ) : (
                 <button
@@ -173,20 +220,24 @@ export function QuickView({ product, onClose }) {
                   disabled={!buyable}
                 >
                   {added ? <BasketIcon size={17} /> : <PlusIcon size={17} />}
-                  <span aria-live="polite">
-                    {!buyable ? 'Out of stock'
-                      : hasVariants ? 'Choose a size'
-                        : added ? 'Added to basket' : 'Add to basket'}
-                  </span>
+                  <span aria-live="polite">{!buyable ? 'Out of stock' : added ? 'Added to basket' : 'Add to basket'}</span>
                 </button>
               )}
             </div>
 
-            <DeliveryEstimate product={product} compact />
+            <div className={styles.delivery}>
+              <ArrivalTrack product={product} />
+              <FreeDeliveryBar pending={inBasket || !buyable || hasVariants ? 0 : price * qty} />
+            </div>
 
-            <ProductTerms product={product} compact />
+            {returnDays > 0 && (
+              <p className={styles.returns}>
+                <ReturnIcon size={16} />
+                {returnDays} {returnDays === 1 ? 'day' : 'days'} to change your mind.
+              </p>
+            )}
 
-            <Link className={styles.full} to={STORE_ROUTES.PRODUCT.replace(':slug', product.slug)} onClick={onClose}>
+            <Link className={styles.full} to={productPath} onClick={() => closeRef.current()}>
               Full details <ArrowRightIcon size={15} />
             </Link>
           </div>

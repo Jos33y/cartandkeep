@@ -1,155 +1,227 @@
+/* A product lifted off the shelf: the left half is still the cupboard, the right half says what it costs and when it arrives. */
+
 .scrim {
   position: fixed;
   inset: 0;
   z-index: var(--z-modal);
-  background: rgba(30, 28, 25, 0.5);
+  background: color-mix(in srgb, var(--c-ink-deep) 52%, transparent);
   display: grid;
   place-items: end center;
-  animation: fade 180ms var(--ease) both;
+  animation: fade 200ms var(--ease) both;
 }
 
 @media (min-width: 760px) { .scrim { place-items: center; padding: var(--s-5); } }
 
+.scrim[data-leaving] { animation: fadeOut 300ms var(--ease) both; }
+
 .panel {
   position: relative;
   width: 100%;
-  max-width: 900px;
+  max-width: 980px;
   max-height: 92dvh;
   overflow-y: auto;
   background: var(--c-base);
   border-radius: var(--r-card) var(--r-card) 0 0;
-  animation: rise 240ms var(--ease) both;
+  box-shadow: var(--e-3);
+  animation: rise 260ms var(--ease-out) both;
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @media (min-width: 760px) {
-  .panel { border-radius: var(--r-card); max-height: 86dvh; animation-name: pop; }
+  .panel { border-radius: 18px; max-height: 88dvh; animation-name: pop; }
+}
+
+.scrim[data-leaving] .panel { animation: popOut 300ms var(--ease) both; }
+
+/* The photograph in flight between the card and the dialog. */
+.ghost {
+  position: fixed;
+  z-index: calc(var(--z-modal) + 1);
+  box-sizing: border-box;
+  object-fit: contain;
+  background: var(--c-surface);
+  box-shadow: var(--e-3);
+  pointer-events: none;
 }
 
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
 @keyframes rise { from { transform: translateY(24px); } to { transform: none; } }
-@keyframes pop { from { transform: scale(0.98); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes pop { from { transform: scale(0.97); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes popOut { from { transform: none; opacity: 1; } to { transform: scale(0.98); opacity: 0; } }
 
 .close {
   position: absolute;
   top: var(--s-3);
   right: var(--s-3);
-  z-index: 2;
-  width: 38px;
-  height: 38px;
+  z-index: 3;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--c-surface);
   border: 1px solid var(--c-line);
+  box-shadow: var(--e-1);
   color: var(--c-ink);
   display: grid;
   place-items: center;
+  transition: border-color 150ms var(--ease), transform 150ms var(--ease);
 }
 
-.close:hover { border-color: var(--c-line-mid); }
+.close:hover { border-color: var(--c-line-mid); transform: rotate(90deg); }
+.close:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
 
-.body { display: grid; grid-template-columns: 1fr; gap: var(--s-5); padding: var(--s-5); }
+.body { display: grid; grid-template-columns: minmax(0, 1fr); }
 
 @media (min-width: 760px) {
-  .body { grid-template-columns: 1fr 1fr; gap: var(--s-6); padding: var(--s-6); }
+  .body { grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr); min-height: 100%; }
 }
 
-.media { min-width: 0; }
-.detail { display: flex; flex-direction: column; min-width: 0; }
+/* The cupboard: the same shaded back as the home shelves, with the photograph standing on a board. */
+.media {
+  --gallery-ground: var(--c-shelf-back);
+  min-width: 0;
+  padding: var(--s-6) var(--s-4) var(--s-4);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c-shelf-back) 90%, var(--c-ink-deep)) 0, var(--c-shelf-back) 44px);
+}
 
-.leaf { font-size: var(--t-caption); color: var(--c-faint); margin-bottom: var(--s-2); }
+@media (min-width: 760px) {
+  .media { display: flex; flex-direction: column; justify-content: center; padding: var(--s-7) var(--s-6) var(--s-5); }
+}
+
+/* Pulled up by the gallery's gap, so the frame stands on it rather than above it. */
+.board {
+  display: block;
+  height: 12px;
+  margin: calc(var(--s-3) * -1) calc(var(--s-4) * -1) var(--s-1);
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--c-sage-deep) 0 4px, var(--c-wood-dark) 4px);
+  box-shadow: 0 12px 16px -12px color-mix(in srgb, var(--c-ink-deep) 55%, transparent);
+}
+
+@media (min-width: 760px) { .board { height: 14px; margin-left: calc(var(--s-6) * -1); margin-right: calc(var(--s-6) * -1); border-radius: 0; } }
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--s-5) var(--s-4) var(--s-5);
+}
+
+@media (min-width: 760px) { .detail { padding: var(--s-7) var(--s-6) var(--s-5); } }
+
+.section {
+  margin-bottom: var(--s-2);
+  font-size: var(--t-caption);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--c-sage-deep);
+}
 
 .title {
-  font-size: 1.25rem;
+  padding-right: var(--s-6);
+  font-size: 1.3125rem;
   font-weight: 500;
   line-height: 1.3;
   letter-spacing: -0.012em;
   color: var(--c-ink);
 }
 
-.stockRow { margin-top: var(--s-3); }
-
-.priceRow { margin-top: var(--s-3); display: flex; align-items: baseline; gap: var(--s-3); flex-wrap: wrap; }
-/* The prefix on a price that is a range. Quick view carries no chooser, so on
-   a product with variants this is always shown rather than sometimes. */
-.from { font-size: var(--t-caption); font-weight: 400; color: var(--c-faint); }
-
-.price { font-size: 1.625rem; }
-.was { font-size: var(--t-body); color: var(--c-faint); text-decoration: line-through; }
-
-.saving {
-  font-size: var(--t-caption);
-  font-weight: 500;
-  color: #6b4f14;
-  background: var(--c-gold-wash);
-  border: 1px solid var(--c-gold-line);
-  border-radius: 5px;
-  padding: 3px 8px;
+.priceRow {
+  margin-top: var(--s-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
 }
+
+.price { display: flex; align-items: baseline; gap: var(--s-2); font-size: 1.875rem; color: var(--c-ink); }
+.from { font-size: var(--t-caption); color: var(--c-faint); }
+.was { font-size: var(--t-body); color: var(--c-faint); text-decoration: line-through; }
 
 .buy { margin-top: var(--s-4); display: flex; gap: var(--s-2); }
 
 .qty {
   display: flex;
   align-items: center;
+  flex: none;
   border: 1px solid var(--c-line-mid);
   border-radius: var(--r-control);
   background: var(--c-surface);
-  flex: none;
 }
 
-.qty button { width: 42px; height: 48px; font-size: 1.0625rem; color: var(--c-ink); }
+.qty button { width: 42px; height: 50px; font-size: 1.0625rem; color: var(--c-ink); }
 .qty button:disabled { color: var(--c-line-mid); cursor: default; }
-.qty span { min-width: 26px; text-align: center; }
+.qty span { min-width: 26px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
 
 .addBtn {
   flex: 1;
-  min-height: 48px;
+  min-height: 50px;
   padding: 0 var(--s-4);
   border-radius: var(--r-control);
   background: var(--c-action-strong);
-  color: #fff;
+  color: var(--c-on-action);
   font-size: 0.9375rem;
-  font-weight: 500;
+  font-weight: 600;
+  text-decoration: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--s-2);
-  transition: background 150ms var(--ease);
+  transition: background 150ms var(--ease), transform 150ms var(--ease);
 }
 
-.addBtn:hover { background: #a94f34; }
+.addBtn:hover { background: var(--c-action-text); }
+.addBtn:active { transform: scale(0.98); }
+.addBtn:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
 .addBtn[data-added] { background: var(--c-sage-deep); }
+.addBtn:disabled { background: var(--c-sunk); color: var(--c-faint); cursor: default; }
 
-.promises {
-  margin-top: var(--s-4);
-  padding-top: var(--s-4);
-  border-top: 1px solid var(--c-line);
-  list-style: none;
+/* Delivery, once: when it arrives and what it costs, in one card. */
+.delivery {
+  margin-top: var(--s-5);
   display: flex;
   flex-direction: column;
-  gap: var(--s-2);
+  gap: var(--s-4);
+  padding: var(--s-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  background: var(--c-surface);
 }
 
-.promises li { display: flex; gap: var(--s-3); align-items: center; }
-.promises svg { flex: none; color: var(--c-sage-deep); }
-.promises span { font-size: 0.84375rem; color: var(--c-ink-soft); }
+.returns {
+  margin-top: var(--s-4);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+}
+
+.returns svg { flex: none; color: var(--c-sage-deep); }
 
 .full {
-  margin-top: var(--s-4);
+  margin-top: var(--s-2);
+  align-self: flex-start;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   min-height: var(--tap);
   font-size: var(--t-label);
-  font-weight: 500;
-  color: var(--c-action-text);
+  font-weight: 600;
+  color: var(--c-ink);
   text-decoration: none;
 }
 
+.full { text-underline-offset: 4px; }
+.full:hover { text-decoration: underline; text-decoration-color: var(--c-sage-deep); }
 .full svg { transition: transform 160ms var(--ease); }
 .full:hover svg { transform: translateX(3px); }
+.full:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; border-radius: 4px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .scrim, .panel { animation: none; }
-  .addBtn, .full svg { transition: none; }
+  .scrim, .panel, .scrim[data-leaving], .scrim[data-leaving] .panel { animation: none; }
+  .addBtn, .full svg, .close { transition: none; }
+  .close:hover { transform: none; }
 }
+

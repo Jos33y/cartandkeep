@@ -4,18 +4,19 @@ import { useBasket } from '@context/BasketContext';
 import { useSaved } from '@hooks/useSaved';
 import { useCategoryNames } from '@hooks/useCategoryNamesStore';
 import { StockSignal } from '@components/ui/store/StockSignal';
+import { quickViewFrom } from '@components/ui/store/QuickView';
 import { anyBuyable } from '@hooks/useStoreProducts';
-import { imageAt, sectionOf } from '@utils/categories';
-import { displayName } from '@utils/categoryNames';
+import { imageAt } from '@utils/categories';
+import { shopSectionOf } from '@utils/categoryNames';
 import { formatGbp } from '@utils/formatGbp';
 import { STORE_ROUTES } from '@utils/constants';
-import { BasketIcon, HeartIcon, PlusIcon, SearchIcon } from '@components/ui/store/icons';
+import { CheckIcon, EyeIcon, HeartIcon, PlusIcon } from '@components/ui/store/icons';
 import styles from '@styles/ui/store/product-card.module.css';
 
 const productPath = (slug) => STORE_ROUTES.PRODUCT.replace(':slug', slug);
 
 // An article, not a link: buttons cannot live inside an anchor. The title's link stretches over the card instead.
-export function ProductCard({ product, index = 0, onQuickView }) {
+export function ProductCard({ product, index = 0, onQuickView, shelfName = null }) {
   const { add } = useBasket();
   const { has, toggle } = useSaved();
   const names = useCategoryNames();
@@ -24,8 +25,9 @@ export function ProductCard({ product, index = 0, onQuickView }) {
 
   const image = imageAt(product.image_url, 500);
   const image2x = imageAt(product.image_url, 800);
-  const section = sectionOf(product);
-  const sectionName = section ? displayName(section, names) : null;
+  // Hidden on a shelf that already carries the same name.
+  const own = shopSectionOf(product, names);
+  const sectionName = own && own !== shelfName ? own : null;
   const hasVariants = product.variants?.length > 0;
   const buyable = anyBuyable(product);
   const saved = has(product.id);
@@ -35,9 +37,6 @@ export function ProductCard({ product, index = 0, onQuickView }) {
     : null;
   const from = hasVariants && product.priceFrom !== product.priceTo;
   const shown = hasVariants ? product.priceFrom : Number(product.price);
-
-  const lowOrUnusual = (product.availability && product.availability !== 'in_stock')
-    || (Number.isFinite(product.stock) && product.stock > 0 && product.stock <= 5);
 
   function onAdd() {
     if (!buyable || hasVariants) return;
@@ -68,8 +67,8 @@ export function ProductCard({ product, index = 0, onQuickView }) {
 
         <div className={styles.tools}>
           {onQuickView && (
-            <button type="button" className={styles.tool} data-look aria-label={`Quick look at ${product.title}`} onClick={() => onQuickView(product)}>
-              <SearchIcon size={16} />
+            <button type="button" className={styles.tool} data-look title="Quick look" aria-label={`Quick look at ${product.title}`} onClick={(e) => { quickViewFrom(e.currentTarget); onQuickView(product); }}>
+              <EyeIcon size={17} />
             </button>
           )}
           <button
@@ -93,7 +92,7 @@ export function ProductCard({ product, index = 0, onQuickView }) {
 
         {/* The line is reserved whether or not it has anything to say, so every card in a row is the same height. */}
         <div className={styles.signal}>
-          {lowOrUnusual ? <StockSignal product={product} size="small" /> : null}
+          <StockSignal product={product} size="small" />
         </div>
 
         <div className={styles.foot}>
@@ -114,8 +113,8 @@ export function ProductCard({ product, index = 0, onQuickView }) {
               data-added={added || undefined}
               aria-label={buyable ? `Add ${product.title} to basket` : `${product.title} is out of stock`}
             >
-              {added ? <BasketIcon size={16} /> : <PlusIcon size={16} />}
-              <span aria-live="polite">{!buyable ? 'Sold out' : added ? 'Added' : 'Add'}</span>
+              {added ? <CheckIcon size={16} /> : <PlusIcon size={16} />}
+              <span className={styles.addLabel} aria-live="polite">{!buyable ? 'Sold out' : added ? 'Added' : 'Add'}</span>
             </button>
           )}
         </div>

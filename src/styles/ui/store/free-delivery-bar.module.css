@@ -1,0 +1,48 @@
+/* Solid is already in the basket; the lighter, striped run is this product, before it goes in. */
+
+.wrap { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.words {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-ink);
+}
+
+.wrap[data-free] .words { color: var(--c-sage-deep); }
+
+.cost { margin-left: auto; font-size: var(--t-caption); font-weight: 400; color: var(--c-ink-soft); }
+
+.bar {
+  position: relative;
+  height: 8px;
+  border-radius: var(--r-full);
+  background: color-mix(in srgb, var(--c-sage-deep) 14%, var(--c-surface));
+  overflow: hidden;
+}
+
+.basket,
+.pending {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  transition: width 520ms var(--ease-out), left 520ms var(--ease-out);
+}
+
+.basket { left: 0; border-radius: var(--r-full); background: var(--c-sage-deep); }
+
+.pending {
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--c-sage-deep) 55%, transparent) 0 4px,
+    color-mix(in srgb, var(--c-sage-deep) 30%, transparent) 4px 8px
+  );
+  border-radius: 0 var(--r-full) var(--r-full) 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .basket, .pending { transition: none; }
+}

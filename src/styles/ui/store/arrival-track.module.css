@@ -1,0 +1,75 @@
+/* Three stops on one drawn route. The route draws itself once; nothing on it claims progress that has not happened. */
+
+.track { position: relative; }
+
+.estimate {
+  align-self: flex-start;
+  margin-top: var(--s-1);
+  padding: 1px 8px;
+  border-radius: var(--r-full);
+  border: 1px dashed var(--c-line-strong);
+  color: var(--c-ink-soft);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  cursor: help;
+}
+
+ol.stops {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: var(--s-3);
+}
+
+.stop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* The route: from the centre of this stop's mark to the next one, drawn left to right. */
+.stop:not([data-last])::after {
+  content: '';
+  position: absolute;
+  top: 19px;
+  left: 44px;
+  right: calc(var(--s-3) * -1 + 4px);
+  height: 2px;
+  background-image: linear-gradient(to right, var(--c-sage-deep) 55%, transparent 0);
+  background-size: 8px 2px;
+  transform-origin: left center;
+  animation: route 520ms var(--ease-out) calc(160ms + var(--i) * 260ms) both;
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: var(--s-2);
+  border-radius: 50%;
+  background: var(--c-surface);
+  box-shadow: inset 0 0 0 1.5px var(--c-sage-deep);
+  color: var(--c-sage-deep);
+  animation: stop 380ms cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--i) * 260ms) both;
+}
+
+.mark svg { stroke-width: 2; }
+
+/* The destination is the one that answers the question, so it is the filled one. */
+.stop[data-last] .mark { background: var(--c-sage-deep); color: var(--c-on-dark); }
+
+.title { font-size: var(--t-label); font-weight: 600; color: var(--c-ink); }
+.day { font-size: var(--t-caption); line-height: 1.35; color: var(--c-ink-soft); }
+.stop[data-last] .day { color: var(--c-ink); font-weight: 500; }
+
+@keyframes route { from { transform: scaleX(0); } to { transform: none; } }
+@keyframes stop { from { transform: scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .stop::after, .mark { animation: none; }
+}

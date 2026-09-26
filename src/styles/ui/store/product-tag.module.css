@@ -1,0 +1,78 @@
+/* A luggage tag: chamfered at the hole end, with a stub marked off by a perforation. */
+
+.tag {
+  position: relative;
+  margin-top: var(--s-4);
+  filter: drop-shadow(0 1px 1px color-mix(in srgb, var(--c-ink-deep) 8%, transparent))
+    drop-shadow(0 8px 14px color-mix(in srgb, var(--c-ink-deep) 8%, transparent));
+  transform: rotate(-0.6deg);
+  transform-origin: left center;
+  animation: swing 900ms cubic-bezier(0.34, 1.56, 0.64, 1) 200ms both;
+}
+
+.card {
+  position: relative;
+  padding: var(--s-4) var(--s-4) var(--s-4) 54px;
+  background: var(--c-surface);
+  clip-path: polygon(22px 0, 100% 0, 100% 100%, 22px 100%, 0 calc(100% - 22px), 0 22px);
+}
+
+.hole {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--c-base);
+  box-shadow: inset 0 0 0 1.5px var(--c-line-mid), 0 0 0 4px color-mix(in srgb, var(--c-sage-deep) 16%, transparent);
+}
+
+/* The stub: a torn line between the hole and the facts. */
+.card::before {
+  content: '';
+  position: absolute;
+  left: 42px;
+  top: 10px;
+  bottom: 10px;
+  border-left: 2px dotted var(--c-line-mid);
+}
+
+.facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3) var(--s-5);
+}
+
+.fact { min-width: 0; }
+
+@media (min-width: 900px) {
+  .card { padding-right: var(--s-5); }
+  .facts { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+}
+
+.fact dt {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-faint);
+}
+
+.fact dd {
+  margin: 2px 0 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--c-ink);
+  overflow-wrap: anywhere;
+}
+
+@keyframes swing {
+  from { opacity: 0; transform: rotate(-5deg) translateY(-6px); }
+  to { opacity: 1; transform: rotate(-0.6deg); }
+}
+
+@media (prefers-reduced-motion: reduce) { .tag { animation: none; } }

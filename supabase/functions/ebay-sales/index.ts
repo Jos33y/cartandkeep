@@ -96,12 +96,52 @@ function statusOf(o: Record<string, never>) {
   return refunds ? 'refunded' : 'paid';
 }
 
+// Two callers: the 8am schedule with the service key, or a signed-in member of this tenant. Anyone else is refused.
+async function callerOf(req: Request, tenantId: string): Promise<'schedule' | 'portal' | null> {
+  const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
+  if (!token) return null;
+  if (token === env('SUPABASE_SERVICE_ROLE_KEY')) return 'schedule';
+  const asUser = createClient(env('SUPABASE_URL'), env('SUPABASE_ANON_KEY'), {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false },
+  });
+  const { data, error } = await asUser.rpc('has_tenant', { t: tenantId });
+  return !error && data === true ? 'portal' : null;
+}
+
+// Every run is written down, so the morning check and the pages know when figures last arrived.
+async function beginPull(tenantId: string, source: string, startedBy: string) {
+  const { data, error } = await db()
+    .from('data_pulls')
+    .insert({ tenant_id: tenantId, source, started_by: startedBy })
+    .select('id')
+    .single();
+  if (error) console.error(`[${source}] run not recorded`, error.message);
+  return data?.id ?? null;
+}
+
+async function endPull(id: string | null, ok: boolean, error: string | null, summary: unknown) {
+  if (!id) return;
+  const { error: e } = await db()
+    .from('data_pulls')
+    .update({ finished_at: new Date().toISOString(), ok, error, summary })
+    .eq('id', id);
+  if (e) console.error('[pull] result not recorded', e.message);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
+  let body: { tenant_id?: string; days?: number };
+  try { body = await req.json(); } catch { return json({ error: 'Bad body' }, 400); }
+  const { tenant_id: tenantId, days = MAX_DAYS } = body;
+  if (!tenantId) return json({ error: 'tenant_id is required' }, 400);
+
+  const caller = await callerOf(req, tenantId);
+  if (!caller) return json({ error: 'Not authorised' }, 401);
+  const run = await beginPull(tenantId, 'ebay_sales', caller);
+
   try {
-    const { tenant_id: tenantId, days = MAX_DAYS } = await req.json();
-    if (!tenantId) return json({ error: 'tenant_id is required' }, 400);
 
     const asked = Math.max(Number(days) || MAX_DAYS, 1);
     const span = Math.min(asked, MAX_DAYS);
@@ -186,16 +226,16 @@ Deno.serve(async (req) => {
           .eq('tenant_id', tenantId)
           .eq('channel', 'ebay')
           .in('external_ref', refs.slice(i, i + 200));
-        if (error) return json({ error: error.message }, 500);
+        if (error) throw new Error(error.message);
       }
 
       for (let i = 0; i < rows.length; i += 500) {
         const { error } = await client.from('channel_sales').insert(rows.slice(i, i + 500));
-        if (error) return json({ error: error.message }, 500);
+        if (error) throw new Error(error.message);
       }
     }
 
-    return json({
+    const result = {
       orders: refs.length,
       lines: rows.length,
       matched: rows.filter((r) => r.product_id).length,
@@ -204,8 +244,12 @@ Deno.serve(async (req) => {
       // Said rather than silently returned short, so a thin month is not read
       // as a quiet week.
       clipped: asked > span ? `asked for ${asked} days, eBay only reaches back ${MAX_DAYS}` : null,
-    });
+    };
+    await endPull(run, true, null, result);
+    return json(result);
   } catch (err) {
-    return json({ error: err instanceof Error ? err.message : String(err) }, 500);
+    const message = err instanceof Error ? err.message : String(err);
+    await endPull(run, false, message, null);
+    return json({ error: message }, 500);
   }
 });

@@ -1,6 +1,5 @@
 import { Link } from 'react-router';
-import { formatGbp } from '@utils/formatGbp';
-import { freeOver, postage, returnsTerms, storeConfig } from '@lib/storeConfig';
+import { returnsTerms } from '@lib/storeConfig';
 import styles from '@styles/ui/store/product-terms.module.css';
 
 /*
@@ -47,55 +46,23 @@ function Row({ label, value, note }) {
   );
 }
 
-export function ProductTerms({ product, compact = false }) {
-  const price = Number(product.price);
-  const threshold = freeOver();
-  const free = price >= threshold;
+// Returns and payment. Delivery is said once, by the delivery card above the button.
+export function ProductTerms({ product }) {
   const returns = returnsFor(product.returns_class);
-  const cutoff = storeConfig().delivery.cutoffHour ?? 14;
-  const cutoffLabel = cutoff === 12 ? '12pm' : cutoff > 12 ? `${cutoff - 12}pm` : `${cutoff}am`;
-
-  // Only what is known. A dispatch claim on a product with no dispatch figure
-  // behind it is the same fault as the returns sentence, one field along.
-  const dispatch = product.dispatch_days;
 
   return (
-    <dl className={styles.terms} data-compact={compact || undefined}>
-      <Row
-        label="Delivery"
-        value={free ? 'Free, UK' : `${formatGbp(postage())}, UK`}
-        note={free ? null : `Free from ${formatGbp(threshold)}`}
-      />
+    <dl className={styles.terms}>
+      <Row label="Returns" value={returns.value} note={product.returns_note ?? returns.detail} />
 
-      {dispatch != null && (
-        <Row
-          label="Dispatch"
-          value={dispatch === 0 ? 'Same day' : `${dispatch} working ${dispatch === 1 ? 'day' : 'days'}`}
-          note={dispatch === 0 ? `Ordered before ${cutoffLabel}` : null}
-        />
-      )}
+      <div className={styles.row}>
+        <dt className={styles.label}>Payment</dt>
+        <dd className={styles.value}>Card or Apple Pay, taken by Stripe</dd>
+      </div>
 
-      <Row
-        label="Returns"
-        value={returns.value}
-        note={compact ? null : (product.returns_note ?? returns.detail)}
-      />
-
-      {!compact && (
-        <div className={styles.row}>
-          <dt className={styles.label}>Payment</dt>
-          <dd className={styles.value}>
-            Card or Apple Pay, taken by Stripe
-          </dd>
-        </div>
-      )}
-
-      {!compact && (
-        <p className={styles.statutory}>
-          Faulty or not as described? Your rights under the Consumer Rights Act
-          2015 apply whatever it says above. <Link to="/legal/returns">Full terms</Link>
-        </p>
-      )}
+      <p className={styles.statutory}>
+        Faulty or not as described? Your rights under the Consumer Rights Act
+        2015 apply whatever it says above. <Link to="/legal/returns">Full terms</Link>
+      </p>
     </dl>
   );
 }

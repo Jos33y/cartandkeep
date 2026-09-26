@@ -38,6 +38,13 @@ export const SearchIcon = (p) => (
   <Icon {...p}><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.6-3.6" /></Icon>
 );
 
+export const EyeIcon = (p) => (
+  <Icon {...p}>
+    <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+    <circle cx="12" cy="12" r="3" />
+  </Icon>
+);
+
 export const BasketIcon = (p) => (
   <Icon {...p}>
     <path d="M4 8h16l-1.6 11.2a2 2 0 0 1-2 1.8H7.6a2 2 0 0 1-2-1.8L4 8Z" />

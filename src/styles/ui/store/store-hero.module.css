@@ -75,6 +75,12 @@
 
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); margin-top: var(--s-5); }
 
+/* Stacked on a phone, so both buttons share both edges. */
+@media (max-width: 479px) {
+  .actions { flex-direction: column; align-items: stretch; }
+  .primary, .secondary { justify-content: center; }
+}
+
 .primary {
   display: inline-flex;
   align-items: center;

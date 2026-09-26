@@ -83,3 +83,26 @@ export function hiddenSpecs(specifications) {
     Object.entries(specifications ?? {}).filter(([k]) => isHiddenSpec(k)),
   );
 }
+
+// The facts that decide a purchase, in the order a buyer asks them. Her labels are kept as written.
+const TAG_ORDER = [
+  /\b(dimensions?|size)\b/i,
+  /\bweight\b/i,
+  /\bmaterials?\b/i,
+  /\b(capacity|load)\b/i,
+  /\b(compatib\w*|fits|suitable for)\b/i,
+  /\bcolou?r\b/i,
+  /^type$/i,
+];
+
+export function tagFacts(specifications, { max = 4, longest = 32 } = {}) {
+  const rows = visibleSpecs(specifications).filter(([, v]) => v.length <= longest);
+  const picked = [];
+  for (const pattern of TAG_ORDER) {
+    const hit = rows.find(([k]) => pattern.test(k) && !picked.some(([p]) => p === k));
+    if (hit) picked.push(hit);
+    if (picked.length === max) break;
+  }
+  // One fact is not a label; the table below already carries it.
+  return picked.length >= 2 ? picked : [];
+}

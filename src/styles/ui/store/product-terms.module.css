@@ -51,10 +51,4 @@
   color: var(--c-faint);
 }
 
-.statutory a { color: var(--c-action-text); text-decoration: underline; text-underline-offset: 2px; }
-
-/* In a quick view there is no room for the detail lines and no reason for
-   them: the full page is one tap away and says so. */
-.terms[data-compact] { margin-top: var(--s-4); }
-.terms[data-compact] .row { grid-template-columns: 76px 1fr; padding: var(--s-2) 0; }
-.terms[data-compact] .value { font-size: 0.875rem; }
+.statutory a { color: var(--c-ink); text-decoration: underline; text-decoration-color: var(--c-sage-deep); text-underline-offset: 3px; }

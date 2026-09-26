@@ -80,6 +80,21 @@ const GLYPHS = {
       <path d="M16 12l16 8" />
     </>
   ),
+  basket: (
+    <>
+      <path d="M7 19h34l-4 20a3 3 0 0 1-3 2H14a3 3 0 0 1-3-2z" />
+      <path d="M16 19l6-11M32 19l-6-11" />
+      <path d="M18 26v9M24 26v9M30 26v9" />
+    </>
+  ),
+  door: (
+    <>
+      <path d="M14 41V9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v32" />
+      <path d="M8 41h32" />
+      <path d="M29 25v2" />
+      <path d="M19 13h10v8H19z" />
+    </>
+  ),
 };
 
 const MATCH = [

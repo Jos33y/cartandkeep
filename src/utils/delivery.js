@@ -118,6 +118,7 @@ export function deliveryEstimate(dispatchDays, now = new Date(), times = timings
 
   return {
     known,
+    today,
     leaves,
     from: addWorkingDays(leaves, transitMin),
     to: addWorkingDays(leaves, transitMax),
@@ -150,6 +151,15 @@ export function deliveryLabel(estimate) {
     return `Arrives ${formatDeliveryDay(from, { withDate: false })} or ${formatDeliveryDay(to)}`;
   }
   return `Arrives between ${formatDeliveryDay(from)} and ${formatDeliveryDay(to)}`;
+}
+
+// Tuesday 29 or Wednesday 30 September: the month once when both days share it.
+export function arrivalDays({ from, to }) {
+  if (from === to) return formatDeliveryDay(from);
+  const first = formatDeliveryDay(from);
+  return from.slice(0, 7) === to.slice(0, 7)
+    ? `${first.replace(/ \S+$/, '')} or ${formatDeliveryDay(to)}`
+    : `${first} or ${formatDeliveryDay(to)}`;
 }
 
 export function dispatchLabel(estimate, now = new Date()) {

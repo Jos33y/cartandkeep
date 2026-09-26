@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { BasketIcon } from '@components/ui/store/icons';
-import { formatGbp } from '@utils/formatGbp';
 import styles from '@styles/layout/store/basket-ring.module.css';
 
 const R = 19;
@@ -10,7 +9,6 @@ const C = 2 * Math.PI * R;
 export function BasketRing({ count, subtotal, threshold, label = true }) {
   const share = threshold > 0 ? Math.min(1, subtotal / threshold) : 0;
   const unlocked = count > 0 && share >= 1;
-  const toGo = Math.max(0, threshold - subtotal);
 
   // A one-off pulse at the moment the threshold is crossed, and not on every render after.
   const was = useRef(unlocked);
@@ -20,7 +18,8 @@ export function BasketRing({ count, subtotal, threshold, label = true }) {
     was.current = unlocked;
   }, [unlocked]);
 
-  const words = count === 0 ? 'Basket' : unlocked ? 'Free delivery' : `${formatGbp(toGo)} to go`;
+  // The words stay 'Basket': the announcement bar already says how far to free delivery.
+  const words = 'Basket';
 
   return (
     <span className={styles.wrap} data-unlocked={unlocked || undefined}>

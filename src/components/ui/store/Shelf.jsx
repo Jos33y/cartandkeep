@@ -114,7 +114,7 @@ export function Shelf({ group, limit = 8, onQuickView }) {
         <ul className={styles.rail} ref={rail}>
           {items.map((product, i) => (
             <li key={product.id} className={styles.cell}>
-              <ProductCard product={product} index={i} onQuickView={onQuickView} />
+              <ProductCard product={product} index={i} onQuickView={onQuickView} shelfName={group.name} />
             </li>
           ))}
           {more > 0 && routed && (

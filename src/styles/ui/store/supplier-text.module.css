@@ -1,37 +1,51 @@
-/* Set apart from her own copy on purpose. A quiet warm panel says these are
-   somebody else's words without making them look like a warning. */
+/* Somebody else's words, set apart in a quiet warm panel so they read as theirs without looking like a warning. */
 
 .section {
-  margin-top: var(--s-5);
-  padding: var(--s-4);
+  padding: var(--s-4) var(--s-5);
   background: var(--c-warm);
   border: 1px solid var(--c-line);
   border-radius: var(--r-card);
 }
 
 .head {
+  margin-bottom: var(--s-3);
   font-size: var(--t-label);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--c-faint);
-  margin-bottom: var(--s-3);
 }
 
-.body {
+/* ul. outranks the reset's ul[class] padding. */
+ul.lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+ul.lines li {
   font-size: 0.875rem;
-  line-height: 1.62;
+  line-height: 1.55;
   color: var(--c-ink-soft);
-  white-space: pre-line;
   overflow-wrap: anywhere;
 }
 
+.key { font-weight: 600; color: var(--c-ink); }
+
 .more {
   margin-top: var(--s-2);
-  min-height: 36px;
+  min-height: var(--tap);
   font-size: var(--t-label);
-  font-weight: 500;
-  color: var(--c-action-text);
+  font-weight: 600;
+  color: var(--c-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--c-sage-deep);
+  text-underline-offset: 4px;
 }
+
+.more:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; border-radius: 4px; }
 
 .note { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--c-faint); }

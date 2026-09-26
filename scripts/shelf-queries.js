@@ -231,7 +231,8 @@ function words (name) {
     .replace(/[^a-z0-9 ]+/g, ' ')
     .split(/\s+/)
     .filter(Boolean)
-    .filter(w => !JOINERS.has(w) && !COLOURS.has(w))
+    // A lone letter is what an apostrophe leaves behind: "Children's" drafted "s toilet frame".
+    .filter(w => !JOINERS.has(w) && !COLOURS.has(w) && (w.length > 1 || /\d/.test(w)))
 }
 
 const refused = { done: 0, sized: 0, price: 0, capped: 0, stock: 0, short: 0 }

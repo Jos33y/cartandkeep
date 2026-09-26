@@ -1,3 +1,5 @@
+/* Holding the product and reading its label: the photo stands in the cupboard, the decision sits on one card, the reference waits below. */
+
 .page { display: flex; flex-direction: column; padding-bottom: var(--s-8); }
 
 .wrap {
@@ -13,44 +15,56 @@
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  flex-wrap: wrap;
+  min-width: 0;
   padding: var(--s-5) 0;
   font-size: var(--t-caption);
   color: var(--c-faint);
 }
 
-.crumbs a { color: var(--c-ink-soft); }
+.crumbs a { flex: none; color: var(--c-ink-soft); }
 .crumbs a:hover { color: var(--c-ink); }
-.crumbs svg { color: var(--c-line-mid); }
+.crumbs svg { flex: none; color: var(--c-line-mid); }
+/* The current page is the product: one line, cut with an ellipsis, never wrapping the trail. */
+.crumbHere { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
-.top { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); }
+.top { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); }
 
 @media (min-width: 900px) {
-  /* minmax(0, 1fr), not 1fr. A bare 1fr has min-width auto, so the twelve
-     thumbnail row set the gallery column's minimum to its own content width
-     and squeezed the detail column to about 245px, which is what wrapped the
-     buy button onto two lines. */
-  .top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-7); align-items: start; }
-  /* The gallery stays while the detail column scrolls, because on a desktop
-     the description can run past the fold and a buyer should not lose sight of
-     what they are reading about. */
-  .top > :first-child { position: sticky; top: calc(var(--bar-h) + var(--s-4)); }
+  .top { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: var(--s-7); align-items: start; }
+  /* The photo stays in view while the decision column scrolls. */
+  .media { position: sticky; top: calc(var(--bar-h) + var(--s-4)); }
+}
+
+/* The cupboard: the shaded back of the home shelves, the photo standing on a board. */
+.media {
+  --gallery-ground: var(--c-shelf-back);
+  min-width: 0;
+  padding: var(--s-5) var(--s-4) var(--s-4);
+  border-radius: var(--r-card);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c-shelf-back) 90%, var(--c-ink-deep)) 0, var(--c-shelf-back) 44px);
+  box-shadow: inset 6px 0 0 var(--c-sage-deep);
+}
+
+@media (min-width: 900px) { .media { padding: var(--s-6) var(--s-6) var(--s-5); } }
+
+.board {
+  display: block;
+  height: 12px;
+  margin: calc(var(--s-3) * -1) calc(var(--s-4) * -1) var(--s-1);
+  background: linear-gradient(180deg, var(--c-sage-deep) 0 4px, var(--c-wood-dark) 4px);
+  box-shadow: 0 12px 16px -12px color-mix(in srgb, var(--c-ink-deep) 55%, transparent);
+}
+
+@media (min-width: 900px) {
+  .board { height: 14px; margin-left: calc(var(--s-6) * -1); margin-right: calc(var(--s-6) * -1); }
 }
 
 .detail { display: flex; flex-direction: column; min-width: 0; }
 
-.eyebrow {
-  font-size: var(--t-caption);
-  color: var(--c-faint);
-  margin-bottom: var(--s-2);
-}
+.eyebrow { margin-bottom: var(--s-2); font-size: var(--t-caption); color: var(--c-ink-soft); }
+.brand { font-weight: 600; color: var(--c-ink); letter-spacing: 0.02em; }
 
-/* The brand is the first thing a buyer checks on a general store, because it
-   is the only signal of quality a catalogue this broad can offer. */
-.brand { font-weight: 600; color: var(--c-ink-soft); letter-spacing: 0.02em; }
-
-/* Interface face, not display. The product name is read, not looked at, and
-   extended type at this length is a headline pretending to be a title. */
+/* Interface face, not display: a product name is read, not looked at. */
 .title {
   font-size: 1.5rem;
   font-weight: 500;
@@ -61,61 +75,55 @@
 
 @media (min-width: 900px) { .title { font-size: 1.75rem; } }
 
-.stockRow { margin-top: var(--s-3); }
+/* Everything that decides the purchase, on one raised card. */
+.buyCard {
+  margin-top: var(--s-5);
+  padding: var(--s-5) var(--s-4);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: 18px;
+  box-shadow: var(--e-1);
+}
+
+@media (min-width: 900px) { .buyCard { padding: var(--s-5); } }
 
 .priceRow {
-  margin-top: var(--s-4);
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--s-3);
   flex-wrap: wrap;
 }
 
-/* The prefix on a price that is a range, shown until a variant is chosen. */
+.price { display: flex; align-items: baseline; gap: var(--s-2); flex-wrap: wrap; font-size: 2rem; color: var(--c-ink); }
 .from { font-size: var(--t-caption); font-weight: 400; color: var(--c-faint); }
-
-.price { font-size: 1.875rem; color: var(--c-ink); }
 .was { font-size: var(--t-body); color: var(--c-faint); text-decoration: line-through; }
 
 .saving {
-  font-size: var(--t-caption);
-  font-weight: 500;
-  color: #6b4f14;
-  background: var(--c-gold-wash);
+  align-self: center;
+  padding: 3px 8px;
   border: 1px solid var(--c-gold-line);
   border-radius: 5px;
-  padding: 3px 8px;
+  background: var(--c-gold-wash);
+  color: var(--c-gold-ink);
+  font-size: var(--t-caption);
+  font-weight: 500;
 }
 
-.buy {
-  margin-top: var(--s-5);
-  display: flex;
-  gap: var(--s-3);
-  align-items: stretch;
-  /* Wraps rather than crushing the button when the column is narrow. */
-  flex-wrap: wrap;
-}
+.buy { margin-top: var(--s-4); display: flex; gap: var(--s-3); align-items: stretch; flex-wrap: wrap; }
 
 .qty {
   display: flex;
   align-items: center;
+  flex: none;
   border: 1px solid var(--c-line-mid);
   border-radius: var(--r-control);
   background: var(--c-surface);
-  flex: none;
 }
 
-.qty button {
-  width: var(--tap);
-  height: 52px;
-  font-size: 1.125rem;
-  color: var(--c-ink);
-  display: grid;
-  place-items: center;
-}
-
+.qty button { width: var(--tap); height: 52px; font-size: 1.125rem; color: var(--c-ink); display: grid; place-items: center; }
 .qty button:disabled { color: var(--c-line-mid); cursor: default; }
-.qty span { min-width: 28px; text-align: center; font-size: 1rem; }
+.qty span { min-width: 28px; text-align: center; font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 .addBtn {
   flex: 1 1 190px;
@@ -124,9 +132,9 @@
   padding: 0 var(--s-5);
   border-radius: var(--r-control);
   background: var(--c-action-strong);
-  color: #fff;
+  color: var(--c-on-action);
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -134,35 +142,63 @@
   transition: background 150ms var(--ease), transform 120ms var(--ease);
 }
 
-.addBtn:hover { background: #a94f34; }
+.addBtn:hover { background: var(--c-action-text); }
 .addBtn:active { transform: scale(0.99); }
+.addBtn:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
 .addBtn[data-added] { background: var(--c-sage-deep); }
+.addBtn:disabled { background: var(--c-sunk); color: var(--c-faint); cursor: default; }
 
-.promises {
+.delivery {
   margin-top: var(--s-5);
-  padding: var(--s-4) 0 0;
+  padding-top: var(--s-5);
   border-top: 1px solid var(--c-line);
-  list-style: none;
   display: flex;
   flex-direction: column;
-  gap: var(--s-3);
+  gap: var(--s-4);
 }
 
-.promises li { display: flex; gap: var(--s-3); align-items: flex-start; }
-.promises svg { flex: none; margin-top: 2px; color: var(--c-sage-deep); }
-.promises span { font-size: 0.875rem; line-height: 1.55; color: var(--c-ink-soft); }
-.promises b { font-weight: 500; color: var(--c-ink); }
+/* The reference: her words or the supplier's beside her details, below the decision. */
+.about { margin-top: var(--s-8); }
 
-.description { margin-top: var(--s-5); padding-top: var(--s-4); border-top: 1px solid var(--c-line); }
-.descHead { font-size: var(--t-label); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--c-faint); margin-bottom: var(--s-3); }
-.description p { font-size: var(--t-body); line-height: var(--lh-body); color: var(--c-ink-soft); }
+.aboutTitle { margin-bottom: var(--s-5); font-size: var(--ts-section); }
 
-.relatedHead { padding: var(--s-8) 0 var(--s-4); }
-.relatedTitle { font-size: var(--ts-section); }
+.aboutGrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); align-items: start; }
 
-/* Rendered always and moved by transform, so it slides in rather than
-   appearing. Off screen it is aria-hidden and its button is out of the tab
-   order, or a keyboard reaches a control nobody can see. */
+@media (min-width: 900px) {
+  .aboutGrid { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: var(--s-7); }
+}
+
+.aboutMain, .aboutSide { min-width: 0; display: flex; flex-direction: column; gap: var(--s-5); }
+
+.description { padding: var(--s-5); background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-card); }
+.descHead { margin-bottom: var(--s-3); font-size: var(--t-label); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--c-faint); }
+.description p { font-size: var(--t-body); line-height: var(--lh-body); color: var(--c-ink-soft); white-space: pre-line; }
+
+/* The question slip: the same paper as the home page's request slip, perforated along the top. */
+.slip {
+  position: relative;
+  padding: var(--s-5) var(--s-5) var(--s-4);
+  background: var(--c-surface);
+  border-radius: 6px;
+  box-shadow: var(--e-2);
+  transform: rotate(-0.8deg);
+}
+
+.slip::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: var(--s-5);
+  right: var(--s-5);
+  border-top: 2px dotted var(--c-line-mid);
+}
+
+/* The panel brings its own divider for the column it used to sit in; on paper it is not needed. */
+.slip > div { margin-top: var(--s-2); padding-top: 0; border-top: 0; }
+
+.nextTitle { margin: var(--s-8) 0 var(--s-5); font-size: var(--ts-section); }
+
+/* Rendered always and moved by transform, so it slides rather than appearing; off screen it leaves the tab order. */
 .sticky {
   position: fixed;
   left: 0;
@@ -188,17 +224,8 @@
   gap: var(--s-3);
 }
 
-.stickyName {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.875rem;
-  color: var(--c-ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.stickyPrice { font-size: 1.0625rem; flex: none; }
+.stickyName { flex: 1; min-width: 0; font-size: 0.875rem; color: var(--c-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stickyPrice { flex: none; font-size: 1.0625rem; }
 .stickyInner .addBtn { flex: none; min-height: 46px; }
 
 /* On a phone the name is the least useful part: they are looking at it. */
@@ -212,6 +239,7 @@
 .gone { font-size: var(--ts-section); margin: var(--s-7) 0 var(--s-3); }
 .goneNote { font-size: var(--t-body); color: var(--c-ink-soft); }
 
+/* Navigation, not a purchase, so ink rather than terracotta. */
 .goneBack {
   display: inline-flex;
   align-items: center;
@@ -219,8 +247,8 @@
   margin-top: var(--s-4);
   padding: 0 var(--s-5);
   border-radius: var(--r-control);
-  background: var(--c-action-strong);
-  color: #fff;
+  background: var(--c-ink);
+  color: var(--c-on-dark);
   font-size: var(--t-label);
   font-weight: 500;
 }

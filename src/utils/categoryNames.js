@@ -92,3 +92,10 @@ export function sortByPosition(items, names) {
  */
 export const slugFor = (path, names, fallback) =>
   resolveName(path, names)?.slug ?? fallback;
+
+// Her own words only: the section she set, or her name for the eBay department. Never eBay's words on their own.
+export function shopSectionOf(product, names) {
+  if (product?.section) return product.section;
+  const top = String(product?.category_path ?? '').split('|')[0]?.trim();
+  return (names ?? []).find((n) => n.path === top)?.name ?? null;
+}
