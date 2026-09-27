@@ -22,7 +22,7 @@
 .more:hover { color: var(--c-ink); text-decoration: underline; text-underline-offset: 2px; }
 
 /* A swipeable row on phones, four across once there is room. */
-.row {
+ul.row {
   list-style: none;
   display: grid;
   grid-auto-flow: column;
@@ -38,7 +38,7 @@
 .row::-webkit-scrollbar { display: none; }
 
 @media (min-width: 620px) {
-  .row { grid-auto-flow: row; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: visible; margin: 0; padding: 0; }
+  ul.row { grid-auto-flow: row; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: visible; margin: 0; padding: 0; }
 }
 
 .tile { scroll-snap-align: start; display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; }

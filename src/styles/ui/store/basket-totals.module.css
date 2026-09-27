@@ -67,7 +67,7 @@
 .arrival svg { flex: none; margin-top: 1px; color: var(--c-sage-deep); }
 .arrival strong { font-weight: 600; color: var(--c-ink); }
 
-.promises {
+ul.promises {
   list-style: none;
   display: flex;
   flex-direction: column;

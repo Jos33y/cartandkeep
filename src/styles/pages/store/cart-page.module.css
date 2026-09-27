@@ -45,7 +45,7 @@
 .shelf:empty { display: none; }
 
 /* The lines sit on a card of their own, so a one line basket reads as a list rather than a stray row. */
-.lines {
+ul.lines {
   grid-area: lines;
   min-width: 0;
   list-style: none;
@@ -55,7 +55,7 @@
   padding: 0 var(--s-4);
 }
 
-@media (min-width: 620px) { .lines { padding: 0 var(--s-5); } }
+@media (min-width: 620px) { ul.lines { padding: 0 var(--s-5); } }
 
 .line {
   display: grid;

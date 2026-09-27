@@ -228,7 +228,7 @@
 
 .agreed { font-size: var(--t-label); line-height: 1.5; color: var(--c-ink-soft); }
 
-.lines {
+ul.lines {
   list-style: none;
   display: flex;
   flex-direction: column;

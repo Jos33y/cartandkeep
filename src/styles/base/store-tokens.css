@@ -102,6 +102,16 @@
 }
 
 /*
+ * The shop's interface face.
+ *
+ * global.css sets the body in --font-ui, which is Geist, and only the portal
+ * loads Geist. Without this every shop page fell back to the device's system
+ * font while downloading Inter and never using it. This file only loads on the
+ * shop, so the portal keeps Geist.
+ */
+body { font-family: var(--font-store-ui); }
+
+/*
  * Display type.
  *
  * font-stretch rather than font-variation-settings, because that is how the
