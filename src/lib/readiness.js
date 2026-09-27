@@ -44,7 +44,7 @@ function judge(key, p) {
         : { state: 'missing', note: 'No price.' };
     case 'returns':
       return p.derived_fields?.returns_class
-        ? { state: 'wait', note: `Guessed as ${RETURNS_LABEL[p.returns_class] ?? 'Standard'}. Confirm it.` }
+        ? { state: 'wait', note: `Suggested: ${RETURNS_LABEL[p.returns_class] ?? 'Standard'}. Confirm it.` }
         : { state: 'done', note: RETURNS_LABEL[p.returns_class] ?? 'Standard' };
     case 'checks': {
       const c = checksFor(p);
@@ -74,8 +74,10 @@ function judge(key, p) {
         ? { state: 'wait', note: 'Written for you. Read it and save.' }
         : { state: 'missing', note: 'No description. Google will not list it without one.' };
     case 'section':
-      return p.section
-        ? { state: 'done', note: 'In a section' }
+      if (p.section) return { state: 'done', note: 'In a section' };
+      // Suggested and not yet saved: waiting on her save, not missing.
+      return p.derived_fields?.draft?.section || p.derived_fields?.draft?.new_section
+        ? { state: 'wait', note: 'A section is suggested. Save the product to place it.' }
         : { state: 'missing', note: 'Not in a section yet, so it sits in Odds and ends.' };
     case 'cost':
       return p.landed_cost === null || p.landed_cost === undefined

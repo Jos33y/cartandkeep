@@ -36,7 +36,7 @@ const MATCH = {
 const GAP = {
   photo: { all: 'No product has a photograph', one: 'has no photograph', many: 'have no photograph', body: 'Nothing goes live without one.', go: 'Add a photograph to' },
   price: { all: 'No product has a price', one: 'has no price', many: 'have no price', body: 'Nothing goes live without one.', go: 'Price' },
-  returns: { all: 'Every product has returns to confirm', one: 'has returns to confirm', many: 'have returns to confirm', body: 'A script guessed them, and the customer email quotes the answer.', go: 'Confirm returns on' },
+  returns: { all: 'Every product has returns to confirm', one: 'has returns to confirm', many: 'have returns to confirm', body: 'Each one comes with a suggestion, and the customer email quotes the answer.', go: 'Confirm returns on' },
   checks: { all: 'Every product has a question for you', one: 'has a question for you', many: 'have a question for you', body: 'One tap each, then they can go live.', go: 'Answer the question on' },
   hazard: { all: 'Every product needs its label warning', one: 'needs its label warning', many: 'need their label warning', body: 'The warning on the bottle has to show next to the price.', go: 'Add the warning to' },
   stock: { all: 'Everything is off sale', one: 'is off sale', many: 'are off sale', body: 'Marked unavailable, or none left.', go: 'Check stock on' },

@@ -18,7 +18,7 @@
 
 export const SCOPE_VERSION = '2.1';
 export const SCOPE_DATE = '2026-07-23';
-export const LAST_REVIEWED = '2026-09-25';
+export const LAST_REVIEWED = '2026-09-27';
 export const MONTH_ONE_DUE = '2026-08-22';
 
 export const DELIVERABLE_GROUPS = [
@@ -62,14 +62,14 @@ export const DELIVERABLE_GROUPS = [
       },
       {
         label: 'First batch of products listed on the store',
-        detail: 'The seeded batch was cleared out on 22 September rather than left as drafts nobody had read. What is in the shop now are the products your eBay listings have actually sold, and what follows comes from the research board.',
+        detail: 'The seeded batch was cleared out on 22 September rather than left as drafts nobody had read. What is in the shop now are the products your eBay listings have actually sold, and more of your eBay listings come over from the Traffic screen in one step, filled in and waiting for you.',
         state: 'done',
       },
       {
         label: 'Multi-category structure ready from day one',
-        detail: 'Departments from the catalogue, and sections of your own that you name and fill, plus a price band. Category pages, sub-sections and sorting are built.',
+        detail: 'Sections of your own, suggested by Keeper from everything you sell and yours to change, each with its own address, plus a price band. Category pages and sorting are built, and a section appears on the shop once it holds three live products.',
         state: 'done',
-        date: '2026-09-24',
+        date: '2026-09-27',
       },
       {
         label: 'Blog module active, format ready for the first posts',
@@ -132,8 +132,12 @@ export const DELIVERABLE_GROUPS = [
         detail: 'Products, departments, the blog and every legal page all reach each other. Nothing in the shop is more than two taps from anything else.',
         state: 'done',
       },
-      { label: '301 redirects configured where relevant',
-        why: 'Not started.', state: 'queued' },
+      {
+        label: '301 redirects configured where relevant',
+        why: 'Old addresses forward inside the shop. The server-level version is not set up yet.',
+        detail: 'A section that is renamed or removed keeps its old address, and anyone arriving there is taken to where its products went.',
+        state: 'active',
+      },
       {
         label: 'Basic keyword targeting on category pages',
         detail: 'Each department carries a title and description built from its name, its count and its price floor.',
@@ -295,7 +299,7 @@ export const DELIVERABLE_GROUPS = [
       {
         label: 'Google Shopping feed for free listings',
         detail:
-          'Your products offered to Google Shopping at no cost, which is the nearest thing to a marketplace without the marketplace fee. Built. It carries nothing until products have descriptions, because Google will not list one without.',
+          'Your products offered to Google Shopping at no cost, which is the nearest thing to a marketplace without the marketplace fee. Built. Google will not list a product without a description, and Keeper now writes one for each product as it arrives, so it fills as products go live.',
         state: 'active',
       },
       {
@@ -329,9 +333,24 @@ export const DELIVERABLE_GROUPS = [
       {
         label: 'Product descriptions drafted for you',
         detail:
-          'Reads the photograph as well as the record, writes a description and a shorter title, and tells you where the supplier data disagrees with itself. It has already caught a sticker pack listed as foam and a load rating given two different ways on a bed rail. Nothing is published until you have read it.',
+          'Reads the photograph as well as the record, writes a description and a shorter title, and tells you where the supplier data disagrees with itself. Now part of Keeper filling in the whole product.',
         state: 'done',
+        superseded: true,
         date: '2026-08-21',
+      },
+      {
+        label: 'Keeper, filling in every product for you',
+        detail:
+          'Titles to choose from, a description, the details, the brand, the section and the returns rule, all filled in before you open it. Only real decisions reach you, as one tap each, and the work carries on while the portal is closed. Nothing is published until you save it.',
+        state: 'done',
+        date: '2026-09-26',
+      },
+      {
+        label: 'Your eBay listings on your shop in one step',
+        detail:
+          'The Traffic screen shows which of your listings are on the shop. Bring over one or all of them, and each arrives with its photographs, details and sizes, filled in and waiting for you.',
+        state: 'done',
+        date: '2026-09-27',
       },
       {
         label: 'Reviews, from people who actually bought it',
@@ -350,8 +369,9 @@ export const DELIVERABLE_GROUPS = [
       {
         label: 'Your own words for every department',
         detail:
-          'The sections came from the eBay categories your products were listed under, so they read like a marketplace rather than a shop. Rename any of them, reorder them, or take one off the menu. The products do not move and Google still sees the original, so nothing you have already been indexed for breaks.',
+          'The sections came from the eBay categories your products were listed under, so they read like a marketplace rather than a shop. Replaced by sections that are yours alone, suggested by Keeper, with every old address still working.',
         state: 'done',
+        superseded: true,
         date: '2026-08-21',
       },
       {
