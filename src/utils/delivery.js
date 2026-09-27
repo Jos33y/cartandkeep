@@ -82,7 +82,7 @@ function nextWorkingDay(iso) {
   return next;
 }
 
-function addWorkingDays(iso, n) {
+export function addWorkingDays(iso, n) {
   let out = iso;
   for (let i = 0; i < n; i += 1) out = nextWorkingDay(out);
   return out;

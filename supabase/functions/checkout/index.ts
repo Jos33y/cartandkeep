@@ -368,7 +368,7 @@ async function priceOrder(tenant: any, body: any): Promise<Priced> {
 
   const [{ data: products, error: pErr }, { data: variants, error: vErr }] = await Promise.all([
     db.from('store_products')
-      .select('id, slug, title, price, image_url, status, is_sample, availability, stock')
+      .select('id, slug, title, price, image_url, status, is_sample, availability, stock, dispatch_days')
       .eq('tenant_id', tenant.id)
       .in('id', productIds),
     variantIds.length
@@ -485,6 +485,8 @@ function quoteLine(l: Record<string, any>) {
     qty: l.qty,
     lineTotal: l.lineTotal,
     stock: typeof l.stock === 'number' ? l.stock : null,
+    // Days before it leaves her, so the basket can say when it arrives. Null means her usual dispatch.
+    dispatchDays: typeof l.product.dispatch_days === 'number' ? l.product.dispatch_days : null,
   };
 }
 

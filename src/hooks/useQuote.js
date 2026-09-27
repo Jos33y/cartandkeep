@@ -15,7 +15,7 @@ import { useBasket } from '@context/BasketContext';
  */
 export function useQuote(lines, { postcode = null, offerId = null, token = null } = {}) {
   const { reconcile } = useBasket();
-  const [state, setState] = useState({ quote: null, loading: true, error: null, changed: [] });
+  const [state, setState] = useState({ quote: null, loading: true, error: null, changed: [], was: {} });
   const linesRef = useRef(lines);
   linesRef.current = lines;
 
@@ -27,7 +27,7 @@ export function useQuote(lines, { postcode = null, offerId = null, token = null 
 
   useEffect(() => {
     if (!offerId && linesRef.current.length === 0) {
-      setState({ quote: null, loading: false, error: null, changed: [] });
+      setState({ quote: null, loading: false, error: null, changed: [], was: {} });
       return undefined;
     }
 
@@ -43,15 +43,20 @@ export function useQuote(lines, { postcode = null, offerId = null, token = null 
       })
         .then((quote) => {
           if (!live) return;
-          // Named by what the shopper saw, before the basket is corrected.
-          const changed = offerId ? [] : quote.lines
-            .filter((q) => {
-              const had = linesRef.current.find((l) => (l.key ?? l.id) === q.key);
-              return had && Math.round(Number(had.price) * 100) !== Math.round(Number(q.price) * 100);
-            })
-            .map((q) => (q.variantLabel ? `${q.title}, ${q.variantLabel}` : q.title));
+          // The price each line was added at, kept for the visit so the line can show what it was.
+          const moved = offerId ? [] : quote.lines.filter((q) => {
+            const had = linesRef.current.find((l) => (l.key ?? l.id) === q.key);
+            return had && Math.round(Number(had.price) * 100) !== Math.round(Number(q.price) * 100);
+          });
+          const was = Object.fromEntries(moved.map((q) => [q.key, Number(linesRef.current.find((l) => (l.key ?? l.id) === q.key).price)]));
           if (!offerId) reconcile(quote.lines);
-          setState((s) => ({ quote, loading: false, error: null, changed: changed.length ? changed : s.changed }));
+          setState((s) => {
+            const kept = { ...s.was, ...was };
+            // A line whose price has come back to what they added it at has nothing to explain.
+            for (const q of quote.lines) if (kept[q.key] !== undefined && Math.round(kept[q.key] * 100) === Math.round(Number(q.price) * 100)) delete kept[q.key];
+            const names = quote.lines.filter((q) => kept[q.key] !== undefined).map((q) => (q.variantLabel ? `${q.title}, ${q.variantLabel}` : q.title));
+            return { quote, loading: false, error: null, changed: names, was: kept };
+          });
         })
         .catch((error) => {
           if (live) setState((s) => ({ ...s, loading: false, error }));

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
-import { ArrowRightIcon, LockIcon, ReturnIcon, ShieldIcon } from '@components/ui/store/icons';
+import { ArrowRightIcon, ChevronDownIcon, PlusIcon, ShieldIcon } from '@components/ui/store/icons';
+import { BasketPromises, BasketTotals, basketArrival } from '@components/ui/store/BasketTotals';
 import { useBasket } from '@context/BasketContext';
 import { sessionId, trackBeginCheckout } from '@lib/analytics';
 import { ZONE_LABELS, checkPostcode, normalisePostcode } from '@lib/postcode';
-import { deliveryFor, returnsTerms } from '@lib/storeConfig';
+import { deliveryFor } from '@lib/storeConfig';
 import { useQuote } from '@hooks/useQuote';
 import { startCheckout } from '@lib/checkout';
 import { readOffer } from '@lib/threads';
@@ -17,7 +18,7 @@ import styles from '@styles/pages/store/checkout-page.module.css';
 /*
  * One page, three blocks, no steps.
  *
- * A step indicator on a three field form is a progress bar for a journey
+ * A step indicator on a three field form is a progress bar for a trip
  * nobody was worried about. Contact, delivery, pay, and the pay button leaves
  * for Stripe.
  *
@@ -121,7 +122,7 @@ export function CheckoutPage() {
   const [quotedPostcode, setQuotedPostcode] = useState(null);
 
   // Figures from the checkout function, the same code that charges the card.
-  const { quote, error: quoteError, changed } = useQuote(offer === undefined || offer?.error ? [] : asked, {
+  const { quote, error: quoteError, was } = useQuote(offer === undefined || offer?.error ? [] : asked, {
     postcode: quotedPostcode,
     offerId: onOffer ? offer.id : null,
     token: onOffer ? offerToken : null,
@@ -132,6 +133,11 @@ export function CheckoutPage() {
   const count = onOffer ? lines.reduce((n, l) => n + l.qty, 0) : basketCount;
   const gone = quote?.unavailable ?? [];
 
+  // Asked for only when wanted: most addresses have no second line and most orders carry no note.
+  const [showLine2, setShowLine2] = useState(() => Boolean(readForm().line2));
+  const [showNote, setShowNote] = useState(false);
+  // Phones only: what is being bought, folded under its total at the top of the page.
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [errors, setErrors] = useState({});
   const [failure, setFailure] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -156,7 +162,6 @@ export function CheckoutPage() {
   const total = quote ? quote.total : fallback.total;
   const surcharge = quote ? quote.surcharge : fallback.surcharge;
   const ready = Boolean(quote) || Boolean(quoteError);
-  const days = Number(returnsTerms().days);
 
   const set = (key) => (event) => {
     setForm((f) => ({ ...f, [key]: event.target.value }));
@@ -336,7 +341,7 @@ export function CheckoutPage() {
     );
   }
 
-  const field = (key, type = 'text', autoComplete = undefined) => (
+  const field = (key, type = 'text', autoComplete = undefined, extra = {}) => (
     <label className={styles.field} key={key}>
       <span className={styles.label}>{FIELDS[key]}</span>
       <input
@@ -348,10 +353,15 @@ export function CheckoutPage() {
         aria-invalid={Boolean(errors[key])}
         aria-describedby={errors[key] ? `err-${key}` : undefined}
         enterKeyHint="next"
+        {...extra}
       />
       {errors[key] && <span className={styles.error} id={`err-${key}`}>{errors[key]}</span>}
     </label>
   );
+
+  const toFree = quote ? quote.toFree : fallback.toFree;
+  const threshold = quote ? quote.freeOver : fallback.threshold;
+  const arrival = quote && !gone.length ? basketArrival(quote.lines, zone) : null;
 
   return (
     <section className={styles.page}>
@@ -366,131 +376,165 @@ export function CheckoutPage() {
         <form className={styles.form} onSubmit={submit} noValidate>
           <fieldset className={styles.block} disabled={busy}>
             <legend className={styles.legend}>Who we are sending it to</legend>
-            {field('name', 'text', 'name')}
-            {field('email', 'email', 'email')}
-            {field('phone', 'tel', 'tel')}
-          </fieldset>
-
-          <fieldset className={styles.block} disabled={busy}>
-            <legend className={styles.legend}>Where</legend>
-            {field('line1', 'text', 'address-line1')}
-            {field('line2', 'text', 'address-line2')}
-            <div className={styles.pair}>
-              {field('city', 'text', 'address-level2')}
-
-              <label className={styles.field}>
-                <span className={styles.label}>
-                  {FIELDS.postcode}
-                  {checking && <span className={styles.checking}> checking</span>}
-                </span>
-                <input
-                  data-field
-                  type="text"
-                  value={form.postcode}
-                  onChange={set('postcode')}
-                  onBlur={onPostcodeBlur}
-                  autoComplete="postal-code"
-                  spellCheck="false"
-                  aria-invalid={Boolean(errors.postcode)}
-                  aria-describedby={errors.postcode ? 'err-postcode' : undefined}
-                  className={styles.postcode}
-                />
-                {errors.postcode && <span className={styles.error} id="err-postcode">{errors.postcode}</span>}
-              </label>
+            <div className={styles.fields}>
+              {field('name', 'text', 'name')}
+              <div className={styles.pairEven}>
+                {field('email', 'email', 'email', { inputMode: 'email' })}
+                {field('phone', 'tel', 'tel')}
+              </div>
+              <p className={styles.hint}>Your confirmation and tracking go to this email.</p>
             </div>
-
-            {postcodeNote && (
-              <p className={styles.zoneNote} data-tone={postcodeNote.tone}>{postcodeNote.text}</p>
-            )}
-            <p className={styles.hint}>UK addresses only for now.</p>
           </fieldset>
 
           <fieldset className={styles.block} disabled={busy}>
-            <legend className={styles.legend}>Anything we should know</legend>
-            <label className={styles.field}>
-              <span className={styles.label}>Delivery notes, optional</span>
-              <textarea rows={3} value={form.note} onChange={set('note')} />
-            </label>
+            <legend className={styles.legend}>Where it is going</legend>
+            <div className={styles.fields}>
+              {field('line1', 'text', 'address-line1')}
+              {showLine2
+                ? field('line2', 'text', 'address-line2')
+                : (
+                  <button type="button" className={styles.reveal} onClick={() => setShowLine2(true)}>
+                    <PlusIcon size={14} />Add a flat, floor or building
+                  </button>
+                )}
+              <div className={styles.pair}>
+                {field('city', 'text', 'address-level2')}
+
+                <label className={styles.field}>
+                  <span className={styles.label}>
+                    {FIELDS.postcode}
+                    {checking && <span className={styles.checking}> checking</span>}
+                  </span>
+                  <input
+                    data-field
+                    type="text"
+                    value={form.postcode}
+                    onChange={set('postcode')}
+                    onBlur={onPostcodeBlur}
+                    autoComplete="postal-code"
+                    spellCheck="false"
+                    aria-invalid={Boolean(errors.postcode)}
+                    aria-describedby={errors.postcode ? 'err-postcode' : undefined}
+                    className={styles.postcode}
+                  />
+                  {errors.postcode && <span className={styles.error} id="err-postcode">{errors.postcode}</span>}
+                </label>
+              </div>
+
+              {postcodeNote && (
+                <p className={styles.zoneNote} data-tone={postcodeNote.tone}>{postcodeNote.text}</p>
+              )}
+
+              {showNote || form.note ? (
+                <label className={styles.field}>
+                  <span className={styles.label}>A note for delivery, optional</span>
+                  <textarea rows={3} value={form.note} onChange={set('note')} placeholder="Leave it with the neighbour at number 12" />
+                </label>
+              ) : (
+                <button type="button" className={styles.reveal} onClick={() => setShowNote(true)}>
+                  <PlusIcon size={14} />Add a note for delivery
+                </button>
+              )}
+              <p className={styles.hint}>UK addresses only for now.</p>
+            </div>
           </fieldset>
 
-          {gone.length > 0 && (
-            <p className={styles.failure} role="alert">
-              {gone.length === 1 && gone[0].name ? `${gone[0].name} is` : 'Some things in your basket are'} no longer
-              on sale. <Link to={STORE_ROUTES.CART}>Remove {gone.length === 1 ? 'it' : 'them'} in your basket</Link> to carry on.
+          <div className={styles.payBlock}>
+            {gone.length > 0 && (
+              <p className={styles.failure} role="alert">
+                {gone.length === 1 && gone[0].name ? `${gone[0].name} is` : 'Some things in your basket are'} no longer
+                on sale. <Link to={STORE_ROUTES.CART}>Remove {gone.length === 1 ? 'it' : 'them'} in your basket</Link> to carry on.
+              </p>
+            )}
+
+            {failure && (
+              <p className={styles.failure} role="alert">
+                {failure}
+              </p>
+            )}
+
+            <button type="submit" className={styles.pay} disabled={busy || !ready || gone.length > 0}>
+              {busy ? 'Taking you to Stripe'
+                : !ready ? 'Checking prices'
+                  : <>Pay {formatGbp(total)} <ArrowRightIcon size={17} /></>}
+            </button>
+
+            <p className={styles.stripeNote}>
+              <ShieldIcon size={16} />
+              <span>You pay on Stripe&apos;s own page and come straight back here. Your card details never reach this shop.</span>
             </p>
-          )}
-
-          {changed.length > 0 && (
-            <p className={styles.zoneNote} data-tone="surcharge">
-              {changed.length === 1 ? `The price of ${changed[0]} has changed` : 'Some prices have changed'} since
-              you added it. The total shown is what you will pay.
-            </p>
-          )}
-
-          {failure && (
-            <p className={styles.failure} role="alert">
-              {failure}
-            </p>
-          )}
-
-          <button type="submit" className={styles.pay} disabled={busy || !ready || gone.length > 0}>
-            {busy ? 'Taking you to Stripe'
-              : !ready ? 'Checking prices'
-                : <>Pay {formatGbp(total)} <ArrowRightIcon size={17} /></>}
-          </button>
-
-          <p className={styles.stripeNote}>
-            <ShieldIcon size={16} />
-            Payment is taken by Stripe on their own page. Your card details never
-            reach this shop.
-          </p>
+          </div>
         </form>
 
-        <aside className={styles.summary}>
-          <h2 className={styles.summaryHead}>{count} {count === 1 ? 'item' : 'items'}</h2>
+        <aside className={styles.summary} aria-label="Your order">
+          {/* Phones: the total first, the lines a tap away. Wider screens always show the lot. */}
+          <button
+            type="button"
+            className={styles.summaryToggle}
+            aria-expanded={summaryOpen}
+            aria-controls="order-lines"
+            onClick={() => setSummaryOpen((o) => !o)}
+          >
+            <span>{summaryOpen ? 'Hide' : 'Show'} your order <span className={styles.toggleCount}>({count} {count === 1 ? 'item' : 'items'})</span></span>
+            <span className={styles.toggleTotal}>
+              <strong data-price>{formatGbp(total)}</strong>
+              <ChevronDownIcon size={16} />
+            </span>
+          </button>
 
-          {/* Said once, plainly, and with no second figure beside it. The
-              lines below are what she agreed a price for, and the total is
-              that price. Nothing here compares it to anything. */}
-          {onOffer && (
-            <p className={styles.agreed}>
-              This is the price you were given in your conversation with the shop.
-            </p>
-          )}
+          <div className={styles.summaryBody} id="order-lines" data-open={summaryOpen || undefined}>
+            <h2 className={styles.summaryHead}>Your order</h2>
 
-          <ul className={styles.lines}>
-            {/* Keyed on the line rather than the product, or two sizes of one
-                thing collide. */}
-            {lines.map((line) => (
-              <li key={line.variantId ? `${line.id}:${line.variantId}` : line.id}>
-                <span className={styles.thumb}>
-                  {line.image_url
-                    ? <img src={imageAt(line.image_url, 300)} alt="" loading="lazy" />
-                    : <span className={styles.noImage} />}
-                  <span className={styles.qty} data-price>{line.qty}</span>
-                </span>
-                <span className={styles.lineTitle}>{line.variantLabel ? `${line.title}, ${line.variantLabel}` : line.title}</span>
-                <span className={styles.lineTotal} data-price>{formatGbp(line.price * line.qty)}</span>
-              </li>
-            ))}
-          </ul>
+            {/* Said once, plainly, and with no second figure beside it. */}
+            {onOffer && (
+              <p className={styles.agreed}>
+                This is the price you were given in your conversation with the shop.
+              </p>
+            )}
 
-          <dl className={styles.figures}>
-            <div>
-              <dt>{onOffer ? 'Agreed price' : 'Subtotal'}</dt>
-              <dd data-price>{formatGbp(subtotal)}</dd>
-            </div>
-            <div>
-              <dt>Delivery{surcharge > 0 && <span className={styles.zoneTag}>{ZONE_LABELS[zone]}</span>}</dt>
-              <dd data-price>{delivery === 0 ? 'Free' : formatGbp(delivery)}</dd>
-            </div>
-            <div className={styles.grand}><dt>To pay</dt><dd data-price>{formatGbp(total)}</dd></div>
-          </dl>
+            <ul className={styles.lines}>
+              {/* Keyed on the line rather than the product, or two sizes of one thing collide. */}
+              {lines.map((line) => {
+                const key = line.variantId ? `${line.id}:${line.variantId}` : line.id;
+                const before = was[key];
+                const off = gone.some((g) => g.key === key);
+                return (
+                  <li key={key} data-gone={off || undefined}>
+                    <span className={styles.thumb}>
+                      {line.image_url
+                        ? <img src={imageAt(line.image_url, 300)} alt="" loading="lazy" />
+                        : <span className={styles.noImage} />}
+                      <span className={styles.qty} data-price>{line.qty}</span>
+                    </span>
+                    <span className={styles.lineText}>
+                      <span className={styles.lineTitle}>{line.title}</span>
+                      {line.variantLabel && <span className={styles.lineVariant}>{line.variantLabel}</span>}
+                    </span>
+                    <span className={styles.lineMoney}>
+                      {off
+                        ? <span className={styles.offSale}>Off sale</span>
+                        : <span className={styles.lineTotal} data-price>{formatGbp(line.price * line.qty)}</span>}
+                      {!off && before !== undefined && <s className={styles.was} data-price>{formatGbp(before * line.qty)}</s>}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
 
-          <ul className={styles.reassure}>
-            <li><LockIcon size={16} /><span>No account needed</span></li>
-            {days > 0 && <li><ReturnIcon size={16} /><span>{days} {days === 1 ? 'day' : 'days'} to change your mind</span></li>}
-          </ul>
+            <BasketTotals
+              subtotal={subtotal}
+              delivery={delivery}
+              total={total}
+              toFree={onOffer ? 0 : toFree}
+              freeOver={threshold}
+              surcharge={surcharge}
+              zone={zone}
+              arrival={arrival}
+              agreed={onOffer}
+            />
+
+            <BasketPromises paying />
+          </div>
         </aside>
       </div>
     </section>

@@ -2,61 +2,100 @@
   width: 100%;
   max-width: var(--store-max);
   margin: 0 auto;
-  padding: var(--s-5) var(--s-4) var(--s-8);
+  padding: var(--s-5) var(--s-4) calc(var(--s-8) + 72px);
 }
 
 @media (min-width: 900px) { .page { padding: var(--s-6) var(--s-5) var(--s-8); } }
 
 .head {
   display: flex;
-  align-items: baseline;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: var(--s-4);
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
   padding-bottom: var(--s-5);
-  border-bottom: 1px solid var(--c-line);
 }
 
 .title { font-size: clamp(1.75rem, 4vw, 2.5rem); }
-.count { font-size: var(--t-caption); color: var(--c-faint); }
 
-.body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); }
+.headMeta { display: flex; align-items: center; gap: var(--s-4); font-size: var(--t-label); color: var(--c-faint); }
+.keep { color: var(--c-ink-soft); text-decoration: underline; text-decoration-color: var(--c-line-mid); text-underline-offset: 3px; }
+.keep:hover { color: var(--c-ink); text-decoration-color: currentColor; }
 
-@media (min-width: 900px) {
-  .body { grid-template-columns: minmax(0, 1fr) 330px; gap: var(--s-7); align-items: start; }
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'lines' 'summary' 'shelf' 'ask';
+  gap: var(--s-5);
 }
 
-.lines { list-style: none; }
+@media (min-width: 900px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-areas: 'lines summary' 'shelf summary' 'ask summary';
+    grid-template-rows: auto auto 1fr;
+    column-gap: var(--s-6);
+    align-items: start;
+  }
+}
+
+@media (min-width: 1180px) { .body { grid-template-columns: minmax(0, 1fr) 360px; column-gap: var(--s-7); } }
+
+.shelf { grid-area: shelf; min-width: 0; }
+.shelf:empty { display: none; }
+
+/* The lines sit on a card of their own, so a one line basket reads as a list rather than a stray row. */
+.lines {
+  grid-area: lines;
+  min-width: 0;
+  list-style: none;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  padding: 0 var(--s-4);
+}
+
+@media (min-width: 620px) { .lines { padding: 0 var(--s-5); } }
 
 .line {
   display: grid;
-  grid-template-columns: 84px minmax(0, 1fr) auto;
-  gap: var(--s-3);
+  grid-template-columns: 80px minmax(0, 1fr);
+  grid-template-areas: 'thumb main' 'thumb money';
+  column-gap: var(--s-4);
+  row-gap: var(--s-2);
   padding: var(--s-4) 0;
-  border-bottom: 1px solid var(--c-line);
   align-items: start;
 }
 
-@media (min-width: 620px) { .line { grid-template-columns: 104px minmax(0, 1fr) auto; gap: var(--s-4); } }
+.line + .line { border-top: 1px solid var(--c-line); }
+
+@media (min-width: 620px) {
+  .line {
+    grid-template-columns: 112px minmax(0, 1fr) auto;
+    grid-template-areas: 'thumb main money';
+    column-gap: var(--s-5);
+    padding: var(--s-5) 0;
+  }
+}
 
 .thumb {
+  grid-area: thumb;
+  display: block;
   aspect-ratio: 1;
-  border: 1px solid var(--c-line);
   border-radius: var(--r-control);
   overflow: hidden;
   background: var(--c-warm);
-  display: grid;
-  place-items: center;
 }
 
 .thumb img { width: 100%; height: 100%; object-fit: cover; }
-.noImage { font-size: var(--t-micro); color: var(--c-faint); text-align: center; padding: 4px; }
+.noImage { display: block; width: 100%; height: 100%; }
 
-.lineMain { min-width: 0; }
+.lineMain { grid-area: main; min-width: 0; }
 
 .lineTitle {
   font-size: var(--t-body);
   font-weight: 500;
-  line-height: 1.35;
+  line-height: 1.4;
   color: var(--c-ink);
   text-decoration: none;
   display: -webkit-box;
@@ -66,68 +105,62 @@
   overflow: hidden;
 }
 
-.lineTitle:hover { color: var(--c-action-text); }
-/* The size, on its own line between the title and the unit price.
-   Not appended to the title, because her feed titles run past seventy
-   characters and the title above is clamped to two lines, so ", King" would be
-   the thing the clamp cut off. */
-.variant { margin-top: 2px; font-size: var(--t-caption); color: var(--c-ink-soft); }
+.lineTitle:hover { text-decoration: underline; text-underline-offset: 2px; }
 
-.unit { margin-top: 3px; font-size: var(--t-caption); color: var(--c-faint); }
+/* The size on its own line: her titles run long and the clamp above would cut ", King" first. */
+.variant { margin-top: 2px; font-size: var(--t-label); color: var(--c-ink-soft); }
+.unit { margin-top: 2px; font-size: var(--t-caption); color: var(--c-faint); }
 
-/* A line no longer on sale stays visible and named, with only Remove left to press. */
-.line[data-gone] .thumb img { opacity: 0.45; }
-.line[data-gone] .lineTitle { color: var(--c-ink-soft); }
-.goneNote { margin-top: 3px; font-size: var(--t-caption); font-weight: 500; color: #7d2f1e; }
-
-.notice {
-  margin-top: var(--s-4);
-  padding: var(--s-3) var(--s-4);
-  background: var(--c-gold-wash);
-  border: 1px solid var(--c-gold-line);
-  border-radius: var(--r-control);
-  font-size: 0.875rem;
-  line-height: 1.55;
-  color: #5c430f;
-}
-
-.lineFoot { margin-top: var(--s-3); display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.lineFoot { margin-top: var(--s-3); display: flex; align-items: center; gap: var(--s-4); flex-wrap: wrap; }
 
 .qty {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   border: 1px solid var(--c-line-mid);
-  border-radius: var(--r-control);
+  border-radius: var(--r-full);
   background: var(--c-surface);
 }
 
-.qty button {
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  color: var(--c-ink);
-}
-
+.qty button { width: 36px; height: 36px; display: grid; place-items: center; color: var(--c-ink); border-radius: var(--r-full); }
+.qty button:hover:not(:disabled) { background: var(--c-warm); }
 .qty button:disabled { color: var(--c-line-mid); cursor: default; }
-.qty span { min-width: 26px; text-align: center; font-size: 0.9375rem; }
+.qty span { min-width: 22px; text-align: center; font-size: var(--t-body); font-weight: 500; font-variant-numeric: tabular-nums; }
 
 .remove {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-height: 38px;
-  font-size: var(--t-caption);
+  min-height: 36px;
+  font-size: var(--t-label);
   color: var(--c-faint);
 }
 
 .remove:hover { color: var(--c-negative); }
+.remove[data-strong] { color: var(--c-ink); font-weight: 500; }
 
-.lineTotal { font-size: 1.0625rem; color: var(--c-ink); white-space: nowrap; }
+/* On phones the money sits under the controls, level with the thumbnail's foot. */
+.lineMoney { grid-area: money; display: flex; align-items: baseline; gap: var(--s-3); }
 
-/* Sticky on desktop, because a basket of twelve lines puts the checkout
-   button below the fold and nobody scrolls back up to find it. */
+@media (min-width: 620px) { .lineMoney { flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; } }
+
+.lineTotal { font-size: var(--t-lead); font-weight: 600; color: var(--c-ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.was { font-size: var(--t-caption); color: var(--c-gold-text); white-space: nowrap; }
+.wasLabel { color: var(--c-faint); }
+.was s { text-decoration-thickness: 1px; }
+
+.line[data-gone] .thumb img { opacity: 0.4; filter: grayscale(0.6); }
+.line[data-gone] .lineTitle { color: var(--c-faint); }
+.goneNote { margin-top: 4px; font-size: var(--t-label); font-weight: 500; color: var(--c-negative); }
+
+.ask { grid-area: ask; max-width: 36rem; min-width: 0; }
+
+/* Sticky on desktop, so twelve lines never put Checkout out of reach. */
 .summary {
+  grid-area: summary;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
   background: var(--c-warm);
   border: 1px solid var(--c-line);
   border-radius: var(--r-card);
@@ -136,61 +169,17 @@
 
 @media (min-width: 900px) { .summary { position: sticky; top: calc(var(--bar-h) + var(--s-4)); } }
 
-.summaryHead {
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--c-faint);
-  margin-bottom: var(--s-3);
-}
-
-.figures { display: flex; flex-direction: column; gap: var(--s-2); }
-.figures > div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-4); }
-.figures dt { font-size: var(--t-body); color: var(--c-ink-soft); }
-.figures dd { font-size: var(--t-body); color: var(--c-ink); }
-
-.grand {
-  margin-top: var(--s-2);
-  padding-top: var(--s-3);
-  border-top: 1px solid var(--c-line-mid);
-}
-
-.grand dt { font-weight: 500; color: var(--c-ink); }
-.grand dd { font-size: 1.375rem; }
-
-/* Sage rather than terracotta. It is information, not the action, and putting
-   the buy colour on it competes with the button directly underneath. */
-.nudge {
-  margin-top: var(--s-4);
-  padding: var(--s-3) var(--s-4);
-  background: var(--c-sage-wash);
-  border: 1px solid var(--c-brand-mid);
-  border-radius: var(--r-control);
-  font-size: 0.875rem;
-  color: #3f5139;
-}
-
-.nudge a {
-  display: inline-block;
-  margin-top: 4px;
-  color: var(--c-sage-deep);
-  font-weight: 500;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
 .checkout {
-  margin-top: var(--s-4);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--s-2);
   min-height: 54px;
+  padding: 0 var(--s-5);
   border-radius: var(--r-control);
   background: var(--c-action-strong);
-  color: #fff;
-  font-size: 1.0625rem;
+  color: var(--c-on-action);
+  font-size: var(--t-lead);
   font-weight: 500;
   text-decoration: none;
   transition: background 150ms var(--ease);
@@ -198,39 +187,35 @@
 
 .checkout:hover { background: #a94f34; }
 .checkout[data-disabled] { background: var(--c-line); color: var(--c-faint); cursor: not-allowed; }
-.checkout[data-disabled]:hover { background: var(--c-line); }
 
-.keep {
-  margin-top: var(--s-3);
-  display: block;
-  text-align: center;
-  min-height: var(--tap);
-  line-height: var(--tap);
-  font-size: var(--t-label);
-  color: var(--c-ink-soft);
-  text-decoration: none;
-}
+.held { margin-top: calc(var(--s-2) * -1); font-size: var(--t-caption); line-height: 1.5; color: var(--c-negative); }
 
-.keep:hover { color: var(--c-ink); }
-
-.reassure {
-  margin-top: var(--s-4);
-  padding-top: var(--s-4);
-  border-top: 1px solid var(--c-line);
-  list-style: none;
+/* The phone bar: total on the left, the way forward on the right, gone once the real button is in view. */
+.bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
   display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-4) calc(var(--s-3) + env(safe-area-inset-bottom));
+  background: var(--c-surface);
+  border-top: 1px solid var(--c-line);
+  box-shadow: 0 -8px 24px rgba(30, 28, 25, 0.06);
+  transition: transform 220ms var(--ease-out), opacity 220ms var(--ease-out);
 }
 
-.reassure li { display: flex; align-items: center; gap: var(--s-3); }
-.reassure svg { flex: none; color: var(--c-sage-deep); }
-.reassure span { font-size: var(--t-caption); color: var(--c-ink-soft); }
+.bar[data-hidden] { transform: translateY(100%); opacity: 0; pointer-events: none; }
+.bar .checkout { min-height: 48px; flex: 1; max-width: 220px; font-size: var(--t-body); }
 
-/* The ask, after the summary.
-   A narrow column so it does not read as a second panel competing with the
-   one carrying Checkout. */
-.ask { margin-top: var(--s-6); max-width: 34rem; }
+.barTotal { display: flex; flex-direction: column; line-height: 1.2; }
+.barTotal span { font-size: var(--t-caption); color: var(--c-faint); }
+.barTotal strong { font-size: var(--t-lead); font-weight: 650; color: var(--c-ink); }
+
+@media (min-width: 900px) { .bar { display: none; } }
 
 .empty {
   border: 1px solid var(--c-line);
@@ -255,10 +240,10 @@
   padding: 0 var(--s-5);
   border-radius: var(--r-control);
   background: var(--c-action-strong);
-  color: #fff;
+  color: var(--c-on-action);
   font-size: 1rem;
   font-weight: 500;
   text-decoration: none;
 }
 
-@media (prefers-reduced-motion: reduce) { .checkout { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .checkout, .bar { transition: none; } }
