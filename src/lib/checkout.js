@@ -38,6 +38,9 @@ async function call(fn, body) {
 
 export const startCheckout = (payload) => call('checkout', payload);
 
+// The express lane: no form, Stripe collects the address and contact and the webhook writes them onto the order.
+export const startExpress = (payload) => call('checkout', { ...payload, action: 'express' });
+
 // What the basket comes to right now, from the same code that charges it. Nothing is written.
 export const quoteBasket = ({ items, postcode = null, offerId = null, token = null }) =>
   call('checkout', { action: 'quote', items, postcode, offerId, token });

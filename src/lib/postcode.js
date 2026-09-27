@@ -120,6 +120,8 @@ export async function checkPostcode(postcode, { signal } = {}) {
       zone,
       country: body?.result?.country ?? null,
       region: body?.result?.region ?? null,
+      // A suggestion for the town box, never filled in for them: London postcodes name a borough, so London is offered instead.
+      town: body?.result?.region === 'London' ? 'London' : (body?.result?.admin_district ?? null),
     };
   } catch (err) {
     if (err?.name === 'AbortError') throw err;

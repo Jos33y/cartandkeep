@@ -471,6 +471,44 @@ async function priceOrder(tenant: any, body: any): Promise<Priced> {
   };
 }
 
+// The express lane charges the flat rate before it knows the postcode, so it only opens while no zone costs more.
+function expressAllowed(tenant: any) {
+  const { zones } = deliveryTerms(tenant.store as Record<string, any>);
+  return Object.values(zones).every((z: any) => z.blocked || !(Number(z.surcharge) > 0));
+}
+
+const clip = (v: unknown, n: number) => {
+  const t = typeof v === 'string' ? v.trim() : '';
+  return t ? t.slice(0, n) : null;
+};
+const looksLikeEmail = (v: string | null) => Boolean(v && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v));
+
+/*
+ * Who the parcel is for, when it is not the buyer.
+ *
+ * The recipient's email is taken only when the buyer ticked to tell them it has
+ * been sent. Anything else sent in that field is dropped here rather than kept.
+ */
+function giftFrom(contact: any): { error?: string; fields: Record<string, unknown> } {
+  const g = contact?.gift;
+  if (!g) return { fields: { is_gift: false } };
+  const recipient = clip(g.recipientName, 120);
+  if (!recipient) return { error: 'We need the name of the person it is going to', fields: {} };
+  const notify = g.notify === true;
+  const email = notify ? clip(g.recipientEmail, 200)?.toLowerCase() ?? null : null;
+  if (notify && !looksLikeEmail(email)) return { error: 'Their email does not look right, or untick telling them', fields: {} };
+  return {
+    fields: {
+      is_gift: true,
+      recipient_name: recipient,
+      recipient_phone: clip(g.recipientPhone, 32),
+      recipient_email: email,
+      notify_recipient: notify,
+      gift_message: clip(g.message, 300),
+    },
+  };
+}
+
 // What a browser may see of a priced line: no internal rows, no costs.
 function quoteLine(l: Record<string, any>) {
   return {
@@ -513,7 +551,7 @@ Deno.serve(async (req) => {
 
       const { data: order } = await db
         .from('orders')
-        .select('id, access_token, stripe_session_id, status')
+        .select('id, access_token, stripe_session_id, status, email')
         .eq('reference', reference)
         .maybeSingle();
 
@@ -526,7 +564,18 @@ Deno.serve(async (req) => {
       if (outcome === 'paid' || outcome === 'refunded') {
         const failed = await replay({
           type: 'checkout.session.completed',
-          data: { object: { id: order.stripe_session_id, payment_status: 'paid', payment_intent: intent } },
+          data: {
+            object: {
+              id: order.stripe_session_id,
+              payment_status: 'paid',
+              payment_intent: intent,
+              ...(order.email ? {} : {
+                metadata: { express: '1' },
+                customer_details: { email: 'test.express@example.com', name: 'Test Express', phone: '+447700900077' },
+                shipping_details: { name: 'Test Express', address: { line1: '1 Test Street', line2: null, city: 'Leeds', postal_code: 'LS1 4AP', country: 'GB' } },
+              }),
+            },
+          },
         });
         if (failed) return json({ error: failed }, 502, origin);
       }
@@ -574,17 +623,34 @@ Deno.serve(async (req) => {
         toFree: money(Math.max(0, q.freeOver - q.subtotal)),
         total: q.total,
         agreed: Boolean(q.offer),
+        express: !q.offer && expressAllowed(tenant),
       }, 200, origin);
     }
 
-    if (!contact?.email || !String(contact.email).includes('@')) {
-      return json({ error: 'A valid email address is needed' }, 400, origin);
+    /*
+     * The express lane: no form here, Stripe collects the address and contact
+     * from the wallet or card page, and the webhook writes them onto the order.
+     * Only for a basket, and only while delivery is one flat rate.
+     */
+    const express = body?.action === 'express';
+    if (express && (body?.offerId || !expressAllowed(tenant))) {
+      return json({ error: 'Fill in the address below to carry on.' }, 409, origin);
     }
-    if (!contact?.name?.trim()) {
-      return json({ error: 'A name is needed' }, 400, origin);
-    }
-    if (!contact?.address?.line1?.trim() || !contact?.address?.postcode?.trim()) {
-      return json({ error: 'A delivery address and postcode are needed' }, 400, origin);
+
+    let gift: Record<string, unknown> = { is_gift: false };
+    if (!express) {
+      if (!looksLikeEmail(clip(contact?.email, 200))) {
+        return json({ error: 'A valid email address is needed' }, 400, origin);
+      }
+      if (!contact?.name?.trim()) {
+        return json({ error: 'A name is needed' }, 400, origin);
+      }
+      if (!contact?.address?.line1?.trim() || !contact?.address?.postcode?.trim()) {
+        return json({ error: 'A delivery address and postcode are needed' }, 400, origin);
+      }
+      const g = giftFrom(contact);
+      if (g.error) return json({ error: g.error }, 400, origin);
+      gift = g.fields;
     }
 
     const priced = await priceOrder(tenant, body);
@@ -624,11 +690,13 @@ Deno.serve(async (req) => {
       tenant_id: tenant.id,
       reference: ref,
       access_token: access,
-      email: String(contact.email).trim().toLowerCase(),
-      name: String(contact.name).trim(),
-      phone: contact.phone ? String(contact.phone).trim() : null,
-      address: contact.address,
-      customer_note: contact.note ? String(contact.note).slice(0, 1000) : null,
+      // Express orders are filled in by the webhook from what Stripe collected.
+      email: express ? '' : String(contact.email).trim().toLowerCase(),
+      name: express ? null : String(contact.name).trim(),
+      phone: express ? null : clip(contact.phone, 32),
+      address: express ? {} : contact.address,
+      customer_note: express ? null : clip(contact.note, 1000),
+      ...gift,
       subtotal,
       delivery,
       total,
@@ -696,9 +764,18 @@ Deno.serve(async (req) => {
       }, 200, origin);
     }
 
+    // Stripe takes at most 100 lines; past that the order is still itemised here, and Stripe shows one line.
+    const units = lines.reduce((n, l) => n + l.qty, 0);
+    const oneLine = byOffer || lines.length > 100;
+
     const session = await getStripe().checkout.sessions.create({
       mode: 'payment',
-      customer_email: String(contact.email).trim().toLowerCase(),
+      ...(express
+        ? {
+          shipping_address_collection: { allowed_countries: ['GB'] },
+          phone_number_collection: { enabled: true },
+        }
+        : { customer_email: String(contact.email).trim().toLowerCase() }),
       client_reference_id: ref,
       // Pence, from the database. Never from the request body.
       /*
@@ -710,15 +787,14 @@ Deno.serve(async (req) => {
        * The order itself still itemises, which is what a return is worked
        * against.
        */
-      line_items: byOffer
+      line_items: oneLine
         ? [{
           quantity: 1,
           price_data: {
             currency: (tenant.currency ?? 'GBP').toLowerCase(),
             unit_amount: Math.round(subtotal * 100),
             product_data: {
-              name: `Agreed price, ${lines.reduce((n, l) => n + l.qty, 0)} ${
-                lines.reduce((n, l) => n + l.qty, 0) === 1 ? 'item' : 'items'}`,
+              name: `${byOffer ? 'Agreed price' : 'Your order'}, ${units} ${units === 1 ? 'item' : 'items'}`,
             },
           },
         }]
@@ -755,9 +831,9 @@ Deno.serve(async (req) => {
        * offer to spend rather than to guess from the thread, which would spend
        * the wrong one if she requoted while they were paying.
        */
-      metadata: { order_id: order.id, reference: ref, offer_id: offer?.id ?? '' },
+      metadata: { order_id: order.id, reference: ref, offer_id: offer?.id ?? '', express: express ? '1' : '' },
       success_url: `${base}/order/${ref}?token=${access}`,
-      cancel_url: `${base}/cart`,
+      cancel_url: express ? `${base}/checkout` : `${base}/cart`,
     });
 
     await db.from('orders').update({ stripe_session_id: session.id }).eq('id', order.id);

@@ -83,6 +83,64 @@ async function notify(orderId: string, kind: 'confirmation' | 'seller_alert') {
   }
 }
 
+/*
+ * Which zone a postcode falls in, for the record on an express order.
+ *
+ * Copied from the checkout function for the same reason it is copied there: the
+ * dashboard editor deploys one folder. Express only runs while every zone costs
+ * the same, so this decides no price; it keeps the order's zone true.
+ */
+const HIGHLAND_AREAS = new Set(['HS', 'IV', 'KW', 'ZE']);
+const HIGHLAND_RANGES: Record<string, number[][]> = {
+  AB: [[31, 38], [40, 56]], FK: [[17, 21]], KA: [[27, 28]], PA: [[20, 49], [60, 78]], PH: [[4, 44], [49, 50]],
+};
+
+function postcodeZone(postcode: string) {
+  const bare = String(postcode ?? '').toUpperCase().replace(/\s+/g, '');
+  const out = bare.length > 3 ? bare.slice(0, -3) : bare;
+  const area = out.replace(/\d.*$/, '');
+  const match = out.match(/^[A-Z]+(\d+)/);
+  const district = match ? Number(match[1]) : null;
+  if (area === 'GY' || area === 'JE') return 'channel_islands';
+  if (area === 'IM') return 'isle_of_man';
+  if (area === 'BT') return 'northern_ireland';
+  if (area === 'TR' && district !== null && district >= 21 && district <= 25) return 'isles_of_scilly';
+  if (HIGHLAND_AREAS.has(area)) return 'highlands';
+  const ranges = HIGHLAND_RANGES[area];
+  if (ranges && district !== null && ranges.some(([lo, hi]) => district >= lo && district <= hi)) return 'highlands';
+  return 'mainland';
+}
+
+// "SW1A1AA" and "sw1a 1aa" both become "SW1A 1AA", the form everything else stores.
+const tidyPostcode = (p: string) => {
+  const bare = String(p ?? '').toUpperCase().replace(/\s+/g, '');
+  return bare.length > 3 ? `${bare.slice(0, -3)} ${bare.slice(-3)}` : bare;
+};
+
+/*
+ * What Stripe collected on an express order, in the order row's own shape.
+ *
+ * The shipping block moved between API versions, so both places are read. An
+ * express order with no address after payment is logged loudly rather than
+ * paid silently with nowhere to send it.
+ */
+function expressDetails(session: any) {
+  const customer = session.customer_details ?? {};
+  const shipping = session.shipping_details ?? session.collected_information?.shipping_details ?? null;
+  const a = shipping?.address ?? customer.address ?? {};
+  const postcode = tidyPostcode(a.postal_code ?? '');
+  const address = a.line1 ? {
+    line1: a.line1, line2: a.line2 || null, city: a.city || a.state || null, postcode, country: a.country ?? 'GB',
+  } : null;
+  return {
+    email: String(customer.email ?? '').trim().toLowerCase(),
+    name: (shipping?.name ?? customer.name ?? '').trim() || null,
+    phone: customer.phone ?? null,
+    address,
+    delivery_zone: address ? postcodeZone(postcode) : null,
+  };
+}
+
 Deno.serve(async (req) => {
   const signature = req.headers.get('stripe-signature');
 
@@ -135,7 +193,18 @@ Deno.serve(async (req) => {
         // `select()` so we get the row back. The `.eq('status', 'pending')`
         // means a retry of an already applied event updates nothing and
         // returns nothing, which is exactly the signal not to email again.
+        // Express orders arrive without a name or address; Stripe collected them, and they land in this same update.
+        const isExpress = session.metadata?.express === '1';
+        const collected = isExpress ? expressDetails(session) : null;
+        if (isExpress && !collected?.address) console.error('[webhook] express order paid with no address', session.id);
+
         const { data: updated, error } = await db.from('orders').update({
+          ...(collected ? {
+            email: collected.email,
+            name: collected.name,
+            phone: collected.phone,
+            ...(collected.address ? { address: collected.address, delivery_zone: collected.delivery_zone } : {}),
+          } : {}),
           status: 'paid',
           paid_at: new Date().toISOString(),
           stripe_payment_intent: typeof session.payment_intent === 'string'

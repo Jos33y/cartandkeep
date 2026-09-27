@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { MailIcon, MessageIcon, PauseIcon, PlayIcon, ReturnIcon, LockIcon, VanIcon } from '@components/ui/store/icons';
 import { useBasket } from '@context/BasketContext';
 import { freeOver, replyPromise, returnsTerms, storeConfig } from '@lib/storeConfig';
@@ -21,8 +21,11 @@ function useMessages() {
       ? { text: 'Your delivery is free', done: true }
       : { text: `${formatGbp(threshold - subtotal)} more and delivery is free`, share };
 
+  // The basket page shows the delivery gap beside its own total, so the bar does not say it a second time there.
+  const onBasket = useLocation().pathname === STORE_ROUTES.CART;
+
   return [
-    { key: 'delivery', Icon: VanIcon, to: '/legal/delivery', ...delivery },
+    ...(onBasket ? [] : [{ key: 'delivery', Icon: VanIcon, to: '/legal/delivery', ...delivery }]),
     { key: 'returns', Icon: ReturnIcon, to: '/legal/returns', text: `${returnsTerms().days ?? 30} days to change your mind` },
     { key: 'account', Icon: LockIcon, to: STORE_ROUTES.FAQ, text: 'No account needed, ever' },
     { key: 'reply', Icon: MessageIcon, to: STORE_ROUTES.CONTACT, text: `A person replies ${replyPromise()}` },
@@ -50,7 +53,8 @@ export function AnnouncementBar() {
     return () => clearTimeout(t);
   }, [i, running, messages.length]);
 
-  const m = messages[i];
+  // Wrapped, because the basket page carries one message fewer than the rest of the shop.
+  const m = messages[i % messages.length];
 
   return (
     <div className={styles.bar} role="region" aria-label="Shop promises" style={{ '--hold': `${HOLD}ms` }}>
@@ -73,7 +77,7 @@ export function AnnouncementBar() {
           </Link>
 
           <span className={styles.dots} aria-hidden="true">
-            {messages.map((x, n) => <i key={x.key} data-on={n === i || undefined} />)}
+            {messages.map((x, n) => <i key={x.key} data-on={n === i % messages.length || undefined} />)}
           </span>
 
           {!still && (

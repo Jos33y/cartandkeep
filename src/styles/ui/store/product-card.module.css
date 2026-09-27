@@ -280,3 +280,21 @@
 @media (hover: hover) {
   .card:hover .add:not(:disabled) { background: var(--c-action-strong); color: var(--c-on-action); box-shadow: none; }
 }
+
+/* How many are already in the basket, pinned to the add button like a badge on a real one. */
+.count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: var(--r-full);
+  background: var(--c-ink);
+  color: var(--c-on-dark);
+  box-shadow: 0 0 0 2px var(--c-surface);
+  font-size: 0.625rem;
+  font-weight: 650;
+  line-height: 18px;
+  text-align: center;
+}

@@ -14,10 +14,10 @@ import { Reviews } from '@components/ui/store/Reviews';
 import { Specifications } from '@components/ui/store/Specifications';
 import { SupplierText } from '@components/ui/store/SupplierText';
 import { Shelf } from '@components/ui/store/Shelf';
-import { BasketIcon, ChevronRightIcon, HeartIcon, PlusIcon } from '@components/ui/store/icons';
+import { ArrowRightIcon, BasketIcon, ChevronRightIcon, HeartIcon, PlusIcon } from '@components/ui/store/icons';
 import { anyBuyable } from '@hooks/useStoreProducts';
 import { useBrowse, useGroups, useProduct } from '@hooks/useStoreCatalogue';
-import { useBasket } from '@context/BasketContext';
+import { mostOf, useBasket } from '@context/BasketContext';
 import { useRecentlyViewed } from '@hooks/useRecentlyViewed';
 import { useSaved } from '@hooks/useSaved';
 import { useCategoryNames } from '@hooks/useCategoryNamesStore';
@@ -56,7 +56,7 @@ export function ProductPage() {
   // One product by its address, and the section list for its breadcrumb; never the whole catalogue.
   const { status, product } = useProduct(slug);
   const { groups } = useGroups();
-  const { add } = useBasket();
+  const { add, lines: basketLines, setQty: setLineQty } = useBasket();
   const { record } = useRecentlyViewed();
   const { has, toggle } = useSaved();
   const names = useCategoryNames();
@@ -133,6 +133,15 @@ export function ProductPage() {
   const stock = Number(chosen?.stock ?? product.stock);
   const most = Number.isFinite(stock) && stock > 0 ? Math.min(20, stock) : 20;
   const saved = has(product.id);
+
+  /*
+   * Already in the basket: the stepper is the basket's own count for this
+   * product, or this size, so coming back to a product never starts again at
+   * one and never adds a second lot by accident.
+   */
+  const lineKey = hasVariants ? (chosen ? `${product.id}:${chosen.id}` : null) : product.id;
+  const inLine = lineKey ? basketLines.find((l) => l.key === lineKey) ?? null : null;
+  const lineMost = inLine ? mostOf(inLine.stock) : most;
   const path = STORE_ROUTES.PRODUCT.replace(':slug', product.slug);
   const trail = [{ name: 'Shop', path: '/' }];
   if (sectionGroup) trail.push({ name: section, path: categoryPath(sectionGroup.slug) });
@@ -215,16 +224,38 @@ export function ProductPage() {
                 <VariantChoice product={product} chosen={chosen} onChoose={setChosen} />
               </div>
 
+              {inLine && (
+                <p className={styles.inBasket} aria-live="polite">
+                  <BasketIcon size={15} />
+                  <span>In your basket: <b data-price>{inLine.qty}</b></span>
+                  <Link to={STORE_ROUTES.CART}>View basket</Link>
+                </p>
+              )}
+
               <div className={styles.buy} ref={buyRef}>
-                <div className={styles.qty}>
-                  <button type="button" onClick={() => setQty((n) => Math.max(1, n - 1))} disabled={qty === 1} aria-label="One fewer">&minus;</button>
-                  <span aria-live="polite" aria-label={`Quantity ${qty}`}>{qty}</span>
-                  <button type="button" onClick={() => setQty((n) => Math.min(most, n + 1))} disabled={qty >= most} aria-label="One more">+</button>
-                </div>
-                <button type="button" className={styles.addBtn} onClick={onAdd} data-added={added || undefined} disabled={!ready}>
-                  {added ? <BasketIcon size={18} /> : <PlusIcon size={18} />}
-                  <span aria-live="polite">{buyable ? label : 'Out of stock'}</span>
-                </button>
+                {inLine ? (
+                  <div className={styles.qty} data-live>
+                    <button type="button" onClick={() => { if (inLine.qty === 1) setAdded(false); setLineQty(inLine.key, inLine.qty - 1); }} aria-label={inLine.qty === 1 ? 'Take it out of your basket' : 'One fewer in your basket'}>&minus;</button>
+                    <span aria-label={`${inLine.qty} in your basket`}>{inLine.qty}</span>
+                    <button type="button" onClick={() => setLineQty(inLine.key, inLine.qty + 1)} disabled={inLine.qty >= lineMost} aria-label="One more in your basket">+</button>
+                  </div>
+                ) : (
+                  <div className={styles.qty}>
+                    <button type="button" onClick={() => setQty((n) => Math.max(1, n - 1))} disabled={qty === 1} aria-label="One fewer">&minus;</button>
+                    <span aria-live="polite" aria-label={`Quantity ${qty}`}>{qty}</span>
+                    <button type="button" onClick={() => setQty((n) => Math.min(most, n + 1))} disabled={qty >= most} aria-label="One more">+</button>
+                  </div>
+                )}
+                {inLine ? (
+                  <Link className={styles.addBtn} to={STORE_ROUTES.CHECKOUT}>
+                    <span>Checkout</span><ArrowRightIcon size={18} />
+                  </Link>
+                ) : (
+                  <button type="button" className={styles.addBtn} onClick={onAdd} data-added={added || undefined} disabled={!ready}>
+                    {added ? <BasketIcon size={18} /> : <PlusIcon size={18} />}
+                    <span aria-live="polite">{buyable ? label : 'Out of stock'}</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   className={styles.save}
@@ -240,7 +271,7 @@ export function ProductPage() {
 
               <div className={styles.delivery}>
                 <ArrivalTrack product={product} />
-                <FreeDeliveryBar pending={inBasket || !ready ? 0 : price * qty} />
+                <FreeDeliveryBar pending={inLine || inBasket || !ready ? 0 : price * qty} />
               </div>
 
               <ProductTerms product={product} />
@@ -282,10 +313,14 @@ export function ProductPage() {
         <div className={styles.stickyInner}>
           {images[0] && <img className={styles.stickyThumb} src={imageAt(images[0], 300)} alt="" />}
           <span className={styles.stickyName}>{product.title}</span>
-          <span className={styles.stickyPrice} data-price>{formatGbp(price * qty)}</span>
-          <button type="button" className={styles.addBtn} onClick={onStickyAdd} tabIndex={stuck ? 0 : -1} disabled={!buyable}>
-            {buyable ? (added ? 'Added' : hasVariants && !chosen ? 'Choose one first' : 'Add to basket') : 'Out of stock'}
-          </button>
+          <span className={styles.stickyPrice} data-price>{inLine ? `${inLine.qty} in your basket` : formatGbp(price * qty)}</span>
+          {inLine ? (
+            <Link className={styles.addBtn} to={STORE_ROUTES.CHECKOUT} tabIndex={stuck ? 0 : -1}>Checkout</Link>
+          ) : (
+            <button type="button" className={styles.addBtn} onClick={onStickyAdd} tabIndex={stuck ? 0 : -1} disabled={!buyable}>
+              {buyable ? (added ? 'Added' : hasVariants && !chosen ? 'Choose one first' : 'Add to basket') : 'Out of stock'}
+            </button>
+          )}
         </div>
       </div>
     </div>

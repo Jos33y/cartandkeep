@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
-import { ArrowRightIcon, CloseIcon, MinusIcon, PlusIcon } from '@components/ui/store/icons';
+import { ArrowRightIcon, CloseIcon, HeartIcon, MinusIcon, PlusIcon } from '@components/ui/store/icons';
 import { mostOf, useBasket } from '@context/BasketContext';
 import { useQuote } from '@hooks/useQuote';
+import { useSaved } from '@hooks/useSaved';
 import { deliveryFor, freeOver } from '@lib/storeConfig';
 import { AskPanel } from '@components/ui/store/AskPanel';
 import { BasketPromises, BasketTotals, basketArrival } from '@components/ui/store/BasketTotals';
@@ -24,6 +25,13 @@ import styles from '@styles/pages/store/cart-page.module.css';
 export function CartPage() {
   const { lines, setQty, remove, subtotal: kept, count } = useBasket();
   const { quote, was } = useQuote(lines);
+  const { has: isSaved, toggle: toggleSaved } = useSaved();
+
+  // Out of the basket and onto Saved, so a maybe is kept rather than lost.
+  function saveForLater(line) {
+    if (!isSaved(line.id)) toggleSaved(line.id);
+    remove(line.key);
+  }
 
   // The checkout's figures once they arrive, the basket's own until then.
   const local = deliveryFor(kept);
@@ -120,6 +128,11 @@ export function CartPage() {
                           </button>
                         </div>
                       )}
+                      {!off && (
+                        <button type="button" className={styles.remove} data-save onClick={() => saveForLater(line)} aria-label={`Save ${name} for later`}>
+                          <HeartIcon size={14} /> Save for later
+                        </button>
+                      )}
                       <button
                         type="button"
                         className={styles.remove}
@@ -150,9 +163,9 @@ export function CartPage() {
           <GapShelf gap={gone.size ? 0 : figures.toFree} />
         </div>
 
-        {/* Under the lines it is about, and quiet: somebody who has decided scrolls past it. */}
+        {/* Under the lines it is about, and quiet: one line until somebody wants to ask. */}
         <div className={styles.ask}>
-          <AskPanel basket={lines} />
+          <AskPanel basket={lines} quiet />
         </div>
 
         <aside className={styles.summary} aria-label="Order total">

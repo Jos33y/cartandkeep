@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Outlet } from 'react-router';
+import { Outlet, useLocation } from 'react-router';
 import { loadStoreConfig } from '@lib/storeConfig';
 import { BrandLoader } from '@components/ui/store/BrandLoader';
 import { ScrollToTop } from '@components/layout/shared/ScrollToTop';
@@ -9,6 +9,8 @@ import { useTenant } from '@hooks/useTenant';
 import { AnnouncementBar } from './AnnouncementBar';
 import { StoreHeader } from './StoreHeader';
 import { StoreFooter } from './StoreFooter';
+import { CheckoutFooter, CheckoutHeader } from './CheckoutHeader';
+import { STORE_ROUTES } from '@utils/constants';
 import { MiniBasket } from '@components/ui/store/MiniBasket';
 import styles from '@styles/layout/store/store-shell.module.css';
 
@@ -22,6 +24,10 @@ export function StoreShell() {
   // the only place a single page app can count a navigation from.
   const tenant = useTenant();
   usePageViews(tenant?.id);
+
+  // Checkout is enclosed: its own header and the legal links, nothing else to leave by.
+  const { pathname } = useLocation();
+  const enclosed = pathname === STORE_ROUTES.CHECKOUT;
 
   // Settings reach the shop only through this load. Nothing renders before it, so no page promises the defaults first.
   const [configured, setConfigured] = useState(false);
@@ -38,16 +44,15 @@ export function StoreShell() {
       <div className={styles.shell}>
         <ScrollToTop />
         <a href="#store-main" className={styles.skip}>Skip to content</a>
-        <AnnouncementBar />
-        <StoreHeader />
+        {enclosed ? <CheckoutHeader /> : <><AnnouncementBar /><StoreHeader /></>}
         <main id="store-main" className={styles.main}>
           <Outlet />
         </main>
-        <StoreFooter />
+        {enclosed ? <CheckoutFooter /> : <StoreFooter />}
 
         {/* Inside the provider and outside the main, so it can open over any
             route without being part of the page it opens over. */}
-        <MiniBasket />
+        {!enclosed && <MiniBasket />}
       </div>
     </BasketProvider>
   );

@@ -167,7 +167,7 @@ ul.lines {
   padding: var(--s-5);
 }
 
-@media (min-width: 900px) { .summary { position: sticky; top: calc(var(--bar-h) + var(--s-4)); } }
+@media (min-width: 900px) { .summary { position: sticky; top: calc(var(--store-header-h, 106px) + var(--s-4)); } }
 
 .checkout {
   display: flex;
@@ -247,3 +247,4 @@ ul.lines {
 }
 
 @media (prefers-reduced-motion: reduce) { .checkout, .bar { transition: none; } }
+.remove[data-save]:hover { color: var(--c-action-text); }

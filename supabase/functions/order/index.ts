@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
 
     const { data: order } = await db
       .from('orders')
-      .select('id, reference, access_token, status, email, name, address, subtotal, delivery, total, currency, customer_note, paid_at, created_at, dispatched_at, carrier, tracking_number, tracking_url')
+      .select('id, reference, access_token, status, email, name, address, subtotal, delivery, total, currency, customer_note, paid_at, created_at, dispatched_at, carrier, tracking_number, tracking_url, is_gift, recipient_name, recipient_phone, notify_recipient, gift_message')
       .eq('tenant_id', tenant.id)
       .eq('reference', String(reference).toUpperCase())
       .maybeSingle();

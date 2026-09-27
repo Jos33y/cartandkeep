@@ -223,6 +223,24 @@ const identityComplete = (t: Record<string, unknown>) =>
 
 // --- templates ---------------------------------------------------------------
 
+// Whose name goes on the parcel: the recipient's on a gift, the buyer's otherwise.
+const deliverTo = (order: any) => order.recipient_name || order.name;
+const firstName = (n: unknown) => String(n ?? '').trim().split(/\s+/)[0] || null;
+
+function addressLine(order: any) {
+  return [deliverTo(order), order.address?.line1, order.address?.line2,
+    order.address?.city, order.address?.postcode].filter(Boolean).map(escape).join(', ');
+}
+
+// Said once in the buyer's receipt, so they know exactly what the recipient will and will not see.
+function giftNote(order: any) {
+  if (!order.is_gift) return '';
+  const who = escape(firstName(order.recipient_name) ?? 'them');
+  const parts = [`It is a gift, so the slip in the box carries no prices${order.gift_message ? ', only your message' : ''}.`];
+  if (order.notify_recipient) parts.push(`We will email ${who} when it leaves us, without saying what it is.`);
+  return `<p style="margin:12px 0 0;color:#5C564D;">${parts.join(' ')}</p>`;
+}
+
 function confirmation(order: any, trader: any, cfg: any) {
   const now = new Date();
   const cutoff = Number(cfg.delivery?.cutoff_hour ?? 14);
@@ -236,8 +254,7 @@ function confirmation(order: any, trader: any, cfg: any) {
     ? 'today' : longDate(outDay);
   const outcode = String(order.address?.postcode ?? '').split(' ')[0];
 
-  const address = [order.name, order.address?.line1, order.address?.line2,
-    order.address?.city, order.address?.postcode].filter(Boolean).map(escape).join(', ');
+  const address = addressLine(order);
 
   const body = `
 <p style="margin:0 0 20px;font-size:16px;">Paid. We pack on weekday mornings, so this goes out ${escape(outWord)} and should reach ${escape(outcode || 'you')} by ${escape(longDate(arrive))}.</p>
@@ -251,6 +268,7 @@ ${itemRows(order.items)}
 </table>
 
 <p style="margin:20px 0 0;color:#5C564D;">Going to ${address}. Reply to this email if any of that is wrong and we will fix it before it goes.</p>
+${giftNote(order)}
 
 ${RULE}
 
@@ -269,9 +287,14 @@ function sellerAlert(order: any, trader: any) {
   const outcode = String(order.address?.postcode ?? '').split(' ')[0];
   const units = order.items.reduce((n: number, i: any) => n + Number(i.qty ?? 0), 0);
 
-  const address = [order.name, order.address?.line1, order.address?.line2,
+  const address = [deliverTo(order), order.address?.line1, order.address?.line2,
     order.address?.city, order.address?.postcode]
     .filter(Boolean).map((l: string) => `${escape(l)}<br>`).join('');
+
+  // A gift changes what she packs: no prices in the box, and the message on the slip.
+  const giftBlock = order.is_gift
+    ? `<p style="margin:0 0 16px;padding:12px;background:#F4EFE5;color:#2A2723;font-size:14px;">A gift from ${escape(order.name ?? 'the buyer')}. Pack the slip, never the receipt.${order.gift_message ? `<br><br>Their message, printed on the slip:<br><em>${escape(order.gift_message)}</em>` : ''}</p>`
+    : '';
 
   // The subject carries the whole thing, because she reads this between other
   // work and should not have to open it to know what happened.
@@ -284,7 +307,7 @@ function sellerAlert(order: any, trader: any) {
     ? `<p style="margin:0 0 16px;padding:12px;background:#FAEEE9;color:#AD5438;font-size:14px;">Sold more than you have of ${oversold.map((i: any) => `${escape(i.title)} (${i.stock} left)`).join(', ')}. Somebody else has bought the same item. Refund one of them from Stripe, or tell them it is on its way when you restock.</p>`
     : '';
 
-  const body = `${warning}${oversoldBlock}
+  const body = `${warning}${oversoldBlock}${giftBlock}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:15px;">
 ${itemRows(order.items)}
 </table>
@@ -293,7 +316,7 @@ ${itemRows(order.items)}
 
   return {
     to: null, // filled by the caller from the tenant's own address
-    subject: `Sale: ${money(order.total)}, ${order.reference}, ${units} ${units === 1 ? 'item' : 'items'} to ${outcode}`,
+    subject: `Sale: ${money(order.total)}, ${order.reference}, ${units} ${units === 1 ? 'item' : 'items'} to ${outcode}${order.is_gift ? ', a gift' : ''}`,
     html: shell(`Sale ${order.reference}`, body),
   };
 }
@@ -308,12 +331,33 @@ function dispatch(order: any, cfg: any) {
 <p style="margin:0 0 16px;font-size:16px;">It left today${order.carrier ? ` by ${escape(order.carrier)}` : ''}.</p>
 ${order.tracking_number ? `<p style="margin:0 0 8px;">Tracking: ${escape(order.tracking_number)}</p>` : ''}
 ${order.tracking_url ? `<p style="margin:0 0 8px;"><a href="${escape(order.tracking_url)}" style="color:#AD5438;">Follow it on the carrier's site</a></p>` : ''}
-<p style="margin:16px 0 0;">It should reach you by ${escape(longDate(arrive))}. If it has not arrived by ${escape(longDate(chase))}, reply to this email and we will chase it.</p>`;
+<p style="margin:16px 0 0;">It should reach ${order.is_gift ? escape(firstName(order.recipient_name) ?? 'them') : 'you'} by ${escape(longDate(arrive))}. If it has not arrived by ${escape(longDate(chase))}, reply to this email and we will chase it.</p>`;
 
   return {
     to: order.email,
     subject: `Order ${order.reference} is on its way`,
     html: shell(`Order ${order.reference} is on its way`, body),
+  };
+}
+
+/*
+ * The one email a gift's recipient can get, and only when the buyer asked.
+ *
+ * No prices, no list of what is inside, and no receipt: it says who sent
+ * something and when it should arrive, so the surprise is the parcel.
+ */
+function recipientDispatch(order: any, cfg: any) {
+  const arrive = addWorkingDays(new Date(), Number(cfg.delivery?.transit_max ?? 3));
+  const from = escape(firstName(order.name) ?? 'Someone');
+  const body = `
+<p style="margin:0 0 16px;font-size:16px;">${from} has sent you something from Cart &amp; Keep.</p>
+<p style="margin:0 0 16px;">It left us today and should reach you by ${escape(longDate(arrive))}.</p>
+${order.tracking_url ? `<p style="margin:0 0 16px;"><a href="${escape(order.tracking_url)}" style="color:#AD5438;">Follow the parcel</a></p>` : ''}
+<p style="margin:0;font-size:13px;color:#6B6459;">We only have your email because ${from} asked us to tell you it was coming. We will not use it again.</p>`;
+  return {
+    to: order.recipient_email,
+    subject: `Something is on its way to you from ${firstName(order.name) ?? 'a friend'}`,
+    html: shell('Something is on its way', body),
   };
 }
 
@@ -546,6 +590,7 @@ async function loadOrder(orderId: string) {
     .from('orders')
     .select(`
       id, tenant_id, reference, status, email, name, phone, address,
+      is_gift, recipient_name, recipient_email, notify_recipient, gift_message,
       subtotal, delivery, total, carrier, tracking_number, tracking_url,
       dispatched_at,
       access_token,
@@ -778,10 +823,22 @@ Deno.serve(async (req) => {
   }
 
   if (!orderId || !kind) return json({ error: 'orderId and kind are required' }, 400, origin);
-  if (!['confirmation', 'dispatch', 'seller_alert', 'review_request'].includes(kind)) {
+  if (!['confirmation', 'dispatch', 'seller_alert', 'review_request', 'recipient_dispatch'].includes(kind)) {
     return json({ error: 'Unknown kind' }, 400, origin);
   }
 
+  const first = await sendOrderMail(orderId, kind, resend);
+
+  // The recipient hears once the buyer's own dispatch email has gone, and only if the buyer asked.
+  if (kind === 'dispatch' && first.status === 200 && !first.body.skipped) {
+    const second = await sendOrderMail(orderId, 'recipient_dispatch', false);
+    if (second.status !== 200) console.error('[notify] recipient note', orderId, second.body);
+  }
+  return json(first.body, first.status, origin);
+});
+
+// One email about one order, guarded so a retry never sends it twice.
+async function sendOrderMail(orderId: string, kind: string, resend?: boolean): Promise<{ status: number; body: Record<string, unknown> }> {
   // A retried Stripe event must not send a second confirmation. The order_emails
   // row is the guard, and resend is the only way past it.
   if (resend) {
@@ -793,7 +850,7 @@ Deno.serve(async (req) => {
     const { data: already } = await db.from('order_emails')
       .select('id').eq('order_id', orderId).eq('kind', kind)
       .eq('status', 'sent').maybeSingle();
-    if (already) return json({ skipped: 'already sent' }, 200, origin);
+    if (already) return { status: 200, body: { skipped: 'already sent' } };
   }
 
   try {
@@ -801,8 +858,14 @@ Deno.serve(async (req) => {
     const trader = cfg.trader ?? {};
     const replyTo = String(trader.email ?? 'support@cartandkeep.com');
 
+    // Nothing to send, and nothing to record: an order for the buyer, or a gift they did not want announced.
+    if (kind === 'recipient_dispatch' && !(order.is_gift && order.notify_recipient && order.recipient_email)) {
+      return { status: 200, body: { skipped: 'not asked for' } };
+    }
+
     let mail;
     if (kind === 'confirmation') mail = confirmation(order, trader, cfg);
+    else if (kind === 'recipient_dispatch') mail = recipientDispatch(order, cfg);
     else if (kind === 'dispatch') mail = dispatch(order, cfg);
     else if (kind === 'review_request') mail = reviewRequest(order, cfg);
     else {
@@ -810,7 +873,7 @@ Deno.serve(async (req) => {
       mail.to = replyTo;
     }
 
-    if (!mail.to) return json({ error: 'No recipient' }, 400, origin);
+    if (!mail.to) return { status: 400, body: { error: 'No recipient' } };
 
     const providerId = await send(mail.to, mail.subject, mail.html, replyTo);
 
@@ -829,7 +892,7 @@ Deno.serve(async (req) => {
     }, { onConflict: 'order_id,kind' });
     if (recordError) console.error('[notify] sent but not recorded', kind, orderId, recordError.message);
 
-    return json({ sent: kind, id: providerId }, 200, origin);
+    return { status: 200, body: { sent: kind, id: providerId } };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[notify]', kind, orderId, message);
@@ -851,6 +914,6 @@ Deno.serve(async (req) => {
       }, { onConflict: 'order_id,kind' });
     }
 
-    return json({ error: message }, 500, origin);
+    return { status: 500, body: { error: message } };
   }
-});
+}

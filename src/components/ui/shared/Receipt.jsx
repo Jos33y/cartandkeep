@@ -62,7 +62,7 @@ export function Receipt({ order, items = [], variant = 'customer' }) {
   const state = progress(order);
 
   const address = order.address ?? {};
-  const lines = [order.name, address.line1, address.line2, address.city, address.postcode]
+  const lines = [order.recipient_name || order.name, address.line1, address.line2, address.city, address.postcode]
     .filter(Boolean);
 
   return (
@@ -152,9 +152,19 @@ export function Receipt({ order, items = [], variant = 'customer' }) {
       <div className={styles.rule} />
 
       <address className={styles.address}>
-        {slip && <p className={styles.addressHead}>Send to</p>}
+        {(slip || order.is_gift) && <p className={styles.addressHead}>{order.is_gift ? `A gift, sent to` : 'Send to'}</p>}
         {lines.map((l) => <p key={l}>{l}</p>)}
       </address>
+
+      {order.is_gift && order.gift_message && (
+        <>
+          <div className={styles.rule} />
+          <p className={styles.note}>
+            <span className={styles.noteHead}>{slip ? `From ${order.name}: ` : 'Your message: '}</span>
+            {order.gift_message}
+          </p>
+        </>
+      )}
 
       {order.customer_note && (
         <>

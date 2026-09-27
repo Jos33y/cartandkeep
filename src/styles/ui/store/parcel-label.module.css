@@ -1,0 +1,273 @@
+/* Kraft board under a paper label. Two colours of her own palette's warmth, nothing new invented. */
+.board {
+  --kraft: #e3d3b6;
+  --kraft-deep: #cdb893;
+  --paper: #fffdf8;
+  --ghost: #c8bca9;
+  --stamp: var(--c-action-strong);
+
+  position: relative;
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(255, 255, 255, 0.22), transparent 60%),
+    var(--kraft);
+  border-radius: var(--r-card);
+  padding: var(--s-2);
+  box-shadow: inset 0 0 0 1px rgba(90, 64, 30, 0.08);
+}
+
+/* Never taller than the window: the label scrolls inside, Pay stays pinned at the foot. */
+@media (min-width: 960px) {
+  .board {
+    padding: var(--s-3);
+    position: sticky;
+    top: calc(var(--checkout-bar-h, 64px) + var(--s-4));
+    /* The window, less the bar above, the footer below and the gaps around it: it never needs pushing up. */
+    max-height: calc(100dvh - var(--checkout-bar-h, 64px) - var(--checkout-foot-h, 56px) - var(--s-4) * 3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+  }
+}
+
+/* Phones: one line at the top of the page, who it is for and the total. */
+.fold {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-height: 60px;
+  padding: var(--s-2) var(--s-3);
+  background: var(--paper);
+  border-radius: 8px;
+  text-align: left;
+  box-shadow: 0 1px 0 rgba(90, 64, 30, 0.08);
+}
+
+.foldText { display: flex; flex-direction: column; min-width: 0; }
+.foldWho { font-size: var(--t-label); font-weight: 600; color: var(--c-ink); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.foldCount { font-size: var(--t-caption); color: var(--c-faint); }
+.foldTotal { flex: none; display: inline-flex; align-items: center; gap: var(--s-2); }
+.foldTotal strong { font-size: var(--t-lead); color: var(--c-ink); }
+.foldTotal svg { color: var(--c-faint); transition: transform 200ms var(--ease); }
+.fold[aria-expanded='true'] .foldTotal svg { transform: rotate(180deg); }
+
+@media (min-width: 960px) { .fold { display: none; } }
+
+/* The label itself. Its top edge is punched, as a roll label is, drawn inside the paper so scrolling never clips it. */
+.label {
+  position: relative;
+  display: none;
+  margin-top: var(--s-2);
+  padding: var(--s-5) var(--s-4) var(--s-4);
+  background:
+    radial-gradient(circle at 7px 0, var(--kraft) 3.5px, transparent 4px) 0 0 / 14px 8px repeat-x,
+    var(--paper);
+  border-radius: 6px;
+  box-shadow: 0 1px 0 rgba(90, 64, 30, 0.1), 0 18px 34px -22px rgba(70, 48, 20, 0.45);
+}
+
+.label[data-open] { display: block; }
+
+@media (min-width: 960px) {
+  .label {
+    display: block;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: 0;
+    padding: var(--s-5) var(--s-5) var(--s-4);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--kraft-deep) transparent;
+  }
+}
+
+.dock { display: none; }
+
+@media (min-width: 960px) {
+  .dock {
+    display: block;
+    flex: none;
+    padding: var(--s-4);
+    background: var(--paper);
+    border-radius: 6px;
+    box-shadow: 0 1px 0 rgba(90, 64, 30, 0.1);
+  }
+}
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-bottom: var(--s-3);
+  border-bottom: 2px solid var(--c-ink);
+}
+
+.brand { font-family: var(--font-display); font-stretch: var(--wide-tight); font-size: var(--t-label); font-weight: 650; letter-spacing: 0.01em; color: var(--c-ink); }
+
+.code {
+  font-family: var(--font-display);
+  font-stretch: var(--wide);
+  font-size: 2rem;
+  font-weight: 720;
+  line-height: 0.9;
+  letter-spacing: 0.02em;
+  color: var(--c-ink);
+  transition: color 240ms var(--ease);
+}
+
+.code[data-empty] { color: var(--ghost); letter-spacing: 0.1em; }
+
+.micro {
+  display: block;
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-faint);
+}
+
+.to {
+  position: relative;
+  padding: var(--s-4) 0 var(--s-4);
+  font-size: var(--t-body);
+  line-height: 1.45;
+  color: var(--c-ink);
+}
+
+.to .micro { margin-bottom: 6px; }
+.to p { overflow-wrap: anywhere; transition: color 240ms var(--ease); }
+.to [data-empty] { color: var(--ghost); }
+.name { font-size: 1.25rem; font-weight: 650; letter-spacing: -0.01em; line-height: 1.25; }
+.postcode { margin-top: 2px; font-size: var(--t-lead); font-weight: 700; letter-spacing: 0.08em; font-variant-numeric: tabular-nums; }
+.from { margin-top: var(--s-3); font-size: var(--t-label); color: var(--c-ink-soft); }
+
+/* Inked on, a little crooked, as a real stamp lands. */
+.stamp {
+  position: absolute;
+  right: 0;
+  bottom: var(--s-4);
+  padding: 6px 10px 5px;
+  border: 2px solid var(--stamp);
+  border-radius: 4px;
+  color: var(--stamp);
+  font-family: var(--font-display);
+  font-stretch: var(--wide);
+  font-size: 0.95rem;
+  font-weight: 720;
+  line-height: 1.05;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  transform: rotate(-7deg);
+  opacity: 0.88;
+  animation: stamp 420ms var(--ease-out) both;
+}
+
+.stamp small { font-family: var(--font-store-ui); font-stretch: normal; font-size: 0.6rem; font-weight: 600; letter-spacing: 0.1em; }
+
+@keyframes stamp {
+  from { transform: rotate(-7deg) scale(1.35); opacity: 0; }
+  to { transform: rotate(-7deg) scale(1); opacity: 0.88; }
+}
+
+/* The trip, three stops on a dashed line. */
+.route {
+  position: relative;
+  display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+  column-gap: var(--s-5);
+  padding: var(--s-3) 0 var(--s-1);
+}
+
+.route::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  right: 16%;
+  top: calc(var(--s-3) + 5px);
+  border-top: 1.5px dashed var(--kraft-deep);
+}
+
+.route li { position: relative; display: flex; flex-direction: column; gap: 2px; padding-top: 16px; min-width: 0; }
+.route li::before { content: ''; position: absolute; left: 0; top: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--paper); border: 2px solid var(--kraft-deep); }
+.route li[data-end]::before { background: var(--c-sage-deep); border-color: var(--c-sage-deep); }
+.route span { font-size: var(--t-label); font-weight: 650; color: var(--c-ink); white-space: nowrap; }
+@media (max-width: 400px) { .route { column-gap: var(--s-3); } .route span { font-size: var(--t-caption); } }
+.route b { font-size: var(--t-caption); font-weight: 400; color: var(--c-faint); }
+
+/* The tear line between the label and the receipt side, notched at both edges. */
+.perforation {
+  position: relative;
+  margin: var(--s-4) calc(var(--s-4) * -1);
+  border-top: 2px dashed #e4dccd;
+}
+
+.perforation::before,
+.perforation::after {
+  content: '';
+  position: absolute;
+  top: -9px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--kraft);
+}
+
+.perforation::before { left: -8px; }
+.perforation::after { right: -8px; }
+
+@media (min-width: 960px) { .perforation { margin: var(--s-4) calc(var(--s-5) * -1); } }
+
+.boxHead { display: flex; justify-content: space-between; margin-bottom: var(--s-3); }
+.agreed { margin-bottom: var(--s-3); font-size: var(--t-label); line-height: 1.5; color: var(--c-ink-soft); }
+
+ul.lines { list-style: none; display: flex; flex-direction: column; gap: var(--s-3); }
+.lines li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: var(--s-3); align-items: center; }
+
+.thumb { position: relative; width: 44px; height: 44px; border-radius: 6px; background: var(--c-warm); }
+.thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
+.qty {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: var(--r-full);
+  background: var(--c-ink);
+  color: var(--c-on-dark);
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+.lineText { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.lineTitle { font-size: var(--t-label); line-height: 1.35; color: var(--c-ink); display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.lineVariant { font-size: var(--t-caption); color: var(--c-ink-soft); }
+.lineMoney { display: flex; flex-direction: column; align-items: flex-end; font-size: var(--t-label); color: var(--c-ink); white-space: nowrap; }
+.lineMoney s { font-size: var(--t-caption); color: var(--c-faint); }
+.lines li[data-gone] img { opacity: 0.4; filter: grayscale(0.6); }
+.lines li[data-gone] .lineTitle { color: var(--c-faint); }
+.offSale { font-size: var(--t-caption); font-weight: 600; color: var(--c-negative); }
+
+.more {
+  margin-top: var(--s-3);
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-sage-deep);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--c-sage-deep) 35%, transparent);
+  text-underline-offset: 3px;
+}
+
+.sums { margin-top: var(--s-4); padding-top: var(--s-4); border-top: 1px solid #efe8dc; }
+.after { margin-top: var(--s-4); }
+
+@media (prefers-reduced-motion: reduce) {
+  .stamp { animation: none; }
+  .code, .to p, .foldTotal svg { transition: none; }
+}

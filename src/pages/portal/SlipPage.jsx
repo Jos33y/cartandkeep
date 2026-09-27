@@ -43,9 +43,15 @@ export function PackingSlip({ order, items, returns }) {
       <section className={styles.addresses}>
         <div className={styles.to}>
           <span className={styles.label}>Deliver to</span>
-          <p className={styles.toName}>{order.name}</p>
+          <p className={styles.toName}>{order.recipient_name || order.name}</p>
           {lines.map((l) => <p key={l}>{l}</p>)}
         </div>
+        {order.is_gift && (
+          <div className={styles.gift}>
+            <span className={styles.label}>A gift from {order.name}</span>
+            {order.gift_message && <p className={styles.message}>{order.gift_message}</p>}
+          </div>
+        )}
         {order.customer_note && (
           <div className={styles.note}>
             <span className={styles.label}>Delivery note</span>
@@ -79,9 +85,10 @@ export function PackingSlip({ order, items, returns }) {
       </section>
 
       <footer className={styles.foot}>
-        <p className={styles.thanks}>Thank you for shopping with us.</p>
+        <p className={styles.thanks}>{order.is_gift ? 'Sent with love, packed by us.' : 'Thank you for shopping with us.'}</p>
         <p>
-          {returnsLine(returns)}{' '}
+          {/* A gift's recipient did not buy it, so the slip promises help rather than the buyer's right to cancel. */}
+          {order.is_gift ? 'Not quite right? Get in touch and we will sort it out.' : returnsLine(returns)}{' '}
           Keep this slip and quote <b data-num>{order.reference}</b> when you get in touch.
         </p>
       </footer>
@@ -100,7 +107,7 @@ export function SlipPage() {
       // Row level security scopes this to her shop, so there is no tenant filter doing the policy's job.
       const { data: order, error } = await supabase
         .from('orders')
-        .select('id, reference, status, name, address, customer_note, paid_at, created_at, dispatched_at')
+        .select('id, reference, status, name, address, customer_note, paid_at, created_at, dispatched_at, is_gift, recipient_name, gift_message')
         .eq('reference', String(reference).toUpperCase())
         .maybeSingle();
       if (!live) return;

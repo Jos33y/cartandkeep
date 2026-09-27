@@ -6,7 +6,7 @@ import { FreeDeliveryBar } from '@components/ui/store/FreeDeliveryBar';
 import { StockSignal } from '@components/ui/store/StockSignal';
 import { anyBuyable } from '@hooks/useStoreProducts';
 import { ArrowRightIcon, BasketIcon, CloseIcon, PlusIcon, ReturnIcon } from '@components/ui/store/icons';
-import { useBasket } from '@context/BasketContext';
+import { mostOf, useBasket } from '@context/BasketContext';
 import { useProduct } from '@hooks/useStoreCatalogue';
 import { trackQuickView } from '@lib/analytics';
 import { returnsTerms } from '@lib/storeConfig';
@@ -42,7 +42,7 @@ function fly(src, from, to, onDone) {
 
 // Look without leaving the shelf: the product is lifted off its card, and set back down on close.
 export function QuickView({ product: card, onClose }) {
-  const { add } = useBasket();
+  const { add, lines: basketLines, setQty: setLineQty } = useBasket();
   // A browse card carries two photographs and a size count; the full product has every photograph and the sizes. Usually already fetched when the card was hovered.
   const { product: full } = useProduct(card?.slug);
   const product = card && full && full.id === card.id ? full : card;
@@ -162,6 +162,10 @@ export function QuickView({ product: card, onClose }) {
   const section = shopSectionOf(product, names);
   const productPath = STORE_ROUTES.PRODUCT.replace(':slug', product.slug);
 
+  // Already in the basket: the count shown is the basket's, as on the product page.
+  const inLine = hasVariants ? null : basketLines.find((l) => l.key === product.id) ?? null;
+  const most = mostOf(inLine ? inLine.stock : product.stock);
+
   function onAdd() {
     if (hasVariants || !buyable) return;
     add(product, qty);
@@ -202,15 +206,33 @@ export function QuickView({ product: card, onClose }) {
               <StockSignal product={product} />
             </div>
 
+            {inLine && (
+              <p className={styles.inBasket} aria-live="polite">
+                <BasketIcon size={15} />
+                <span>In your basket: <b data-price>{inLine.qty}</b></span>
+              </p>
+            )}
+
             <div className={styles.buy}>
-              {!hasVariants && (
+              {!hasVariants && (inLine ? (
+                <div className={styles.qty} data-live>
+                  <button type="button" onClick={() => { if (inLine.qty === 1) setAdded(false); setLineQty(inLine.key, inLine.qty - 1); }} aria-label={inLine.qty === 1 ? 'Take it out of your basket' : 'One fewer in your basket'}>&minus;</button>
+                  <span aria-label={`${inLine.qty} in your basket`}>{inLine.qty}</span>
+                  <button type="button" onClick={() => setLineQty(inLine.key, inLine.qty + 1)} disabled={inLine.qty >= most} aria-label="One more in your basket">+</button>
+                </div>
+              ) : (
                 <div className={styles.qty}>
                   <button type="button" onClick={() => setQty((n) => Math.max(1, n - 1))} disabled={qty === 1} aria-label="One fewer">&minus;</button>
                   <span aria-label={`Quantity ${qty}`}>{qty}</span>
-                  <button type="button" onClick={() => setQty((n) => Math.min(20, n + 1))} aria-label="One more">+</button>
+                  <button type="button" onClick={() => setQty((n) => Math.min(most, n + 1))} disabled={qty >= most} aria-label="One more">+</button>
                 </div>
-              )}
-              {hasVariants ? (
+              ))}
+              {inLine ? (
+                <Link className={styles.addBtn} to={STORE_ROUTES.CHECKOUT} onClick={() => closeRef.current()}>
+                  <span>Checkout</span>
+                  <ArrowRightIcon size={17} />
+                </Link>
+              ) : hasVariants ? (
                 // A link, not a dead button: the page has the room for a chooser.
                 <Link className={styles.addBtn} to={productPath} onClick={() => closeRef.current()}>
                   <span>Choose a size</span>
@@ -232,7 +254,7 @@ export function QuickView({ product: card, onClose }) {
 
             <div className={styles.delivery}>
               <ArrivalTrack product={product} />
-              <FreeDeliveryBar pending={inBasket || !buyable || hasVariants ? 0 : price * qty} />
+              <FreeDeliveryBar pending={inLine || inBasket || !buyable || hasVariants ? 0 : price * qty} />
             </div>
 
             {returnDays > 0 && (

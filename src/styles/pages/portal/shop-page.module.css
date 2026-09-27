@@ -16,7 +16,7 @@
 .pulse { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: var(--s-6); }
 .chartWrap { min-width: 0; }
 
-.chart {
+ol.chart {
   display: grid;
   grid-template-columns: repeat(14, minmax(0, 1fr));
   gap: 6px;

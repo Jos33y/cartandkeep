@@ -18,13 +18,19 @@ export function basketArrival(lines, zone = 'mainland') {
   if (!lines?.length) return null;
   let from = null;
   let to = null;
+  let leaves = null;
+  let today = null;
   for (const l of lines) {
     const e = deliveryEstimate(l.dispatchDays ?? null);
     if (!from || e.from > from) from = e.from;
     if (!to || e.to > to) to = e.to;
+    if (!leaves || e.leaves > leaves) leaves = e.leaves;
+    today = e.today;
   }
   const extra = Number(storeConfig().delivery?.zones?.[zone]?.extraDays) || 0;
-  return extra ? { from: addWorkingDays(from, extra), to: addWorkingDays(to, extra) } : { from, to };
+  return extra
+    ? { today, leaves, from: addWorkingDays(from, extra), to: addWorkingDays(to, extra) }
+    : { today, leaves, from, to };
 }
 
 export function BasketTotals({

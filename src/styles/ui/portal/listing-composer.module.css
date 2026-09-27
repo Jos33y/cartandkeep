@@ -86,7 +86,7 @@
 .option:hover { background: var(--c-sunk); color: var(--c-ink); }
 .optionCount { margin-left: auto; font-size: var(--t-micro); color: var(--c-ink-faint); }
 
-.gallery { display: flex; gap: var(--s-2); overflow-x: auto; padding-bottom: var(--s-2); }
+ol.gallery { display: flex; gap: var(--s-2); overflow-x: auto; padding-bottom: var(--s-2); }
 
 .shot {
   position: relative;

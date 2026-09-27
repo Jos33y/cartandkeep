@@ -29,6 +29,7 @@ const SELECT = `
   email, name, phone, address,
   subtotal, delivery, total, currency,
   customer_note, paid_at, created_at,
+  is_gift, recipient_name, recipient_phone, recipient_email, notify_recipient, gift_message,
   dispatched_at, carrier, tracking_number, tracking_url,
   order_items ( id, slug, title, image_url, unit_price, qty, line_total ),
   order_emails ( kind, status, subject, identity_complete, created_at )

@@ -2,34 +2,85 @@
   width: 100%;
   max-width: var(--store-max);
   margin: 0 auto;
-  padding: var(--s-5) var(--s-4) var(--s-8);
+  padding: var(--s-4) var(--s-4) var(--s-8);
 }
 
 @media (min-width: 900px) { .page { padding: var(--s-6) var(--s-5) var(--s-8); } }
+@media (min-width: 960px) { .page { padding-bottom: var(--s-4); } }
 
-.head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--s-4);
-  padding-bottom: var(--s-5);
-}
-
-.title { font-size: clamp(1.75rem, 4vw, 2.5rem); }
-.backToCart { font-size: var(--t-label); color: var(--c-ink-soft); text-decoration: underline; text-decoration-color: var(--c-line-mid); text-underline-offset: 3px; }
-.backToCart:hover { color: var(--c-ink); text-decoration-color: currentColor; }
-
+/* Phones: the folded label first, then the form. Wider: the form left, the label right and sticky. */
 .body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
 
-@media (min-width: 900px) {
-  .body { grid-template-columns: minmax(0, 1fr) 360px; gap: var(--s-6); align-items: start; }
+@media (min-width: 960px) {
+  /* At least a window tall, so a short form never pushes the pinned label up under the header. */
+  .body { grid-template-columns: minmax(0, 1fr) 400px; grid-template-areas: 'form label'; gap: var(--s-6); align-items: start; }
+  .body > aside { grid-area: label; }
+  .body > form { grid-area: form; }
 }
 
-@media (min-width: 1180px) { .body { grid-template-columns: minmax(0, 1fr) 380px; gap: var(--s-7); } }
+@media (min-width: 1180px) { .body { grid-template-columns: minmax(0, 620px) 420px; justify-content: space-between; } }
 
 .form { display: flex; flex-direction: column; gap: var(--s-4); min-width: 0; }
 
-/* Each part of the form is a card, so the page reads as two short tasks rather than one long column of boxes. */
+.title { font-size: clamp(1.6rem, 3.2vw, 2.1rem); margin-bottom: var(--s-1); }
+
+/* Who it is for: two tiles, the first decision on the page. */
+.who { min-width: 0; margin: 0; padding: 0; border: 0; }
+.whoLegend { float: left; width: 100%; padding: 0; margin-bottom: var(--s-3); font-size: var(--t-lead); font-weight: 600; color: var(--c-ink); }
+.whoGrid { clear: both; display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+
+.choice {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  min-height: 76px;
+  padding: var(--s-4);
+  background: var(--c-surface);
+  border: 1.5px solid var(--c-line);
+  border-radius: var(--r-card);
+  cursor: pointer;
+  color: var(--c-ink-soft);
+  transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease), background 140ms var(--ease);
+}
+
+.choice:hover { border-color: var(--c-line-mid); }
+.choice input { position: absolute; opacity: 0; pointer-events: none; }
+.choice svg { flex: none; margin-top: 1px; }
+.choice[data-on] { border-color: var(--c-ink); color: var(--c-ink); box-shadow: 0 0 0 1px var(--c-ink); }
+.choice:has(input:focus-visible) { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+.choiceText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.choiceText b { font-size: var(--t-body); font-weight: 600; color: var(--c-ink); }
+.choiceText span { font-size: var(--t-caption); color: var(--c-faint); }
+
+@media (max-width: 380px) { .choice { flex-direction: column; gap: var(--s-2); } }
+
+/* The fast lane: ink, not terracotta, so Pay stays the one accent on the page. */
+.express { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.expressButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: 54px;
+  border-radius: var(--r-control);
+  background: var(--c-ink);
+  color: var(--c-on-dark);
+  font-size: var(--t-lead);
+  font-weight: 550;
+  transition: background 150ms var(--ease), transform 150ms var(--ease);
+}
+
+.expressButton:hover:not(:disabled) { background: #000; }
+.expressButton:active:not(:disabled) { transform: translateY(1px); }
+.expressButton:disabled { opacity: 0.55; cursor: default; }
+.expressNote { font-size: var(--t-caption); line-height: 1.5; color: var(--c-faint); text-align: center; }
+
+.or { display: flex; align-items: center; gap: var(--s-3); margin-top: var(--s-2); font-size: var(--t-caption); color: var(--c-faint); }
+.or::before, .or::after { content: ''; flex: 1; border-top: 1px solid var(--c-line); }
+
+/* Each part of the form is a card. */
 .block {
   min-width: 0;
   margin: 0;
@@ -42,17 +93,10 @@
 @media (min-width: 620px) { .block { padding: var(--s-5); } }
 
 .block:disabled { opacity: 0.6; }
+.giftBlock { border-color: #ecd3c8; background: linear-gradient(180deg, #fffaf7, var(--c-surface) 120px); }
 
 /* Floated so the heading sits inside the card rather than on its border. */
-.legend {
-  float: left;
-  width: 100%;
-  padding: 0;
-  margin-bottom: var(--s-4);
-  font-size: var(--t-lead);
-  font-weight: 600;
-  color: var(--c-ink);
-}
+.legend { float: left; width: 100%; padding: 0; margin-bottom: var(--s-4); font-size: var(--t-lead); font-weight: 600; color: var(--c-ink); }
 
 .fields { clear: both; display: flex; flex-direction: column; gap: var(--s-4); }
 
@@ -73,34 +117,27 @@
   transition: border-color 120ms var(--ease), box-shadow 120ms var(--ease);
 }
 
-.field textarea { min-height: 88px; padding: var(--s-3) var(--s-4); line-height: 1.5; resize: vertical; }
-.field textarea::placeholder { color: var(--c-faint); }
-
-.field input:hover,
-.field textarea:hover { border-color: var(--c-faint); }
+.field textarea { min-height: 84px; padding: var(--s-3) var(--s-4); line-height: 1.5; resize: vertical; }
+.field textarea::placeholder, .field input::placeholder { color: var(--c-line-mid); }
+.field input:hover, .field textarea:hover { border-color: var(--c-faint); }
 
 .field input:focus,
-.field textarea:focus {
-  outline: 0;
-  border-color: var(--c-sage-deep);
-  box-shadow: 0 0 0 4px var(--c-sage-wash);
-}
+.field textarea:focus { outline: 0; border-color: var(--c-sage-deep); box-shadow: 0 0 0 4px var(--c-sage-wash); }
 
-/* The fix is at the field and so is the fault. */
-.field input[aria-invalid='true'] { border-color: var(--c-negative); }
+.field input[aria-invalid='true'], .field textarea[aria-invalid='true'] { border-color: var(--c-negative); }
 .error { font-size: var(--t-caption); color: var(--c-negative); }
+.hint { font-size: var(--t-caption); color: var(--c-faint); }
 
-.pair,
 .pairEven { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+@media (min-width: 560px) { .pairEven { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; } }
 
-@media (min-width: 560px) {
-  .pair { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
-  .pairEven { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-}
+.postcodeField { max-width: 14rem; }
+.postcode { text-transform: uppercase; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+.checking { color: var(--c-faint); font-weight: 400; }
 
-.hint { font-size: var(--t-caption); color: var(--c-faint); margin-top: calc(var(--s-2) * -1); }
+.counter { display: flex; justify-content: space-between; gap: var(--s-3); font-size: var(--t-caption); color: var(--c-faint); }
 
-.reveal {
+.reveal, .suggest {
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
@@ -112,25 +149,56 @@
 }
 
 .reveal:hover { color: var(--c-sage-ink); text-decoration: underline; text-underline-offset: 3px; }
+.suggest { margin-top: calc(var(--s-3) * -1); padding: 2px 10px; min-height: 28px; border-radius: var(--r-full); background: var(--c-sage-wash); }
+.suggest:hover { background: color-mix(in srgb, var(--c-sage-deep) 16%, var(--c-surface)); }
 
-.checking { color: var(--c-faint); font-weight: 400; }
+/* A proper tick box, the size of a thumb. */
+.tick { position: relative; display: flex; align-items: flex-start; gap: var(--s-3); cursor: pointer; }
+.tick input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.tickBox { flex: none; width: 22px; height: 22px; margin-top: 1px; border: 1.5px solid var(--c-line-mid); border-radius: 6px; background: var(--c-surface); display: grid; place-items: center; transition: background 120ms var(--ease), border-color 120ms var(--ease); }
+.tick input:checked + .tickBox { background: var(--c-ink); border-color: var(--c-ink); }
+.tick input:checked + .tickBox::after { content: ''; width: 10px; height: 5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: translateY(-1px) rotate(-45deg); }
+.tick input:focus-visible + .tickBox { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+.tick > span:last-child { display: flex; flex-direction: column; gap: 2px; }
+.tick b { font-size: var(--t-body); font-weight: 600; color: var(--c-ink); }
+.tick > span:last-child > span { font-size: var(--t-caption); color: var(--c-faint); }
 
-/* Postcodes are read a character at a time and O against 0 is the whole problem. */
-.postcode { text-transform: uppercase; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+/* The address they had it sent to before, offered and never chosen for them. */
+.addressChoices { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-3); }
+@media (min-width: 560px) { .addressChoices { grid-template-columns: 1.4fr 1fr; } }
+.addressChoices > .error { grid-column: 1 / -1; }
 
-/* A surcharge is money and gets gold, a refusal gets red, a longer wait gets the quiet warm panel. */
-.zoneNote {
-  padding: var(--s-3) var(--s-4);
+.addressChoice {
+  position: relative;
+  display: flex;
+  padding: var(--s-4);
+  border: 1.5px solid var(--c-line);
   border-radius: var(--r-control);
-  font-size: var(--t-label);
-  line-height: 1.55;
+  cursor: pointer;
+  transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease);
 }
 
+.addressChoice:hover { border-color: var(--c-line-mid); }
+.addressChoice input { position: absolute; opacity: 0; pointer-events: none; }
+.addressChoice[data-on] { border-color: var(--c-ink); box-shadow: 0 0 0 1px var(--c-ink); }
+.addressChoice:has(input:focus-visible) { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+.addressChoice > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.addressChoice b { font-size: var(--t-body); font-weight: 600; color: var(--c-ink); }
+.addressChoice span span { font-size: var(--t-label); color: var(--c-ink-soft); }
+.addressChoice small { margin-top: 4px; font-size: var(--t-caption); color: var(--c-faint); }
+.addressChoices[aria-invalid='true'] .addressChoice { border-color: var(--c-negative); }
+
+/* A surcharge is money and gets gold, a refusal gets red, a longer wait gets the quiet panel. */
+.zoneNote { padding: var(--s-3) var(--s-4); border-radius: var(--r-control); font-size: var(--t-label); line-height: 1.55; }
 .zoneNote[data-tone='note'] { background: var(--c-warm); border: 1px solid var(--c-line); color: var(--c-ink-soft); }
 .zoneNote[data-tone='surcharge'] { background: var(--c-gold-wash); border: 1px solid var(--c-gold-line); color: var(--c-gold-ink); }
 .zoneNote[data-tone='blocked'] { background: var(--c-negative-wash); border: 1px solid #e7c4bd; color: var(--c-negative); }
 
-.payBlock { display: flex; flex-direction: column; gap: var(--s-3); padding-top: var(--s-2); }
+/* Pay sits under the total in the label on wide screens, and at the foot of the form on phones. */
+.payInForm, .payInLabel { display: flex; flex-direction: column; gap: var(--s-3); }
+.payInLabel { gap: var(--s-2); }
+@media (min-width: 960px) { .payInForm { display: none; } }
+@media (max-width: 959px) { .payInLabel { display: none; } }
 
 .failure {
   padding: var(--s-3) var(--s-4);
@@ -145,175 +213,33 @@
 .failure a { color: inherit; font-weight: 600; }
 
 .pay {
+  width: 100%;
   min-height: 58px;
   border-radius: var(--r-control);
   background: var(--c-action-strong);
   color: var(--c-on-action);
   font-size: var(--t-lead);
-  font-weight: 500;
+  font-weight: 550;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--s-2);
-  transition: background 150ms var(--ease);
+  box-shadow: 0 10px 22px -14px rgba(122, 52, 30, 0.8);
+  transition: background 150ms var(--ease), transform 150ms var(--ease);
 }
 
 .pay:hover:not(:disabled) { background: #a94f34; }
-.pay:disabled { background: var(--c-line); color: var(--c-faint); cursor: default; }
+.pay:active:not(:disabled) { transform: translateY(1px); }
+.pay:disabled { background: var(--c-line); color: var(--c-faint); box-shadow: none; cursor: default; }
 
-.stripeNote {
-  display: flex;
-  gap: var(--s-2);
-  align-items: flex-start;
-  justify-content: center;
-  font-size: var(--t-caption);
-  line-height: 1.5;
-  color: var(--c-faint);
-  text-align: left;
-}
-
+.stripeNote { display: flex; gap: var(--s-2); align-items: flex-start; justify-content: center; font-size: var(--t-caption); line-height: 1.5; color: var(--c-faint); }
 .stripeNote svg { flex: none; margin-top: 1px; color: var(--c-sage-deep); }
 
-/* Phones: first on the page, folded to its total. Wider: the sticky column on the right. */
-.summary {
-  order: -1;
-  background: var(--c-warm);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-card);
-}
-
-@media (min-width: 900px) {
-  .summary { order: 0; position: sticky; top: calc(var(--bar-h) + var(--s-4)); }
-}
-
-.summaryToggle {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-3);
-  min-height: 56px;
-  padding: 0 var(--s-4);
-  font-size: var(--t-label);
-  font-weight: 500;
-  color: var(--c-sage-deep);
-  text-align: left;
-}
-
-.toggleCount { font-weight: 400; color: var(--c-faint); }
-.toggleTotal { display: inline-flex; align-items: center; gap: var(--s-2); color: var(--c-ink); }
-.toggleTotal strong { font-size: var(--t-lead); font-weight: 650; }
-.toggleTotal svg { color: var(--c-faint); transition: transform 200ms var(--ease); }
-.summaryToggle[aria-expanded='true'] .toggleTotal svg { transform: rotate(180deg); }
-
-.summaryBody { display: none; flex-direction: column; gap: var(--s-4); padding: var(--s-2) var(--s-4) var(--s-5); border-top: 1px solid var(--c-line); }
-.summaryBody[data-open] { display: flex; }
-
-@media (min-width: 900px) {
-  .summaryToggle { display: none; }
-  .summaryBody { display: flex; padding: var(--s-5); border-top: 0; }
-}
-
-.summaryHead {
-  display: none;
-  font-size: var(--t-lead);
-  font-weight: 600;
-  font-family: var(--font-store-ui);
-  font-stretch: normal;
-  letter-spacing: 0;
-  color: var(--c-ink);
-}
-
-@media (min-width: 900px) { .summaryHead { display: block; } }
-
-.agreed { font-size: var(--t-label); line-height: 1.5; color: var(--c-ink-soft); }
-
-ul.lines {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-4);
-  padding-bottom: var(--s-4);
-  border-bottom: 1px solid var(--c-line);
-}
-
-.lines li { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: var(--s-3); align-items: center; }
-
-.thumb {
-  position: relative;
-  width: 56px;
-  height: 56px;
-  border-radius: var(--r-control);
-  background: var(--c-surface);
-  border: 1px solid var(--c-line);
-}
-
-.thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: calc(var(--r-control) - 1px); }
-.noImage { display: block; width: 100%; height: 100%; }
-
-/* On the thumbnail rather than in a column: a quantity column costs more width than this panel has. */
-.qty {
-  position: absolute;
-  top: -7px;
-  right: -7px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 5px;
-  border-radius: var(--r-full);
-  background: var(--c-ink);
-  color: var(--c-on-dark);
-  font-size: var(--t-micro);
-  font-weight: 600;
-  line-height: 20px;
-  text-align: center;
-}
-
-.lineText { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-
-.lineTitle {
-  font-size: var(--t-label);
-  line-height: 1.35;
-  color: var(--c-ink);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.lineVariant { font-size: var(--t-caption); color: var(--c-ink-soft); }
-
-.lineMoney { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
-.lineTotal { font-size: var(--t-label); font-weight: 600; color: var(--c-ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.was { font-size: var(--t-caption); color: var(--c-faint); white-space: nowrap; }
-
-.lines li[data-gone] .thumb img { opacity: 0.4; filter: grayscale(0.6); }
-.lines li[data-gone] .lineTitle { color: var(--c-faint); }
-.offSale { font-size: var(--t-caption); font-weight: 500; color: var(--c-negative); white-space: nowrap; }
-
-.empty {
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-card);
-  background: var(--c-surface);
-  padding: var(--s-7) var(--s-5);
-  max-width: 52ch;
-}
-
+.empty { border: 1px solid var(--c-line); border-radius: var(--r-card); background: var(--c-surface); padding: var(--s-7) var(--s-5); max-width: 52ch; }
 .emptyTitle { font-size: clamp(1.5rem, 3.4vw, 2rem); }
 .emptyBody { margin-top: var(--s-3); font-size: var(--t-body); color: var(--c-ink-soft); }
+.emptyCta { margin-top: var(--s-5); display: inline-flex; align-items: center; min-height: 52px; padding: 0 var(--s-5); border-radius: var(--r-control); background: var(--c-action-strong); color: var(--c-on-action); font-size: 1rem; font-weight: 500; text-decoration: none; }
 
-.emptyCta {
-  margin-top: var(--s-5);
-  display: inline-flex;
-  align-items: center;
-  min-height: 52px;
-  padding: 0 var(--s-5);
-  border-radius: var(--r-control);
-  background: var(--c-action-strong);
-  color: var(--c-on-action);
-  font-size: 1rem;
-  font-weight: 500;
-  text-decoration: none;
+@media (prefers-reduced-motion: reduce) {
+  .pay, .expressButton, .choice, .addressChoice, .tickBox, .field input, .field textarea { transition: none; }
 }
-
-@media (prefers-reduced-motion: reduce) { .pay, .toggleTotal svg, .field input, .field textarea { transition: none; } }

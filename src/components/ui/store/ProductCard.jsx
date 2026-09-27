@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { useBasket } from '@context/BasketContext';
+import { mostOf, useBasket } from '@context/BasketContext';
 import { useSaved } from '@hooks/useSaved';
 import { useCategoryNames } from '@hooks/useCategoryNamesStore';
 import { StockSignal } from '@components/ui/store/StockSignal';
@@ -19,7 +19,7 @@ const ARRIVES = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: '
 
 // An article, not a link: buttons cannot live inside an anchor. The title's link stretches over the card instead.
 export function ProductCard({ product, index = 0, onQuickView, shelfName = null, onPrefetch = null, hideSection = false, commonArrival = null }) {
-  const { add } = useBasket();
+  const { add, lines: basketLines } = useBasket();
   const { has, toggle } = useSaved();
   const names = useCategoryNames();
   const [added, setAdded] = useState(false);
@@ -45,8 +45,12 @@ export function ProductCard({ product, index = 0, onQuickView, shelfName = null,
   const from = hasVariants && product.priceFrom !== product.priceTo;
   const shown = hasVariants ? product.priceFrom : Number(product.price);
 
+  // How many are already in, shown on the button so a second tap reads as one more rather than starting again.
+  const inLine = hasVariants ? null : basketLines.find((l) => l.key === product.id) ?? null;
+  const full = inLine ? inLine.qty >= mostOf(inLine.stock) : false;
+
   function onAdd() {
-    if (!buyable || hasVariants) return;
+    if (!buyable || hasVariants || full) return;
     add(product, 1);
     setAdded(true);
     setTimeout(() => setAdded(false), 1400);
@@ -123,12 +127,14 @@ export function ProductCard({ product, index = 0, onQuickView, shelfName = null,
               type="button"
               className={styles.add}
               onClick={onAdd}
-              disabled={!buyable}
+              disabled={!buyable || full}
               data-added={added || undefined}
-              aria-label={buyable ? `Add ${product.title} to basket` : `${product.title} is out of stock`}
+              aria-label={!buyable ? `${product.title} is out of stock`
+                : inLine ? `Add one more ${product.title}, ${inLine.qty} in your basket` : `Add ${product.title} to basket`}
             >
               {added ? <CheckIcon size={16} /> : <PlusIcon size={16} />}
               <span className={styles.addLabel} aria-live="polite">{!buyable ? 'Sold out' : added ? 'Added' : 'Add'}</span>
+              {inLine && !added && <span className={styles.count} data-price aria-hidden="true">{inLine.qty}</span>}
             </button>
           )}
         </div>

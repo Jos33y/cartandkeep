@@ -136,3 +136,10 @@ export const ClockIcon = (p) => (
 export const FilesIcon = (p) => (
   <Icon {...p}><path d="M8 3.5h6l4 4v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-12a2 2 0 0 1 2-2z" /><path d="M14 3.5v4h4" /></Icon>
 );
+
+// Checkout: who it is for, and the fast lane.
+export const PersonIcon = (p) => (<Icon {...p}><circle cx="12" cy="8.5" r="3.5" /><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" /></Icon>);
+export const GiftIcon = (p) => (
+  <Icon {...p}><rect x="4" y="9" width="16" height="11" rx="1.5" /><path d="M3 9h18M12 9v11" /><path d="M12 9c-1.6-2.8-5-3.4-5-1.2C7 9 9.7 9 12 9Zm0 0c1.6-2.8 5-3.4 5-1.2C17 9 14.3 9 12 9Z" /></Icon>
+);
+export const WalletIcon = (p) => (<Icon {...p}><rect x="3.5" y="6" width="17" height="13" rx="2.5" /><path d="M3.5 10h17M15.5 14.5h2" /></Icon>);

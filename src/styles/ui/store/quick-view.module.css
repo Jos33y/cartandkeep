@@ -245,3 +245,10 @@
   .returns { margin-top: var(--s-3); }
   .full { min-height: 36px; margin-top: 0; }
 }
+
+/* Already in the basket: said once above the row, and the count below is the basket's. */
+.inBasket { margin-top: var(--s-4); display: flex; align-items: center; gap: 6px; font-size: var(--t-label); color: var(--c-sage-ink); }
+.inBasket svg { color: var(--c-sage-deep); }
+.inBasket b { font-weight: 650; }
+.inBasket + .buy { margin-top: var(--s-2); }
+.qty[data-live] { border-color: var(--c-sage-deep); box-shadow: 0 0 0 1px var(--c-sage-deep); }

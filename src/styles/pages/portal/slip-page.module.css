@@ -47,6 +47,9 @@
 .to { display: flex; flex-direction: column; gap: 2px; padding: 18px 22px; border: 2px solid var(--ink); border-radius: 6px; font-size: 16px; line-height: 1.45; }
 .to .label { margin-bottom: 6px; }
 .toName { font-size: 19px; font-weight: 700; }
+.gift { align-self: start; padding: 16px 18px; border: 2px solid #c9a693; border-radius: 6px; background: #fbf4ef; }
+.gift .label { display: block; margin-bottom: 8px; color: #8a4a33; }
+.message { font-size: 17px; line-height: 1.5; font-style: italic; white-space: pre-line; }
 .note { align-self: start; padding: 16px 18px; border: 2px dashed #9a948a; border-radius: 6px; font-size: 15px; line-height: 1.45; }
 .note .label { display: block; margin-bottom: 6px; }
 

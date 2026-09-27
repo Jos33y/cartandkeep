@@ -32,7 +32,7 @@
 @media (min-width: 900px) {
   .top { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: var(--s-7); align-items: start; }
   /* The photo stays in view while the decision column scrolls. */
-  .media { position: sticky; top: calc(var(--bar-h) + var(--s-4)); }
+  .media { position: sticky; top: calc(var(--store-header-h, 106px) + var(--s-4)); }
 }
 
 /* The cupboard: the shaded back of the home shelves, the photo standing on a board. */
@@ -112,6 +112,16 @@
 }
 
 .buy { margin-top: var(--s-4); display: flex; gap: var(--s-2); align-items: stretch; }
+
+/* Already in the basket: said once above the row, with the way to it. */
+.inBasket { margin-top: var(--s-4); display: flex; align-items: center; gap: 6px; font-size: var(--t-label); color: var(--c-sage-ink); }
+.inBasket svg { color: var(--c-sage-deep); }
+.inBasket b { font-weight: 650; }
+.inBasket a { margin-left: auto; color: var(--c-ink-soft); text-decoration: underline; text-decoration-color: var(--c-line-mid); text-underline-offset: 3px; }
+.inBasket a:hover { color: var(--c-ink); }
+.inBasket + .buy { margin-top: var(--s-2); }
+.qty[data-live] { border-color: var(--c-sage-deep); box-shadow: 0 0 0 1px var(--c-sage-deep); }
+a.addBtn { text-decoration: none; }
 
 /* One row on a phone: the stepper and the heart give way before the button does. */
 @container buycard (max-width: 400px) {

@@ -99,6 +99,10 @@
   --store-max: 1240px;
   /* The sticky store header. Anything pinned below it, or scrolled to an anchor, clears this. */
   --store-bar-h: 66px;
+  /* The checkout's own bar, which the parcel label sticks below. */
+  --checkout-bar-h: 64px;
+  /* Its legal footer, fixed so the pinned label can be sized to exactly the space between the two. */
+  --checkout-foot-h: 56px;
 }
 
 /*

@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { PORTAL_ROUTES, portalPath, CARRIERS } from '@utils/constants';
 import { formatGbp } from '@utils/formatGbp';
 import { isToSend } from '@hooks/useOrders';
+import { formatPhone } from '@lib/phone';
 import { Icon } from '@components/ui/icons';
 import styles from '@styles/ui/portal/order-row.module.css';
 
@@ -40,9 +41,12 @@ const STATE = {
   to_send: 'To send', sent: 'Dispatched', refunded: 'Refunded', pending: 'Not paid', failed: 'Payment failed', cancelled: 'Cancelled',
 };
 
+const firstOf = (name) => String(name ?? '').trim().split(/\s+/)[0] || 'They';
+
 function addressLines(order) {
   const a = order.address ?? {};
-  return [order.name, a.line1, a.line2, a.city, a.postcode]
+  // The parcel's name: the recipient on a gift, the buyer otherwise.
+  return [order.recipient_name || order.name, a.line1, a.line2, a.city, a.postcode]
     .map((line) => (typeof line === 'string' ? line.trim() : '')).filter(Boolean);
 }
 
@@ -55,6 +59,7 @@ export function journeyOf(order) {
     { key: 'confirmation', label: 'Receipt emailed', state: mailState('confirmation'), when: mail('confirmation')?.created_at },
     { key: 'sent', label: 'Dispatched', state: order.dispatched_at ? 'done' : 'next', when: order.dispatched_at },
     { key: 'dispatch', label: 'Tracking emailed', state: order.dispatched_at ? mailState('dispatch') : 'next', when: mail('dispatch')?.created_at },
+    ...(order.notify_recipient ? [{ key: 'recipient', label: `${firstOf(order.recipient_name)} told`, state: order.dispatched_at ? mailState('recipient_dispatch') : 'next', when: mail('recipient_dispatch')?.created_at }] : []),
     { key: 'review', label: 'Review asked', state: mailState('review_request') === 'next' ? 'next' : mailState('review_request'), when: mail('review_request')?.created_at },
   ];
 }
@@ -64,7 +69,7 @@ export function Journey({ order, compact }) {
   const reached = stops.reduce((n, s, i) => (s.state !== 'next' ? i : n), -1);
   return (
     <ol className={styles.journey} data-compact={compact || undefined}
-      style={{ '--reach': reached < 0 ? 0 : reached / (stops.length - 1) }}>
+      style={{ '--reach': reached < 0 ? 0 : reached / (stops.length - 1), '--stops': stops.length }}>
       {stops.map((s) => (
         <li key={s.key} className={styles.stop} data-state={s.state} title={s.when ? `${s.label}, ${dayTime(s.when)}` : s.label}>
           <span className={styles.node} aria-hidden="true">
@@ -183,7 +188,11 @@ export function OrderRow({ order, onSave, onResend, onDispatched, example, index
           {order.dispatched_at ? 'Save' : busy ? 'Sending' : 'Mark dispatched'}
         </button>
       </div>
-      {!carrier && <p className={styles.hint}>Pick who took it. Marking it dispatched emails them straight away.</p>}
+      {!carrier && (
+        <p className={styles.hint}>
+          Pick who took it. Marking it dispatched emails {order.is_gift ? firstOf(order.name) : 'them'} straight away{order.notify_recipient ? `, and tells ${firstOf(order.recipient_name)} it is coming, as they asked` : ''}.
+        </p>
+      )}
     </div>
   );
 
@@ -205,6 +214,7 @@ export function OrderRow({ order, onSave, onResend, onDispatched, example, index
             {state === 'to_send' && (
               <span className={styles.wait}><Icon name="IconClock" width="12" height="12" />waiting {waited(order)}</span>
             )}
+            {order.is_gift && <span className={styles.gift}><Icon name="IconHeart" width="11" height="11" />Gift</span>}
             {mailFailed && <span className={styles.warn}>An email did not send</span>}
           </span>
           <span className={styles.what}>
@@ -212,7 +222,7 @@ export function OrderRow({ order, onSave, onResend, onDispatched, example, index
             {items.length > 1 && <span className={styles.plus}> and {items.length - 1} more</span>}
           </span>
           <span className={styles.who}>
-            {order.name}{where && <> <Icon name="IconPin" width="12" height="12" /> {where}</>}
+            {order.is_gift ? <>{order.recipient_name}, from {order.name}</> : order.name}{where && <> <Icon name="IconPin" width="12" height="12" /> {where}</>}
           </span>
         </span>
         {state !== 'to_send' && <span className={styles.mini}><Journey order={order} compact /></span>}
@@ -257,10 +267,20 @@ export function OrderRow({ order, onSave, onResend, onDispatched, example, index
               <address className={styles.label2}>
                 {lines.map((l, i) => <span key={l} className={i === 0 ? styles.addrName : undefined}>{l}</span>)}
               </address>
+              {order.is_gift && order.recipient_phone && (
+                <p className={styles.contact}><a href={`tel:${order.recipient_phone}`} data-num>{formatPhone(order.recipient_phone)}</a><span>for the courier</span></p>
+              )}
+              {order.is_gift && <p className={styles.boughtBy}>Bought by {order.name}</p>}
               <p className={styles.contact}>
                 <a href={`mailto:${order.email}`}>{order.email}</a>
-                {order.phone && <a href={`tel:${order.phone}`} data-num>{order.phone}</a>}
+                {order.phone && <a href={`tel:${order.phone}`} data-num>{formatPhone(order.phone)}</a>}
               </p>
+              {order.is_gift && (
+                <p className={styles.giftNote}>
+                  <span>A gift. The slip carries no prices{order.gift_message ? ' and prints their message' : ''}.</span>
+                  {order.gift_message && <q>{order.gift_message}</q>}
+                </p>
+              )}
               {order.customer_note && (
                 <p className={styles.note}><span>They wrote</span>{order.customer_note}</p>
               )}
@@ -287,9 +307,10 @@ export function OrderRow({ order, onSave, onResend, onDispatched, example, index
           </section>
 
           <section className={styles.emails}>
-            {['confirmation', 'dispatch', 'review_request'].map((kind) => {
+            {['confirmation', 'dispatch', 'recipient_dispatch', 'review_request'].map((kind) => {
               const rec = order.emails?.[kind];
-              const label = kind === 'confirmation' ? 'Receipt' : kind === 'dispatch' ? 'Tracking' : 'Review request';
+              const label = kind === 'confirmation' ? 'Receipt' : kind === 'dispatch' ? 'Tracking'
+                : kind === 'recipient_dispatch' ? `Note to ${firstOf(order.recipient_name)}` : 'Review request';
               if (!rec) return null;
               const ok = rec.status === 'sent';
               return (

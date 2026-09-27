@@ -330,6 +330,7 @@ function privacyPage(T, tr) {
     { t: 'list', v: [
       'Your order: your name, email, delivery address, what you bought and any note you add. We need these to fulfil the contract with you, and we keep the records because tax law requires it.',
       'Payment: Stripe takes your payment on its own page. We receive confirmation that you have paid, never your card details.',
+      'Gifts: if you send an order to someone else, we take their name and delivery address, and their phone number if you give it for the courier. We take their email only if you ask us to tell them it is on its way, and use it for that one email and nothing else. Give us their details only if you think they would be happy for you to.',
       'Messages and questions: what you write to us and your email address, so we can reply.',
       'Product requests: what you asked us to find and your email, so we can tell you if we find it.',
       'Reviews: what you write and the name you give, which is published with the review. If you leave the name blank, your first name from the order is shown. We rely on our legitimate interest in showing honest feedback to other shoppers.',

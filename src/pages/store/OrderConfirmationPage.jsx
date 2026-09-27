@@ -238,15 +238,26 @@ export function OrderConfirmationPage() {
         </dl>
 
         <div className={styles.address}>
-          <h3 className={styles.addressHead}>Going to</h3>
+          <h3 className={styles.addressHead}>{order.is_gift ? 'A gift, going to' : 'Going to'}</h3>
           <p>
-            {order.name}<br />
+            {order.recipient_name || order.name}<br />
             {order.address?.line1}<br />
             {order.address?.line2 && <>{order.address.line2}<br /></>}
             {order.address?.city}<br />
             {order.address?.postcode}
           </p>
         </div>
+
+        {order.is_gift && (
+          <div className={styles.address}>
+            <h3 className={styles.addressHead}>What they will see</h3>
+            <p>
+              No prices anywhere in the box{order.gift_message ? ', and your message on the slip' : ''}.
+              {order.notify_recipient ? ` We will email ${String(order.recipient_name).split(' ')[0]} when it leaves us, without saying what it is.` : ' We will not contact them.'}
+            </p>
+            {order.gift_message && <p className={styles.giftMessage}>{order.gift_message}</p>}
+          </div>
+        )}
 
         {order.customer_note && (
           <div className={styles.address}>

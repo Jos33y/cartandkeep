@@ -22,7 +22,7 @@ import styles from '@styles/ui/store/ask-panel.module.css';
  * Nothing here claims a speed. The measured median lives in the portal until
  * there is enough behind it to be a fact rather than a promise.
  */
-export function AskPanel({ product, basket }) {
+export function AskPanel({ product, basket, quiet = false }) {
   // One form, two subjects. A second component would carry the same honeypot,
   // the same caps and the same three fields with two words different, and it
   // is the copy that differs here rather than the behaviour.
@@ -74,6 +74,16 @@ export function AskPanel({ product, basket }) {
           See your question
         </Link>
       </div>
+    );
+  }
+
+  // Quiet: one line until they choose to ask, for pages where asking is the side path.
+  if (quiet && !open) {
+    return (
+      <button type="button" className={styles.quiet} onClick={() => setOpen(true)}>
+        <MessageIcon size={16} />
+        <span>{isBasket ? 'Questions about these? Ask about this basket' : 'Ask about this product'}</span>
+      </button>
     );
   }
 

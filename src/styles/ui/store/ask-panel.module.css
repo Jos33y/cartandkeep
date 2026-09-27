@@ -125,3 +125,10 @@
   border-radius: var(--r-control);
   font-size: var(--t-body);
 }
+
+/* The quiet form: one line, until somebody wants it. */
+.quiet { display: inline-flex; align-items: center; gap: var(--s-2); min-height: var(--tap); font-size: var(--t-label); color: var(--c-ink-soft); text-align: left; }
+.quiet span { text-decoration: underline; text-decoration-color: var(--c-line-mid); text-underline-offset: 3px; }
+.quiet svg { flex: none; color: var(--c-sage-deep); }
+.quiet:hover { color: var(--c-ink); }
+.quiet:hover span { text-decoration-color: currentColor; }
