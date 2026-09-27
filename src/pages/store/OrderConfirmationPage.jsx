@@ -27,7 +27,7 @@ export function OrderConfirmationPage() {
   const { reference } = useParams();
   const [params] = useSearchParams();
   const token = params.get('token');
-  const { clear } = useBasket();
+  const { clearIfPaid } = useBasket();
 
   const [state, setState] = useState({ status: 'loading', order: null, items: [] });
   const [tries, setTries] = useState(0);
@@ -45,7 +45,7 @@ export function OrderConfirmationPage() {
         if (!live) return;
         setState({ status: 'ready', order, items });
         if (order.status === 'paid') {
-          clear();
+          clearIfPaid(order.reference);
           // Once. The page polls three times while the webhook lands, and a
           // purchase counted on every poll is a shop that looks four times
           // busier than it is.
@@ -58,7 +58,7 @@ export function OrderConfirmationPage() {
       .catch(() => { if (live) setState({ status: 'notfound', order: null, items: [] }); });
 
     return () => { live = false; };
-  }, [reference, token, tries, clear]);
+  }, [reference, token, tries, clearIfPaid]);
 
   // The webhook usually lands before this page does, and occasionally does
   // not. Three polls at two seconds covers the gap without turning into a

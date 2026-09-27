@@ -5,6 +5,8 @@
  * and is safe: the functions hold the service role themselves and the anon key
  * grants nothing beyond calling them.
  */
+import { TENANT_SLUG } from './tenant';
+
 const BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
@@ -16,7 +18,8 @@ async function call(fn, body) {
       Authorization: `Bearer ${KEY}`,
       apikey: KEY,
     },
-    body: JSON.stringify(body),
+    // The shop is named on every call, so a second shop on this code never falls back to the first one's catalogue.
+    body: JSON.stringify({ tenantSlug: TENANT_SLUG, ...body }),
   });
 
   let data = null;
@@ -34,6 +37,10 @@ async function call(fn, body) {
 }
 
 export const startCheckout = (payload) => call('checkout', payload);
+
+// What the basket comes to right now, from the same code that charges it. Nothing is written.
+export const quoteBasket = ({ items, postcode = null, offerId = null, token = null }) =>
+  call('checkout', { action: 'quote', items, postcode, offerId, token });
 
 // The function refuses this the moment a Stripe key exists.
 export const simulatePayment = ({ reference, token, outcome }) =>

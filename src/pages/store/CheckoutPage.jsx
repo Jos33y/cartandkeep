@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
 import { ArrowRightIcon, LockIcon, ReturnIcon, ShieldIcon } from '@components/ui/store/icons';
 import { useBasket } from '@context/BasketContext';
 import { sessionId, trackBeginCheckout } from '@lib/analytics';
 import { ZONE_LABELS, checkPostcode, normalisePostcode } from '@lib/postcode';
-import { deliveryFor } from '@lib/storeConfig';
+import { deliveryFor, returnsTerms } from '@lib/storeConfig';
+import { useQuote } from '@hooks/useQuote';
 import { startCheckout } from '@lib/checkout';
 import { readOffer } from '@lib/threads';
 import { imageAt } from '@utils/categories';
@@ -69,8 +70,7 @@ function readForm() {
 }
 
 export function CheckoutPage() {
-  const { lines: basketLines, subtotal: basketSubtotal, count: basketCount } = useBasket();
-  const navigate = useNavigate();
+  const { lines: basketLines, subtotal: basketSubtotal, count: basketCount, markPaying } = useBasket();
 
   /*
    * Two ways to arrive here.
@@ -106,7 +106,7 @@ export function CheckoutPage() {
    * reads the same record again and prices from it, so nothing here can name a
    * total.
    */
-  const lines = onOffer
+  const asked = onOffer
     ? offer.lines.map((l) => ({
       id: l.product_id,
       variantId: l.variant_id,
@@ -117,10 +117,21 @@ export function CheckoutPage() {
     }))
     : basketLines;
 
-  const subtotal = onOffer ? Number(offer.price) : basketSubtotal;
-  const count = onOffer ? lines.reduce((n, l) => n + l.qty, 0) : basketCount;
-
   const [form, setForm] = useState(readForm);
+  const [quotedPostcode, setQuotedPostcode] = useState(null);
+
+  // Figures from the checkout function, the same code that charges the card.
+  const { quote, error: quoteError, changed } = useQuote(offer === undefined || offer?.error ? [] : asked, {
+    postcode: quotedPostcode,
+    offerId: onOffer ? offer.id : null,
+    token: onOffer ? offerToken : null,
+  });
+
+  // The basket's own lines, which the quote has already corrected to today's prices.
+  const lines = asked;
+  const count = onOffer ? lines.reduce((n, l) => n + l.qty, 0) : basketCount;
+  const gone = quote?.unavailable ?? [];
+
   const [errors, setErrors] = useState({});
   const [failure, setFailure] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -138,11 +149,14 @@ export function CheckoutPage() {
     }
   }, [form]);
 
-  // Recomputed from the zone, so the figure in the summary is the figure the
-  // checkout function will charge. They read the same tenant row.
-  const quote = deliveryFor(subtotal, zone);
-  const delivery = quote.cost;
-  const total = quote.total;
+  // The basket's own arithmetic only stands in if the quote could not be fetched; the server still prices the order.
+  const fallback = deliveryFor(onOffer ? Number(offer.price) : basketSubtotal, zone);
+  const subtotal = quote ? quote.subtotal : (onOffer ? Number(offer.price) : basketSubtotal);
+  const delivery = quote ? quote.delivery : fallback.cost;
+  const total = quote ? quote.total : fallback.total;
+  const surcharge = quote ? quote.surcharge : fallback.surcharge;
+  const ready = Boolean(quote) || Boolean(quoteError);
+  const days = Number(returnsTerms().days);
 
   const set = (key) => (event) => {
     setForm((f) => ({ ...f, [key]: event.target.value }));
@@ -170,6 +184,7 @@ export function CheckoutPage() {
 
     setForm((f) => ({ ...f, postcode: result.postcode }));
     setZone(result.zone);
+    setQuotedPostcode(result.ok ? result.postcode : null);
 
     if (!result.ok) {
       setErrors((e) => ({
@@ -202,6 +217,12 @@ export function CheckoutPage() {
     }
   }
 
+  // A postcode remembered from last time is checked once on arrival, so its zone and delivery are right before anyone types.
+  useEffect(() => {
+    if (form.postcode.trim()) onPostcodeBlur();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function validate() {
     const next = {};
     if (!form.name.trim()) next.name = 'We need a name for the parcel';
@@ -232,7 +253,7 @@ export function CheckoutPage() {
     trackBeginCheckout(subtotal, count);
 
     try {
-      const { url } = await startCheckout({
+      const { url, reference } = await startCheckout({
         // Carried on the order rather than stored on the device, which is what
         // lets a purchase be attributed to the visit that produced it without
         // a cookie and without a consent banner.
@@ -268,6 +289,8 @@ export function CheckoutPage() {
         },
         returnTo: window.location.origin,
       });
+      // Remembered so only this order empties the basket; an agreed price leaves it alone.
+      if (!onOffer) markPaying(reference);
       // A full navigation, not the router. Stripe is another origin.
       window.location.assign(url);
     } catch (err) {
@@ -390,14 +413,30 @@ export function CheckoutPage() {
             </label>
           </fieldset>
 
+          {gone.length > 0 && (
+            <p className={styles.failure} role="alert">
+              {gone.length === 1 && gone[0].name ? `${gone[0].name} is` : 'Some things in your basket are'} no longer
+              on sale. <Link to={STORE_ROUTES.CART}>Remove {gone.length === 1 ? 'it' : 'them'} in your basket</Link> to carry on.
+            </p>
+          )}
+
+          {changed.length > 0 && (
+            <p className={styles.zoneNote} data-tone="surcharge">
+              {changed.length === 1 ? `The price of ${changed[0]} has changed` : 'Some prices have changed'} since
+              you added it. The total shown is what you will pay.
+            </p>
+          )}
+
           {failure && (
             <p className={styles.failure} role="alert">
               {failure}
             </p>
           )}
 
-          <button type="submit" className={styles.pay} disabled={busy}>
-            {busy ? 'Taking you to Stripe' : <>Pay {formatGbp(total)} <ArrowRightIcon size={17} /></>}
+          <button type="submit" className={styles.pay} disabled={busy || !ready || gone.length > 0}>
+            {busy ? 'Taking you to Stripe'
+              : !ready ? 'Checking prices'
+                : <>Pay {formatGbp(total)} <ArrowRightIcon size={17} /></>}
           </button>
 
           <p className={styles.stripeNote}>
@@ -430,7 +469,7 @@ export function CheckoutPage() {
                     : <span className={styles.noImage} />}
                   <span className={styles.qty} data-price>{line.qty}</span>
                 </span>
-                <span className={styles.lineTitle}>{line.title}</span>
+                <span className={styles.lineTitle}>{line.variantLabel ? `${line.title}, ${line.variantLabel}` : line.title}</span>
                 <span className={styles.lineTotal} data-price>{formatGbp(line.price * line.qty)}</span>
               </li>
             ))}
@@ -442,7 +481,7 @@ export function CheckoutPage() {
               <dd data-price>{formatGbp(subtotal)}</dd>
             </div>
             <div>
-              <dt>Delivery{quote.surcharge > 0 && <span className={styles.zoneTag}>{ZONE_LABELS[zone]}</span>}</dt>
+              <dt>Delivery{surcharge > 0 && <span className={styles.zoneTag}>{ZONE_LABELS[zone]}</span>}</dt>
               <dd data-price>{delivery === 0 ? 'Free' : formatGbp(delivery)}</dd>
             </div>
             <div className={styles.grand}><dt>To pay</dt><dd data-price>{formatGbp(total)}</dd></div>
@@ -450,7 +489,7 @@ export function CheckoutPage() {
 
           <ul className={styles.reassure}>
             <li><LockIcon size={16} /><span>No account needed</span></li>
-            <li><ReturnIcon size={16} /><span>30 days to change your mind</span></li>
+            {days > 0 && <li><ReturnIcon size={16} /><span>{days} {days === 1 ? 'day' : 'days'} to change your mind</span></li>}
           </ul>
         </aside>
       </div>

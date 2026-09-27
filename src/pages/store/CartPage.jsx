@@ -1,16 +1,14 @@
 import { Link } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
 import { ArrowRightIcon, CloseIcon, LockIcon, MinusIcon, PlusIcon, ReturnIcon, VanIcon } from '@components/ui/store/icons';
-import { useBasket } from '@context/BasketContext';
+import { mostOf, useBasket } from '@context/BasketContext';
+import { useQuote } from '@hooks/useQuote';
+import { deliveryFor, freeOver, returnsTerms } from '@lib/storeConfig';
 import { AskPanel } from '@components/ui/store/AskPanel';
 import { imageAt } from '@utils/categories';
 import { formatGbp } from '@utils/formatGbp';
 import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/pages/store/cart-page.module.css';
-
-const FREE_OVER = 40;
-const POSTAGE = 3.95;
-const MAX_QTY = 20;
 
 /*
  * The basket.
@@ -26,12 +24,18 @@ const MAX_QTY = 20;
  * argument to happen.
  */
 export function CartPage() {
-  const { lines, setQty, remove, subtotal, count } = useBasket();
+  const { lines, setQty, remove, subtotal: kept, count } = useBasket();
+  const { quote, changed } = useQuote(lines);
 
-  const free = subtotal >= FREE_OVER;
-  const delivery = free ? 0 : POSTAGE;
-  const toFree = Math.max(0, FREE_OVER - subtotal);
-  const total = subtotal + delivery;
+  // The checkout's figures once they arrive, the basket's own until then.
+  const local = deliveryFor(kept);
+  const subtotal = quote ? quote.subtotal : kept;
+  const delivery = quote ? quote.delivery : local.cost;
+  const toFree = quote ? quote.toFree : local.toFree;
+  const total = quote ? quote.total : local.total;
+  const free = delivery === 0;
+  const gone = new Set((quote?.unavailable ?? []).map((u) => u.key));
+  const days = Number(returnsTerms().days);
 
   if (lines.length === 0) {
     return (
@@ -40,8 +44,7 @@ export function CartPage() {
         <div className={styles.empty}>
           <h1 className={`${styles.emptyTitle} wide`}>Your basket is empty</h1>
           <p className={styles.emptyBody}>
-            Eight departments and seventy eight products, so there is probably
-            something in there you were going to need anyway.
+            Anything you add stays here, even if you close the page.
           </p>
           <Link className={styles.emptyCta} to={STORE_ROUTES.SHOP}>
             Start with everything <ArrowRightIcon size={16} />
@@ -74,7 +77,7 @@ export function CartPage() {
             return (
               // Keyed on the line, not the product. Two sizes of one thing are
               // two rows, and a duplicate React key would make them share state.
-              <li className={styles.line} key={line.key}>
+              <li className={styles.line} key={line.key} data-gone={gone.has(line.key) || undefined}>
                 <Link className={styles.thumb} to={STORE_ROUTES.PRODUCT.replace(':slug', line.slug)}>
                   {image
                     ? <img src={image} alt="" loading="lazy" />
@@ -91,7 +94,9 @@ export function CartPage() {
                   {line.variantLabel && (
                     <p className={styles.variant}>{line.variantLabel}</p>
                   )}
-                  <p className={styles.unit} data-price>{formatGbp(line.price)} each</p>
+                  {gone.has(line.key)
+                    ? <p className={styles.goneNote}>No longer on sale</p>
+                    : <p className={styles.unit} data-price>{formatGbp(line.price)} each</p>}
 
                   <div className={styles.lineFoot}>
                     <div className={styles.qty}>
@@ -105,8 +110,8 @@ export function CartPage() {
                       <span data-price aria-live="polite">{line.qty}</span>
                       <button
                         type="button"
-                        onClick={() => setQty(line.key, Math.min(MAX_QTY, line.qty + 1))}
-                        disabled={line.qty >= MAX_QTY}
+                        onClick={() => setQty(line.key, line.qty + 1)}
+                        disabled={gone.has(line.key) || line.qty >= mostOf(line.stock)}
                         aria-label={`One more ${name}`}
                       >
                         <PlusIcon size={15} />
@@ -124,7 +129,7 @@ export function CartPage() {
                   </div>
                 </div>
 
-                <p className={styles.lineTotal} data-price>{formatGbp(line.price * line.qty)}</p>
+                <p className={styles.lineTotal} data-price>{gone.has(line.key) ? '' : formatGbp(line.price * line.qty)}</p>
               </li>
             );
           })}
@@ -160,16 +165,35 @@ export function CartPage() {
             </div>
           )}
 
-          <Link className={styles.checkout} to={STORE_ROUTES.CHECKOUT}>
-            Checkout <ArrowRightIcon size={17} />
-          </Link>
+          {changed.length > 0 && (
+            <p className={styles.notice}>
+              {changed.length === 1 ? `The price of ${changed[0]} has changed` : 'Some prices have changed'} since
+              you added it. The total above is what you will pay.
+            </p>
+          )}
+
+          {gone.size > 0 ? (
+            <>
+              <p className={styles.notice}>
+                {gone.size === 1 ? 'One thing' : `${gone.size} things`} in your basket {gone.size === 1 ? 'is' : 'are'} no
+                longer on sale. Remove {gone.size === 1 ? 'it' : 'them'} to carry on.
+              </p>
+              <span className={styles.checkout} aria-disabled="true" data-disabled>
+                Checkout <ArrowRightIcon size={17} />
+              </span>
+            </>
+          ) : (
+            <Link className={styles.checkout} to={STORE_ROUTES.CHECKOUT}>
+              Checkout <ArrowRightIcon size={17} />
+            </Link>
+          )}
 
           <Link className={styles.keep} to={STORE_ROUTES.SHOP}>Keep shopping</Link>
 
           <ul className={styles.reassure}>
             <li><LockIcon size={17} /><span>No account needed</span></li>
-            <li><ReturnIcon size={17} /><span>30 days to change your mind</span></li>
-            <li><VanIcon size={17} /><span>Free UK delivery over {formatGbp(FREE_OVER)}</span></li>
+            {days > 0 && <li><ReturnIcon size={17} /><span>{days} {days === 1 ? 'day' : 'days'} to change your mind</span></li>}
+            <li><VanIcon size={17} /><span>Free UK delivery over {formatGbp(freeOver())}</span></li>
           </ul>
         </aside>
       </div>

@@ -28,10 +28,10 @@ const kindOf = (t) => (t.product_id || t.product_title ? 'product'
   : t.subject_kind === 'basket' ? 'basket' : t.order_id || t.order_reference ? 'order' : 'general');
 
 // Starting points, edited before they are sent. Nothing goes out without her pressing Send.
-const QUICK = [
+const quickReplies = (returns) => [
   { label: 'In stock', text: 'Yes, it is in stock and goes out within a day of your order.' },
   { label: 'Delivery', text: 'Delivery is usually two to three working days once it has been sent.' },
-  { label: 'Returns', text: 'You can send it back within 30 days if it is not right for you.' },
+  { label: 'Returns', text: `You can send it back within ${Number(returns?.days) || 14} days if it is not right for you.` },
   { label: 'Thank you', text: 'Thank you for asking.' },
 ];
 
@@ -127,7 +127,7 @@ function ThreadHead({ thread, selected, onSelect }) {
   );
 }
 
-function ThreadPanel({ thread, messages, busy, run, onOpen, onReply, onStatus, onWithdraw, onBack }) {
+function ThreadPanel({ thread, messages, busy, run, onOpen, onReply, onStatus, onWithdraw, onBack, returns }) {
   const [text, setText] = useState('');
   const [quoting, setQuoting] = useState(false);
   const [price, setPrice] = useState('');
@@ -273,7 +273,7 @@ function ThreadPanel({ thread, messages, busy, run, onOpen, onReply, onStatus, o
         )}
         {!text.trim() && (
           <div className={styles.chips} role="group" aria-label="Start from">
-            {QUICK.map((q) => (
+            {quickReplies(returns).map((q) => (
               <button key={q.label} type="button" className={styles.chip} onClick={() => setText(q.text)}>{q.label}</button>
             ))}
           </div>
@@ -440,7 +440,7 @@ export function MessagesPage() {
         {failed && <p className={styles.error} role="alert">{failed}</p>}
 
         {selected ? (
-          <ThreadPanel key={selected.id} thread={selected} messages={messages[selected.id]} busy={busy} run={run}
+          <ThreadPanel returns={tenant?.store?.returns} key={selected.id} thread={selected} messages={messages[selected.id]} busy={busy} run={run}
             onOpen={open} onReply={reply} onStatus={setStatus} onWithdraw={withdrawOffer}
             onBack={() => setShowing(false)} />
         ) : (

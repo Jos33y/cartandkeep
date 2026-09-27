@@ -1,14 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import { ArrowRightIcon, CloseIcon, MinusIcon, PlusIcon, VanIcon } from '@components/ui/store/icons';
-import { useBasket } from '@context/BasketContext';
+import { mostOf, useBasket } from '@context/BasketContext';
 import { imageAt } from '@utils/categories';
 import { formatGbp } from '@utils/formatGbp';
 import { STORE_ROUTES } from '@utils/constants';
 import { freeOver } from '@lib/storeConfig';
 import styles from '@styles/ui/store/mini-basket.module.css';
-
-const MAX_QTY = 20;
 
 /*
  * Opens when something is added.
@@ -82,35 +80,39 @@ export function MiniBasket() {
         </header>
 
         <ul className={styles.lines}>
-          {ordered.slice(0, 4).map((line) => (
-            <li key={line.id} data-new={line.id === lastAdded.id || undefined}>
-              <span className={styles.thumb}>
-                {line.image_url && <img src={imageAt(line.image_url, 300)} alt="" loading="lazy" />}
-              </span>
-              <span className={styles.lineMain}>
-                <span className={styles.lineTitle}>{line.title}</span>
-                <span className={styles.qty}>
-                  <button
-                    type="button"
-                    onClick={() => setQty(line.id, line.qty - 1)}
-                    aria-label={line.qty === 1 ? `Remove ${line.title}` : `One fewer ${line.title}`}
-                  >
-                    <MinusIcon size={13} />
-                  </button>
-                  <span data-price>{line.qty}</span>
-                  <button
-                    type="button"
-                    onClick={() => setQty(line.id, Math.min(MAX_QTY, line.qty + 1))}
-                    disabled={line.qty >= MAX_QTY}
-                    aria-label={`One more ${line.title}`}
-                  >
-                    <PlusIcon size={13} />
-                  </button>
+          {ordered.slice(0, 4).map((line) => {
+            // Keyed and changed by the line, not the product, so two sizes of one thing stay two rows.
+            const name = line.variantLabel ? `${line.title}, ${line.variantLabel}` : line.title;
+            return (
+              <li key={line.key} data-new={line.key === lastAdded.key || undefined}>
+                <span className={styles.thumb}>
+                  {line.image_url && <img src={imageAt(line.image_url, 300)} alt="" loading="lazy" />}
                 </span>
-              </span>
-              <span className={styles.lineTotal} data-price>{formatGbp(line.price * line.qty)}</span>
-            </li>
-          ))}
+                <span className={styles.lineMain}>
+                  <span className={styles.lineTitle}>{name}</span>
+                  <span className={styles.qty}>
+                    <button
+                      type="button"
+                      onClick={() => setQty(line.key, line.qty - 1)}
+                      aria-label={line.qty === 1 ? `Remove ${name}` : `One fewer ${name}`}
+                    >
+                      <MinusIcon size={13} />
+                    </button>
+                    <span data-price>{line.qty}</span>
+                    <button
+                      type="button"
+                      onClick={() => setQty(line.key, line.qty + 1)}
+                      disabled={line.qty >= mostOf(line.stock)}
+                      aria-label={`One more ${name}`}
+                    >
+                      <PlusIcon size={13} />
+                    </button>
+                  </span>
+                </span>
+                <span className={styles.lineTotal} data-price>{formatGbp(line.price * line.qty)}</span>
+              </li>
+            );
+          })}
         </ul>
 
         {lines.length > 4 && (

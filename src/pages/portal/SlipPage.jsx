@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router';
 import { Logo } from '@components/ui/shared/Logo';
 import { Icon } from '@components/ui/icons';
 import { supabase } from '@lib/supabase';
+import { useTenant } from '@hooks/useTenant';
 import { PORTAL_ROUTES, portalPath } from '@utils/constants';
 import styles from '@styles/pages/portal/slip-page.module.css';
 
@@ -12,7 +13,15 @@ const day = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB', {
 }) : '');
 
 // Goes in the box, so it is read by whoever opens it, often not the buyer: no prices anywhere.
-export function PackingSlip({ order, items }) {
+// Her returns terms in her words: the days she set, and who pays the postage back.
+function returnsLine(returns) {
+  const days = Number(returns?.days) || 14;
+  return returns?.postage_paid_by === 'customer'
+    ? `Not right? You have ${days} days to change your mind. Return postage is yours to pay unless it arrived faulty.`
+    : `Not right? You have ${days} days to change your mind and we pay the return postage.`;
+}
+
+export function PackingSlip({ order, items, returns }) {
   const a = order.address ?? {};
   const lines = [a.line1, a.line2, a.city, a.postcode].filter(Boolean);
   const count = items.reduce((n, i) => n + Number(i.qty ?? 0), 0);
@@ -72,7 +81,7 @@ export function PackingSlip({ order, items }) {
       <footer className={styles.foot}>
         <p className={styles.thanks}>Thank you for shopping with us.</p>
         <p>
-          Not right? You have 30 days to change your mind and we pay the return postage.
+          {returnsLine(returns)}{' '}
           Keep this slip and quote <b data-num>{order.reference}</b> when you get in touch.
         </p>
       </footer>
@@ -83,6 +92,7 @@ export function PackingSlip({ order, items }) {
 export function SlipPage() {
   const { reference } = useParams();
   const [state, setState] = useState({ status: 'loading' });
+  const tenant = useTenant();
 
   useEffect(() => {
     let live = true;
@@ -105,7 +115,7 @@ export function SlipPage() {
     return () => { live = false; };
   }, [reference]);
 
-  if (state.status === 'loading') return <p className={styles.status} role="status">Finding the order</p>;
+  if (state.status === 'loading' || tenant === undefined) return <p className={styles.status} role="status">Finding the order</p>;
 
   if (state.status === 'missing') {
     return (
@@ -128,7 +138,7 @@ export function SlipPage() {
         </button>
       </header>
       <div className={styles.desk}>
-        <PackingSlip order={state.order} items={state.items} />
+        <PackingSlip order={state.order} items={state.items} returns={tenant?.store?.returns} />
       </div>
     </div>
   );

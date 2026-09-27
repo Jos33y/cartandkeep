@@ -37,6 +37,14 @@ const BasketContext = createContext(null);
  */
 const lineKey = (productId, variantId) => (variantId ? `${productId}:${variantId}` : productId);
 
+export const MAX_QTY = 20;
+
+// The most one line can hold: her count when she keeps one, twenty when she does not.
+export const mostOf = (stock) => (Number.isFinite(stock) && stock > 0 ? Math.min(MAX_QTY, stock) : MAX_QTY);
+
+// The order the basket was last sent to pay for, so only that order empties it.
+const PAYING_KEY = 'ck.basket.paying';
+
 function read() {
   if (typeof window === 'undefined') return [];
   try {
@@ -102,15 +110,19 @@ export function BasketProvider({ children }) {
     trackAdd(product, qty);
     setLastAdded({
       id: product.id,
+      key,
       title: variant ? `${product.title}, ${variant.label}` : product.title,
       qty,
       at: Date.now(),
     });
 
+    const stock = variant ? variant.stock : product.stock;
+    const count = typeof stock === 'number' ? stock : null;
+
     setLines((current) => {
       const found = current.find((l) => l.key === key);
       if (found) {
-        return current.map((l) => (l.key === key ? { ...l, qty: l.qty + qty } : l));
+        return current.map((l) => (l.key === key ? { ...l, stock: count, qty: Math.min(mostOf(count), l.qty + qty) } : l));
       }
       // A snapshot, not a reference. If she changes a price or takes a product
       // down, the basket keeps what was shown when it went in, and checkout
@@ -124,7 +136,8 @@ export function BasketProvider({ children }) {
         title: product.title,
         price: Number(variant?.price ?? product.price),
         image_url: variant?.image_url ?? product.image_url ?? null,
-        qty,
+        stock: count,
+        qty: Math.min(mostOf(count), qty),
       }];
     });
   }, []);
@@ -135,7 +148,51 @@ export function BasketProvider({ children }) {
     setLines((current) =>
       qty <= 0
         ? current.filter((l) => l.key !== key)
-        : current.map((l) => (l.key === key ? { ...l, qty } : l)));
+        : current.map((l) => (l.key === key ? { ...l, qty: Math.min(mostOf(l.stock), qty) } : l)));
+  }, []);
+
+  /*
+   * The checkout's figures written back onto the lines.
+   *
+   * Only lines it priced are touched, and only when something differs, so a
+   * quote that agrees with the basket changes nothing and triggers nothing.
+   */
+  const reconcile = useCallback((priced) => {
+    const byKey = new Map((priced ?? []).map((p) => [p.key, p]));
+    setLines((current) => {
+      let changed = false;
+      const next = current.map((l) => {
+        const p = byKey.get(l.key);
+        if (!p) return l;
+        const fresh = {
+          ...l,
+          title: p.title,
+          variantLabel: p.variantLabel,
+          slug: p.slug,
+          image_url: p.image_url ?? l.image_url,
+          price: Number(p.price),
+          stock: typeof p.stock === 'number' ? p.stock : null,
+        };
+        const same = ['title', 'variantLabel', 'slug', 'image_url', 'price', 'stock'].every((k) => fresh[k] === l[k]);
+        if (same) return l;
+        changed = true;
+        return fresh;
+      });
+      return changed ? next : current;
+    });
+  }, []);
+
+  const markPaying = useCallback((reference) => {
+    try { window.localStorage.setItem(PAYING_KEY, reference); } catch { /* the basket just stays after paying */ }
+  }, []);
+
+  // Empties the basket only for the order it was sent to pay for, never for a price agreed in a conversation.
+  const clearIfPaid = useCallback((reference) => {
+    let paying = null;
+    try { paying = window.localStorage.getItem(PAYING_KEY); } catch { /* unreadable storage leaves the basket alone */ }
+    if (!paying || paying !== reference) return;
+    setLines([]);
+    try { window.localStorage.removeItem(PAYING_KEY); } catch { /* nothing to undo */ }
   }, []);
 
   const remove = useCallback((key) => setLines((current) => {
@@ -153,13 +210,16 @@ export function BasketProvider({ children }) {
     setQty,
     remove,
     clear,
+    reconcile,
+    markPaying,
+    clearIfPaid,
     lastAdded,
     dismissAdded,
     // Units, not lines. Two of one thing reads as two in the header, which is
     // what a shopper counts.
     count: lines.reduce((n, l) => n + l.qty, 0),
     subtotal: lines.reduce((n, l) => n + l.price * l.qty, 0),
-  }), [lines, add, setQty, remove, clear, lastAdded, dismissAdded]);
+  }), [lines, add, setQty, remove, clear, reconcile, markPaying, clearIfPaid, lastAdded, dismissAdded]);
 
   return <BasketContext.Provider value={value}>{children}</BasketContext.Provider>;
 }

@@ -75,6 +75,22 @@
 
 .unit { margin-top: 3px; font-size: var(--t-caption); color: var(--c-faint); }
 
+/* A line no longer on sale stays visible and named, with only Remove left to press. */
+.line[data-gone] .thumb img { opacity: 0.45; }
+.line[data-gone] .lineTitle { color: var(--c-ink-soft); }
+.goneNote { margin-top: 3px; font-size: var(--t-caption); font-weight: 500; color: #7d2f1e; }
+
+.notice {
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  background: var(--c-gold-wash);
+  border: 1px solid var(--c-gold-line);
+  border-radius: var(--r-control);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #5c430f;
+}
+
 .lineFoot { margin-top: var(--s-3); display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
 
 .qty {
@@ -181,6 +197,8 @@
 }
 
 .checkout:hover { background: #a94f34; }
+.checkout[data-disabled] { background: var(--c-line); color: var(--c-faint); cursor: not-allowed; }
+.checkout[data-disabled]:hover { background: var(--c-line); }
 
 .keep {
   margin-top: var(--s-3);

@@ -239,6 +239,255 @@ async function replay(event: Record<string, unknown>) {
   return `The webhook refused the replayed event: ${res.status} ${detail}. Check STRIPE_SECRET_KEY is unset and CHECKOUT_SIMULATE is on for stripe-webhook too.`;
 }
 
+/*
+ * Delivery terms off the tenant row, read the same way the shop reads them.
+ *
+ * The portal saves snake case and 0040 seeded camel case, so both are accepted.
+ * Zones merge over the defaults one zone at a time, exactly as the shop's
+ * deepMerge does, so a row with no zones still refuses the Channel Islands here
+ * as well as on the form.
+ */
+const DEFAULT_ZONES: Record<string, Record<string, unknown>> = {
+  mainland: { surcharge: 0 },
+  highlands: { surcharge: 0 },
+  northern_ireland: { surcharge: 0 },
+  isle_of_man: { surcharge: 0 },
+  isles_of_scilly: { surcharge: 0 },
+  channel_islands: { blocked: true },
+};
+
+function deliveryTerms(store: Record<string, any> | null) {
+  const d = store?.delivery ?? {};
+  const stored = d.zones ?? {};
+  const zones: Record<string, Record<string, any>> = {};
+  for (const key of new Set([...Object.keys(DEFAULT_ZONES), ...Object.keys(stored)])) {
+    zones[key] = { ...(DEFAULT_ZONES[key] ?? {}), ...(stored[key] ?? {}) };
+  }
+  return {
+    freeOver: Number(d.free_over ?? d.freeOver ?? FREE_OVER),
+    postage: Number(d.postage ?? POSTAGE),
+    zones,
+  };
+}
+
+type Priced = {
+  refuse?: { status: number; body: Record<string, unknown> };
+  offer?: any;
+  lines: Array<Record<string, any>>;
+  unavailable: Array<{ key: string; name: string | null }>;
+  subtotal: number;
+  zone: string;
+  blocked: boolean;
+  surcharge: number;
+  delivery: number;
+  freeOver: number;
+  total: number;
+};
+
+/*
+ * Every figure a basket comes to, read from the database.
+ *
+ * One function for the quote and for the order, so the number on the page
+ * and the number charged come from the same lines of code rather than from
+ * two that agree today.
+ */
+async function priceOrder(tenant: any, body: any): Promise<Priced> {
+  const empty = { lines: [], unavailable: [], subtotal: 0, zone: 'mainland', blocked: false, surcharge: 0, delivery: 0, freeOver: 0, total: 0 };
+  const refuse = (status: number, b: Record<string, unknown>): Priced => ({ ...empty, refuse: { status, body: b } });
+
+  const { items, offerId = null, token: offerToken = '' } = body ?? {};
+  const byOffer = typeof offerId === 'string' && offerId.length > 0;
+
+  if (!byOffer && (!Array.isArray(items) || items.length === 0)) {
+    return refuse(400, { error: 'Your basket is empty' });
+  }
+
+  const terms = deliveryTerms(tenant.store as Record<string, any>);
+
+  /*
+   * The offer, and the proof that it belongs to whoever is holding it.
+   *
+   * Read from store_live_offers rather than the table, so expired,
+   * withdrawn and already used all come back as no offer and the clock lives
+   * in one place. Then the token of the conversation, compared in constant
+   * time, because an offer id on its own is a guess somebody could make.
+   */
+  let offer: any = null;
+
+  if (byOffer) {
+    const { data: live } = await db
+      .from('store_live_offers')
+      .select('id, thread_id, lines, price')
+      .eq('tenant_id', tenant.id)
+      .eq('id', offerId)
+      .maybeSingle();
+
+    const { data: thread } = live
+      ? await db.from('store_threads')
+        .select('id, access_token').eq('id', live.thread_id).maybeSingle()
+      : { data: null };
+
+    // One answer for an id that does not exist, a price that has run out and
+    // a wrong token. Three answers would tell somebody which half to keep
+    // guessing at.
+    if (!live || !thread?.access_token || !sameToken(thread.access_token, String(offerToken))) {
+      return refuse(409, {
+        error: 'That price is not available any more. The conversation is still there, so ask again and we will look at it.',
+      });
+    }
+
+    offer = live;
+  }
+
+  const source: any[] = byOffer
+    ? (offer.lines ?? []).map((l: any) => ({ id: l.product_id, variantId: l.variant_id, qty: l.qty }))
+    : items;
+
+  /*
+   * Quantities are clamped rather than trusted, and keyed by product and
+   * variant together.
+   *
+   * Keying on the product alone would fold two sizes of one bed sheet into a
+   * single line, so somebody ordering a double and a king would be charged for
+   * two of whichever arrived first.
+   */
+  const wanted = new Map<string, { productId: string; variantId: string | null; qty: number }>();
+  for (const item of source) {
+    const qty = Math.min(MAX_QTY, Math.max(1, Number(item?.qty) || 0));
+    if (typeof item?.id !== 'string' || !qty) continue;
+    const variantId = typeof item?.variantId === 'string' ? item.variantId : null;
+    const key = variantId ? `${item.id}:${variantId}` : item.id;
+    const found = wanted.get(key);
+    if (found) found.qty = Math.min(MAX_QTY, found.qty + qty);
+    else wanted.set(key, { productId: item.id, variantId, qty });
+  }
+  if (wanted.size === 0) return refuse(400, { error: 'Your basket is empty' });
+
+  const productIds = [...new Set([...wanted.values()].map((w) => w.productId))];
+  const variantIds = [...wanted.values()].map((w) => w.variantId).filter(Boolean) as string[];
+
+  const [{ data: products, error: pErr }, { data: variants, error: vErr }] = await Promise.all([
+    db.from('store_products')
+      .select('id, slug, title, price, image_url, status, is_sample, availability, stock')
+      .eq('tenant_id', tenant.id)
+      .in('id', productIds),
+    variantIds.length
+      ? db.from('store_variants')
+        .select('id, product_id, label, price, image_url, availability, stock')
+        .eq('tenant_id', tenant.id)
+        .in('id', variantIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (pErr || vErr) return refuse(500, { error: 'Could not read the catalogue' });
+
+  const variantById = new Map((variants ?? []).map((v: any) => [v.id, v]));
+  const gone = (a?: string | null) => a === 'out_of_stock' || a === 'discontinued';
+
+  /*
+   * Every line resolved and priced from the database, never from the payload.
+   *
+   * A variant that belongs to a different product is refused rather than
+   * priced, because the variant id arrives from a browser. A null variant
+   * price means the product price applies, the same fallback the shop renders.
+   *
+   * A count below the quantity is not refused. The shop count is hers and the
+   * supplier holds the goods, so the sale goes through and her alert names it.
+   */
+  const lines: Array<Record<string, any>> = [];
+  const unavailable: Array<{ key: string; name: string | null }> = [];
+
+  for (const [key, want] of wanted) {
+    const product = (products ?? []).find((p: any) => p.id === want.productId);
+    const variant: any = want.variantId ? variantById.get(want.variantId) : null;
+
+    const badProduct = !product
+      || product.status !== 'live'
+      || product.is_sample
+      || gone(product.availability);
+
+    const badVariant = want.variantId
+      && (!variant || variant.product_id !== want.productId || gone(variant.availability));
+
+    if (badProduct || badVariant) {
+      unavailable.push({ key, name: product ? (variant ? `${product.title}, ${variant.label}` : product.title) : null });
+      continue;
+    }
+
+    const unit = money(Number(variant?.price ?? product!.price));
+    lines.push({
+      key,
+      product: product!,
+      variant: variant ?? null,
+      qty: want.qty,
+      unit,
+      lineTotal: money(unit * want.qty),
+      stock: variant ? variant.stock : product!.stock,
+    });
+  }
+
+  /*
+   * An agreed price replaces the list total, and the lines are rewritten to
+   * add up to it. An offer is a promise about a price, never about stock.
+   */
+  if (byOffer && lines.length) {
+    const shares = allocate(
+      lines.map((l) => Math.round(l.lineTotal * 100)),
+      Math.round(Number(offer.price) * 100),
+    );
+    lines.forEach((l, i) => {
+      l.lineTotal = money(shares[i] / 100);
+      l.unit = money(l.lineTotal / l.qty);
+    });
+  }
+
+  const subtotal = money(lines.reduce((n, l) => n + l.lineTotal, 0));
+
+  const zone = body?.contact?.address?.postcode || body?.postcode
+    ? postcodeZone(String(body?.contact?.address?.postcode ?? body?.postcode))
+    : 'mainland';
+  const zoneCfg = terms.zones[zone] ?? {};
+
+  /*
+   * The surcharge applies whether or not delivery is free. Free delivery is a
+   * promise about the standard rate, not about what a carrier charges extra to
+   * reach Shetland.
+   */
+  const surcharge = money(Math.max(0, Number(zoneCfg.surcharge ?? 0)));
+  const basePostage = subtotal >= terms.freeOver ? 0 : terms.postage;
+  // Nothing buyable is nothing to post, or a quote on a basket of sold out things reads as a delivery charge.
+  const delivery = lines.length ? money(basePostage + surcharge) : 0;
+
+  return {
+    offer,
+    lines,
+    unavailable,
+    subtotal,
+    zone,
+    blocked: Boolean(zoneCfg.blocked),
+    surcharge,
+    delivery,
+    freeOver: terms.freeOver,
+    total: money(subtotal + delivery),
+  };
+}
+
+// What a browser may see of a priced line: no internal rows, no costs.
+function quoteLine(l: Record<string, any>) {
+  return {
+    key: l.key,
+    id: l.product.id,
+    variantId: l.variant?.id ?? null,
+    slug: l.product.slug,
+    title: l.product.title,
+    variantLabel: l.variant?.label ?? null,
+    image_url: l.variant?.image_url ?? l.product.image_url ?? null,
+    price: l.unit,
+    qty: l.qty,
+    lineTotal: l.lineTotal,
+    stock: typeof l.stock === 'number' ? l.stock : null,
+  };
+}
+
 Deno.serve(async (req) => {
   const origin = req.headers.get('origin');
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(origin) });
@@ -301,22 +550,31 @@ Deno.serve(async (req) => {
       return json({ ok: true, outcome, status: after?.status ?? null }, 200, origin);
     }
 
-    const {
-      items, contact, tenantSlug = 'cart-and-keep', returnTo, sessionId,
-      offerId = null, token: offerToken = '',
-    } = body;
+    const { contact, tenantSlug = 'cart-and-keep', returnTo, sessionId } = body ?? {};
 
-    /*
-     * An agreed price arrives as an id and the token of the conversation it
-     * was given in, and nothing else. No lines and no figure: both are read
-     * back out of the offer record, because a price the browser could name is
-     * a price the customer could set, and this one was already negotiated.
-     */
-    const byOffer = typeof offerId === 'string' && offerId.length > 0;
+    const { data: tenant, error: tErr } = await db
+      .from('tenants').select('id, name, currency, store').eq('slug', tenantSlug).single();
+    if (tErr || !tenant) return json({ error: 'Shop not found' }, 404, origin);
 
-    if (!byOffer && (!Array.isArray(items) || items.length === 0)) {
-      return json({ error: 'Your basket is empty' }, 400, origin);
+    // Figures for a page to show, with nothing written. Unavailable lines come back as data so the page can name them.
+    if (body?.action === 'quote') {
+      const q = await priceOrder(tenant, body);
+      if (q.refuse) return json(q.refuse.body, q.refuse.status, origin);
+      return json({
+        lines: q.lines.map(quoteLine),
+        unavailable: q.unavailable,
+        subtotal: q.subtotal,
+        zone: q.zone,
+        blocked: q.blocked,
+        surcharge: q.surcharge,
+        delivery: q.delivery,
+        freeOver: q.freeOver,
+        toFree: money(Math.max(0, q.freeOver - q.subtotal)),
+        total: q.total,
+        agreed: Boolean(q.offer),
+      }, 200, origin);
     }
+
     if (!contact?.email || !String(contact.email).includes('@')) {
       return json({ error: 'A valid email address is needed' }, 400, origin);
     }
@@ -327,230 +585,35 @@ Deno.serve(async (req) => {
       return json({ error: 'A delivery address and postcode are needed' }, 400, origin);
     }
 
-    const { data: tenant, error: tErr } = await db
-      .from('tenants').select('id, name, currency, store').eq('slug', tenantSlug).single();
-    if (tErr || !tenant) return json({ error: 'Shop not found' }, 404, origin);
+    const priced = await priceOrder(tenant, body);
+    if (priced.refuse) return json(priced.refuse.body, priced.refuse.status, origin);
 
-    /*
-     * Delivery terms come off the tenant row, not out of this file.
-     *
-     * FREE_OVER and POSTAGE were literals here and also written out in five
-     * components, so the basket and the payment could disagree and nothing
-     * checked that they did not. Migration 0040 exists to end that, and this
-     * function was still not reading it.
-     *
-     * The constants stay as a fallback rather than being deleted. A shop that
-     * cannot take a payment because a jsonb key is missing is a worse failure
-     * than one charging last month's postage.
-     */
-    const delivery_cfg = (tenant.store as Record<string, any>)?.delivery ?? {};
-    const freeOver = Number(delivery_cfg.free_over ?? FREE_OVER);
-    const postage = Number(delivery_cfg.postage ?? POSTAGE);
-    const zones = delivery_cfg.zones ?? {};
-
-    /*
-     * Quantities are clamped rather than trusted, and keyed by product and
-     * variant together.
-     *
-     * Keying on the product alone would fold two sizes of one bed sheet into a
-     * single line, so somebody ordering a double and a king would be charged for
-     * two of whichever arrived first. The basket learned this at the same time
-     * and for the same reason.
-     */
-    /*
-     * The offer, and the proof that it belongs to whoever is holding it.
-     *
-     * Read from store_live_offers rather than the table, so expired,
-     * withdrawn and already used all come back as no offer and the clock lives
-     * in one place. Then the token of the conversation, compared in constant
-     * time, because an offer id on its own is a guess somebody could make.
-     */
-    let offer: any = null;
-
-    if (byOffer) {
-      const { data: live } = await db
-        .from('store_live_offers')
-        .select('id, thread_id, lines, price')
-        .eq('tenant_id', tenant.id)
-        .eq('id', offerId)
-        .maybeSingle();
-
-      const { data: thread } = live
-        ? await db.from('store_threads')
-          .select('id, access_token').eq('id', live.thread_id).maybeSingle()
-        : { data: null };
-
-      // One answer for an id that does not exist, a price that has run out and
-      // a wrong token. Three answers would tell somebody which half to keep
-      // guessing at.
-      if (!live || !thread?.access_token || !sameToken(thread.access_token, String(offerToken))) {
-        return json({
-          error: 'That price is not available any more. The conversation is still there, so ask again and we will look at it.',
-        }, 409, origin);
-      }
-
-      offer = live;
-    }
-
-    /*
-     * What is being bought: the offer's own lines, or the basket.
-     *
-     * Either way it is ids and quantities, and every figure below is read from
-     * the database.
-     */
-    const source: any[] = byOffer
-      ? (offer.lines ?? []).map((l: any) => ({ id: l.product_id, variantId: l.variant_id, qty: l.qty }))
-      : items;
-
-    const wanted = new Map<string, { productId: string; variantId: string | null; qty: number }>();
-    for (const item of source) {
-      const qty = Math.min(MAX_QTY, Math.max(1, Number(item?.qty) || 0));
-      if (typeof item?.id !== 'string' || !qty) continue;
-      const variantId = typeof item?.variantId === 'string' ? item.variantId : null;
-      const key = variantId ? `${item.id}:${variantId}` : item.id;
-      const found = wanted.get(key);
-      if (found) found.qty = Math.min(MAX_QTY, found.qty + qty);
-      else wanted.set(key, { productId: item.id, variantId, qty });
-    }
-    if (wanted.size === 0) return json({ error: 'Your basket is empty' }, 400, origin);
-
-    const productIds = [...new Set([...wanted.values()].map((w) => w.productId))];
-    const variantIds = [...wanted.values()].map((w) => w.variantId).filter(Boolean) as string[];
-
-    const [{ data: products, error: pErr }, { data: variants, error: vErr }] = await Promise.all([
-      db.from('store_products')
-        .select('id, slug, title, price, image_url, status, is_sample, availability')
-        .eq('tenant_id', tenant.id)
-        .in('id', productIds),
-      variantIds.length
-        ? db.from('store_variants')
-          .select('id, product_id, label, price, image_url, availability')
-          .eq('tenant_id', tenant.id)
-          .in('id', variantIds)
-        : Promise.resolve({ data: [], error: null }),
-    ]);
-    if (pErr || vErr) return json({ error: 'Could not read the catalogue' }, 500, origin);
-
-    const variantById = new Map((variants ?? []).map((v) => [v.id, v]));
-
-    const gone = (a?: string | null) => a === 'out_of_stock' || a === 'discontinued';
-
-    /*
-     * Every line resolved and priced from the database, never from the payload.
-     *
-     * A variant that belongs to a different product is refused rather than
-     * priced, because the variant id arrives from a browser and a basket that
-     * can name its own combinations is one somebody will eventually use to buy
-     * a king size at a cot price.
-     *
-     * A null variant price means the product price applies, which is the same
-     * fallback the storefront renders, so the figure on the basket and the
-     * figure charged come from one rule rather than two.
-     */
-    const lines: Array<Record<string, any>> = [];
-    const unavailable: string[] = [];
-    const names: string[] = [];
-
-    for (const [key, want] of wanted) {
-      const product = (products ?? []).find((p) => p.id === want.productId);
-      const variant = want.variantId ? variantById.get(want.variantId) : null;
-
-      const badProduct = !product
-        || product.status !== 'live'
-        || product.is_sample
-        || gone(product.availability);
-
-      const badVariant = want.variantId
-        && (!variant || variant.product_id !== want.productId || gone(variant.availability));
-
-      if (badProduct || badVariant) {
-        unavailable.push(key);
-        if (product) names.push(variant ? `${product.title}, ${variant.label}` : product.title);
-        continue;
-      }
-
-      const unit = money(Number(variant?.price ?? product!.price));
-      lines.push({
-        product: product!,
-        variant: variant ?? null,
-        qty: want.qty,
-        unit,
-        lineTotal: money(unit * want.qty),
-      });
-    }
-
-    // Refused by name, so the shopper is told which item rather than handed a
-    // generic failure and left to work it out.
-    if (unavailable.length) {
+    // Refused by name, so the shopper is told which item rather than handed a generic failure.
+    if (priced.unavailable.length) {
+      const names = priced.unavailable.map((u) => u.name).filter(Boolean);
       return json({
         error: names.length
           ? `No longer available: ${names.join(', ')}`
           : 'Something in your basket is no longer available',
-        unavailable,
+        unavailable: priced.unavailable.map((u) => u.key),
       }, 409, origin);
     }
-    if (lines.length === 0) return json({ error: 'Your basket is empty' }, 400, origin);
-
-    /*
-     * An agreed price replaces the list total, and the lines are rewritten to
-     * add up to it.
-     *
-     * Availability is still checked above and still refuses by name. An offer
-     * is a promise about a price, never about stock, and selling something
-     * that has gone because it was quoted last Tuesday is worse than saying so.
-     */
-    if (byOffer) {
-      const shares = allocate(
-        lines.map((l) => Math.round(l.lineTotal * 100)),
-        Math.round(Number(offer.price) * 100),
-      );
-
-      lines.forEach((l, i) => {
-        l.lineTotal = money(shares[i] / 100);
-        l.unit = money(l.lineTotal / l.qty);
-      });
-    }
-
-    const subtotal = money(lines.reduce((n, l) => n + l.lineTotal, 0));
-
-    const zone = postcodeZone(String(contact.address.postcode));
-    const zoneCfg = zones[zone] ?? {};
+    if (priced.lines.length === 0) return json({ error: 'Your basket is empty' }, 400, origin);
 
     /*
      * Blocked before anything is charged. Guernsey and Jersey sit outside the
      * UK customs and VAT territory, so an order there is an export with a
-     * customs declaration attached, which is a different business rather than a
-     * different postage rate.
+     * customs declaration attached.
      */
-    if (zoneCfg.blocked) {
+    if (priced.blocked) {
       return json({
         error: 'We cannot deliver to the Channel Islands yet. Everywhere else in the UK is fine.',
-        zone,
+        zone: priced.zone,
       }, 409, origin);
     }
 
-    /*
-     * The surcharge applies whether or not delivery is free.
-     *
-     * Free delivery is a promise about the standard rate. It is not a promise
-     * to absorb what a carrier charges extra to reach Shetland, and a threshold
-     * that quietly swallowed the surcharge would lose money on exactly the
-     * orders that cost the most to fulfil.
-     *
-     * Every surcharge is zero today, so this changes no figure until her rate
-     * card is entered. What it changes now is that the columns are populated,
-     * which is what makes it checkable later.
-     */
-    const surcharge = money(Math.max(0, Number(zoneCfg.surcharge ?? 0)));
-    // Named for what it is rather than `base`, which is already the return URL
-    // further down. Two `const base` in one block is a parse error, so the
-    // function did not boot at all and every checkout returned a worker error.
-    // Against the agreed price where there is one, not the list price. She
-    // decided what this order is worth, and the threshold is a promise about
-    // what an order comes to rather than about what it would have come to.
-    const basePostage = subtotal >= freeOver ? 0 : postage;
-    const delivery = money(basePostage + surcharge);
-    const total = money(subtotal + delivery);
+    const { lines, offer, subtotal, zone, surcharge, delivery, total } = priced;
+    const byOffer = Boolean(offer);
 
     const ref = reference();
     const access = token();
@@ -606,9 +669,11 @@ Deno.serve(async (req) => {
       return json({ error: 'Could not start the order' }, 500, origin);
     }
 
-    const base = returnTo && String(returnTo).startsWith('http')
-      ? String(returnTo)
-      : (origin ?? 'https://cartandkeep.com');
+    // Only the shop's own addresses. Any other would send a paid customer to a page somebody else chose.
+    const asked = (() => { try { return new URL(String(returnTo)).origin; } catch { return null; } })();
+    const base = asked && ALLOWED.includes(asked)
+      ? asked
+      : (origin && ALLOWED.includes(origin) ? origin : ALLOWED[0]);
 
     /*
      * A simulated session, which is a row and a redirect and nothing else.
