@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Head } from '@components/layout/shared/Head';
 import { StoreHero } from '@components/ui/store/StoreHero';
 import { Shelf } from '@components/ui/store/Shelf';
 import { ProductGridSkeleton } from '@components/ui/store/Skeleton';
@@ -89,6 +90,7 @@ export function HomePage() {
 
   return (
     <div className={styles.page}>
+      <Head description="A general store for the house, one basket, delivered from the UK. No account needed to buy." path="/" />
       <StoreHero groups={groups} />
 
       <div className={styles.wrap}>

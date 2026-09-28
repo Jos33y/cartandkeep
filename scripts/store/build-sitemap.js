@@ -41,7 +41,7 @@ const STATIC = [
   ['/legal/terms', 'yearly', '0.3'],
   ['/legal/privacy', 'yearly', '0.3'],
   ['/legal/cookies', 'yearly', '0.3'],
-  ['/legal/faq', 'monthly', '0.5'],
+  ['/faq', 'monthly', '0.5'],
 ];
 
 // Anything private, anything personal, anything that would be a thin duplicate

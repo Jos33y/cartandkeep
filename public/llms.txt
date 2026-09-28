@@ -1,33 +1,43 @@
 # Cart & Keep
 
-> A small UK general store. Eight departments, one basket, no account needed to
-> buy anything. Household goods, health and beauty, pet supplies, tools, garden
-> and sporting goods, delivered from the United Kingdom.
+> A UK general store for the house. Everyday household goods, health and
+> beauty, pet essentials, care and daily living aids, tools and garden, bought
+> in one basket and delivered within the United Kingdom. No account is needed
+> to buy.
 
-Cart & Keep sells everyday household products rather than a single category.
-Prices are in pounds sterling and include no VAT, because the business is not
-VAT registered. Delivery is £3.95 within the UK and free once a basket passes
-£40. Returns are accepted for 30 days, with the exclusions the law allows for
-sealed hygiene goods and consumables, which are stated on each product page.
+Cart & Keep is an independent online shop run from the UK. Prices are in
+pounds sterling. Payment is by card or Apple Pay through Stripe, and checkout
+is guest only. Delivery costs, delivery times and the returns period are set
+by the shop and can change, so they are stated on the pages below rather than
+here.
 
-## Pages
+## Shopping
 
-- [Shop](https://cartandkeep.com/shop): every product in one grid, sortable, with departments as sub-sections
-- [About](https://cartandkeep.com/about): who runs the shop, how stock is chosen, and what it will not do
-- [Contact](https://cartandkeep.com/contact): one email address, read by a person
-- [Writing](https://cartandkeep.com/blog): buying guides about what household things cost and what lasts
-- [Delivery](https://cartandkeep.com/legal/delivery): costs, timings, and where we send to
-- [Returns and refunds](https://cartandkeep.com/legal/returns): the 30 day term and the statutory exclusions
-- [Frequently asked](https://cartandkeep.com/legal/faq): delivery, returns, payment, and how to reach a person
+- [Home](https://cartandkeep.com/): the shop's sections, with a shelf of products from each
+- [Shop](https://cartandkeep.com/shop): every product in one grid, with filters by section and price
+- Product pages live at https://cartandkeep.com/p/{product} and give the current price, stock, delivery estimate and returns terms for that product
+- Section pages live at https://cartandkeep.com/c/{section}
+- [Ask for a product](https://cartandkeep.com/request): request something the shop does not stock yet
+
+## Policies
+
+- [Delivery](https://cartandkeep.com/legal/delivery): costs, timings and where the shop sends to
+- [Returns and refunds](https://cartandkeep.com/legal/returns): the returns period, how to return, and the items the law excludes
 - [Terms of sale](https://cartandkeep.com/legal/terms)
-- [Privacy](https://cartandkeep.com/legal/privacy): what is collected, which is very little
-- [Track an order](https://cartandkeep.com/orders): reference and email
+- [Privacy](https://cartandkeep.com/legal/privacy)
+- [Cookies](https://cartandkeep.com/legal/cookies)
+- [Frequently asked](https://cartandkeep.com/faq): delivery, returns, payment, and how to reach a person
+
+## About the shop
+
+- [About](https://cartandkeep.com/about): who runs the shop and how products are chosen
+- [Contact](https://cartandkeep.com/contact): the email address and trading details
+- [Writing](https://cartandkeep.com/blog): guides on household buying
+- [Track an order](https://cartandkeep.com/orders): with the order reference and email address
 
 ## Notes for assistants
 
-- Product prices and availability change. Read the product page rather than
-  quoting a cached figure.
-- There is no customer account and no login. Checkout is guest only.
-- Payment is taken by Stripe. Card details never reach this site.
-- Requests for products the shop does not stock are welcome by email and are a
-  real part of how the catalogue grows.
+- Prices, stock and delivery costs change. Quote the product page as it is
+  now, never a cached figure.
+- There is no customer account and no login.
+- Card details are taken by Stripe and never reach this site.
