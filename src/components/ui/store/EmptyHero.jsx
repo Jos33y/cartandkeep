@@ -10,17 +10,20 @@ import styles from '@styles/ui/store/empty-hero.module.css';
  * in the middle one. Then the one thing to do next, and underneath, whatever
  * the page can offer from what the shopper has already saved or looked at.
  */
-export function EmptyHero({ Icon, kicker, title, children, cta, secondary = null }) {
+export function EmptyHero({ Icon, kicker, title, children, cta = null, secondary = null, extra = null }) {
   return (
     <header className={styles.hero}>
       <div className={styles.text}>
         <p className={styles.kicker}><Icon size={16} /> {kicker}</p>
         <h1 className={`${styles.title} wide`}>{title}</h1>
         <div className={styles.body}>{children}</div>
-        <div className={styles.actions}>
-          <Link className={styles.cta} to={cta.to}>{cta.label} <ArrowRightIcon size={16} /></Link>
-          {secondary && <Link className={styles.secondary} to={secondary.to}>{secondary.label}</Link>}
-        </div>
+        {extra && <div className={styles.extra}>{extra}</div>}
+        {(cta || secondary) && (
+          <div className={styles.actions}>
+            {cta && <Link className={styles.cta} to={cta.to}>{cta.label} <ArrowRightIcon size={16} /></Link>}
+            {secondary && <Link className={styles.secondary} to={secondary.to}>{secondary.label}</Link>}
+          </div>
+        )}
       </div>
 
       <div className={styles.board} aria-hidden="true">
