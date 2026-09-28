@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
-import { ArrowRightIcon, CloseIcon, HeartIcon, MinusIcon, PlusIcon } from '@components/ui/store/icons';
+import { ArrowRightIcon, BasketIcon, CloseIcon, HeartIcon, MinusIcon, PlusIcon } from '@components/ui/store/icons';
+import { EmptyHero } from '@components/ui/store/EmptyHero';
+import { PickUp } from '@components/ui/store/PickUp';
+import { QuickView } from '@components/ui/store/QuickView';
 import { mostOf, useBasket } from '@context/BasketContext';
 import { useQuote } from '@hooks/useQuote';
 import { useSaved } from '@hooks/useSaved';
@@ -26,7 +29,9 @@ export function CartPage() {
   const { lines, setQty, remove, restore, subtotal: kept, count } = useBasket();
   const { quote, was } = useQuote(lines);
   // The same heart as everywhere else in the shop: it saves, and never touches the basket.
-  const { has: isSaved, toggle: toggleSaved } = useSaved();
+  const { has: isSaved, toggle: toggleSaved, ids: savedIds } = useSaved();
+  const savedCount = savedIds.length;
+  const [peek, setPeek] = useState(null);
 
   /*
    * Removed lines, kept for this visit so a mis-tap can be undone.
@@ -78,20 +83,24 @@ export function CartPage() {
     return (
       <section className={styles.page}>
         <Head title="Your basket" description="Your basket." path="/cart" noindex />
-        <div className={styles.empty}>
-          <h1 className={`${styles.emptyTitle} wide`}>Your basket is empty</h1>
+        <EmptyHero
+          Icon={BasketIcon}
+          kicker="Your basket"
+          title="Your basket is empty"
+          cta={{ to: STORE_ROUTES.SHOP, label: 'Start with everything' }}
+          secondary={savedCount > 0 ? { to: STORE_ROUTES.SAVED, label: `Open your Saved (${savedCount})` } : null}
+        >
           {last ? (
-            <p className={styles.emptyBody} role="status">
+            <p role="status">
               You removed {last.line.title}.{' '}
               <button type="button" className={styles.undo} onClick={() => undo(last)}>Undo</button>
             </p>
           ) : (
-            <p className={styles.emptyBody}>Anything you add stays here, even if you close the page.</p>
+            <p>Anything you add stays here, even if you close the page.</p>
           )}
-          <Link className={styles.emptyCta} to={STORE_ROUTES.SHOP}>
-            Start with everything <ArrowRightIcon size={16} />
-          </Link>
-        </div>
+        </EmptyHero>
+        <PickUp onQuickView={setPeek} />
+        <QuickView product={peek} onClose={() => setPeek(null)} />
       </section>
     );
   }

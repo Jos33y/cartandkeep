@@ -1,0 +1,113 @@
+/* The same card as a full Saved, so an empty page reads as the same place waiting to be filled. */
+.hero {
+  --kraft: #e3d3b6;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-5);
+  padding: var(--s-5) var(--s-4);
+  border-radius: var(--r-card);
+  background:
+    radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, var(--kraft) 55%, transparent), transparent 60%),
+    radial-gradient(60% 90% at 0% 100%, color-mix(in srgb, var(--c-action) 7%, transparent), transparent 70%),
+    var(--c-raised);
+  border: 1px solid var(--c-line);
+  overflow: hidden;
+}
+
+@media (min-width: 720px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--s-6);
+    padding: var(--s-6);
+  }
+}
+
+.text { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--t-caption);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-action-text);
+}
+
+.title { margin-top: var(--s-2); font-size: clamp(2rem, 4.6vw, 3rem); line-height: 1.02; color: var(--c-ink); }
+
+.body { margin-top: var(--s-3); max-width: 52ch; font-size: var(--t-body); line-height: 1.6; color: var(--c-ink-soft); }
+.body p + p { margin-top: var(--s-2); }
+
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-5); margin-top: var(--s-5); }
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 52px;
+  padding: 0 var(--s-5);
+  border-radius: var(--r-control);
+  background: var(--c-action-strong);
+  color: var(--c-on-action, #fff);
+  font-size: 1rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 160ms var(--ease);
+}
+
+.cta:hover { background: var(--c-action); }
+
+.secondary {
+  font-size: var(--t-label);
+  font-weight: 600;
+  color: var(--c-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--c-line-mid);
+  text-underline-offset: 3px;
+}
+
+.secondary:hover { color: var(--c-action-text); text-decoration-color: currentColor; }
+
+/* Three empty frames, pinned at angles, waiting. Phones show a short row above the words. */
+.board {
+  order: -1;
+  display: flex;
+  align-items: center;
+  padding: 4px 0 0 4px;
+}
+
+.frame {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-left: -12px;
+  border-radius: 12px;
+  border: 1.5px dashed color-mix(in srgb, var(--c-ink) 22%, transparent);
+  background: color-mix(in srgb, #fff 55%, transparent);
+  color: var(--c-action-text);
+  transform: rotate(-6deg);
+}
+
+.frame:first-child { margin-left: 0; }
+.middle { z-index: 1; transform: rotate(3deg) translateY(-4px); background: #fff; border-style: solid; border-color: var(--c-line); box-shadow: 0 10px 22px -14px rgba(70, 48, 20, 0.45); }
+.frame:last-child { transform: rotate(8deg); }
+
+@media (min-width: 720px) {
+  .board { order: 0; position: relative; display: block; width: 280px; height: 180px; padding: 0; }
+  .frame { position: absolute; width: 112px; height: 112px; margin: 0; border-radius: 14px; }
+  .frame:nth-child(1) { left: 0; top: 40px; transform: rotate(-7deg); }
+  .middle { left: 84px; top: 10px; transform: rotate(3deg); animation: float 5s ease-in-out infinite; }
+  .frame:nth-child(3) { left: 166px; top: 52px; transform: rotate(8deg); }
+}
+
+@keyframes float {
+  50% { translate: 0 -5px; }
+}
+
+@media (prefers-reduced-motion: reduce) { .middle { animation: none; } .cta { transition: none; } }

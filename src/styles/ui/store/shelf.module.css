@@ -222,7 +222,14 @@ ul.rail::-webkit-scrollbar { display: none; }
 }
 
 /* A shelf ends where its products end: three cards on a board built for six left a long bare run. The board still spans a full row. */
+/*
+ * Worked out from the number of cards rather than left to the browser's
+ * fit-content sizing: with a flexible column inside, some browsers measured the
+ * rail as nearly nothing and the shelf shrank to one sliver of a card.
+ */
 @media (min-width: 900px) {
-  .shelf { width: fit-content; max-width: 100%; }
+  .shelf {
+    width: min(100%, calc(212px + var(--s-4) + var(--cells, 6) * 205px + (var(--cells, 6) - 1) * var(--s-4)));
+  }
   .shelf > :not(.end):not(.board) { min-width: 0; }
 }

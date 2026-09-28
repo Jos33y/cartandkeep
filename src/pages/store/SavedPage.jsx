@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
-import { ProductGrid } from '@components/ui/store/ProductGrid';
 import { QuickView } from '@components/ui/store/QuickView';
 import { SavedRow } from '@components/ui/store/SavedRow';
 import { SavedPanel } from '@components/ui/store/SavedPanel';
 import { SavedHero } from '@components/ui/store/SavedHero';
-import { ArrowRightIcon, CloseIcon, HeartIcon } from '@components/ui/store/icons';
+import { EmptyHero } from '@components/ui/store/EmptyHero';
+import { PickUp } from '@components/ui/store/PickUp';
+import { CloseIcon, HeartIcon } from '@components/ui/store/icons';
 import { imageAt } from '@utils/categories';
 import { useSaved } from '@hooks/useSaved';
-import { useRecentlyViewed } from '@hooks/useRecentlyViewed';
 import { useCards } from '@hooks/useStoreCatalogue';
 import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/pages/store/saved-page.module.css';
@@ -80,13 +79,14 @@ export function SavedPage() {
     rows.splice(Math.min(entry.index, rows.length), 0, { undo: entry });
   });
 
-  const any = saved.length > 0 || named.length > 0 || pending.length > 0;
 
   return (
     <section className={styles.page}>
       <Head title="Saved" description="Things you have saved." path="/saved" noindex />
 
-      <SavedHero items={saved} snapshot={snapshot} ready={ready} />
+      {(saved.length > 0 || pending.length > 0 || (status === 'loading' && ids.length > 0)) && (
+        <SavedHero items={saved} snapshot={snapshot} ready={ready} />
+      )}
 
       {cleared > 0 && (
         <p className={styles.cleared} role="status">
@@ -96,7 +96,7 @@ export function SavedPage() {
 
       {status === 'loading' && ids.length > 0 && <RowsSkeleton count={Math.min(ids.length, 4)} />}
 
-      {(ready || ids.length === 0) && !any && <EmptySaved onQuickView={setPeek} />}
+      {(ready || ids.length === 0) && saved.length === 0 && pending.length === 0 && <EmptySaved onQuickView={setPeek} />}
 
       {ready && (saved.length > 0 || pending.length > 0) && (
         <div className={styles.body}>
@@ -144,29 +144,15 @@ export function SavedPage() {
   );
 }
 
-// Nothing saved: what the heart is for, and what they have already been looking at, each with a heart of its own.
+// Nothing saved: what the heart is for, then what they have already been looking at, each with a heart of its own.
 function EmptySaved({ onQuickView }) {
-  const { ids: seenIds, off } = useRecentlyViewed();
-  const { items: seen } = useCards(off ? [] : seenIds.slice(0, 4));
   return (
-    <div className={styles.emptyWrap}>
-      <div className={styles.empty}>
-        <span className={styles.emptyMark} aria-hidden="true"><HeartIcon size={24} /></span>
-        <p className={styles.emptyLead}>Nothing saved yet</p>
-        <p className={styles.emptyBody}>
-          Tap the heart on anything you want to come back to. It stays here, and you can send the list to another device or to someone else.
-        </p>
-        <Link className={styles.emptyCta} to={STORE_ROUTES.SHOP}>
-          Have a look around <ArrowRightIcon size={16} />
-        </Link>
-      </div>
-      {seen.length > 0 && (
-        <section className={styles.seen} aria-labelledby="saved-seen">
-          <h2 id="saved-seen" className={styles.seenTitle}>You looked at these recently</h2>
-          <ProductGrid products={seen} onQuickView={onQuickView} />
-        </section>
-      )}
-    </div>
+    <>
+      <EmptyHero Icon={HeartIcon} kicker="Your keep" title="Nothing saved yet" cta={{ to: STORE_ROUTES.SHOP, label: 'Have a look around' }}>
+        <p>Tap the heart on anything you want to come back to. It waits here, and you can send the whole list to another device, or to someone as a wish list.</p>
+      </EmptyHero>
+      <PickUp withSaved={false} onQuickView={onQuickView} />
+    </>
   );
 }
 

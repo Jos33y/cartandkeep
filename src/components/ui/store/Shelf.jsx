@@ -63,7 +63,11 @@ export function Shelf({ group, limit = 8, onQuickView }) {
   const routed = group.route !== false;
 
   return (
-    <section className={styles.shelf} aria-labelledby={`shelf-${group.slug}`}>
+    <section
+      className={styles.shelf}
+      aria-labelledby={`shelf-${group.slug}`}
+      style={{ '--cells': Math.max(1, items.length + (more > 0 && routed ? 1 : 0)) }}
+    >
       <div className={styles.end}>
         <div className={styles.ticket}>
           <h2 id={`shelf-${group.slug}`} className={`${styles.name} wide`}>{group.name}</h2>
