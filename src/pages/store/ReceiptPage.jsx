@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
 import { Receipt } from '@components/ui/shared/Receipt';
+import { PrinterIcon } from '@components/ui/store/icons';
 import { fetchOrder } from '@lib/checkout';
 import { stampFor, usePrintName } from '@hooks/usePrintName';
 import { STORE_ROUTES } from '@utils/constants';
@@ -25,7 +26,7 @@ export function ReceiptPage() {
 
   const [state, setState] = useState({ status: 'loading' });
   const printName = state.status === 'ready'
-    ? `Cart & Keep receipt ${state.order.reference} ${stampFor(state.order.paid_at ?? state.order.created_at)}`.trim()
+    ? `${state.order.reference} ${stampFor(state.order.paid_at ?? state.order.created_at)}`.trim()
     : null;
   usePrintName(printName);
 
@@ -68,13 +69,13 @@ export function ReceiptPage() {
       {/* Below the paper, and gone when it prints. */}
       <div className={styles.controls}>
         <button type="button" className={styles.primary} onClick={() => window.print()}>
-          Print this receipt
+          <PrinterIcon size={17} /> Save or print
         </button>
         <Link
           className={styles.ghost}
           to={`/order/${state.order.reference}?token=${encodeURIComponent(token)}`}
         >
-          Track it
+          Back to your order
         </Link>
       </div>
 

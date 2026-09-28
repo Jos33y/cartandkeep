@@ -158,3 +158,8 @@ export const DeviceIcon = (p) => (
 export const HourglassIcon = (p) => (
   <Icon {...p}><path d="M6.5 3.5h11M6.5 20.5h11" /><path d="M7.5 3.5c0 4.2 4.5 5.2 4.5 8.5s-4.5 4.3-4.5 8.5M16.5 3.5c0 4.2-4.5 5.2-4.5 8.5s4.5 4.3 4.5 8.5" /><path d="M10 7.2h4" /></Icon>
 );
+
+// A printer, for the receipt's print button.
+export const PrinterIcon = (p) => (
+  <Icon {...p}><path d="M7 9V3.5h10V9" /><rect x="3.5" y="9" width="17" height="8" rx="2" /><path d="M7 14h10v6.5H7z" /><path d="M17 12h.01" /></Icon>
+);

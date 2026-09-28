@@ -35,7 +35,7 @@ const window2 = ({ from, to }) => (from === to ? dayOf(from) : `${dayOf(from)} o
  * past the window: the label scrolls within itself and Pay stays pinned below.
  */
 export function ParcelLabel({
-  gift, deliverTo, from, address, lines, was = {}, gone = [], figures, arrival, agreed, count, dock, children,
+  gift, deliverTo, from, address, lines, was = {}, gone = [], figures, arrival, agreed, count, dock, children, postmark = null,
 }) {
   const [open, setOpen] = useState(false);
   const [all, setAll] = useState(false);
@@ -103,8 +103,16 @@ export function ParcelLabel({
           <span className={styles.code} data-empty={!code || undefined} aria-hidden="true">{code || '···'}</span>
         </header>
 
-        <div className={styles.to} data-gift={gift || undefined}>
+        <div className={styles.to} data-gift={gift || undefined} data-postmark={postmark ? '' : undefined}>
           <span className={styles.micro}>Deliver to</span>
+          {/* Franked once it is paid: a round postmark with the day, as a post office would. */}
+          {postmark && (
+            <span className={styles.postmark} aria-label={`${postmark.word}, ${postmark.date}`} role="img">
+              <span className={styles.postmarkWord}>{postmark.word}</span>
+              <span className={styles.postmarkDate}>{postmark.date}</span>
+              <span className={styles.postmarkShop}>Cart &amp; Keep</span>
+            </span>
+          )}
           <p className={styles.name} data-empty={!deliverTo || undefined}>{deliverTo || (gift ? 'Their name' : 'Your name')}</p>
           <p data-empty={!address.line1 || undefined}>{address.line1 || 'Street and number'}</p>
           {address.line2 && <p>{address.line2}</p>}

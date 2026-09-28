@@ -285,6 +285,7 @@ export function OrderConfirmationPage() {
             figures={figures}
             arrival={null}
             count={count}
+            postmark={paid || sent ? { word: 'Paid', date: postmarkDate(order.paid_at ?? order.created_at) } : refunded ? { word: 'Refunded', date: postmarkDate(order.paid_at ?? order.created_at) } : null}
           />
         </div>
       </div>
@@ -296,4 +297,10 @@ export function OrderConfirmationPage() {
 function formatDay(iso, todayIso) {
   if (iso === todayIso) return 'today';
   return new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${iso}T12:00:00Z`));
+}
+
+// "28 SEP 2026", in London, for the postmark.
+function postmarkDate(at) {
+  if (!at) return '';
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/London' }).format(new Date(at)).replace('Sept', 'Sep');
 }

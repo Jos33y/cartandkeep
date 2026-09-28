@@ -17,34 +17,32 @@
 .title { font-size: var(--ts-title); font-weight: 500; letter-spacing: -0.02em; align-self: flex-start; }
 .body { font-size: var(--t-body); line-height: var(--lh-body); color: var(--c-ink-soft); align-self: flex-start; }
 
-.controls { display: flex; gap: var(--s-2); width: 100%; max-width: 22rem; }
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); width: 100%; max-width: 22rem; }
 
-.primary {
-  flex: 1;
-  min-height: var(--tap);
-  border: 0;
-  border-radius: var(--r-control);
-  background: var(--c-action-strong);
-  color: #fff;
-  font: inherit;
-  font-size: var(--t-body);
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.primary:hover { filter: brightness(0.93); }
-
+/* Two equal buttons: printing and going back are the two things this page is for. */
+.primary,
 .ghost {
-  min-height: var(--tap);
+  min-height: 48px;
   display: inline-flex;
   align-items: center;
-  padding: 0 var(--s-4);
-  border: 1px solid var(--c-line-mid);
+  justify-content: center;
+  gap: 6px;
+  padding: 0 var(--s-3);
   border-radius: var(--r-control);
-  font-size: var(--t-body);
+  font: inherit;
+  font-size: var(--t-label);
+  font-weight: 600;
   text-decoration: none;
-  color: var(--c-ink);
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 160ms var(--ease), color 160ms var(--ease);
 }
+
+.primary { border: 0; background: var(--c-action-strong); color: #fff; }
+.primary:hover { background: var(--c-action); }
+.ghost { border: 1.5px solid var(--c-ink); color: var(--c-ink); }
+.ghost:hover { background: var(--c-ink); color: var(--c-base); }
 
 .keep {
   max-width: 22rem;
