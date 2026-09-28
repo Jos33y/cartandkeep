@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BasketTotals } from '@components/ui/store/BasketTotals';
 import { ChevronDownIcon } from '@components/ui/store/icons';
 import { imageAt } from '@utils/categories';
@@ -7,6 +7,8 @@ import { formatGbp } from '@utils/formatGbp';
 import styles from '@styles/ui/store/parcel-label.module.css';
 
 const FOLD_AFTER = 4;
+// The height the label must keep above pinned totals: the address, the trip and the first line of the box.
+const PIN_ROOM = 360;
 
 // The outward half of a postcode, printed large the way a sorting office reads a real label.
 const outward = (postcode) => {
@@ -44,6 +46,38 @@ export function ParcelLabel({
   const offSale = new Set(gone.map((g) => g.key));
   const keyOf = (l) => (l.variantId ? `${l.id}:${l.variantId}` : l.id);
 
+  /*
+   * Two readings of the label's own size, taken whenever it or its contents change.
+   *
+   * `more`: there is more below the visible edge, for the fade that says so.
+   * `pin`: the totals can stay pinned to the foot and still leave room to see
+   * the address and at least a line of the box above them. On a short window
+   * they would cover everything, so there they scroll with the rest and Pay
+   * carries the total instead.
+   */
+  const paper = useRef(null);
+  const sums = useRef(null);
+  const [more, setMore] = useState(false);
+  const [pin, setPin] = useState(false);
+  useEffect(() => {
+    const el = paper.current;
+    if (!el) return undefined;
+    const check = () => {
+      const scrolls = el.scrollHeight - el.clientHeight > 4;
+      setMore(el.scrollHeight - el.clientHeight - el.scrollTop > 4);
+      // Less the padding pinning itself adds, so the reading cannot flip the pin back and forth.
+      const box = sums.current;
+      const own = box ? box.offsetHeight - parseFloat(getComputedStyle(box).paddingBottom || '0') : 0;
+      setPin(scrolls && el.clientHeight - own >= PIN_ROOM);
+    };
+    check();
+    el.addEventListener('scroll', check, { passive: true });
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(check) : null;
+    ro?.observe(el);
+    [...el.children].forEach((child) => ro?.observe(child));
+    return () => { el.removeEventListener('scroll', check); ro?.disconnect(); };
+  }, [all, lines.length, gift, Boolean(arrival)]);
+
   return (
     <aside className={styles.board} aria-label="Your order">
       <button
@@ -63,23 +97,23 @@ export function ParcelLabel({
         </span>
       </button>
 
-      <div className={styles.label} id="parcel-label" data-open={open || undefined}>
+      <div ref={paper} className={styles.label} id="parcel-label" data-open={open || undefined} data-more={more || undefined} data-pin={pin || undefined}>
         <header className={styles.top}>
           <span className={styles.brand}>Cart &amp; Keep</span>
           <span className={styles.code} data-empty={!code || undefined} aria-hidden="true">{code || '···'}</span>
         </header>
 
-        <div className={styles.to}>
+        <div className={styles.to} data-gift={gift || undefined}>
           <span className={styles.micro}>Deliver to</span>
           <p className={styles.name} data-empty={!deliverTo || undefined}>{deliverTo || (gift ? 'Their name' : 'Your name')}</p>
           <p data-empty={!address.line1 || undefined}>{address.line1 || 'Street and number'}</p>
           {address.line2 && <p>{address.line2}</p>}
-          <p data-empty={!address.city || undefined}>{address.city || 'Town'}</p>
-          <p className={styles.postcode} data-empty={!address.postcode || undefined}>{address.postcode || 'Postcode'}</p>
+          <p className={styles.beside} data-empty={!address.city || undefined}>{address.city || 'Town'}</p>
+          <p className={`${styles.postcode} ${styles.beside}`} data-empty={!address.postcode || undefined}>{address.postcode || 'Postcode'}</p>
 
           {gift && (
             <>
-              <p className={styles.from}>From {from || 'you'}</p>
+              <p className={`${styles.from} ${styles.beside}`}>From {from || 'you'}</p>
               <span className={styles.stamp} aria-hidden="true">A gift<br /><small>No prices inside</small></span>
             </>
           )}
@@ -136,8 +170,8 @@ export function ParcelLabel({
           )}
         </div>
 
-        <div className={styles.sums}>
-          <BasketTotals {...figures} agreed={agreed} />
+        <div ref={sums} className={styles.sums}>
+          <BasketTotals {...figures} agreed={agreed} compact />
         </div>
 
         {children && <div className={styles.after}>{children}</div>}

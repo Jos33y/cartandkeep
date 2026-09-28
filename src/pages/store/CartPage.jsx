@@ -23,15 +23,36 @@ import styles from '@styles/pages/store/cart-page.module.css';
  * in a notice somewhere else on the page.
  */
 export function CartPage() {
-  const { lines, setQty, remove, subtotal: kept, count } = useBasket();
+  const { lines, setQty, remove, restore, subtotal: kept, count } = useBasket();
   const { quote, was } = useQuote(lines);
+  // The same heart as everywhere else in the shop: it saves, and never touches the basket.
   const { has: isSaved, toggle: toggleSaved } = useSaved();
 
-  // Out of the basket and onto Saved, so a maybe is kept rather than lost.
-  function saveForLater(line) {
-    if (!isSaved(line.id)) toggleSaved(line.id);
+  /*
+   * Removed lines, kept for this visit so a mis-tap can be undone.
+   *
+   * Each one holds the line as it was and where it sat, and shows in that spot
+   * as a single "Removed. Undo" row. Taking the last one to nought with the
+   * minus button counts as a removal too, since it is one.
+   */
+  const [removed, setRemoved] = useState([]);
+  function takeOut(line) {
+    const index = lines.findIndex((l) => l.key === line.key);
+    setRemoved((r) => [...r.filter((x) => x.line.key !== line.key), { line, index }]);
     remove(line.key);
   }
+  function undo(entry) {
+    restore(entry.line, entry.index);
+    setRemoved((r) => r.filter((x) => x.line.key !== entry.line.key));
+  }
+  // A line that came back another way (added again from a card) no longer needs its Undo row.
+  const shown = removed.filter((x) => !lines.some((l) => l.key === x.line.key));
+
+  // Lines and Undo rows in one list, each Undo row where its line was.
+  const rows = lines.map((line) => ({ line }));
+  [...shown].sort((a, b) => a.index - b.index).forEach((entry) => {
+    rows.splice(Math.min(entry.index, rows.length), 0, { undo: entry });
+  });
 
   // The checkout's figures once they arrive, the basket's own until then.
   const local = deliveryFor(kept);
@@ -53,12 +74,20 @@ export function CartPage() {
   }, [lines.length, gone.size]);
 
   if (lines.length === 0) {
+    const last = shown[shown.length - 1];
     return (
       <section className={styles.page}>
         <Head title="Your basket" description="Your basket." path="/cart" noindex />
         <div className={styles.empty}>
           <h1 className={`${styles.emptyTitle} wide`}>Your basket is empty</h1>
-          <p className={styles.emptyBody}>Anything you add stays here, even if you close the page.</p>
+          {last ? (
+            <p className={styles.emptyBody} role="status">
+              You removed {last.line.title}.{' '}
+              <button type="button" className={styles.undo} onClick={() => undo(last)}>Undo</button>
+            </p>
+          ) : (
+            <p className={styles.emptyBody}>Anything you add stays here, even if you close the page.</p>
+          )}
           <Link className={styles.emptyCta} to={STORE_ROUTES.SHOP}>
             Start with everything <ArrowRightIcon size={16} />
           </Link>
@@ -88,7 +117,15 @@ export function CartPage() {
       {/* Four siblings on one grid: phones read lines, total, then the extras; wider screens keep the total in its own column. */}
       <div className={styles.body}>
           <ul className={styles.lines}>
-            {lines.map((line) => {
+            {rows.map(({ line, undo: entry }) => {
+              if (entry) {
+                return (
+                  <li className={styles.undoRow} key={`undo:${entry.line.key}`} role="status">
+                    <span className={styles.undoText}>Removed <strong>{entry.line.title}</strong></span>
+                    <button type="button" className={styles.undo} onClick={() => undo(entry)}>Undo</button>
+                  </li>
+                );
+              }
               const image = imageAt(line.image_url, 300);
               const off = gone.has(line.key);
               const before = was[line.key];
@@ -112,7 +149,7 @@ export function CartPage() {
                         <div className={styles.qty}>
                           <button
                             type="button"
-                            onClick={() => setQty(line.key, line.qty - 1)}
+                            onClick={() => (line.qty === 1 ? takeOut(line) : setQty(line.key, line.qty - 1))}
                             aria-label={line.qty === 1 ? `Remove ${name}` : `One fewer ${name}`}
                           >
                             <MinusIcon size={15} />
@@ -129,15 +166,22 @@ export function CartPage() {
                         </div>
                       )}
                       {!off && (
-                        <button type="button" className={styles.remove} data-save onClick={() => saveForLater(line)} aria-label={`Save ${name} for later`}>
-                          <HeartIcon size={14} /> Save for later
+                        <button
+                          type="button"
+                          className={styles.remove}
+                          data-save
+                          aria-pressed={isSaved(line.id)}
+                          onClick={() => toggleSaved(line.id, line)}
+                          aria-label={isSaved(line.id) ? `${name} is saved. Remove from saved` : `Save ${name}`}
+                        >
+                          <HeartIcon size={14} /> {isSaved(line.id) ? 'Saved' : 'Save'}
                         </button>
                       )}
                       <button
                         type="button"
                         className={styles.remove}
                         data-strong={off || undefined}
-                        onClick={() => remove(line.key)}
+                        onClick={() => takeOut(line)}
                         aria-label={`Remove ${name} from your basket`}
                       >
                         <CloseIcon size={14} /> Remove
@@ -159,13 +203,16 @@ export function CartPage() {
             })}
           </ul>
 
-        <div className={styles.shelf}>
-          <GapShelf gap={gone.size ? 0 : figures.toFree} />
-        </div>
+        {/* One area for both, so an empty shelf leaves no gap of its own behind. */}
+        <div className={styles.extras}>
+          <div className={styles.shelf}>
+            <GapShelf gap={gone.size ? 0 : figures.toFree} />
+          </div>
 
-        {/* Under the lines it is about, and quiet: one line until somebody wants to ask. */}
-        <div className={styles.ask}>
-          <AskPanel basket={lines} quiet />
+          {/* Under the lines it is about, and quiet: one line until somebody wants to ask. */}
+          <div className={styles.ask}>
+            <AskPanel basket={lines} quiet />
+          </div>
         </div>
 
         <aside className={styles.summary} aria-label="Order total">

@@ -1,0 +1,6 @@
+ck-seo-feed-2026-09-28
+
+index.html                                   overwrite: static canonical and og:url removed
+scripts/store/build-sitemap.js               overwrite: db import path fixed after the move into scripts/store
+supabase/functions/google-feed/index.ts      new: product feed for Merchant Center
+scripts/sql/buy-now.sql                      new: read-only list of cards with a UK shelf match

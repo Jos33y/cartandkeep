@@ -12,6 +12,8 @@ export const STORE_ROUTES = {
   BLOG_POST: '/blog/:slug',
   SEARCH: '/search',
   SAVED: '/saved',
+  // A saved list opened from a link: product ids and an optional first name, nothing else.
+  LIST: '/list',
   // Home is a hero and shelves. This is the whole catalogue in one grid, and
   // it is where "Keep shopping" and "Everything in the shop" belong.
   SHOP: '/shop',

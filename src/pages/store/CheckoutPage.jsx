@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
-import { ArrowRightIcon, GiftIcon, PersonIcon, PlusIcon, ShieldIcon, WalletIcon } from '@components/ui/store/icons';
+import { ArrowRightIcon, GiftIcon, PersonIcon, PlusIcon, WalletIcon } from '@components/ui/store/icons';
 import { BasketPromises, basketArrival } from '@components/ui/store/BasketTotals';
 import { ParcelLabel } from '@components/ui/store/checkout/ParcelLabel';
 import { PhoneField } from '@components/ui/store/checkout/PhoneField';
@@ -14,6 +14,7 @@ import { initialForm, readSaved, rememberBuyer, saveDraft } from '@lib/checkoutD
 import { useQuote } from '@hooks/useQuote';
 import { startCheckout, startExpress } from '@lib/checkout';
 import { readOffer } from '@lib/threads';
+import { cleanName } from '@lib/savedList';
 import { formatGbp } from '@utils/formatGbp';
 import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/pages/store/checkout-page.module.css';
@@ -68,7 +69,12 @@ export function CheckoutPage() {
     : basketLines;
 
   const saved = useMemo(() => readSaved(), []);
-  const [form, setForm] = useState(initialForm);
+  // Arriving from a shared list's "Buy these for Ada": a gift, with her first name started on the label.
+  const [form, setForm] = useState(() => {
+    const start = initialForm();
+    if (params.get('for') !== 'gift') return start;
+    return { ...start, forWhom: 'gift', rName: start.rName || cleanName(params.get('to')) };
+  });
   const [quotedPostcode, setQuotedPostcode] = useState(null);
 
   // Figures from the checkout function, the same code that charges the card.
@@ -327,12 +333,8 @@ export function CheckoutPage() {
     </button>
   );
 
-  const payNote = (
-    <p className={styles.stripeNote}>
-      <ShieldIcon size={15} />
-      <span>You pay on Stripe&apos;s own page and come straight back here.</span>
-    </p>
-  );
+  // Under Pay in both places: how paying works and the two promises, on one wrapping line, beside the decision.
+  const payNote = <BasketPromises inline />;
 
   const problems = (
     <>
@@ -370,9 +372,7 @@ export function CheckoutPage() {
               {payNote}
             </div>
           )}
-        >
-          <BasketPromises paying />
-        </ParcelLabel>
+        />
 
         <form id="checkout-form" className={styles.form} onSubmit={submit} noValidate>
           <h1 className={`${styles.title} wide`}>Checkout</h1>
@@ -434,6 +434,7 @@ export function CheckoutPage() {
                     error={errors.rPhone}
                     onError={fail('rPhone')}
                     autoComplete="off"
+                    placeholder="07700 900461"
                     hint="For the courier, if they need to reach them."
                   />
                 </div>

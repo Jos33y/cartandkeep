@@ -22,7 +22,7 @@ function UkFlag({ clip }) {
  * Laid out as it is read aloud once they leave the box, not on every key, so
  * the cursor never jumps while somebody is correcting a digit in the middle.
  */
-export function PhoneField({ label, value, onChange, error, onError, hint, autoComplete = 'tel', name }) {
+export function PhoneField({ label, value, onChange, error, onError, hint, autoComplete = 'tel', name, placeholder = '07700 900077' }) {
   const id = useId();
 
   function leave() {
@@ -48,7 +48,7 @@ export function PhoneField({ label, value, onChange, error, onError, hint, autoC
           inputMode="tel"
           autoComplete={autoComplete}
           value={value}
-          placeholder="07700 900077"
+          placeholder={placeholder}
           onChange={(e) => { onChange(e.target.value.replace(/[^\d+\s()-]/g, '')); if (error) onError?.(null); }}
           onBlur={leave}
           aria-invalid={Boolean(error)}

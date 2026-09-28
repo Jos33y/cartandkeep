@@ -1,0 +1,78 @@
+/* The same shape as the basket's summary, so the two read as one family. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-5);
+  border-radius: var(--r-card);
+  background: var(--c-sunk);
+  border: 1px solid var(--c-line);
+}
+
+@media (min-width: 960px) {
+  .panel { position: sticky; top: calc(var(--store-header-h, 106px) + var(--s-4)); }
+}
+
+.together { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); padding-bottom: var(--s-4); border-bottom: 1px solid var(--c-line-mid); }
+.count { font-size: var(--t-body); color: var(--c-ink-soft); }
+.total { font-family: var(--font-display); font-stretch: var(--wide-tight); font-size: var(--t-figure); font-weight: 650; letter-spacing: -0.01em; color: var(--c-ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.from { margin-right: 6px; font-family: var(--font-store-ui); font-size: var(--t-caption); font-weight: 400; color: var(--c-faint); }
+
+.primary,
+.secondary,
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  width: 100%;
+  min-height: 52px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-control);
+  font-size: 1rem;
+  font-weight: 500;
+  text-align: center;
+  transition: background 160ms var(--ease), border-color 160ms var(--ease), color 160ms var(--ease);
+}
+
+.primary { background: var(--c-action-strong); color: var(--c-on-action, #fff); }
+.primary:hover { background: var(--c-action); }
+
+.secondary { min-height: 48px; border: 1.5px solid var(--c-ink); color: var(--c-ink); font-size: var(--t-label); font-weight: 600; }
+.secondary:hover { background: var(--c-ink); color: var(--c-base); }
+.secondary[data-done] { border-color: var(--c-sage-deep); background: var(--c-sage-deep); color: #fff; }
+
+.ghost { min-height: 44px; font-size: var(--t-label); color: var(--c-ink-soft); text-decoration: underline; text-decoration-color: var(--c-line-mid); text-underline-offset: 3px; }
+.ghost:hover { color: var(--c-action-text); }
+.ghost svg { flex: none; }
+
+.small { font-size: var(--t-caption); line-height: 1.55; color: var(--c-ink-soft); }
+.hint { margin-top: -6px; font-size: var(--t-caption); line-height: 1.5; color: var(--c-faint); }
+.good { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: var(--t-label); font-weight: 500; color: var(--c-sage-deep); }
+.good a { color: inherit; text-underline-offset: 3px; }
+.warn { padding: var(--s-3); border-radius: var(--r-control); background: var(--c-warning-wash); font-size: var(--t-caption); line-height: 1.55; color: var(--c-ink); }
+
+.share { display: flex; flex-direction: column; gap: var(--s-3); padding-top: var(--s-4); border-top: 1px solid var(--c-line-mid); }
+.shareTitle { display: flex; align-items: center; gap: var(--s-2); font-size: var(--t-body); font-weight: 600; color: var(--c-ink); }
+.shareTitle svg { color: var(--c-sage-deep); }
+
+.label { font-size: var(--t-label); font-weight: 500; color: var(--c-ink); }
+
+.input,
+.manual {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-control);
+  background: var(--c-surface);
+  font-size: 1rem;
+  color: var(--c-ink);
+}
+
+.input:focus, .manual:focus { outline: 2px solid var(--c-sage-deep); outline-offset: 1px; border-color: transparent; }
+.manual { font-size: var(--t-caption); color: var(--c-ink-soft); }
+
+.keep { display: flex; justify-content: center; }
+
+@media (prefers-reduced-motion: reduce) { .primary, .secondary, .ghost { transition: none; } }

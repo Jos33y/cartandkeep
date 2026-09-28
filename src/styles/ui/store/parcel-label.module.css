@@ -75,11 +75,32 @@
     flex: 1 1 auto;
     min-height: 0;
     margin-top: 0;
-    padding: var(--s-5) var(--s-5) var(--s-4);
+    padding: var(--s-4) var(--s-5);
     overflow-y: auto;
+    /* The tear line's notches and the stamp's tilted corner sit on the edge by design; they must never make it scroll sideways. */
+    overflow-x: hidden;
     overscroll-behavior: contain;
-    scrollbar-width: thin;
-    scrollbar-color: var(--kraft-deep) transparent;
+  }
+
+  /* A slim thumb with no arrow buttons, the colour of the board, only when there is something to scroll. */
+  .label::-webkit-scrollbar { width: 6px; }
+  .label::-webkit-scrollbar-button { display: none; height: 0; }
+  .label::-webkit-scrollbar-track { background: transparent; margin: 10px 0; }
+  .label::-webkit-scrollbar-thumb { background: var(--kraft-deep); border-radius: 3px; }
+  @supports not selector(::-webkit-scrollbar) {
+    .label { scrollbar-width: thin; scrollbar-color: var(--kraft-deep) transparent; }
+  }
+
+  /* More below: the paper fades into itself at the bottom edge, and the fade goes once the end is reached. */
+  .label[data-more]::after {
+    content: '';
+    position: sticky;
+    bottom: 0;
+    display: block;
+    height: 40px;
+    margin-top: -40px;
+    background: linear-gradient(to bottom, rgba(255, 253, 248, 0), var(--paper) 85%);
+    pointer-events: none;
   }
 }
 
@@ -89,7 +110,7 @@
   .dock {
     display: block;
     flex: none;
-    padding: var(--s-4);
+    padding: var(--s-3) var(--s-4);
     background: var(--paper);
     border-radius: 6px;
     box-shadow: 0 1px 0 rgba(90, 64, 30, 0.1);
@@ -131,7 +152,7 @@
 
 .to {
   position: relative;
-  padding: var(--s-4) 0 var(--s-4);
+  padding: var(--s-4) 0 var(--s-3);
   font-size: var(--t-body);
   line-height: 1.45;
   color: var(--c-ink);
@@ -143,11 +164,13 @@
 .name { font-size: 1.25rem; font-weight: 650; letter-spacing: -0.01em; line-height: 1.25; }
 .postcode { margin-top: 2px; font-size: var(--t-lead); font-weight: 700; letter-spacing: 0.08em; font-variant-numeric: tabular-nums; }
 .from { margin-top: var(--s-3); font-size: var(--t-label); color: var(--c-ink-soft); }
+/* The lines beside the stamp stop short of it, so a long town or name wraps rather than running underneath. */
+.to[data-gift] .beside { padding-right: 132px; }
 
 /* Inked on, a little crooked, as a real stamp lands. */
 .stamp {
   position: absolute;
-  right: 0;
+  right: 4px;
   bottom: var(--s-4);
   padding: 6px 10px 5px;
   border: 2px solid var(--stamp);
@@ -175,51 +198,52 @@
 
 /* The trip, three stops on a dashed line. */
 .route {
+  --route-gap: var(--s-5);
   position: relative;
   display: grid;
   grid-template-columns: max-content max-content minmax(0, 1fr);
-  column-gap: var(--s-5);
+  column-gap: var(--route-gap);
   padding: var(--s-3) 0 var(--s-1);
 }
 
-.route::before {
+.route li { position: relative; display: flex; flex-direction: column; gap: 2px; padding-top: 16px; min-width: 0; }
+.route li::before { content: ''; position: absolute; z-index: 1; left: 0; top: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--paper); border: 2px solid var(--kraft-deep); }
+/* Each stop draws its own leg to the next dot, so the route stops where the parcel does. */
+.route li:not(:last-child)::after {
   content: '';
   position: absolute;
-  left: 5px;
-  right: 16%;
-  top: calc(var(--s-3) + 5px);
+  top: 4px;
+  left: 10px;
+  right: calc(var(--route-gap) * -1);
   border-top: 1.5px dashed var(--kraft-deep);
 }
-
-.route li { position: relative; display: flex; flex-direction: column; gap: 2px; padding-top: 16px; min-width: 0; }
-.route li::before { content: ''; position: absolute; left: 0; top: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--paper); border: 2px solid var(--kraft-deep); }
 .route li[data-end]::before { background: var(--c-sage-deep); border-color: var(--c-sage-deep); }
 .route span { font-size: var(--t-label); font-weight: 650; color: var(--c-ink); white-space: nowrap; }
-@media (max-width: 400px) { .route { column-gap: var(--s-3); } .route span { font-size: var(--t-caption); } }
+@media (max-width: 400px) { .route { --route-gap: var(--s-3); } .route span { font-size: var(--t-caption); } }
 .route b { font-size: var(--t-caption); font-weight: 400; color: var(--c-faint); }
 
 /* The tear line between the label and the receipt side, notched at both edges. */
 .perforation {
   position: relative;
-  margin: var(--s-4) calc(var(--s-4) * -1);
+  margin: var(--s-3) calc(var(--s-4) * -1);
   border-top: 2px dashed #e4dccd;
 }
 
+/* Half circles cut from each edge, drawn inside it, so they never reach past the paper. */
 .perforation::before,
 .perforation::after {
   content: '';
   position: absolute;
   top: -9px;
-  width: 16px;
+  width: 8px;
   height: 16px;
-  border-radius: 50%;
   background: var(--kraft);
 }
 
-.perforation::before { left: -8px; }
-.perforation::after { right: -8px; }
+.perforation::before { left: 0; border-radius: 0 8px 8px 0; }
+.perforation::after { right: 0; border-radius: 8px 0 0 8px; }
 
-@media (min-width: 960px) { .perforation { margin: var(--s-4) calc(var(--s-5) * -1); } }
+@media (min-width: 960px) { .perforation { margin: var(--s-3) calc(var(--s-5) * -1); } }
 
 .boxHead { display: flex; justify-content: space-between; margin-bottom: var(--s-3); }
 .agreed { margin-bottom: var(--s-3); font-size: var(--t-label); line-height: 1.5; color: var(--c-ink-soft); }
@@ -264,7 +288,36 @@ ul.lines { list-style: none; display: flex; flex-direction: column; gap: var(--s
   text-underline-offset: 3px;
 }
 
-.sums { margin-top: var(--s-4); padding-top: var(--s-4); border-top: 1px solid #efe8dc; }
+.sums { margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1px solid #efe8dc; }
+
+/*
+ * Where the label is tall enough (data-pin, measured), the totals are the receipt's foot: pinned
+ * to the bottom of the label while the address and the lines scroll behind
+ * them, so "To pay" is never the thing scrolled out of sight. On short
+ * windows they scroll with the rest; Pay below still carries the total.
+ */
+@media (min-width: 960px) {
+  .label[data-pin] .sums {
+    position: sticky;
+    z-index: 1;
+    /* The label's own bottom padding is inside its scroll box, so the pin sits that far lower to meet the paper's edge. */
+    bottom: calc(var(--s-4) * -1);
+    margin-bottom: calc(var(--s-4) * -1);
+    padding-bottom: var(--s-4);
+    background: var(--paper);
+  }
+  .label[data-pin][data-more] .sums::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -33px;
+    height: 32px;
+    background: linear-gradient(to bottom, rgba(255, 253, 248, 0), var(--paper));
+    pointer-events: none;
+  }
+  .label[data-pin]::after { display: none; }
+}
 .after { margin-top: var(--s-4); }
 
 @media (prefers-reduced-motion: reduce) {

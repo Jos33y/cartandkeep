@@ -143,3 +143,18 @@ export const GiftIcon = (p) => (
   <Icon {...p}><rect x="4" y="9" width="16" height="11" rx="1.5" /><path d="M3 9h18M12 9v11" /><path d="M12 9c-1.6-2.8-5-3.4-5-1.2C7 9 9.7 9 12 9Zm0 0c1.6-2.8 5-3.4 5-1.2C17 9 14.3 9 12 9Z" /></Icon>
 );
 export const WalletIcon = (p) => (<Icon {...p}><rect x="3.5" y="6" width="17" height="13" rx="2.5" /><path d="M3.5 10h17M15.5 14.5h2" /></Icon>);
+
+// A price that has come down since: a falling line with its arrowhead.
+export const PriceDownIcon = (p) => (
+  <Icon {...p}><path d="M3.5 7.5l6 6 3.5-3.5 7.5 7.5" /><path d="M20.5 12v5.5H15" /></Icon>
+);
+
+// Kept on one device: a phone, for the note that Saved lives here and nowhere else.
+export const DeviceIcon = (p) => (
+  <Icon {...p}><rect x="6.5" y="3" width="11" height="18" rx="2.4" /><path d="M10.5 17.8h3" /></Icon>
+);
+
+// Nearly gone: an hourglass with a little sand left at the top.
+export const HourglassIcon = (p) => (
+  <Icon {...p}><path d="M6.5 3.5h11M6.5 20.5h11" /><path d="M7.5 3.5c0 4.2 4.5 5.2 4.5 8.5s-4.5 4.3-4.5 8.5M16.5 3.5c0 4.2-4.5 5.2-4.5 8.5s4.5 4.3 4.5 8.5" /><path d="M10 7.2h4" /></Icon>
+);

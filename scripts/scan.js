@@ -15,6 +15,7 @@
  */
 
 import fs from 'node:fs';
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
   D, BANDS, search, token, stats, maxGoodsCost, priceFloor, loadEnvFiles, pickCredentials,
@@ -38,50 +39,21 @@ import {
  */
 // Only what the gate cannot see. Categories went: "cards" and "games" were
 // silently dropping birthday cards and board games off The Works' shelf.
-const SKIP = [
-  // Second hand by nature, and she sells new
-  'used', 'vintage', 'antique', 'refurbished', 'preowned', 'secondhand', 'joblot',
-  // Clothing, where size drives the return
-  'shirt', 'dress', 'jeans', 'trainers', 'jacket', 'hoodie',
-  // Account risk: counterfeit reports and brand takedowns land on a young account
-  'iphone', 'ipad', 'macbook', 'airpods',
-  'rolex', 'omega', 'gucci', 'prada', 'chanel', 'burberry', 'moncler', 'nike', 'adidas', 'ralph',
-  // Fragrance: the most counterfeit-reported branded goods on eBay
-  'edp', 'edt', 'parfum', 'perfume', 'aftershave', 'cologne', 'fragrance', 'eau', 'homme', 'femme',
-  // Alcohol needs eBay's approval; gas canisters cannot go by post; nicotine is restricted
-  'whisky', 'whiskey', 'vodka', 'gin', 'rum', 'prosecco', 'champagne', 'liqueur', '70cl', '75cl',
-  'butane', 'propane', 'flogas', 'calor',
-  'nicorette', 'nicotinell', 'nicotine', 'vape', 'vapes',
-  // Pharmacy medicines, which eBay restricts
-  'canesten', 'thrush', 'ibuprofen', 'paracetamol', 'nurofen', 'anadin', 'piriton', 'gaviscon', 'imodium', 'sudafed',
-];
-// Fragrance houses, caught by brand when the shelf name never says EDP: "Hugo Boss Bottled 50ml Spray".
-// Only when sold by the millilitre or as a spray, so a Calvin Klein wallet still goes through.
-const SCENT_HOUSES = /\b(hugo boss|hugo|boss bottled|jimmy choo|calvin klein|paco rabanne|rabanne|dkny|issey miyake|lacoste|diesel|police|ghost|ariana grande|vera wang|clinique|armaf|afnan|marc jacobs|thierry mugler|mugler|dolce|gabbana|versace|davidoff|azzaro|carolina herrera|ysl|yves saint laurent|guess|britney spears|katy perry|elizabeth arden|lancome|givenchy|dior|tom ford|montblanc|joop|cacharel|nina ricci|kenzo|moschino|michael kors|hollister|jean paul gaultier|playboy|beyonce|rihanna|jennifer lopez|lattafa|eternity|obsession|euphoria|daisy dream|212 ladies|lovestruck|ck|sarah jessica parker|missguided|air du temps|giorgio beverly hills|anais anais|nina ricci|cacharel)\b/;
-const BY_ML = /\b\d+(\.\d+)?\s?ml\b|\bspray\b/;
+import { risky } from './lib/risk.js';
 
-// The shop's own name is read too: "jimmy choo illicit" says nothing, "Jimmy Choo Illicit 60ml EDP" does.
-const risky = (q, seed) => {
-  const text = `${q} ${seed ?? ''}`.toLowerCase();
-  const words = text.split(/[^a-z0-9]+/);
-  // With no shop name to check the size against, the house alone decides: these lines were all scent.
-  const scent = SCENT_HOUSES.test(text) && (BY_ML.test(text) || !String(seed ?? '').trim());
-  return SKIP.some((w) => words.includes(w)) || scent;
-};
 let skipped = 0;
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
 const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 
+// Every phrase line in file order, risky or not, so --start and --max count lines in the file
+// exactly as the ledger does. Account risk is held back after the slice is taken.
 function readQueries(file) {
-  const seen = new Set();
   const out = [];
   for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
     const [head, ...rest] = line.split('#');
     const q = head.trim();
-    if (!q || seen.has(q)) continue;
-    if (risky(q, rest.join('#'))) { skipped += 1; continue; }
-    seen.add(q);
+    if (!q || line.trimStart().startsWith('#')) continue;
     out.push({ q, seed: rest.join('#').trim() || null });
   }
   return out;
@@ -159,8 +131,33 @@ async function main() {
   }
 
   const all = readQueries(file);
-  const queries = all.slice(start, max ? start + max : undefined);
+  // Phrases any earlier scan already read are not asked again: the Lakeland winter and parts lines sit
+  // inside Lakeland's main files too. --rescan asks everything regardless.
+  const already = new Set();
+  if (!process.argv.includes('--rescan')) {
+    const dir = path.join('research', 'scans');
+    if (fs.existsSync(dir)) {
+      for (const name of fs.readdirSync(dir).filter((n) => n.endsWith('.csv'))) {
+        if (path.resolve(dir, name) === path.resolve(csvPath)) continue;
+        for (const line of fs.readFileSync(path.join(dir, name), 'utf8').split(/\r?\n/).slice(1)) {
+          const m = line.match(/^"((?:[^"]|"")*)"|^([^,]*)/);
+          const q = (m?.[1] ?? m?.[2] ?? '').replace(/""/g, '"').trim().toLowerCase();
+          if (q) already.add(q);
+        }
+      }
+    }
+  }
+  let repeats = 0;
+  const seen = new Set();
+  const queries = all.slice(start, max ? start + max : undefined).filter((r) => {
+    if (seen.has(r.q)) return false;
+    seen.add(r.q);
+    if (already.has(r.q.toLowerCase())) { repeats += 1; return false; }
+    if (risky(r.q, r.seed)) { skipped += 1; return false; }
+    return true;
+  });
   if (skipped) console.log(`\n  ${skipped} queries skipped for a word the gate cannot judge (second hand, sized, or account risk)`);
+  if (repeats) console.log(`  ${repeats} already read by an earlier scan, not asked again (--rescan to ask anyway)`);
 
   const loaded = await loadEnvFiles(arg('env-file'));
   const cred = pickCredentials(process.env, arg('id-key'), arg('secret-key'));

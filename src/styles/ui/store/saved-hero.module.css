@@ -1,0 +1,187 @@
+/* A warm card with the saved things pinned up on it, the same kraft warmth as the parcel label. */
+.hero {
+  --kraft: #e3d3b6;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-5);
+  margin-bottom: var(--s-5);
+  padding: var(--s-5) var(--s-4);
+  border-radius: var(--r-card);
+  background:
+    radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, var(--kraft) 55%, transparent), transparent 60%),
+    radial-gradient(60% 90% at 0% 100%, color-mix(in srgb, var(--c-action) 7%, transparent), transparent 70%),
+    var(--c-raised);
+  border: 1px solid var(--c-line);
+  overflow: hidden;
+}
+
+@media (min-width: 720px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--s-6);
+    padding: var(--s-6);
+    min-height: 236px;
+  }
+}
+
+.text { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--t-caption);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-action-text);
+}
+
+.kicker svg { fill: currentColor; }
+.hero[data-shared] .kicker svg { fill: none; }
+
+.title { margin-top: var(--s-2); font-size: clamp(2rem, 4.6vw, 3rem); line-height: 1; color: var(--c-ink); }
+
+/* The facts, as small pills, each with its own icon and only when it has something to say. */
+ul.facts { list-style: none; display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-4); }
+
+.facts li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: var(--r-full);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+}
+
+.facts li b { font-weight: 650; color: var(--c-ink); font-variant-numeric: tabular-nums; }
+.facts li svg { flex: none; color: var(--c-action-text); }
+.facts li:first-child svg { fill: currentColor; }
+.facts li[data-tone='sage'] { background: var(--c-brand-wash); border-color: var(--c-brand-mid); }
+.facts li[data-tone='sage'] svg { color: var(--c-sage-deep); }
+.facts li[data-tone='gold'] { background: var(--c-warning-wash); border-color: #ecd9b4; }
+.facts li[data-tone='gold'] svg { color: var(--c-warning); }
+
+.device, .note { margin-top: var(--s-4); font-size: var(--t-label); line-height: 1.55; color: var(--c-ink-soft); max-width: 64ch; }
+.device { display: flex; align-items: flex-start; gap: var(--s-2); }
+.device svg { flex: none; margin-top: 2px; color: var(--c-faint); }
+
+.toLink {
+  font: inherit;
+  font-weight: 600;
+  color: var(--c-action-text);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--c-action-text) 35%, transparent);
+  text-underline-offset: 3px;
+}
+
+.toLink:hover { text-decoration-color: currentColor; }
+
+/*
+ * The photographs, pinned up at slight angles and overlapping, as things kept
+ * on a board. Phones get a short fanned row under the words; wider screens a
+ * loose stack beside them.
+ */
+/* On phones the photographs lead, a row across the top of the card, and the words follow. */
+.board {
+  order: -1;
+  --size: 72px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 6px 0 4px 6px;
+}
+
+.photo {
+  position: relative;
+  flex: none;
+  width: var(--size);
+  height: var(--size);
+  margin-left: calc(var(--size) * -0.22);
+  padding: 4px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 0 rgba(70, 48, 20, 0.08), 0 10px 22px -12px rgba(70, 48, 20, 0.45);
+  transform: rotate(calc((var(--i) - 1.5) * 4deg));
+  animation: pinUp 520ms var(--ease-out) both;
+  animation-delay: calc(var(--i) * 70ms);
+}
+
+.photo:first-child { margin-left: 0; }
+.photo img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+
+.more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--c-ink);
+  color: var(--c-on-dark, #fff);
+  font-family: var(--font-display);
+  font-stretch: var(--wide-tight);
+  font-size: 1.1rem;
+  font-weight: 650;
+}
+
+.pin {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: var(--c-sage-deep);
+  color: #fff;
+}
+
+@media (min-width: 720px) {
+  .board {
+    --size: 118px;
+    order: 0;
+    display: block;
+    width: 300px;
+    height: 196px;
+    padding: 0;
+  }
+
+  .photo {
+    position: absolute;
+    margin: 0;
+    padding: 6px;
+    border-radius: 14px;
+  }
+
+  /* Four spots on the board, each tilted its own way, so no two stacks look alike. */
+  .photo:nth-child(1) { left: 0; top: 34px; transform: rotate(-7deg); z-index: 1; }
+  .photo:nth-child(2) { left: 88px; top: 0; transform: rotate(4deg); z-index: 3; }
+  .photo:nth-child(3) { left: 170px; top: 46px; transform: rotate(-3deg); z-index: 2; }
+  .photo:nth-child(4) { left: 96px; top: 84px; transform: rotate(8deg); z-index: 4; }
+  .photo:nth-child(5) { left: 196px; top: 118px; width: 64px; height: 64px; transform: rotate(-5deg); z-index: 5; }
+
+  /* Fewer photos sit closer to the middle of the space rather than stranded at one edge. */
+  .board[data-count='1'] .photo:nth-child(1) { left: 90px; top: 30px; }
+  .board[data-count='2'] .photo:nth-child(1) { left: 40px; }
+  .board[data-count='2'] .photo:nth-child(2) { left: 140px; top: 20px; }
+  .board[data-count='3'] .photo:nth-child(3) { left: 176px; }
+
+  .more { font-size: 1.25rem; }
+  /* The first photograph sits under the second, so its badge moves to the corner that stays in view. */
+  .photo:nth-child(1) .pin { right: auto; left: -8px; }
+  .pin { width: 26px; height: 26px; top: -8px; left: auto; right: -8px; }
+}
+
+@keyframes pinUp {
+  from { opacity: 0; translate: 0 10px; scale: 0.94; }
+  to { opacity: 1; translate: 0 0; scale: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) { .photo { animation: none; } }

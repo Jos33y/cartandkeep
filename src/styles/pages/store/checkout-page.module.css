@@ -232,8 +232,6 @@
 .pay:active:not(:disabled) { transform: translateY(1px); }
 .pay:disabled { background: var(--c-line); color: var(--c-faint); box-shadow: none; cursor: default; }
 
-.stripeNote { display: flex; gap: var(--s-2); align-items: flex-start; justify-content: center; font-size: var(--t-caption); line-height: 1.5; color: var(--c-faint); }
-.stripeNote svg { flex: none; margin-top: 1px; color: var(--c-sage-deep); }
 
 .empty { border: 1px solid var(--c-line); border-radius: var(--r-card); background: var(--c-surface); padding: var(--s-7) var(--s-5); max-width: 52ch; }
 .emptyTitle { font-size: clamp(1.5rem, 3.4vw, 2rem); }

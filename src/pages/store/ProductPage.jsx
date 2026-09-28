@@ -259,10 +259,10 @@ export function ProductPage() {
                 <button
                   type="button"
                   className={styles.save}
-                  onClick={() => toggle(product.id)}
+                  onClick={() => toggle(product.id, product)}
                   aria-pressed={saved}
-                  aria-label={saved ? 'Saved. Remove from saved' : 'Save for later'}
-                  title={saved ? 'Saved' : 'Save for later'}
+                  aria-label={saved ? 'Saved. Remove from saved' : 'Save'}
+                  title={saved ? 'Saved' : 'Save'}
                   data-saved={saved || undefined}
                 >
                   <HeartIcon size={20} />

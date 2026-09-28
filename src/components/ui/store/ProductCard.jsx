@@ -94,7 +94,7 @@ export function ProductCard({ product, index = 0, onQuickView, shelfName = null,
             data-on={saved || undefined}
             aria-pressed={saved}
             aria-label={saved ? `Remove ${product.title} from saved` : `Save ${product.title}`}
-            onClick={() => toggle(product.id)}
+            onClick={() => toggle(product.id, product)}
           >
             <HeartIcon size={16} />
           </button>

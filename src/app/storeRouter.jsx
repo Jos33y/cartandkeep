@@ -21,6 +21,7 @@ import { BlogPage } from '@pages/store/BlogPage';
 import { BlogPostPage } from '@pages/store/BlogPostPage';
 import { SearchPage } from '@pages/store/SearchPage';
 import { SavedPage } from '@pages/store/SavedPage';
+import { SharedListPage } from '@pages/store/SharedListPage';
 import { NotFoundPage } from '@pages/not-found/NotFoundPage';
 import { STORE_ROUTES } from '@utils/constants';
 
@@ -57,6 +58,7 @@ export const storeRouter = createBrowserRouter([
       // so every use of the magnifying glass landed on the not-found page.
       { path: STORE_ROUTES.SEARCH, element: <SearchPage /> },
       { path: STORE_ROUTES.SAVED, element: <SavedPage /> },
+      { path: STORE_ROUTES.LIST, element: <SharedListPage /> },
       // The catch-all stays last. Everything above is an exact or parameter
       // match, so order only matters here.
       { path: '*', element: <NotFoundPage /> },

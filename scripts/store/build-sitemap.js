@@ -10,14 +10,14 @@
  * serve.
  *
  * Usage:
- *   node scripts/build-sitemap.js
- *   node scripts/build-sitemap.js --site=https://cartandkeep.com
+ *   node scripts/store/build-sitemap.js
+ *   node scripts/store/build-sitemap.js --site=https://cartandkeep.com
  */
 
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
-import { connect } from '../pipeline/lib/db.js';
+import { connect } from '../../pipeline/lib/db.js';
 
 const arg = (name) => {
   const hit = process.argv.slice(2).find((a) => a.startsWith(`--${name}=`));

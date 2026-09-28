@@ -33,7 +33,7 @@ function useGlide(railRef, deps) {
 
 export function StoreHeader() {
   const { count, subtotal } = useBasket();
-  const { ids } = useSaved();
+  const { ids, remember } = useSaved();
   // The rail's sections and counts come from the database: the old list stopped at 1,000 and split same-named sections in two.
   const { groups, total: shopTotal } = useGroups();
   const sections = useMemo(() => visibleGroups(groups), [groups]);
@@ -42,6 +42,7 @@ export function StoreHeader() {
   // Only saves that are still on sale: the saved cards come back live-only, so their count is the honest one.
   const savedLive = useCards(ids);
   const savedCount = savedLive.status === 'ready' ? savedLive.items.length : 0;
+  useEffect(() => { if (savedLive.status === 'ready') remember(savedLive.items); }, [savedLive, remember]);
 
   const header = useRef(null);
   const rail = useRef(null);

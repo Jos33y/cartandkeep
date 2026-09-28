@@ -1,0 +1,138 @@
+/* One saved thing. Phones: photo beside the words, money and actions on a line underneath. Wider: one row. */
+.row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  grid-template-areas: 'thumb main' 'money actions';
+  column-gap: var(--s-4);
+  row-gap: var(--s-3);
+  align-items: start;
+  padding: var(--s-4) 0;
+}
+
+@media (min-width: 720px) {
+  .row {
+    grid-template-columns: 112px minmax(0, 1fr) auto auto;
+    grid-template-areas: 'thumb main money actions';
+    column-gap: var(--s-5);
+    padding: var(--s-5) 0;
+  }
+}
+
+.thumb {
+  grid-area: thumb;
+  display: block;
+  aspect-ratio: 1;
+  border-radius: var(--r-control);
+  overflow: hidden;
+  background: var(--c-sunk);
+}
+
+.thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform 400ms var(--ease-out); }
+.noImage { display: block; width: 100%; height: 100%; }
+@media (hover: hover) { .row:hover .thumb img { transform: scale(1.03); } }
+.row[data-off] .thumb img { opacity: 0.55; filter: grayscale(0.4); }
+
+.main { grid-area: main; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+
+.section { font-size: var(--t-caption); color: var(--c-faint); }
+
+.title {
+  font-size: var(--t-body);
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--c-ink);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.title:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--c-line-mid); }
+
+.notes { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s-3); margin-top: 2px; }
+.notes > * { margin: 0; }
+
+.change { font-size: var(--t-caption); color: var(--c-faint); }
+.change[data-down] { color: var(--c-sage-deep); font-weight: 600; }
+
+.inBasket {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: var(--r-full);
+  background: var(--c-brand-wash);
+  font-size: var(--t-caption);
+  font-weight: 500;
+  color: var(--c-sage-deep);
+}
+
+.when { font-size: var(--t-caption); color: var(--c-faint); }
+
+.money {
+  grid-area: money;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  align-self: center;
+}
+
+@media (min-width: 720px) { .money { flex-direction: column; align-items: flex-end; gap: 2px; align-self: start; padding-top: 2px; } }
+
+.price { font-size: var(--t-lead); font-weight: 600; color: var(--c-ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.from { margin-right: 4px; font-size: var(--t-caption); font-weight: 400; color: var(--c-faint); }
+.was { font-size: var(--t-caption); color: var(--c-faint); }
+
+.actions {
+  grid-area: actions;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-2);
+}
+
+@media (min-width: 720px) {
+  .actions { align-self: start; }
+  /* One width for every label, so the buttons line up down the list. */
+  .add { min-width: 148px; }
+}
+
+.add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-full);
+  border: 1.5px solid var(--c-action-strong);
+  background: transparent;
+  color: var(--c-action-text);
+  font-size: var(--t-label);
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background 160ms var(--ease), color 160ms var(--ease), border-color 160ms var(--ease);
+}
+
+.add:hover:not(:disabled) { background: var(--c-action-strong); color: var(--c-on-action, #fff); }
+.add:active:not(:disabled) { transform: scale(0.97); }
+.add[data-added] { background: var(--c-sage-deep); border-color: var(--c-sage-deep); color: #fff; }
+.add:disabled { border-color: var(--c-line); color: var(--c-faint); cursor: default; }
+
+.heart {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-full);
+  color: var(--c-faint);
+  transition: color 160ms var(--ease), background 160ms var(--ease);
+}
+
+.heart:hover { background: var(--c-sunk); color: var(--c-action-text); }
+.heart[data-on] { color: var(--c-action-text); }
+.heart[data-on] svg { fill: currentColor; }
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb img, .add, .heart { transition: none; }
+}

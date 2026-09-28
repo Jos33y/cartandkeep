@@ -53,6 +53,10 @@
 }
 
 .grand dt { font-size: var(--t-lead); font-weight: 500; color: var(--c-ink); }
+/* On the parcel label, where every line of height is a line of the order someone cannot see. */
+.totals[data-compact] .figures { gap: var(--s-2); }
+.totals[data-compact] .grand { margin-top: 2px; padding-top: var(--s-3); }
+
 .grand dd { font-family: var(--font-display); font-stretch: var(--wide-tight); font-size: var(--t-figure); font-weight: 650; letter-spacing: -0.01em; }
 
 .arrival {
@@ -79,5 +83,9 @@ ul.promises {
 .promises li { display: flex; align-items: center; gap: var(--s-2); }
 .promises svg { flex: none; color: var(--c-sage-deep); }
 .promises span { font-size: var(--t-caption); color: var(--c-ink-soft); }
+
+ul.inline { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px var(--s-4); }
+.inline li { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-caption); color: var(--c-faint); }
+.inline svg { flex: none; color: var(--c-sage-deep); }
 
 @media (prefers-reduced-motion: reduce) { .track > span { transition: none; } }

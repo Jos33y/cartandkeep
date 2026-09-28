@@ -34,13 +34,13 @@ export function basketArrival(lines, zone = 'mainland') {
 }
 
 export function BasketTotals({
-  subtotal, delivery, total, toFree = 0, freeOver = 0, surcharge = 0, zone = 'mainland', arrival = null, agreed = false,
+  subtotal, delivery, total, toFree = 0, freeOver = 0, surcharge = 0, zone = 'mainland', arrival = null, agreed = false, compact = false,
 }) {
   const free = delivery === 0;
   const share = freeOver > 0 ? Math.min(100, Math.max(4, ((freeOver - toFree) / freeOver) * 100)) : 100;
 
   return (
-    <div className={styles.totals}>
+    <div className={styles.totals} data-compact={compact || undefined}>
       <dl className={styles.figures}>
         <div className={styles.row}>
           <dt>{agreed ? 'Agreed price' : 'Subtotal'}</dt>
@@ -90,8 +90,18 @@ export function BasketTotals({
 }
 
 // The three promises, said once and small. Only what is true of every order.
-export function BasketPromises({ paying = false }) {
+// `inline` is the wrapping line under Pay: how paying works first, then the promises.
+export function BasketPromises({ paying = false, inline = false }) {
   const days = Number(returnsTerms().days);
+  if (inline) {
+    return (
+      <ul className={styles.inline}>
+        <li><ShieldIcon size={14} /><span>Paid on Stripe&apos;s own page, then straight back here</span></li>
+        {days > 0 && <li><ReturnIcon size={14} /><span>{days} {days === 1 ? 'day' : 'days'} to change your mind</span></li>}
+        <li><LockIcon size={14} /><span>No account needed</span></li>
+      </ul>
+    );
+  }
   return (
     <ul className={styles.promises}>
       {days > 0 && <li><ReturnIcon size={15} /><span>{days} {days === 1 ? 'day' : 'days'} to change your mind</span></li>}

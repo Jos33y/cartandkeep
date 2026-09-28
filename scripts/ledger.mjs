@@ -2,8 +2,9 @@
 // so the record can never fall behind the work.
 //   node scripts/ledger.mjs            prints the table and writes research/ledger.md
 
-import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { risky } from './lib/risk.js';
 
 const QUERIES = join('research', 'queries');
 const SCANS = join('research', 'scans');
@@ -39,28 +40,46 @@ const files = readdirSync(QUERIES)
   .sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
 
 const rows = files.map((f) => {
-  const phrases = readFileSync(join(QUERIES, f), 'utf8').split(/\r?\n/)
-    .filter((l) => l.trim() && !l.startsWith('#'))
-    .map((l) => l.split('#')[0].trim().toLowerCase());
+  const rawLines = readFileSync(join(QUERIES, f), 'utf8').split(/\r?\n/)
+    .filter((l) => l.trim() && !l.trimStart().startsWith('#'));
+  const lines = rawLines
+    .map((l) => { const [head, ...rest] = l.split('#'); return { q: head.trim().toLowerCase(), seed: rest.join('#') }; });
+  const phrases = lines.map((x) => x.q);
   const g = phrases.filter((q) => gated.has(q)).length;
-  // A file is scanned from the top, so what counts is how far down it the scans reached. A phrase that
-  // also sits in another file does not make this one started, and a few held back as account risk do
-  // not stop it reading as done.
-  let last = -1;
-  phrases.forEach((q, i) => { if (scanned.has(q)) last = i; });
-  const reached = last + 1;
-  const inReach = phrases.slice(0, reached).filter((q) => scanned.has(q)).length;
-  // A handful of shared phrases near the top is coincidence, not a scan of this file.
-  const worked = reached > 0 && inReach >= reached * 0.8 && (inReach >= 10 || reached >= phrases.length - 5);
-  const elsewhere = phrases.filter((q) => scanned.has(q)).length - (worked ? inReach : 0);
-  const s = worked ? reached : 0;
-  const state = !worked ? 'untouched' : reached >= phrases.length - 5 ? 'scanned' : `part, next --start=${reached}`;
+  // A line is dealt with if a scan read it, or if the scan holds it back as account risk by the same rules.
+  const done = lines.map((x) => scanned.has(x.q) || risky(x.q, x.seed));
+  const readByScan = lines.filter((x) => scanned.has(x.q)).length;
+  const left = lines.map((x, i) => ({ ...x, i, raw: rawLines[i] })).filter((x) => !done[x.i]);
+  // A few shared phrases are coincidence, not a scan of this file.
+  const worked = readByScan >= 10 || (left.length === 0 && readByScan > 0);
+  let state;
+  if (!worked) state = 'untouched';
+  else if (!left.length) state = 'scanned';
+  // Part done: little after the first unchecked line has been read (a stray phrase shared with another
+  // file does not count). Gaps: most of what follows was read, so the holes go to a file of their own.
+  else if (done.slice(left[0].i).filter(Boolean).length < (lines.length - left[0].i) / 2) {
+    // Unchecked from the very first line: nobody scanned this file; its read lines came from a subset
+    // (the Lakeland winter and parts files) or another shop's file. The scan skips those, so start at 0.
+    state = left[0].i === 0
+      ? `untouched, ${readByScan} of its lines already checked elsewhere`
+      : `part, next --start=${left[0].i}`;
+  }
+  else {
+    // Lines skipped by an older rule, scattered through a scanned file. Resuming from the first would
+    // re-scan everything after it, so the unchecked lines go to a file of their own instead.
+    const out = join(QUERIES, 'left', f);
+    mkdirSync(join(QUERIES, 'left'), { recursive: true });
+    writeFileSync(out, left.map((x) => x.raw).join('\n') + '\n');
+    state = `gaps: ${left.length} unchecked lines in left/${f}`;
+  }
+  const s = lines.length - left.length;
+  const elsewhere = 0;
   return { file: f, phrases: phrases.length, scanned: s, gated: g, state, elsewhere };
 });
 
 const sum = (k) => rows.reduce((a, r) => a + r[k], 0);
 const pad = (v, n) => String(v).padStart(n);
-const lines = rows.map((r) => `| ${r.file} | ${r.phrases} | ${r.scanned} | ${r.gated} | ${r.state}${r.elsewhere ? `, ${r.elsewhere} also checked in other files` : ''} |`);
+const lines = rows.map((r) => `| ${r.file} | ${r.phrases} | ${r.scanned} | ${r.gated} | ${r.state} |`);
 const md = [
   '# Research ledger',
   '',

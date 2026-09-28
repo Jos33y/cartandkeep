@@ -200,6 +200,17 @@ export function BasketProvider({ children }) {
     if (line) trackRemove(line);
     return current.filter((l) => l.key !== key);
   }), []);
+  // Undo for a removal: the line goes back where it was, as it was, unless it has come back some other way since.
+  const restore = useCallback((line, index) => {
+    if (!line?.key) return;
+    setLines((current) => {
+      if (current.some((l) => l.key === line.key)) return current;
+      const next = [...current];
+      next.splice(Math.max(0, Math.min(index ?? next.length, next.length)), 0, line);
+      return next;
+    });
+  }, []);
+
   const clear = useCallback(() => setLines([]), []);
 
   const dismissAdded = useCallback(() => setLastAdded(null), []);
@@ -209,6 +220,7 @@ export function BasketProvider({ children }) {
     add,
     setQty,
     remove,
+    restore,
     clear,
     reconcile,
     markPaying,
@@ -219,7 +231,7 @@ export function BasketProvider({ children }) {
     // what a shopper counts.
     count: lines.reduce((n, l) => n + l.qty, 0),
     subtotal: lines.reduce((n, l) => n + l.price * l.qty, 0),
-  }), [lines, add, setQty, remove, clear, reconcile, markPaying, clearIfPaid, lastAdded, dismissAdded]);
+  }), [lines, add, setQty, remove, restore, clear, reconcile, markPaying, clearIfPaid, lastAdded, dismissAdded]);
 
   return <BasketContext.Provider value={value}>{children}</BasketContext.Provider>;
 }
