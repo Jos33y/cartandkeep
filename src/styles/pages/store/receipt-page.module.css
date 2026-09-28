@@ -62,26 +62,37 @@
    Scoped with :has, so the rule only exists in a document that is rendering
    this page. A bare `body *` rule from a module sheet is global once bundled
    and would take the packing slip and every other printable page with it. */
+@page receipt { size: A4; margin: 0; }
+
 @media print {
-  :global(body):has(.page) :global(*) { visibility: hidden; }
+  /* Everything that is not the receipt, or does not hold it, is taken out of the
+     layout entirely rather than hidden. Hidden boxes still take space and still
+     paint the shop's cream behind them, and taking them out leaves the receipt
+     in the normal flow, which is what lets it sit on its own named page. */
+  :global(body):has(.page) :global(*):not(:has(.page)):not(.page):not(.page *) { display: none !important; }
 
-  /* The body prefix is repeated on purpose. `body:has(.page) *` is a more
-     specific selector than `.page`, so without it the hide rule wins over the
-     show rule and the whole sheet prints blank. */
-  :global(body):has(.page) .page,
-  :global(body):has(.page) .page * { visibility: visible; }
+  /* The shell's wrappers around it keep nothing of their own: no padding, no cream, no minimum height. */
+  :global(body):has(.page) :global(*):has(.page) {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+  }
 
-  /* Pulled to the page origin, or it prints where the shell had left it, which
-     is a third of the way down behind a header that is no longer there. */
   :global(body):has(.page) .page {
-    position: absolute;
-    top: 0;
-    left: 0;
+    page: receipt;
     width: 100%;
-    padding: 0;
     max-width: none;
+    margin: 0;
+    padding: 16mm 0 12mm;
     display: block;
   }
+
+  /* White under everything: the shop's cream printed as a block below the receipt. */
+  :global(html):has(.page),
+  :global(body):has(.page) { background: #fff !important; }
 
   .controls,
   .keep { display: none; }

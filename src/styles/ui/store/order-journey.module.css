@@ -1,0 +1,80 @@
+/* Three stops on a line, as on the checkout label, drawn bigger and dated. Phones read them top to bottom. */
+ol.journey {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.stop {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-areas: 'dot label' 'dot date';
+  column-gap: var(--s-3);
+  padding-bottom: var(--s-4);
+}
+
+.stop:last-child { padding-bottom: 0; }
+
+/* The leg to the next stop: solid once travelled, dashed ahead. */
+.stop:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 13px;
+  top: 28px;
+  bottom: 0;
+  border-left: 2px dashed var(--c-line-mid);
+}
+
+.stop[data-state='done']:not(:last-child)::after { border-left-style: solid; border-color: var(--c-sage-deep); }
+
+.dot {
+  grid-area: dot;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--c-line-mid);
+  background: var(--c-surface);
+  color: #fff;
+}
+
+.stop[data-state='done'] .dot { background: var(--c-sage-deep); border-color: var(--c-sage-deep); }
+.stop[data-state='next'] .dot { border-color: var(--c-action-strong); box-shadow: 0 0 0 5px color-mix(in srgb, var(--c-action) 14%, transparent); }
+.stop[data-state='next'] .dot::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--c-action-strong); animation: beat 2s ease-in-out infinite; }
+
+.label { grid-area: label; align-self: center; font-size: var(--t-body); font-weight: 600; color: var(--c-ink); }
+.stop[data-state='later'] .label { color: var(--c-ink-soft); }
+.date { grid-area: date; font-size: var(--t-label); color: var(--c-ink-soft); font-variant-numeric: tabular-nums; }
+.stop[data-state='next'] .date { color: var(--c-action-text); font-weight: 500; }
+
+@media (min-width: 720px) {
+  ol.journey { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: var(--s-4); }
+
+  .stop {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'dot' 'label' 'date';
+    row-gap: 4px;
+    padding-bottom: 0;
+  }
+
+  .stop .dot { margin-bottom: var(--s-2); }
+
+  .stop:not(:last-child)::after {
+    left: 36px;
+    right: calc(var(--s-4) * -1 + 8px);
+    top: 13px;
+    bottom: auto;
+    border-left: 0;
+    border-top: 2px dashed var(--c-line-mid);
+  }
+
+  .stop[data-state='done']:not(:last-child)::after { border-top-style: solid; border-color: var(--c-sage-deep); }
+}
+
+@keyframes beat { 50% { transform: scale(0.7); opacity: 0.7; } }
+@media (prefers-reduced-motion: reduce) { .stop[data-state='next'] .dot::before { animation: none; } }

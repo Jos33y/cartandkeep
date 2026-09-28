@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
 import { Receipt } from '@components/ui/shared/Receipt';
 import { fetchOrder } from '@lib/checkout';
+import { stampFor, usePrintName } from '@hooks/usePrintName';
 import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/pages/store/receipt-page.module.css';
 
@@ -23,6 +24,10 @@ export function ReceiptPage() {
   const token = params.get('token') ?? '';
 
   const [state, setState] = useState({ status: 'loading' });
+  const printName = state.status === 'ready'
+    ? `Cart & Keep receipt ${state.order.reference} ${stampFor(state.order.paid_at ?? state.order.created_at)}`.trim()
+    : null;
+  usePrintName(printName);
 
   useEffect(() => {
     fetchOrder(reference, token)

@@ -241,3 +241,8 @@
 @media (prefers-reduced-motion: reduce) {
   .pay, .expressButton, .choice, .addressChoice, .tickBox, .field input, .field textarea { transition: none; }
 }
+
+/* On short laptop windows the dock keeps only how paying works; the two promises are on the basket already. */
+@media (min-width: 960px) and (max-height: 899px) {
+  .payInLabel :global(li):not(:first-child) { display: none; }
+}

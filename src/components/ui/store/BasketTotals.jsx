@@ -34,7 +34,7 @@ export function basketArrival(lines, zone = 'mainland') {
 }
 
 export function BasketTotals({
-  subtotal, delivery, total, toFree = 0, freeOver = 0, surcharge = 0, zone = 'mainland', arrival = null, agreed = false, compact = false,
+  subtotal, delivery, total, toFree = 0, freeOver = 0, surcharge = 0, zone = 'mainland', arrival = null, agreed = false, compact = false, totalLabel = 'To pay',
 }) {
   const free = delivery === 0;
   const share = freeOver > 0 ? Math.min(100, Math.max(4, ((freeOver - toFree) / freeOver) * 100)) : 100;
@@ -74,7 +74,7 @@ export function BasketTotals({
         </div>
 
         <div className={`${styles.row} ${styles.grand}`}>
-          <dt>To pay</dt>
+          <dt>{totalLabel}</dt>
           <dd data-price>{formatGbp(total)}</dd>
         </div>
       </dl>

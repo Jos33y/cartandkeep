@@ -1,22 +1,104 @@
 .page {
   width: 100%;
-  max-width: 560px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: var(--s-7) var(--s-4) var(--s-8);
+  padding: var(--s-6) var(--s-4) var(--s-8);
 }
 
-@media (min-width: 900px) { .page { padding: var(--s-8) var(--s-5); } }
+@media (min-width: 900px) { .page { padding: var(--s-7) var(--s-5) var(--s-8); } }
 
-.title { font-size: clamp(1.75rem, 4.4vw, 2.5rem); }
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--t-caption);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-action-text);
+}
 
-.body {
+.title { margin-top: var(--s-2); font-size: clamp(1.9rem, 4.4vw, 2.75rem); line-height: 1.04; }
+.body { margin-top: var(--s-3); font-size: 1.0625rem; line-height: 1.62; color: var(--c-ink-soft); max-width: 56ch; }
+
+/* The orders this device has opened: parcel cards, one tap each. */
+.mine { margin-top: var(--s-6); }
+ul.list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: var(--s-3); }
+
+.order {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  grid-template-areas: 'thumb main chev' 'thumb stage chev';
+  align-items: center;
+  column-gap: var(--s-4);
+  row-gap: 6px;
+  padding: var(--s-4);
+  border-radius: var(--r-card);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  color: var(--c-ink);
+  text-decoration: none;
+  transition: border-color 160ms var(--ease), transform 160ms var(--ease);
+}
+
+.order:hover { border-color: var(--c-sage-deep); transform: translateY(-1px); }
+.order > svg { grid-area: chev; color: var(--c-faint); }
+
+@media (min-width: 620px) {
+  .order { grid-template-columns: 64px minmax(0, 1fr) auto auto; grid-template-areas: 'thumb main stage chev'; }
+}
+
+.thumb { grid-area: thumb; width: 56px; height: 56px; border-radius: 10px; overflow: hidden; background: var(--c-sunk); }
+@media (min-width: 620px) { .thumb { width: 64px; height: 64px; } }
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+.orderMain { grid-area: main; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.orderRef { font-family: var(--font-display); font-stretch: var(--wide-tight); font-size: 1rem; font-weight: 650; letter-spacing: 0.03em; }
+.orderWhat { font-size: var(--t-label); color: var(--c-ink-soft); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.orderMeta { font-size: var(--t-caption); color: var(--c-faint); }
+
+.stage {
+  grid-area: stage;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: var(--r-full);
+  font-size: var(--t-caption);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.stage[data-tone='sage'] { background: var(--c-brand-wash); color: var(--c-sage-deep); }
+.stage[data-tone='gold'] { background: var(--c-warning-wash); color: var(--c-warning); }
+.stage[data-tone='grey'] { background: var(--c-sunk); color: var(--c-ink-soft); }
+
+.forget {
   margin-top: var(--s-3);
-  font-size: 1.0625rem;
-  line-height: 1.62;
-  color: var(--c-ink-soft);
+  min-height: 36px;
+  font-size: var(--t-caption);
+  color: var(--c-faint);
+  text-decoration: underline;
+  text-decoration-color: var(--c-line-mid);
+  text-underline-offset: 3px;
 }
 
-.form { margin-top: var(--s-6); display: flex; flex-direction: column; gap: var(--s-4); }
+.forget:hover { color: var(--c-ink); }
+
+/* Finding another. */
+.find {
+  margin-top: var(--s-6);
+  padding: var(--s-5);
+  border-radius: var(--r-card);
+  background: var(--c-raised);
+  border: 1px solid var(--c-line);
+}
+
+.findHead { display: flex; align-items: center; gap: var(--s-2); font-size: var(--t-lead); font-weight: 600; color: var(--c-ink); }
+.findHead svg { color: var(--c-sage-deep); }
+
+.form { margin-top: var(--s-4); display: flex; flex-direction: column; gap: var(--s-4); }
 .field { display: flex; flex-direction: column; gap: 5px; }
 .label { font-size: var(--t-label); color: var(--c-ink-soft); }
 
@@ -32,28 +114,22 @@
   color: var(--c-ink);
 }
 
-/* Tabular, because a reference is read a character at a time and a
-   proportional font makes CK-A4KP look like CK-A4KR. */
-.field input:first-of-type,
-.field input[placeholder^='CK'] {
+/* Only the reference, read a character at a time: the email field used to catch this rule too and shouted its placeholder. */
+.field input[data-reference] {
   font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-.field input:focus {
-  outline: 0;
-  border-color: var(--c-brand);
-  box-shadow: 0 0 0 4px var(--c-sage-wash);
-}
+.field input:focus { outline: 0; border-color: var(--c-brand); box-shadow: 0 0 0 4px var(--c-sage-wash); }
 
 .hint { font-size: var(--t-caption); color: var(--c-faint); }
 
 .failed {
   padding: var(--s-3) var(--s-4);
-  background: var(--c-gold-wash);
-  border: 1px solid var(--c-gold-line);
+  background: var(--c-gold-wash, #f7eedc);
+  border: 1px solid var(--c-gold-line, #ecd9b4);
   border-radius: var(--r-control);
   font-size: 0.875rem;
   line-height: 1.6;
@@ -73,28 +149,17 @@
   gap: var(--s-2);
 }
 
+.go:hover:not(:disabled) { background: var(--c-action); }
 .go:disabled { background: var(--c-sage-deep); cursor: default; }
 
 .aside {
-  margin-top: var(--s-6);
-  padding-top: var(--s-5);
-  border-top: 1px solid var(--c-line);
+  margin-top: var(--s-5);
   display: flex;
   gap: var(--s-3);
   align-items: flex-start;
 }
 
-.aside svg { flex: none; margin-top: 2px; color: var(--c-sage-deep); }
+.aside svg { flex: none; margin-top: 3px; color: var(--c-sage-deep); }
 .aside p { font-size: var(--t-body); line-height: 1.6; color: var(--c-ink-soft); }
 
-.back {
-  margin-top: var(--s-5);
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--tap);
-  font-size: var(--t-label);
-  color: var(--c-ink-soft);
-  text-decoration: none;
-}
-
-.back:hover { color: var(--c-ink); }
+@media (prefers-reduced-motion: reduce) { .order { transition: none; } }

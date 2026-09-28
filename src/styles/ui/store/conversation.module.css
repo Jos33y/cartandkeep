@@ -192,6 +192,7 @@
 
 .send {
   min-height: 48px;
+  transition: background 160ms var(--ease), color 160ms var(--ease);
   border: 0;
   border-radius: var(--r-control);
   background: var(--c-action-strong);
@@ -203,7 +204,8 @@
 }
 
 .send:hover:not(:disabled) { filter: brightness(0.93); }
-.send:disabled { opacity: 0.45; cursor: not-allowed; }
+.send:disabled { background: var(--c-sunk); color: var(--c-faint); cursor: default; }
+/* A resting button, not a faded warning: it lights up once there is something to send. */
 
 .closed { font-size: var(--t-body); line-height: var(--lh-body); color: var(--c-ink-soft); }
 .error { font-size: var(--t-caption); color: var(--c-negative); }

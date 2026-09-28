@@ -119,6 +119,12 @@ export function ParcelLabel({
           )}
         </div>
 
+        {/* Short laptop windows get the trip as one line, so the label has room for what is in the box. */}
+        {arrival && (
+          <p className={styles.routeLine}>
+            Leaves <b>{dayOf(arrival.leaves)}</b>, {gift ? 'with them' : 'with you'} <b>{window2(arrival)}</b>
+          </p>
+        )}
         {arrival && (
           <ol className={styles.route} aria-label="Its trip">
             <li><span>Today</span><b>Ordered</b></li>

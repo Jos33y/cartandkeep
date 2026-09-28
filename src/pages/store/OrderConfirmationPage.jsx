@@ -1,27 +1,34 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
-import { ArrowRightIcon, MailIcon, ReturnIcon, VanIcon } from '@components/ui/store/icons';
+import {
+  ArrowRightIcon, CheckIcon, ClockIcon, FilesIcon, GiftIcon, MailIcon, ReturnIcon, SearchIcon, StarIcon, VanIcon,
+} from '@components/ui/store/icons';
 import { useBasket } from '@context/BasketContext';
 import { trackPurchase } from '@lib/analytics';
 import { fetchOrder } from '@lib/checkout';
+import { rememberOrder } from '@lib/myOrders';
 import { Conversation } from '@components/ui/store/Conversation';
-import { imageAt } from '@utils/categories';
-import { formatGbp } from '@utils/formatGbp';
+import { EmptyHero } from '@components/ui/store/EmptyHero';
+import { OrderJourney, orderDates, windowText } from '@components/ui/store/OrderJourney';
+import { ParcelLabel } from '@components/ui/store/checkout/ParcelLabel';
 import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/pages/store/order-confirmation.module.css';
 
 /*
- * After Stripe.
+ * After Stripe, and every visit after that.
  *
  * Reaching this page is not proof of payment. Somebody can type the URL, and
  * somebody can pay and close the tab before it loads. The status shown here is
  * whatever the webhook has recorded, which is why an order can legitimately
- * read "payment confirming" for a few seconds.
+ * read "confirming" for a few seconds.
  *
- * The basket is emptied only once the order actually reads as paid. Clearing
- * it on arrival would lose the basket of anyone who landed here without
- * paying.
+ * It is the tracking page as much as the thank-you page: the same address the
+ * confirmation email links to, so it leads with where the parcel has got to,
+ * on the three stops the checkout label promised, and keeps the label itself
+ * beside it so the address that was checked is the one on show.
+ *
+ * The basket is emptied only once the order actually reads as paid.
  */
 export function OrderConfirmationPage() {
   const { reference } = useParams();
@@ -32,6 +39,7 @@ export function OrderConfirmationPage() {
   const [state, setState] = useState({ status: 'loading', order: null, items: [] });
   const [tries, setTries] = useState(0);
   const counted = useRef(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!reference || !token) {
@@ -44,11 +52,10 @@ export function OrderConfirmationPage() {
       .then(({ order, items }) => {
         if (!live) return;
         setState({ status: 'ready', order, items });
+        // Kept on this device, so "Track an order" can show it without the email.
+        rememberOrder(order, items, token);
         if (order.status === 'paid') {
           clearIfPaid(order.reference);
-          // Once. The page polls three times while the webhook lands, and a
-          // purchase counted on every poll is a shop that looks four times
-          // busier than it is.
           if (!counted.current) {
             counted.current = true;
             trackPurchase(order);
@@ -60,9 +67,7 @@ export function OrderConfirmationPage() {
     return () => { live = false; };
   }, [reference, token, tries, clearIfPaid]);
 
-  // The webhook usually lands before this page does, and occasionally does
-  // not. Three polls at two seconds covers the gap without turning into a
-  // spinner that never stops.
+  // The webhook usually lands before this page does, and occasionally does not.
   useEffect(() => {
     if (state.status !== 'ready' || state.order?.status !== 'pending' || tries >= 3) return undefined;
     const t = setTimeout(() => setTries((n) => n + 1), 2000);
@@ -73,7 +78,8 @@ export function OrderConfirmationPage() {
     return (
       <section className={styles.page}>
         <Head title="Your order" description="Your order." path="/order" noindex />
-        <p className={styles.quiet}>Finding your order.</p>
+        <div className={styles.loading} aria-busy="true"><span /><span /><span /></div>
+        <p className="visually-hidden" role="status">Finding your order</p>
       </section>
     );
   }
@@ -82,13 +88,15 @@ export function OrderConfirmationPage() {
     return (
       <section className={styles.page}>
         <Head title="Order not found" description="Order not found." path="/order" noindex />
-        <h1 className={`${styles.title} wide`}>We cannot find that order</h1>
-        <p className={styles.body}>
-          The link may be incomplete. The one in your confirmation email is the
-          whole thing, or write to support@cartandkeep.com with your reference
-          and we will look it up.
-        </p>
-        <Link className={styles.cta} to={STORE_ROUTES.HOME}>Back to the shop</Link>
+        <EmptyHero
+          Icon={SearchIcon}
+          kicker="Your order"
+          title="We cannot find that order"
+          cta={{ to: STORE_ROUTES.ORDER_LOOKUP, label: 'Find it with your reference' }}
+          secondary={{ to: STORE_ROUTES.HOME, label: 'Back to the shop' }}
+        >
+          <p>The link may be incomplete. The one in your confirmation email is the whole thing, or look the order up with its reference and the email you ordered with.</p>
+        </EmptyHero>
       </section>
     );
   }
@@ -98,208 +106,194 @@ export function OrderConfirmationPage() {
   const settling = order.status === 'pending' && tries < 3;
   const sent = Boolean(order.dispatched_at);
   const refunded = order.status === 'refunded';
+  const gift = Boolean(order.is_gift);
+  const dates = orderDates(order);
+  const firstOf = (name) => String(name ?? '').trim().split(/\s+/)[0] || null;
+  const them = firstOf(order.recipient_name) ?? 'them';
 
-  const sentOn = sent
-    ? new Intl.DateTimeFormat('en-GB', {
-        day: 'numeric', month: 'long', timeZone: 'Europe/London',
-      }).format(new Date(order.dispatched_at))
-    : null;
+  const stage = refunded ? { Icon: ReturnIcon, word: 'Refunded', title: 'This order has been refunded' }
+    : sent ? { Icon: VanIcon, word: 'On its way', title: gift ? `On its way to ${them}` : 'Your order is on its way' }
+      : paid ? { Icon: CheckIcon, word: 'Paid', title: 'Thank you, that is done' }
+        : settling ? { Icon: ClockIcon, word: 'Confirming payment', title: 'Just confirming with Stripe' }
+          : { Icon: ClockIcon, word: 'Not paid yet', title: 'This order has not been paid' };
+
+  const receiptPath = `/receipt/${order.reference}?token=${encodeURIComponent(token)}`;
+  const reviewPath = `${STORE_ROUTES.REVIEW.replace(':reference', order.reference)}?token=${encodeURIComponent(token)}`;
+
+  // The parcel label, as it was checked at checkout, now with what was paid.
+  const address = {
+    line1: order.address?.line1 ?? '',
+    line2: order.address?.line2 ?? '',
+    city: order.address?.city ?? '',
+    postcode: order.address?.postcode ?? '',
+  };
+  const lines = items.map((i) => ({
+    id: `${i.slug ?? i.title}`,
+    variantId: i.variant_label ?? null,
+    title: i.title,
+    variantLabel: i.variant_label ?? null,
+    image_url: i.image_url,
+    qty: Number(i.qty),
+    price: Number(i.unit_price ?? (Number(i.line_total) / Number(i.qty || 1))),
+  }));
+  const count = lines.reduce((n, l) => n + l.qty, 0);
+  const figures = {
+    subtotal: Number(order.subtotal),
+    delivery: Number(order.delivery),
+    total: Number(order.total),
+    toFree: 0,
+    freeOver: 0,
+    totalLabel: refunded ? 'Refunded' : paid ? 'Paid' : 'To pay',
+  };
+
+  async function copyReference() {
+    try {
+      await navigator.clipboard.writeText(order.reference);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch { /* the reference is on screen to copy by hand */ }
+  }
 
   return (
     <section className={styles.page}>
       <Head title={`Order ${order.reference}`} description="Your order." path={`/order/${order.reference}`} noindex />
 
-      <header className={styles.head}>
-        {/* An order has two facts about it, payment and dispatch, and the
-            heading has to carry whichever one is newest. Somebody coming back
-            a week later should not see the screen from the moment they paid. */}
-        <p className={styles.eyebrow}>
-          {refunded ? 'Refunded'
-            : sent ? 'On its way'
-            : paid ? 'Paid'
-            : settling ? 'Confirming payment'
-            : 'Not paid yet'}
-        </p>
-        <h1 className={`${styles.title} wide`}>
-          {refunded ? 'This order has been refunded'
-            : sent ? 'Your order is on its way'
-            : paid ? 'Thank you, that is done'
-            : settling ? 'Just confirming with Stripe'
-            : 'This order has not been paid'}
-        </h1>
-        <p className={styles.reference}>
-          Reference <strong data-price>{order.reference}</strong>
-        </p>
+      <header className={styles.hero} data-stage={refunded ? 'refunded' : sent ? 'sent' : paid ? 'paid' : 'pending'}>
+        <div className={styles.heroTop}>
+          <div>
+            <p className={styles.kicker}><stage.Icon size={16} /> {stage.word}</p>
+            <h1 className={`${styles.title} wide`}>{stage.title}</h1>
+          </div>
+          <button type="button" className={styles.reference} onClick={copyReference} aria-label={`Order reference ${order.reference}. Copy it`}>
+            <span className={styles.referenceLabel}>{copied ? 'Copied' : 'Reference'}</span>
+            <span className={styles.referenceCode} data-price>{order.reference}</span>
+            {copied ? <CheckIcon size={15} /> : <FilesIcon size={15} />}
+          </button>
+        </div>
+
+        {(paid || sent) && !refunded && (
+          <div className={styles.journey}>
+            <OrderJourney order={order} />
+          </div>
+        )}
       </header>
 
-      {paid && !sent && !refunded && (
-        <ul className={styles.next}>
-          <li>
-            <MailIcon size={19} />
-            <span>
-              A confirmation is on its way to <strong>{order.email}</strong>. If it
-              is not there in ten minutes, check the spam folder before writing to us.
-            </span>
-          </li>
-          <li>
-            <VanIcon size={19} />
-            <span>
-              Ordered before 2pm on a working day, it goes out the same day. You
-              get a second email with the tracking link when it leaves.
-            </span>
-          </li>
-        </ul>
-      )}
-
-      {sent && !refunded && (
-        <div className={styles.dispatch}>
-          <p className={styles.dispatchLead}>
-            <VanIcon size={19} />
-            Sent on {sentOn}{order.carrier ? ` with ${order.carrier}` : ''}.
-          </p>
-
-          {order.tracking_number && (
-            <p className={styles.trackingNumber}>
-              Tracking <strong data-price>{order.tracking_number}</strong>
+      <div className={styles.body}>
+        <div className={styles.main}>
+          {settling && (
+            <p className={styles.settling} role="status">
+              Stripe has taken the payment and we are waiting for the confirmation to reach us. This page updates on its own. Nothing is wrong and you do not need to pay again.
             </p>
           )}
 
-          {/* Only when there is a real link. A track button that goes nowhere
-              is the fault this page exists to avoid. */}
-          {order.tracking_url && (
-            <a className={styles.track} href={order.tracking_url} target="_blank" rel="noreferrer noopener">
-              Track your parcel <ArrowRightIcon size={16} />
-            </a>
+          {!paid && !settling && !refunded && (
+            <p className={styles.settling}>
+              We have not had a payment confirmation for this order. If you believe you have paid, write to support@cartandkeep.com with the reference above and do not pay again.
+            </p>
           )}
 
-          <p className={styles.dispatchNote}>
-            Most parcels arrive two to three working days after they leave. If it
-            has not turned up by then, write to support@cartandkeep.com with the
-            reference above.
+          {sent && !refunded && (
+            <section className={styles.panel} data-tone="sage" aria-labelledby="order-sent">
+              <h2 id="order-sent" className={styles.panelHead}><VanIcon size={18} /> {dates.due ? `Due ${gift ? `with ${them}` : 'with you'} now` : `Arriving ${windowText(dates.from, dates.to)}`}</h2>
+              <p className={styles.panelBody}>
+                It left us {order.carrier ? `with ${order.carrier} ` : ''}and should arrive {windowText(dates.from, dates.to)}.
+                {' '}If it has not turned up a few working days after that, ask below and we will chase it.
+              </p>
+              {order.tracking_number && (
+                <p className={styles.tracking}>Tracking number <strong data-price>{order.tracking_number}</strong></p>
+              )}
+              {order.tracking_url && (
+                <a className={styles.primary} href={order.tracking_url} target="_blank" rel="noreferrer noopener">
+                  Follow it with {order.carrier || 'the carrier'} <ArrowRightIcon size={16} />
+                </a>
+              )}
+            </section>
+          )}
+
+          {paid && !sent && !refunded && (
+            <section className={styles.panel} aria-labelledby="order-next">
+              <h2 id="order-next" className={styles.panelHead}>What happens now</h2>
+              <ul className={styles.next}>
+                <li>
+                  <MailIcon size={18} />
+                  <span>A confirmation is on its way to <strong>{order.email}</strong>. If it is not there in ten minutes, check the spam folder.</span>
+                </li>
+                <li>
+                  <VanIcon size={18} />
+                  <span>We pack on weekday mornings. Yours should leave us <strong>{formatDay(dates.leaves, dates.todayIso)}</strong>, and a second email with the tracking link follows when it does.</span>
+                </li>
+                {gift && (
+                  <li>
+                    <GiftIcon size={18} />
+                    <span>
+                      A gift, so no prices anywhere in the box{order.gift_message ? ', and your message on the slip' : ''}.
+                      {order.notify_recipient ? ` We will email ${them} when it leaves us, without saying what it is.` : ` We will not contact ${them}.`}
+                    </span>
+                  </li>
+                )}
+              </ul>
+              {gift && order.gift_message && <p className={styles.giftMessage}>{order.gift_message}</p>}
+            </section>
+          )}
+
+          {refunded && (
+            <section className={styles.panel} aria-labelledby="order-refund">
+              <h2 id="order-refund" className={styles.panelHead}><ReturnIcon size={18} /> The money has gone back</h2>
+              <p className={styles.panelBody}>
+                It has gone back to the card you paid with. Refunds usually show within five working days, depending on your bank. If it has not appeared by then, ask below with the reference.
+              </p>
+            </section>
+          )}
+
+          {/* Once it should have arrived: the only place a rating can come from is somebody who received it. */}
+          {dates.due && !refunded && (
+            <section className={styles.panel} data-tone="warm" aria-labelledby="order-review">
+              <h2 id="order-review" className={styles.panelHead}><StarIcon size={18} /> {gift ? `Has it reached ${them}?` : 'Has it arrived?'}</h2>
+              <p className={styles.panelBody}>
+                Tell other shoppers what you think of it. It takes a minute, and the rating on the product page only ever comes from people who bought.
+              </p>
+              <Link className={styles.secondary} to={reviewPath}>Rate what you bought <ArrowRightIcon size={16} /></Link>
+            </section>
+          )}
+
+          {(paid || sent || refunded) && (
+            <div className={styles.conversation}>
+              <Conversation
+                lookup={{ reference: order.reference, token }}
+                heading="Ask about this order"
+                opener="Something not right, or a question about when it arrives? Write it here and it reaches the shop directly. A person reads every one of these."
+              />
+            </div>
+          )}
+
+          <div className={styles.actions}>
+            <Link className={styles.secondary} to={receiptPath}>See or print the receipt</Link>
+            <Link className={styles.quietLink} to={STORE_ROUTES.HOME}>Back to the shop</Link>
+          </div>
+          <p className={styles.keep}>
+            This page is your order. Its link is in your confirmation email, and it stays on this device under Track an order.
           </p>
         </div>
-      )}
 
-      {refunded && (
-        <div className={styles.dispatch}>
-          <p className={styles.dispatchLead}>
-            <ReturnIcon size={19} />
-            The money has gone back to the card you paid with.
-          </p>
-          <p className={styles.dispatchNote}>
-            Refunds usually show within five working days, depending on your
-            bank. If it has not appeared by then, write to us with the reference.
-          </p>
+        <div className={styles.side}>
+          <ParcelLabel
+            gift={gift}
+            deliverTo={gift ? order.recipient_name : order.name}
+            from={firstOf(order.name)}
+            address={address}
+            lines={lines}
+            figures={figures}
+            arrival={null}
+            count={count}
+          />
         </div>
-      )}
-
-      {settling && (
-        <p className={styles.settling}>
-          Stripe has taken the payment and we are waiting for the confirmation to
-          reach us. This page updates on its own. Nothing is wrong and you do not
-          need to pay again.
-        </p>
-      )}
-
-      {!paid && !settling && (
-        <p className={styles.settling}>
-          We have not had a payment confirmation for this order. If you believe
-          you have paid, write to support@cartandkeep.com with the reference
-          above and do not pay again.
-        </p>
-      )}
-
-      <div className={styles.card}>
-        <h2 className={styles.cardHead}>What you ordered</h2>
-        <ul className={styles.items}>
-          {items.map((item) => (
-            <li key={`${item.slug}-${item.title}`}>
-              <span className={styles.thumb}>
-                {item.image_url && <img src={imageAt(item.image_url, 300)} alt="" loading="lazy" />}
-                <span className={styles.qty} data-price>{item.qty}</span>
-              </span>
-              <span className={styles.itemTitle}>
-                {item.slug
-                  ? <Link to={STORE_ROUTES.PRODUCT.replace(':slug', item.slug)}>{item.title}</Link>
-                  : item.title}
-              </span>
-              <span className={styles.itemTotal} data-price>{formatGbp(item.line_total)}</span>
-            </li>
-          ))}
-        </ul>
-
-        <dl className={styles.figures}>
-          <div><dt>Subtotal</dt><dd data-price>{formatGbp(order.subtotal)}</dd></div>
-          <div><dt>Delivery</dt><dd data-price>{Number(order.delivery) === 0 ? 'Free' : formatGbp(order.delivery)}</dd></div>
-          <div className={styles.grand}>
-            <dt>{refunded ? 'Refunded' : paid ? 'Paid' : 'To pay'}</dt>
-            <dd data-price>{formatGbp(order.total)}</dd>
-          </div>
-        </dl>
-
-        <div className={styles.address}>
-          <h3 className={styles.addressHead}>{order.is_gift ? 'A gift, going to' : 'Going to'}</h3>
-          <p>
-            {order.recipient_name || order.name}<br />
-            {order.address?.line1}<br />
-            {order.address?.line2 && <>{order.address.line2}<br /></>}
-            {order.address?.city}<br />
-            {order.address?.postcode}
-          </p>
-        </div>
-
-        {order.is_gift && (
-          <div className={styles.address}>
-            <h3 className={styles.addressHead}>What they will see</h3>
-            <p>
-              No prices anywhere in the box{order.gift_message ? ', and your message on the slip' : ''}.
-              {order.notify_recipient ? ` We will email ${String(order.recipient_name).split(' ')[0]} when it leaves us, without saying what it is.` : ' We will not contact them.'}
-            </p>
-            {order.gift_message && <p className={styles.giftMessage}>{order.gift_message}</p>}
-          </div>
-        )}
-
-        {order.customer_note && (
-          <div className={styles.address}>
-            <h3 className={styles.addressHead}>Your note</h3>
-            <p>{order.customer_note}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Asking about this order, in the place they already come back to.
-          No separate link and no second token: the one in this page's own
-          address is what opens the conversation, which is the whole of the
-          one secret rule. Only once the order is real, because a page that
-          has not found a payment is not a page to start a conversation on. */}
-      {paid && (
-        <Conversation
-          lookup={{ reference: order.reference, token }}
-          heading="Ask about this order"
-          opener="Something not right, or a question about when it arrives? Write it here and it reaches the shop directly. A person reads every one of these."
-        />
-      )}
-
-      <p className={styles.keep}>
-        Keep this page. The link works for as long as the order does, and the
-        reference is what we need if you write to us about it.
-      </p>
-
-      <div className={styles.actions}>
-        <Link className={styles.cta} to={STORE_ROUTES.HOME}>
-          Back to the shop <ArrowRightIcon size={16} />
-        </Link>
-
-        {/* A control rather than a link in the caption above, where it was
-            faint grey inside faint grey and rendering invisibly. The receipt
-            takes the same token, so it is nothing new to keep. */}
-        <Link
-          className={styles.secondary}
-          to={`/receipt/${order.reference}?token=${encodeURIComponent(token)}`}
-        >
-          See or print the receipt
-        </Link>
       </div>
     </section>
   );
+}
+
+// "today" or "Tuesday 29 September", for the sentence about when it leaves.
+function formatDay(iso, todayIso) {
+  if (iso === todayIso) return 'today';
+  return new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${iso}T12:00:00Z`));
 }

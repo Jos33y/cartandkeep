@@ -127,10 +127,13 @@
 /* --- printing ------------------------------------------------------------- */
 
 @media print {
+  /* A receipt-width column in the middle of the sheet, not a till roll stretched across A4. */
   .receipt {
-    max-width: none;
+    max-width: 120mm;
+    margin: 0 auto;
     box-shadow: none;
     animation: none;
+    background: #fff;
     /* Square, because a torn edge is a screen conceit and a printer would
        render it as a white notch. */
     clip-path: none;

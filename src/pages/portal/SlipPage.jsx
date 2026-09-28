@@ -4,6 +4,7 @@ import { Logo } from '@components/ui/shared/Logo';
 import { Icon } from '@components/ui/icons';
 import { supabase } from '@lib/supabase';
 import { useTenant } from '@hooks/useTenant';
+import { stampFor, usePrintName } from '@hooks/usePrintName';
 import { PORTAL_ROUTES, portalPath } from '@utils/constants';
 import styles from '@styles/pages/portal/slip-page.module.css';
 
@@ -100,6 +101,10 @@ export function SlipPage() {
   const { reference } = useParams();
   const [state, setState] = useState({ status: 'loading' });
   const tenant = useTenant();
+  // Saved as "Packing slip CK-3HCV-AB7M Ada Friend 2026-09-28 18-34", so a folder of them sorts and says whose box each is.
+  usePrintName(state.status === 'ready'
+    ? `Packing slip ${state.order.reference} ${state.order.recipient_name || state.order.name || ''} ${stampFor(state.order.paid_at ?? state.order.created_at)}`.replace(/\s+/g, ' ').trim()
+    : null);
 
   useEffect(() => {
     let live = true;

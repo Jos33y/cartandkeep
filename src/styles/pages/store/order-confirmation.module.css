@@ -1,219 +1,171 @@
 .page {
   width: 100%;
-  max-width: 720px;
+  max-width: var(--store-max);
   margin: 0 auto;
-  padding: var(--s-6) var(--s-4) var(--s-8);
+  padding: var(--s-5) var(--s-4) var(--s-8);
 }
 
-@media (min-width: 900px) { .page { padding: var(--s-7) var(--s-5) var(--s-8); } }
+@media (min-width: 900px) { .page { padding: var(--s-6) var(--s-5) var(--s-8); } }
 
-.head { padding-bottom: var(--s-5); }
+/* While the order loads: the shape of the page, quietly. */
+.loading { display: flex; flex-direction: column; gap: var(--s-4); }
+.loading span { display: block; border-radius: var(--r-card); background: var(--c-sunk); animation: pulse 1.4s ease-in-out infinite; }
+.loading span:nth-child(1) { height: 220px; }
+.loading span:nth-child(2) { height: 140px; max-width: 720px; }
+.loading span:nth-child(3) { height: 140px; max-width: 720px; }
+@keyframes pulse { 50% { opacity: 0.55; } }
 
-.eyebrow {
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.14em;
+/* The warm card of the rest of the shop, carrying where the order has got to. */
+.hero {
+  --kraft: #e3d3b6;
+  padding: var(--s-5) var(--s-4);
+  border-radius: var(--r-card);
+  background:
+    radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, var(--kraft) 55%, transparent), transparent 60%),
+    radial-gradient(60% 90% at 0% 100%, color-mix(in srgb, var(--c-sage-deep) 7%, transparent), transparent 70%),
+    var(--c-raised);
+  border: 1px solid var(--c-line);
+}
+
+@media (min-width: 720px) { .hero { padding: var(--s-6); } }
+
+.heroTop { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--s-4); }
+
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--t-caption);
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--c-sage-deep);
 }
 
-.title { margin-top: var(--s-3); font-size: clamp(1.75rem, 4.4vw, 2.5rem); }
-.reference { margin-top: var(--s-3); font-size: var(--t-body); color: var(--c-ink-soft); }
-.reference strong { color: var(--c-ink); font-size: 1.0625rem; }
+.hero[data-stage='pending'] .kicker { color: var(--c-gold-text, #8a6420); }
+.hero[data-stage='refunded'] .kicker { color: var(--c-ink-soft); }
 
-ul.next {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-4);
-  padding: var(--s-5) 0;
-  border-top: 1px solid var(--c-line);
-  border-bottom: 1px solid var(--c-line);
+.title { margin-top: var(--s-2); font-size: clamp(1.9rem, 4.4vw, 2.75rem); line-height: 1.04; color: var(--c-ink); }
+
+/* The reference as a ticket stub: tap to copy, because it is the thing people read down a phone. */
+.reference {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  grid-template-areas: 'label icon' 'code icon';
+  column-gap: var(--s-3);
+  align-items: center;
+  padding: var(--s-2) var(--s-3) var(--s-2) var(--s-4);
+  border-radius: 12px;
+  border: 1.5px dashed var(--c-line-mid);
+  background: var(--c-surface);
+  text-align: left;
+  color: var(--c-ink);
+  transition: border-color 160ms var(--ease);
 }
 
-.next li { display: flex; gap: var(--s-3); align-items: flex-start; }
-.next svg { flex: none; margin-top: 2px; color: var(--c-sage-deep); }
-.next span { font-size: var(--t-body); line-height: 1.6; color: var(--c-ink-soft); }
-.next strong { color: var(--c-ink); font-weight: 500; }
+.reference:hover { border-color: var(--c-ink); }
+.referenceLabel { grid-area: label; font-size: var(--t-micro); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--c-faint); }
+.referenceCode { grid-area: code; font-family: var(--font-display); font-stretch: var(--wide-tight); font-size: 1.125rem; font-weight: 650; letter-spacing: 0.03em; }
+.reference svg { grid-area: icon; color: var(--c-faint); }
 
-/* Gold, not red. Waiting for a webhook is not an error and colouring it like
-   one makes somebody pay twice. */
+.journey { margin-top: var(--s-5); padding-top: var(--s-5); border-top: 1px dashed var(--c-line-mid); }
+
+/* The story on the left, the parcel label on the right from a laptop up. */
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-5);
+  margin-top: var(--s-5);
+  align-items: start;
+}
+
+.side { order: -1; min-width: 0; --checkout-bar-h: var(--store-header-h, 106px); --checkout-foot-h: 0px; }
+
+@media (min-width: 960px) {
+  .body { grid-template-columns: minmax(0, 1fr) 380px; column-gap: var(--s-6); }
+  .side { order: 0; }
+}
+
+@media (min-width: 1180px) { .body { grid-template-columns: minmax(0, 1fr) 400px; column-gap: var(--s-7); } }
+
+.main { min-width: 0; display: flex; flex-direction: column; gap: var(--s-4); }
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-5);
+  border-radius: var(--r-card);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+}
+
+.panel[data-tone='sage'] { background: var(--c-brand-wash); border-color: var(--c-brand-mid); }
+.panel[data-tone='warm'] { background: var(--c-action-wash); border-color: color-mix(in srgb, var(--c-action) 22%, transparent); }
+
+.panelHead { display: flex; align-items: center; gap: var(--s-2); font-size: var(--t-lead); font-weight: 600; color: var(--c-ink); }
+.panelHead svg { flex: none; color: var(--c-sage-deep); }
+.panel[data-tone='warm'] .panelHead svg { color: var(--c-action-text); }
+.panelBody { font-size: var(--t-body); line-height: 1.6; color: var(--c-ink-soft); max-width: 60ch; }
+
+.tracking { font-size: var(--t-body); color: var(--c-ink-soft); }
+.tracking strong { color: var(--c-ink); letter-spacing: 0.04em; }
+
+ul.next { list-style: none; padding: 0; display: flex; flex-direction: column; gap: var(--s-3); }
+.next li { display: flex; gap: var(--s-3); align-items: flex-start; }
+.next svg { flex: none; margin-top: 3px; color: var(--c-sage-deep); }
+.next span { font-size: var(--t-body); line-height: 1.6; color: var(--c-ink-soft); }
+.next strong { color: var(--c-ink); font-weight: 600; }
+
+.giftMessage { padding-left: var(--s-3); border-left: 2px solid var(--c-line-mid); font-style: italic; color: var(--c-ink); white-space: pre-line; }
+
+/* Gold, not red: waiting for a webhook is not an error, and colouring it like one makes somebody pay twice. */
 .settling {
-  margin: var(--s-5) 0;
   padding: var(--s-4);
-  background: var(--c-gold-wash);
-  border: 1px solid var(--c-gold-line);
+  background: var(--c-gold-wash, #f7eedc);
+  border: 1px solid var(--c-gold-line, #ecd9b4);
   border-radius: var(--r-control);
   font-size: 0.9375rem;
   line-height: 1.6;
   color: #5c430f;
 }
 
-/* Sage, because a parcel on its way is good news and the gold panel above it
-   means "we are waiting on something". Two states that feel the same is how
-   somebody reads the wrong one. */
-.dispatch {
-  margin: var(--s-5) 0;
+/* The conversation in a card of its own, with room above it. */
+.conversation {
   padding: var(--s-5);
-  background: var(--c-sage-wash);
-  border: 1px solid var(--c-brand-mid);
   border-radius: var(--r-card);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
 }
 
-.dispatchLead {
-  display: flex;
-  gap: var(--s-3);
-  align-items: center;
-  font-size: 1.0625rem;
-  font-weight: 500;
-  color: #3f5139;
-}
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-5); margin-top: var(--s-2); }
 
-.dispatchLead svg { flex: none; color: var(--c-sage-deep); }
-
-.trackingNumber { margin-top: var(--s-3); font-size: var(--t-body); color: var(--c-ink-soft); }
-.trackingNumber strong { color: var(--c-ink); letter-spacing: 0.03em; }
-
-.track {
-  margin-top: var(--s-4);
+.primary,
+.secondary {
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
   min-height: 48px;
   padding: 0 var(--s-5);
   border-radius: var(--r-control);
-  background: var(--c-sage-deep);
-  color: #fff;
-  font-size: 0.9375rem;
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.dispatchNote {
-  margin-top: var(--s-4);
-  font-size: var(--t-caption);
-  line-height: 1.6;
-  color: #4d6047;
-}
-
-.card {
-  margin-top: var(--s-5);
-  background: var(--c-surface);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-card);
-  padding: var(--s-5);
-}
-
-.cardHead {
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--c-faint);
-  margin-bottom: var(--s-4);
-}
-
-.items { list-style: none; display: flex; flex-direction: column; gap: var(--s-3); }
-.items li { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: var(--s-3); align-items: center; }
-
-.thumb {
-  position: relative;
-  width: 48px;
-  height: 48px;
-  border-radius: var(--r-sm);
-  overflow: hidden;
-  background: var(--c-warm);
-  border: 1px solid var(--c-line);
-}
-
-.thumb img { width: 100%; height: 100%; object-fit: cover; }
-
-.qty {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  min-width: 19px;
-  height: 19px;
-  padding: 0 4px;
-  border-radius: var(--r-full);
-  background: var(--c-ink);
-  color: #fff;
-  font-size: 0.625rem;
-  line-height: 19px;
-  text-align: center;
-}
-
-.itemTitle { font-size: var(--t-body); line-height: 1.4; color: var(--c-ink); }
-.itemTitle a { color: inherit; text-decoration: none; }
-.itemTitle a:hover { color: var(--c-action-text); }
-.itemTotal { font-size: var(--t-body); white-space: nowrap; }
-
-.figures {
-  margin-top: var(--s-4);
-  padding-top: var(--s-4);
-  border-top: 1px solid var(--c-line);
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-}
-
-.figures > div { display: flex; align-items: baseline; justify-content: space-between; }
-.figures dt { font-size: var(--t-body); color: var(--c-ink-soft); }
-.figures dd { font-size: var(--t-body); color: var(--c-ink); }
-.grand { margin-top: var(--s-2); padding-top: var(--s-3); border-top: 1px solid var(--c-line-mid); }
-.grand dt { font-weight: 500; color: var(--c-ink); }
-.grand dd { font-size: 1.25rem; }
-
-.address { margin-top: var(--s-4); padding-top: var(--s-4); border-top: 1px solid var(--c-line); }
-
-.addressHead {
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--c-faint);
-  margin-bottom: var(--s-2);
-}
-
-.address p { font-size: var(--t-body); line-height: 1.6; color: var(--c-ink-soft); }
-
-.body { font-size: var(--t-body); line-height: 1.65; color: var(--c-ink-soft); max-width: 56ch; margin-top: var(--s-3); }
-.quiet { font-size: var(--t-body); color: var(--c-faint); padding: var(--s-7) 0; }
-.keep { margin-top: var(--s-4); font-size: var(--t-caption); color: var(--c-faint); max-width: 56ch; }
-
-.actions { margin-top: var(--s-5); display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: center; }
-
-/* Outlined, because the receipt is worth finding and is not the thing that
-   moves anybody forward. Two solid controls side by side and neither is the
-   primary one. */
-.secondary {
-  display: inline-flex;
-  align-items: center;
-  min-height: 52px;
-  padding: 0 var(--s-5);
-  border: 1px solid var(--c-line-mid);
-  border-radius: var(--r-control);
-  color: var(--c-ink);
   font-size: 1rem;
   font-weight: 500;
   text-decoration: none;
+  transition: background 160ms var(--ease), color 160ms var(--ease), border-color 160ms var(--ease);
 }
 
-.secondary:hover { background: var(--c-warm); }
+.primary { background: var(--c-action-strong); color: var(--c-on-action, #fff); }
+.primary:hover { background: var(--c-action); }
+.secondary { border: 1.5px solid var(--c-ink); color: var(--c-ink); background: transparent; }
+.secondary:hover { background: var(--c-ink); color: var(--c-base); }
 
-.cta {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-  min-height: 52px;
-  padding: 0 var(--s-5);
-  border-radius: var(--r-control);
-  background: var(--c-action-strong);
-  color: #fff;
-  font-size: 1rem;
-  font-weight: 500;
-  text-decoration: none;
+.quietLink { font-size: var(--t-label); color: var(--c-ink-soft); text-decoration: underline; text-decoration-color: var(--c-line-mid); text-underline-offset: 3px; }
+.quietLink:hover { color: var(--c-ink); }
+
+.keep { font-size: var(--t-caption); color: var(--c-faint); max-width: 60ch; }
+
+@media (prefers-reduced-motion: reduce) {
+  .loading span { animation: none; }
+  .reference, .primary, .secondary { transition: none; }
 }
-
-/* Their own words, set as they will read them on the slip. */
-.giftMessage { margin-top: var(--s-2); padding-left: var(--s-3); border-left: 2px solid var(--c-line-mid); font-style: italic; color: var(--c-ink); white-space: pre-line; }

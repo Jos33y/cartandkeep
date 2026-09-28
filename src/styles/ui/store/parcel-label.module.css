@@ -95,7 +95,8 @@
   .label[data-more]::after {
     content: '';
     position: sticky;
-    bottom: 0;
+    /* Past the label's own bottom padding, which the pin measures from, so the fade meets the paper's edge. */
+    bottom: calc(var(--s-4) * -1);
     display: block;
     height: 40px;
     margin-top: -40px;
@@ -323,4 +324,18 @@ ul.lines { list-style: none; display: flex; flex-direction: column; gap: var(--s
 @media (prefers-reduced-motion: reduce) {
   .stamp { animation: none; }
   .code, .to p, .foldTotal svg { transition: none; }
+}
+
+/* The one-line trip, only on laptop windows too short for the three stops. */
+.routeLine { display: none; }
+
+@media (min-width: 960px) and (max-height: 899px) {
+  .route { display: none; }
+  .routeLine {
+    display: block;
+    padding: var(--s-2) 0 0;
+    font-size: var(--t-label);
+    color: var(--c-ink-soft);
+  }
+  .routeLine b { font-weight: 650; color: var(--c-ink); }
 }
