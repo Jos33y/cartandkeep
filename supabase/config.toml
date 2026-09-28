@@ -1,0 +1,66 @@
+# Read by the Supabase CLI when it deploys a function.
+#
+# A CLI deploy sets each function's "Verify JWT" from this file, and a
+# function with no entry is deployed with it on. Every entry below matches the
+# live project as read with `supabase functions list -o json` on 28 September
+# 2026, so deploying any of them with the CLI changes nothing about who can
+# call it. A new function gets its entry here before its first deploy.
+
+project_id = "cartandkeep"
+
+# Stripe sends no JWT. On, and every webhook is refused with 401 and orders
+# stop being marked paid.
+[functions.stripe-webhook]
+verify_jwt = false
+
+# The shop, with the publishable key.
+[functions.checkout]
+verify_jwt = true
+
+[functions.order]
+verify_jwt = true
+
+[functions.thread]
+verify_jwt = true
+
+[functions.review]
+verify_jwt = true
+
+[functions.request]
+verify_jwt = true
+
+[functions.subscribe]
+verify_jwt = true
+
+[functions.feed]
+verify_jwt = true
+
+# The portal with her session, stripe-webhook and the database with the
+# service key, the scheduled jobs with their own secret.
+[functions.notify]
+verify_jwt = true
+
+# The portal, with her session.
+[functions.draft]
+verify_jwt = true
+
+[functions.ebay-oauth]
+verify_jwt = true
+
+[functions.ebay-traffic]
+verify_jwt = true
+
+[functions.ebay-sales]
+verify_jwt = true
+
+[functions.ebay-list]
+verify_jwt = true
+
+[functions.ebay-compose]
+verify_jwt = true
+
+[functions.ebay-item]
+verify_jwt = true
+
+[functions.ebay-import]
+verify_jwt = true

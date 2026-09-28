@@ -9,10 +9,13 @@
  * Not a support route. Somebody with a problem replies to their order email,
  * which reaches her the same day. The page says so.
  *
- * There is no ../_shared import. The dashboard editor deploys one folder, which
- * is what broke cors.ts. The CORS block below is duplicated on purpose.
+ * The email to her comes from ../_shared/email, the same templates as every
+ * other email, so this is deployed with the CLI (supabase functions deploy
+ * request) and not from the dashboard editor, which deploys one folder.
  */
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { shopFrom, wants } from '../_shared/email/index.ts';
+import { send } from '../_shared/email/send.ts';
 
 const ALLOWED = (Deno.env.get('STORE_ORIGINS')
   ?? 'https://cartandkeep.com,https://www.cartandkeep.com,http://localhost:5180,http://127.0.0.1:5180')
@@ -44,7 +47,7 @@ const db = createClient(
 
 const TENANT = Deno.env.get('FEED_TENANT_SLUG') ?? 'cart-and-keep';
 const RESEND_KEY = Deno.env.get('RESEND_API_KEY');
-const FROM = Deno.env.get('MAIL_FROM') ?? 'Cart & Keep <notify@relay.cartandkeep.com>';
+const PORTAL = Deno.env.get('PORTAL_URL') ?? 'https://portal.cartandkeep.com';
 
 const clean = (v: unknown, max: number) => {
   const s = String(v ?? '').replace(/\s+/g, ' ').trim();
@@ -131,23 +134,8 @@ Deno.serve(async (req) => {
 
   if (RESEND_KEY && to && (lastHour ?? 0) <= 20) {
     try {
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: FROM,
-          to,
-          // The ask in the subject line, because this is worth reading on a
-          // phone without opening it.
-          subject: `Someone wants: ${wanted.slice(0, 60)}`,
-          html: `
-            <p style="font-size:16px;margin:0 0 12px;">${escapeHtml(wanted)}</p>
-            ${row.paying ? `<p style="margin:0 0 6px;">They pay about £${row.paying.toFixed(2)} now.</p>` : ''}
-            ${row.seen_at ? `<p style="margin:0 0 6px;">They buy it at ${escapeHtml(row.seen_at)}.</p>` : ''}
-            ${row.email ? `<p style="margin:0 0 6px;">Reply to them: ${escapeHtml(row.email)}</p>` : '<p style="margin:0 0 6px;color:#6B6459;">They left no email, so they can only be answered by the thing appearing.</p>'}
-            ${row.source ? `<p style="margin:12px 0 0;color:#6B6459;font-size:13px;">Asked from ${escapeHtml(row.source)}</p>` : ''}`,
-        }),
-      });
+      // Reply-to is the person who asked, when they left an address, so answering them is one tap.
+      await send(to, wants(row, shopFrom(tenant.store ?? {}, PORTAL)), row.email ?? to);
     } catch (e) {
       console.error('[request] alert', e instanceof Error ? e.message : String(e));
     }
@@ -158,10 +146,4 @@ Deno.serve(async (req) => {
 
 function validEmail(v: string | null) {
   return v && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v : null;
-}
-
-function escapeHtml(s: string) {
-  return String(s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }

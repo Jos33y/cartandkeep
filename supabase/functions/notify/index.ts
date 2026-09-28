@@ -1,8 +1,12 @@
-// Every email the platform sends. Seven kinds: four write an order_emails row, which is
+// Sends every email the platform sends. Seven kinds: four write an order_emails row, which is
 // what makes a resend safe. low_stock and message carry their own guard; pull_alert is the studio's.
-// Schedule 2 wording lives here because a confirmation is the durable medium.
-// CORS is duplicated below: the dashboard editor deploys one folder.
+//
+// What each email says and looks like lives in ../_shared/email, one file per email, with the
+// rights wording there too. This file loads the data, decides who hears what, and records it.
+// Deployed with the CLI (supabase functions deploy notify) so the shared folder comes with it.
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import * as mail from '../_shared/email/index.ts';
+import { FROM, send } from '../_shared/email/send.ts';
 
 const ALLOWED = (Deno.env.get('STORE_ORIGINS')
   ?? 'https://portal.cartandkeep.com,https://cartandkeep.com,http://localhost:5180,http://127.0.0.1:5180')
@@ -29,7 +33,6 @@ function json(body: unknown, status: number, origin: string | null) {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
-const RESEND_KEY = Deno.env.get('RESEND_API_KEY')!;
 
 // Same length and every character compared, so the time taken says nothing about how close a guess was.
 function sameSecret(a: string, b: string) {
@@ -39,7 +42,6 @@ function sameSecret(a: string, b: string) {
   return diff === 0;
 }
 
-const FROM = Deno.env.get('MAIL_FROM') ?? 'Cart & Keep <notify@relay.cartandkeep.com>';
 const PORTAL = Deno.env.get('PORTAL_URL') ?? 'https://portal.cartandkeep.com';
 
 const db = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
@@ -49,468 +51,6 @@ async function storedSchedulerSecret() {
   const { data, error } = await db.from('app_config').select('value').eq('key', 'scheduler_secret').maybeSingle();
   if (error) console.error('[scheduler] secret not readable', error.message);
   return data?.value ?? '';
-}
-
-// --- formatting --------------------------------------------------------------
-
-const money = (n: unknown) => `£${Number(n ?? 0).toFixed(2)}`;
-
-const escape = (s: unknown) => String(s ?? '')
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;');
-
-// Everything else here is a sentence we wrote, so escape is enough. A message is
-// not: three short paragraphs arrive as one run-on line without this.
-const lines = (s: unknown) => escape(s).replace(/\r?\n/g, '<br>');
-
-// London civil time. getUTCHours against a wall clock cutoff told somebody at
-// 14:30 BST their parcel went out today, for seven months of the year.
-const LONDON = 'Europe/London';
-
-function londonParts(d: Date) {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: LONDON,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', hourCycle: 'h23',
-  }).formatToParts(d);
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
-  return { iso: `${get('year')}-${get('month')}-${get('day')}`, hour: Number(get('hour')) };
-}
-
-function longDate(d: Date) {
-  return new Intl.DateTimeFormat('en-GB', {
-    timeZone: LONDON, weekday: 'long', day: 'numeric', month: 'long',
-  }).format(d);
-}
-
-// England and Wales bank holidays. Hand written and dated, because a wrong
-// estimate is worse than a vague one and this list has to be checked each year.
-const HOLIDAYS = new Set([
-  '2026-08-31', '2026-12-25', '2026-12-28',
-  '2027-01-01', '2027-03-26', '2027-03-29', '2027-05-03', '2027-05-31',
-  '2027-12-27', '2027-12-28',
-]);
-
-function isWorking(d: Date) {
-  const { iso } = londonParts(d);
-  // Weekday taken from the London calendar day rather than the instant, so an
-  // order placed at 00:30 BST on a Monday is not read as the Sunday before it.
-  const day = new Date(`${iso}T12:00:00Z`).getUTCDay();
-  if (day === 0 || day === 6) return false;
-  return !HOLIDAYS.has(iso);
-}
-
-function addWorkingDays(from: Date, days: number) {
-  // Anchored at midday rather than stepped from the original instant, so the
-  // two mornings a year when the clocks move cannot skip or repeat a day.
-  const d = new Date(`${londonParts(from).iso}T12:00:00Z`);
-  let left = days;
-  while (left > 0) {
-    d.setUTCDate(d.getUTCDate() + 1);
-    if (isWorking(d)) left -= 1;
-  }
-  return d;
-}
-
-// --- the shell ---------------------------------------------------------------
-
-// Tables and inline styles. Email clients are twenty years behind a browser and
-// no amount of wishing changes it.
-function shell(title: string, body: string) {
-  return `<!doctype html>
-<html lang="en-GB"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width">
-<title>${escape(title)}</title></head>
-<body style="margin:0;padding:0;background:#FAF6EF;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FAF6EF;">
-<tr><td align="center" style="padding:32px 16px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border:1px solid #E6DECF;border-radius:14px;">
-<tr><td style="padding:28px 28px 8px;font:600 17px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#2A2723;letter-spacing:-0.01em;">Cart &amp; Keep</td></tr>
-<tr><td style="padding:0 28px 28px;font:400 15px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#2A2723;">
-${body}
-</td></tr>
-</table>
-</td></tr></table>
-</body></html>`;
-}
-
-const RULE = '<hr style="border:0;border-top:1px solid #E6DECF;margin:24px 0;">';
-
-function itemRows(items: Array<Record<string, unknown>>) {
-  return items.map((i) => `<tr>
-<td style="padding:6px 0;vertical-align:top;">${escape(i.title)}</td>
-<td style="padding:6px 12px;vertical-align:top;text-align:right;white-space:nowrap;color:#5C564D;">${escape(i.qty)}</td>
-<td style="padding:6px 0;vertical-align:top;text-align:right;white-space:nowrap;">${money(i.line_total)}</td>
-</tr>`).join('');
-}
-
-// --- the rights block, which is the statutory part ---------------------------
-
-// Schedule 2 items l, m, o and p, and the Schedule 3 form: a web page is not a durable medium, this email is.
-// Every clause is conditional on the shop having the fact, and matches src/data/legal.js.
-function rightsBlock(
-  items: Array<Record<string, unknown>>,
-  trader: Record<string, unknown>,
-  cfg: Record<string, any>,
-) {
-  const days = Number(cfg.returns?.days ?? 30);
-  const extended = days > 14;
-  const customerPays = cfg.returns?.postage_paid_by === 'customer';
-  const sealed = items.filter((i) => i.returns_class === 'sealed');
-  const sendTo = trader.return_address ?? trader.address;
-
-  const how = trader.address
-    ? `replying to this email or by writing to ${escape(trader.address)}`
-    : 'replying to this email';
-
-  const parts = [
-    `<p style="margin:0 0 12px;">You have 14 days from the day your order arrives to cancel it, for any reason. That is your statutory right${extended ? `, and we extend it to ${days} days on the same terms` : ''}. Tell us by ${how}.</p>`,
-    `<p style="margin:0 0 12px;">Send the goods back${sendTo ? ` to ${escape(sendTo)}` : ''} within 14 days of telling us. ${customerPays ? 'The cost of sending them back is yours, unless they are faulty or not as described.' : 'We pay the return postage.'} You can handle what you receive as you would in a shop; if it has been handled more than that, we may reduce the refund by the value lost.</p>`,
-    `<p style="margin:0 0 12px;">We refund the price you paid, and the delivery charge if the whole order comes back, within 14 days of the goods reaching us or of you showing us proof of postage, whichever is sooner.</p>`,
-  ];
-
-  // 'none' is deliberately not an exception here: an opened consumable is a reduced refund, not a refusal.
-  if (sealed.length) {
-    parts.push(`<p style="margin:0 0 12px;">${sealed.map((i) => escape(i.title)).join(', ')} can be returned within the same ${days} days only while the seal is unbroken. Once opened, the right to cancel does not apply to ${sealed.length > 1 ? 'them' : 'it'}, on health and hygiene grounds, unless faulty.</p>`);
-  }
-
-  parts.push(`<p style="margin:0 0 12px;">None of this affects your right to a refund, repair or replacement if something is faulty or not as described. That right is separate and does not run out when the ${days} days do.</p>`);
-  parts.push(cancellationForm(trader));
-
-  return parts.join('');
-}
-
-// Schedule 3, Part B, filled with the trader's details.
-function cancellationForm(trader: Record<string, unknown>) {
-  const to = [identity(trader), trader.address, trader.email].filter(Boolean).map((l) => escape(l)).join(', ');
-  const lines = [
-    'I/We* hereby give notice that I/We* cancel my/our* contract of sale of the following goods:',
-    'Order reference:',
-    'Ordered on* / received on*:',
-    'Name of consumer(s):',
-    'Address of consumer(s):',
-    'Signature of consumer(s) (only if this form is sent on paper):',
-    'Date:',
-  ];
-  return `<div style="margin:16px 0 0;padding:16px;border:1px solid #E6DECF;border-radius:10px;font-size:13px;line-height:1.7;color:#5C564D;">
-<p style="margin:0 0 8px;font-weight:600;color:#2A2723;">Cancellation form</p>
-<p style="margin:0 0 8px;">Complete and return this only if you want to cancel. You can also just reply to this email.</p>
-${to ? `<p style="margin:0 0 8px;">To: ${to}</p>` : ''}
-${lines.map((l) => `<p style="margin:0;">${escape(l)}</p>`).join('')}
-<p style="margin:8px 0 0;font-size:12px;">* Delete as appropriate.</p>
-</div>`;
-}
-
-// "Jane Smith, trading as Corner Shop". Mirrors traderIdentity in src/data/legal.js.
-function identity(t: Record<string, unknown>) {
-  if (!t.legal_name) return t.trading_as ?? null;
-  const as = t.trading_as && t.trading_as !== t.legal_name ? `, trading as ${t.trading_as}` : '';
-  return t.company_number ? `${t.legal_name}, company number ${t.company_number}${as}` : `${t.legal_name}${as}`;
-}
-
-// Schedule 2 items b and c. Whatever is present, never a placeholder: TO CONFIRM
-// in a legal block is worse than an absent line.
-function traderBlock(trader: Record<string, unknown>) {
-  const lines = [identity(trader), trader.address, trader.email]
-    .filter(Boolean).map((l) => escape(l));
-
-  if (!lines.length) return '';
-  return `<p style="margin:16px 0 0;font-size:13px;color:#857D70;">${lines.join(' · ')}</p>`;
-}
-
-const identityComplete = (t: Record<string, unknown>) =>
-  Boolean(t.legal_name && t.address);
-
-// --- templates ---------------------------------------------------------------
-
-// Whose name goes on the parcel: the recipient's on a gift, the buyer's otherwise.
-const deliverTo = (order: any) => order.recipient_name || order.name;
-const firstName = (n: unknown) => String(n ?? '').trim().split(/\s+/)[0] || null;
-
-function addressLine(order: any) {
-  return [deliverTo(order), order.address?.line1, order.address?.line2,
-    order.address?.city, order.address?.postcode].filter(Boolean).map(escape).join(', ');
-}
-
-// Said once in the buyer's receipt, so they know exactly what the recipient will and will not see.
-function giftNote(order: any) {
-  if (!order.is_gift) return '';
-  const who = escape(firstName(order.recipient_name) ?? 'them');
-  const parts = [`It is a gift, so the slip in the box carries no prices${order.gift_message ? ', only your message' : ''}.`];
-  if (order.notify_recipient) parts.push(`We will email ${who} when it leaves us, without saying what it is.`);
-  return `<p style="margin:12px 0 0;color:#5C564D;">${parts.join(' ')}</p>`;
-}
-
-function confirmation(order: any, trader: any, cfg: any) {
-  const now = new Date();
-  const cutoff = Number(cfg.delivery?.cutoff_hour ?? 14);
-
-  // A day name rather than a duration: "2 to 3 days" makes somebody count.
-  const outDay = (isWorking(now) && londonParts(now).hour < cutoff)
-    ? now : addWorkingDays(now, 1);
-  const arrive = addWorkingDays(outDay, Number(cfg.delivery?.transit_max ?? 3));
-
-  const outWord = londonParts(outDay).iso === londonParts(now).iso
-    ? 'today' : longDate(outDay);
-  const outcode = String(order.address?.postcode ?? '').split(' ')[0];
-
-  const address = addressLine(order);
-
-  const body = `
-<p style="margin:0 0 20px;font-size:16px;">Paid. We pack on weekday mornings, so this goes out ${escape(outWord)} and should reach ${escape(outcode || 'you')} by ${escape(longDate(arrive))}.</p>
-
-<p style="margin:0 0 8px;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:#857D70;">Order ${escape(order.reference)}</p>
-
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:15px;border-collapse:collapse;">
-${itemRows(order.items)}
-<tr><td colspan="2" style="padding:10px 0 6px;border-top:1px solid #E6DECF;color:#5C564D;">Delivery</td><td style="padding:10px 0 6px;border-top:1px solid #E6DECF;text-align:right;">${money(order.delivery)}</td></tr>
-<tr><td colspan="2" style="padding:0;font-weight:600;">Total</td><td style="padding:0;text-align:right;font-weight:600;">${money(order.total)}</td></tr>
-</table>
-
-<p style="margin:20px 0 0;color:#5C564D;">Going to ${address}. Reply to this email if any of that is wrong and we will fix it before it goes.</p>
-${giftNote(order)}
-
-${RULE}
-
-<p style="margin:0 0 12px;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:#857D70;">Your rights</p>
-${rightsBlock(order.items, trader, cfg)}
-${traderBlock(trader)}`;
-
-  return {
-    to: order.email,
-    subject: `Order ${order.reference} is paid`,
-    html: shell(`Order ${order.reference} is paid`, body),
-  };
-}
-
-function sellerAlert(order: any, trader: any) {
-  const outcode = String(order.address?.postcode ?? '').split(' ')[0];
-  const units = order.items.reduce((n: number, i: any) => n + Number(i.qty ?? 0), 0);
-
-  const address = [deliverTo(order), order.address?.line1, order.address?.line2,
-    order.address?.city, order.address?.postcode]
-    .filter(Boolean).map((l: string) => `${escape(l)}<br>`).join('');
-
-  // A gift changes what she packs: no prices in the box, and the message on the slip.
-  const giftBlock = order.is_gift
-    ? `<p style="margin:0 0 16px;padding:12px;background:#F4EFE5;color:#2A2723;font-size:14px;">A gift from ${escape(order.name ?? 'the buyer')}. Pack the slip, never the receipt.${order.gift_message ? `<br><br>Their message, printed on the slip:<br><em>${escape(order.gift_message)}</em>` : ''}</p>`
-    : '';
-
-  // The subject carries the whole thing, because she reads this between other
-  // work and should not have to open it to know what happened.
-  const warning = identityComplete(trader) ? '' :
-    `<p style="margin:0 0 16px;padding:12px;background:#FAEEE9;color:#AD5438;font-size:14px;">The confirmation went out without your trading name and address. Those are required on it. Fill them in and the next one is complete.</p>`;
-
-  // Anything that went below zero, named, so she knows before the customer does.
-  const oversold = order.items.filter((i: any) => typeof i.stock === 'number' && i.stock < 0);
-  const oversoldBlock = oversold.length
-    ? `<p style="margin:0 0 16px;padding:12px;background:#FAEEE9;color:#AD5438;font-size:14px;">Sold more than you have of ${oversold.map((i: any) => `${escape(i.title)} (${i.stock} left)`).join(', ')}. Somebody else has bought the same item. Refund one of them from Stripe, or tell them it is on its way when you restock.</p>`
-    : '';
-
-  const body = `${warning}${oversoldBlock}${giftBlock}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:15px;">
-${itemRows(order.items)}
-</table>
-<p style="margin:20px 0 0;">${address}</p>
-<p style="margin:16px 0 0;"><a href="${PORTAL}/orders" style="color:#AD5438;">Open it in the portal</a></p>`;
-
-  return {
-    to: null, // filled by the caller from the tenant's own address
-    subject: `Sale: ${money(order.total)}, ${order.reference}, ${units} ${units === 1 ? 'item' : 'items'} to ${outcode}${order.is_gift ? ', a gift' : ''}`,
-    html: shell(`Sale ${order.reference}`, body),
-  };
-}
-
-function dispatch(order: any, cfg: any) {
-  const arrive = addWorkingDays(new Date(), Number(cfg.delivery?.transit_max ?? 3));
-  const chase = addWorkingDays(arrive, 3);
-
-  // No repeat of the rights block. They already have it, and a second copy
-  // trains people to ignore both.
-  const body = `
-<p style="margin:0 0 16px;font-size:16px;">It left today${order.carrier ? ` by ${escape(order.carrier)}` : ''}.</p>
-${order.tracking_number ? `<p style="margin:0 0 8px;">Tracking: ${escape(order.tracking_number)}</p>` : ''}
-${order.tracking_url ? `<p style="margin:0 0 8px;"><a href="${escape(order.tracking_url)}" style="color:#AD5438;">Follow it on the carrier's site</a></p>` : ''}
-<p style="margin:16px 0 0;">It should reach ${order.is_gift ? escape(firstName(order.recipient_name) ?? 'them') : 'you'} by ${escape(longDate(arrive))}. If it has not arrived by ${escape(longDate(chase))}, reply to this email and we will chase it.</p>`;
-
-  return {
-    to: order.email,
-    subject: `Order ${order.reference} is on its way`,
-    html: shell(`Order ${order.reference} is on its way`, body),
-  };
-}
-
-/*
- * The one email a gift's recipient can get, and only when the buyer asked.
- *
- * No prices, no list of what is inside, and no receipt: it says who sent
- * something and when it should arrive, so the surprise is the parcel.
- */
-function recipientDispatch(order: any, cfg: any) {
-  const arrive = addWorkingDays(new Date(), Number(cfg.delivery?.transit_max ?? 3));
-  const from = escape(firstName(order.name) ?? 'Someone');
-  const body = `
-<p style="margin:0 0 16px;font-size:16px;">${from} has sent you something from Cart &amp; Keep.</p>
-<p style="margin:0 0 16px;">It left us today and should reach you by ${escape(longDate(arrive))}.</p>
-${order.tracking_url ? `<p style="margin:0 0 16px;"><a href="${escape(order.tracking_url)}" style="color:#AD5438;">Follow the parcel</a></p>` : ''}
-<p style="margin:0;font-size:13px;color:#6B6459;">We only have your email because ${from} asked us to tell you it was coming. We will not use it again.</p>`;
-  return {
-    to: order.recipient_email,
-    subject: `Something is on its way to you from ${firstName(order.name) ?? 'a friend'}`,
-    html: shell('Something is on its way', body),
-  };
-}
-
-// Seven days after dispatch, not after payment, so it asks about a thing they
-// have actually held.
-function reviewRequest(order: any, cfg: any) {
-  const site = cfg.domain ? `https://${cfg.domain}` : 'https://cartandkeep.com';
-  const link = `${site}/review/${encodeURIComponent(order.reference)}?token=${encodeURIComponent(order.access_token)}`;
-
-  // Named, so the ask is about a thing rather than an order number.
-  const items = order.items ?? [];
-  const named = items.slice(0, 2).map((i: any) =>
-    escape(i.variant_label ? `${i.title}, ${i.variant_label}` : i.title));
-  const rest = items.length - named.length;
-
-  // Comma before the remainder, not a second "and".
-  const what = named.length
-    ? `${named.join(' and ')}${rest > 0 ? `, and the ${rest === 1 ? 'other one' : `other ${rest}`}` : ''}`
-    : 'what you ordered';
-
-  const body = `
-<p style="margin:0 0 16px;font-size:16px;">Your order should have arrived by now. How did you get on with ${what}?</p>
-<p style="margin:0 0 20px;">It takes a minute, and it is the sort of thing that decides whether the next person buys. Stars are enough. Words are a bonus.</p>
-<p style="margin:0 0 20px;">
-  <a href="${escape(link)}" style="display:inline-block;background:#BA5A3D;color:#ffffff;padding:12px 20px;border-radius:3px;text-decoration:none;font-weight:500;">Say how it went</a>
-</p>
-<p style="margin:0;font-size:13px;color:#6B6459;">Nothing goes on the shop until it has been read. If something went wrong instead, reply to this email and it gets sorted rather than published.</p>`;
-
-  return {
-    to: order.email,
-    // Not "Leave a review", which reads as a demand from a company. This is a
-    // question, and a question is answerable.
-    subject: `How was it?`,
-    html: shell('How was it?', body),
-  };
-}
-
-// For the studio, not the shop: a morning pull that failed, or started working again. One per change.
-const PULL_NAMES: Record<string, string> = { ebay_traffic: 'eBay traffic', ebay_sales: 'eBay sales' };
-
-function pullAlert(a: { tenant: string; source: string; state: string; error?: string | null; last_ok_at?: string | null }) {
-  const what = PULL_NAMES[a.source] ?? a.source;
-  const recovered = a.state === 'recovered';
-  // "Fri 25 Sept, 08:02": parts joined by hand, because en-GB puts a comma after the weekday.
-  const part = (d: Date, t: string) => new Intl.DateTimeFormat('en-GB', { timeZone: LONDON, weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
-    .formatToParts(d).find((p) => p.type === t)?.value ?? '';
-  const at = a.last_ok_at ? new Date(a.last_ok_at) : null;
-  const last = at ? `${part(at, 'weekday')} ${part(at, 'day')} ${part(at, 'month')}, ${part(at, 'hour')}:${part(at, 'minute')}` : null;
-  const reconnect = /reconnect/i.test(a.error ?? '');
-
-  const body = recovered
-    ? `
-<p style="margin:0 0 16px;font-size:16px;">${escape(what)} for ${escape(a.tenant)} is updating again.</p>
-<p style="margin:0;font-size:13px;color:#6B6459;">Nothing to do. You will hear again only if it stops.</p>`
-    : `
-<p style="margin:0 0 16px;font-size:16px;">${escape(what)} for ${escape(a.tenant)} did not update this morning.</p>
-<p style="margin:0 0 8px;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:#857D70">Reason</p>
-<p style="margin:0 0 20px;font-size:15px;">${escape(a.error ?? 'No reason was recorded.')}</p>
-<p style="margin:0 0 20px;font-size:15px;">${last ? `Last successful update: ${escape(last)}.` : 'It has not updated successfully yet.'} The portal shows those figures until the next pull works.</p>
-<p style="margin:0 0 20px;">
-  <a href="${escape(PORTAL)}/${reconnect ? 'settings' : 'ebay/traffic'}" style="color:#AD5438;">${reconnect ? 'Open Settings to reconnect eBay' : 'Open the portal'}</a>
-</p>
-<p style="margin:0;font-size:13px;color:#6B6459;">You will not get this again while it keeps failing. You will get one email when it works again.</p>`;
-
-  return {
-    subject: recovered
-      ? `${a.tenant}: ${what} is updating again`
-      : `${a.tenant}: ${what} did not update this morning`,
-    html: shell(recovered ? `${what} is updating again` : `${what} did not update`, body),
-  };
-}
-
-// One email per drop rather than one per order, which is what store_stock_alerts
-// is for.
-function lowStock(items: any[]) {
-  const rows = items.map((i: any) => `
-    <tr>
-      <td style="padding:6px 0;border-bottom:1px solid #E8E0D3;">${escape(i.label ? `${i.title}, ${i.label}` : i.title)}</td>
-      <td style="padding:6px 0;border-bottom:1px solid #E8E0D3;text-align:right;">${Number(i.stock)} left</td>
-    </tr>`).join('');
-
-  const body = `
-<p style="margin:0 0 16px;font-size:16px;">${items.length === 1 ? 'One thing is' : `${items.length} things are`} nearly out.</p>
-<table style="width:100%;border-collapse:collapse;font-size:15px;margin:0 0 20px;">${rows}</table>
-<p style="margin:0 0 20px;">
-  <a href="${escape(PORTAL)}/products?filter=live" style="color:#AD5438;">Open Products</a>
-</p>
-<p style="margin:0;font-size:13px;color:#6B6459;">You will not get this again for the same thing until it has been restocked and runs low a second time. Anything you have not put a count against is left alone.</p>`;
-
-  // No `to`. The caller supplies the trader address, so this function cannot
-  // accidentally send a stock report to a shopper.
-  return {
-    subject: items.length === 1
-      ? `Nearly out: ${escape(items[0].label ? `${items[0].title}, ${items[0].label}` : items[0].title).slice(0, 60)}`
-      : `${items.length} things are nearly out`,
-    html: shell('Nearly out', body),
-  };
-}
-
-// Reply-to is the shop's own address. An email answered directly never reaches
-// the thread, so the record splits and the median stops measuring anything.
-function messageToShop(thread: any, message: any, about: string, basketBlock = '') {
-  const body = `
-<p style="margin:0 0 8px;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:#857D70">${escape(about)}</p>
-${basketBlock}
-<p style="margin:0 0 20px;font-size:16px;line-height:1.6;">${lines(message.body)}</p>
-<p style="margin:0 0 20px;color:#5C564D;">From ${escape(thread.name || thread.email)}.</p>
-<p style="margin:0 0 20px;">
-  <a href="${escape(PORTAL)}/messages" style="display:inline-block;background:#BA5A3D;color:#ffffff;padding:12px 20px;border-radius:3px;text-decoration:none;font-weight:500;">Answer it</a>
-</p>
-<p style="margin:0;font-size:13px;color:#6B6459;">Answer in the portal rather than by replying here, so your reply reaches them and stays with the conversation.</p>`;
-
-  return {
-    subject: `Question about ${about}`,
-    html: shell(`Question about ${about}`, body),
-  };
-}
-
-// The acknowledgement goes once, on the first message: it carries the only route
-// back to the conversation. It answers nothing, so it is not an automated reply.
-function messageToCustomer(
-  thread: any, message: any, link: string, about: string, first: boolean, offer: any = null,
-) {
-  // The figure and the date it runs to, and nothing else. A former price beside it
-  // turns a price given to one person into a price claim about the shop.
-  const price = offer ? `
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 20px;">
-<tr><td style="padding:14px 16px;background:#EEF2EC;border-radius:3px;">
-<p style="margin:0 0 4px;font-size:20px;font-weight:500;color:#2A2723;">${money(offer.price)} for this</p>
-<p style="margin:0;font-size:14px;color:#5C564D;">Yours until ${escape(new Date(offer.expires_at).toLocaleDateString('en-GB', { timeZone: 'Europe/London', weekday: 'long', day: 'numeric', month: 'long' }))}. Open the conversation to take it.</p>
-</td></tr></table>` : '';
-
-  const body = first
-    ? `
-<p style="margin:0 0 16px;font-size:16px;">We have your question about ${escape(about)}.</p>
-<p style="margin:0 0 20px;">A person reads every one of these and answers it themselves, so this is not an automatic answer and there will be a real one. You will get an email when it is there.</p>
-<p style="margin:0 0 20px;">
-  <a href="${escape(link)}" style="display:inline-block;background:#BA5A3D;color:#ffffff;padding:12px 20px;border-radius:3px;text-decoration:none;font-weight:500;">See your question</a>
-</p>
-<p style="margin:0;font-size:13px;color:#6B6459;">Keep this email. That link is the way back to the conversation, and only you have it.</p>`
-    : `
-<p style="margin:0 0 8px;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:#857D70">${escape(about)}</p>
-<p style="margin:0 0 20px;font-size:16px;line-height:1.6;">${lines(message.body)}</p>
-${price}
-<p style="margin:0 0 20px;">
-  <a href="${escape(link)}" style="display:inline-block;background:#BA5A3D;color:#ffffff;padding:12px 20px;border-radius:3px;text-decoration:none;font-weight:500;">${offer ? 'Take this price' : 'Write back'}</a>
-</p>
-<p style="margin:0;font-size:13px;color:#6B6459;">Only you have that link. Nothing in the conversation appears anywhere else on the shop.</p>`;
-
-  return {
-    subject: first ? `We have your question` : `About ${about}`,
-    html: shell(first ? 'We have your question' : `About ${about}`, body),
-  };
 }
 
 // The tenant comes off the thread rather than off a slug, or client two sends
@@ -538,7 +78,7 @@ async function loadMessage(messageId: string) {
   let product = null;
   if (thread.product_id) {
     const { data } = await db.from('store_products')
-      .select('title').eq('id', thread.product_id).maybeSingle();
+      .select('title, image_url, price, stock').eq('id', thread.product_id).maybeSingle();
     product = data ?? null;
   }
 
@@ -566,24 +106,7 @@ async function loadMessage(messageId: string) {
   return { message, thread, cfg: tenant?.store ?? {}, product, order, offer: offer ?? null, count: count ?? 0 };
 }
 
-// --- sending -----------------------------------------------------------------
-
-async function send(to: string, subject: string, html: string, replyTo: string, from = FROM) {
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${RESEND_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ from, to, subject, html, reply_to: replyTo }),
-  });
-
-  const payload = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(payload?.message ?? `Resend ${res.status}`);
-  return String(payload?.id ?? '');
-}
-
-// access_token is for the review link only and is never in a confirmation body.
+// access_token builds the order, receipt and review links. It goes only to the buyer's own address.
 // No comments inside the select: the text goes to the database, which rejects them.
 async function loadOrder(orderId: string) {
   const { data, error } = await db
@@ -592,9 +115,9 @@ async function loadOrder(orderId: string) {
       id, tenant_id, reference, status, email, name, phone, address,
       is_gift, recipient_name, recipient_email, notify_recipient, gift_message,
       subtotal, delivery, total, carrier, tracking_number, tracking_url,
-      dispatched_at,
+      created_at, paid_at, dispatched_at,
       access_token,
-      order_items ( title, qty, unit_price, line_total, product_id, variant_label )
+      order_items ( title, qty, unit_price, line_total, product_id, variant_label, image_url )
     `)
     .eq('id', orderId)
     .single();
@@ -660,7 +183,7 @@ Deno.serve(async (req) => {
   }
   if (!allowed) return json({ error: 'Not authorised' }, 401, origin);
 
-  let body: { orderId?: string; kind?: string; resend?: boolean };
+  let body: { orderId?: string; kind?: string; resend?: boolean; items?: any[]; messageId?: string };
   try { body = await req.json(); } catch { return json({ error: 'Bad body' }, 400, origin); }
 
   const { orderId, kind, resend } = body;
@@ -680,9 +203,20 @@ Deno.serve(async (req) => {
     const to = tenant?.store?.email ?? tenant?.store?.trader?.email;
     if (!to) return json({ error: 'No address to send to' }, 409, origin);
 
-    const mail = lowStock(items);
+    // A photo beside each name, off the variant when it has its own.
+    const pids = items.map((i: any) => i.product_id).filter(Boolean);
+    const vids = items.map((i: any) => i.variant_id).filter(Boolean);
+    const [{ data: ps }, { data: vs }] = await Promise.all([
+      pids.length ? db.from('store_products').select('id, image_url').in('id', pids) : Promise.resolve({ data: [] }),
+      vids.length ? db.from('store_variants').select('id, image_url').in('id', vids) : Promise.resolve({ data: [] }),
+    ]);
+    const pImg = new Map((ps ?? []).map((p: any) => [p.id, p.image_url]));
+    const vImg = new Map((vs ?? []).map((v: any) => [v.id, v.image_url]));
+    const shown = items.map((i: any) => ({ ...i, image_url: vImg.get(i.variant_id) ?? pImg.get(i.product_id) ?? null }));
+
+    const m = mail.stock(shown, mail.shopFrom(tenant?.store ?? {}, PORTAL));
     try {
-      const providerId = await send(to, mail.subject, mail.html, to);
+      const providerId = await send(to, m, to);
       return json({ sent: 'low_stock', count: items.length, id: providerId }, 200, origin);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -704,9 +238,9 @@ Deno.serve(async (req) => {
 
     // Same verified address as every other email, under a name that reads as an alert rather than the shop.
     const address = FROM.match(/<([^>]+)>/)?.[1] ?? FROM;
-    const mail = pullAlert({ tenant: a.tenant, source: a.source, state: a.state, error: a.error, last_ok_at: a.last_ok_at });
+    const m = mail.pull({ tenant: a.tenant, source: a.source, state: a.state, error: a.error, last_ok_at: a.last_ok_at }, mail.shopFrom({}, PORTAL));
     try {
-      const providerId = await send(to, mail.subject, mail.html, to, `${a.tenant} alerts <${address}>`);
+      const providerId = await send(to, m, to, `${a.tenant} alerts <${address}>`);
       return json({ sent: 'pull_alert', id: providerId }, 200, origin);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -739,68 +273,36 @@ Deno.serve(async (req) => {
       // stops reading.
       if (message.sent_at && !resend) return json({ skipped: 'already sent' }, 200, origin);
 
-      const site = cfg.domain ? `https://${cfg.domain}` : 'https://cartandkeep.com';
-      const trader = cfg.trader ?? {};
-      const shopAddress = String(cfg.email ?? trader.email ?? 'support@cartandkeep.com');
+      const shop = mail.shopFrom(cfg, PORTAL);
+      const shopAddress = String(cfg.email ?? shop.trader.email ?? 'support@cartandkeep.com');
 
-      // A basket has no title, so it is named by what is in it.
-      const basketLines = Array.isArray(thread.basket) ? thread.basket : null;
-      const basketAbout = basketLines?.length
-        ? `a basket of ${basketLines.reduce((n: number, l: any) => n + Number(l.qty ?? 0), 0)} ${
-          basketLines.reduce((n: number, l: any) => n + Number(l.qty ?? 0), 0) === 1 ? 'thing' : 'things'}, ${
-          money(basketLines.reduce((n: number, l: any) => n + Number(l.qty ?? 0) * Number(l.price ?? 0), 0))}`
-        : null;
-
-      const about = product?.title
-        ?? basketAbout
-        ?? (order?.reference ? `order ${order.reference}` : 'the shop');
-
-      // No total. With a price quoted, a total in the subject puts the higher
-      // figure directly above the lower one. Found by rendering, not reading.
-      const units = basketLines?.reduce((n: number, l: any) => n + Number(l.qty ?? 0), 0) ?? 0;
-      const theirAbout = product?.title
-        ?? (basketLines?.length ? `a basket of ${units} ${units === 1 ? 'thing' : 'things'}` : null)
-        ?? (order?.reference ? `order ${order.reference}` : 'the shop');
-
-      // What she is being asked about, listed, so she can answer without
-      // opening the portal to find out what the four things were.
-      const basketBlock = basketLines?.length
-        ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:15px;border-collapse:collapse;margin:0 0 20px;">${
-          basketLines.map((l: any) => `<tr>
-<td style="padding:6px 0;border-bottom:1px solid #E8E0D3;">${escape(l.variant_label ? `${l.title}, ${l.variant_label}` : l.title)}</td>
-<td style="padding:6px 12px;border-bottom:1px solid #E8E0D3;text-align:right;color:#5C564D;white-space:nowrap;">${escape(l.qty)}</td>
-<td style="padding:6px 0;border-bottom:1px solid #E8E0D3;text-align:right;white-space:nowrap;">${money(Number(l.qty) * Number(l.price))}</td>
-</tr>`).join('')}</table>`
-        : '';
+      // What it is about: one product, a basket (named by what is in it), or an order.
+      const topic = {
+        product,
+        basket: Array.isArray(thread.basket) && thread.basket.length ? thread.basket : null,
+        order,
+      };
 
       // An order thread is reached on the order page with the token the confirmation
       // already carried. Everything else with its own.
       const link = thread.order_id && order
-        ? `${site}/order/${encodeURIComponent(order.reference)}?token=${encodeURIComponent(order.access_token)}`
-        : `${site}/thread/${thread.id}?token=${encodeURIComponent(thread.access_token ?? '')}`;
+        ? `${shop.site}/order/${encodeURIComponent(order.reference)}?token=${encodeURIComponent(order.access_token)}`
+        : `${shop.site}/thread/${thread.id}?token=${encodeURIComponent(thread.access_token ?? '')}`;
 
-      const sends: Array<{ to: string; mail: { subject: string; html: string } }> = [];
+      const sends: Array<{ to: string; m: mail.Mail }> = [];
 
       if (message.sender === 'customer') {
-        sends.push({ to: shopAddress, mail: messageToShop(thread, message, about, basketBlock) });
+        sends.push({ to: shopAddress, m: mail.toShop(message, thread, topic, shop) });
 
         // The acknowledgement, once, on the first thing said. Later messages
         // in the same thread get nothing, because they already hold the link.
-        if (count <= 1) {
-          sends.push({
-            to: thread.email,
-            mail: messageToCustomer(thread, message, link, theirAbout, true),
-          });
-        }
+        if (count <= 1) sends.push({ to: thread.email, m: mail.asked(message, topic, link, shop) });
       } else {
-        sends.push({
-          to: thread.email,
-          mail: messageToCustomer(thread, message, link, theirAbout, false, offer),
-        });
+        sends.push({ to: thread.email, m: mail.reply(message, topic, link, offer, shop) });
       }
 
       let last = '';
-      for (const s of sends) last = await send(s.to, s.mail.subject, s.mail.html, shopAddress);
+      for (const s of sends) last = await send(s.to, s.m, shopAddress);
 
       await db.from('store_messages')
         .update({ sent_at: new Date().toISOString(), sent_via: 'email', send_error: null })
@@ -863,19 +365,20 @@ async function sendOrderMail(orderId: string, kind: string, resend?: boolean): P
       return { status: 200, body: { skipped: 'not asked for' } };
     }
 
-    let mail;
-    if (kind === 'confirmation') mail = confirmation(order, trader, cfg);
-    else if (kind === 'recipient_dispatch') mail = recipientDispatch(order, cfg);
-    else if (kind === 'dispatch') mail = dispatch(order, cfg);
-    else if (kind === 'review_request') mail = reviewRequest(order, cfg);
-    else {
-      mail = sellerAlert(order, trader);
-      mail.to = replyTo;
-    }
+    const shop = mail.shopFrom(cfg, PORTAL);
+    const pick: Record<string, () => { to: string | null; m: mail.Mail }> = {
+      confirmation: () => ({ to: order.email, m: mail.confirmation(order, shop) }),
+      dispatch: () => ({ to: order.email, m: mail.dispatch(order, shop) }),
+      recipient_dispatch: () => ({ to: order.recipient_email, m: mail.recipient(order, shop) }),
+      review_request: () => ({ to: order.email, m: mail.review(order, shop) }),
+      // To the shop's own address, never one that came in with the order.
+      seller_alert: () => ({ to: replyTo, m: mail.sale(order, shop) }),
+    };
+    const { to, m } = pick[kind]();
 
-    if (!mail.to) return { status: 400, body: { error: 'No recipient' } };
+    if (!to) return { status: 400, body: { error: 'No recipient' } };
 
-    const providerId = await send(mail.to, mail.subject, mail.html, replyTo);
+    const providerId = await send(to, m, replyTo);
 
     // Upsert, so a success after an earlier failed attempt replaces that row rather than
     // colliding with it, and the result is read: an unrecorded send is sent again next time.
@@ -883,9 +386,9 @@ async function sendOrderMail(orderId: string, kind: string, resend?: boolean): P
       tenant_id: order.tenant_id,
       order_id: order.id,
       kind,
-      recipient: mail.to,
-      subject: mail.subject,
-      identity_complete: identityComplete(trader),
+      recipient: to,
+      subject: m.subject,
+      identity_complete: mail.identityComplete(trader),
       provider_id: providerId,
       status: 'sent',
       error: null,

@@ -12,7 +12,8 @@
     "pipeline": "node pipeline/run.js",
     "seed": "node pipeline/seed.js",
     "seed:clear": "node pipeline/seed.js --clear",
-    "zik:tidy": "node pipeline/tidy-zik.js"
+    "zik:tidy": "node pipeline/tidy-zik.js",
+    "email:preview": "npx -y deno run --allow-read --allow-write scripts/email/preview.ts"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "^5.3.0",

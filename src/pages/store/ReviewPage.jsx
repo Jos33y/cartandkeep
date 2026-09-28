@@ -74,8 +74,9 @@ function StarPicker({ value, onChange, id }) {
   );
 }
 
-function Item({ item, reference, token, onDone }) {
-  const [rating, setRating] = useState(item.review?.rating ?? 0);
+function Item({ item, reference, token, onDone, start = 0 }) {
+  // A star tapped in the email arrives as ?rating=, and starts every item not yet reviewed at it.
+  const [rating, setRating] = useState(item.review?.rating ?? start);
   const [title, setTitle] = useState(item.review?.title ?? '');
   const [body, setBody] = useState(item.review?.body ?? '');
   const [author, setAuthor] = useState(item.review?.author ?? '');
@@ -188,6 +189,8 @@ export function ReviewPage() {
   const { reference } = useParams();
   const [params] = useSearchParams();
   const token = params.get('token') ?? '';
+  const asked = Number(params.get('rating'));
+  const start = Number.isInteger(asked) && asked >= 1 && asked <= 5 ? asked : 0;
 
   const [state, setState] = useState({ status: 'loading', data: null, error: null });
 
@@ -238,7 +241,7 @@ export function ReviewPage() {
 
           <ul className={styles.items}>
             {state.data.items.map((item) => (
-              <Item key={item.id} item={item} reference={reference} token={token} />
+              <Item key={item.id} item={item} reference={reference} token={token} start={start} />
             ))}
           </ul>
         </>
