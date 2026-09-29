@@ -8,6 +8,7 @@ const SPEC = /^(ip\d{2}|gu\d{1,2}|mr\d{2}|e\d{2}|b\d{2}|g\d{1,2}|t\d{1,2}|\d+in\
 export function modelsIn(title) {
   return [...new Set(String(title).split(/[\s,()/|]+/).map((t) => t.replace(/[^a-z0-9-]/gi, '').toLowerCase())
     .filter((t) => t.length >= 4 && /\d/.test(t) && !UNIT.test(t) && !SPEC.test(t) && !/^(19|20)\d{2}$/.test(t)
+      && !/^\d+(\.\d+)?x\d/.test(t)
       && (/[a-z]/.test(t) || t.length >= 5)))];
 }
 export const words = (s) => new Set(squash(s).split(' ').filter((w) => w.length >= 3));
@@ -45,14 +46,33 @@ function measures(text) {
   return m;
 }
 // Words that make a different version of the same line: Blast against Blast Max, a kids' blanket, lightweight against heavyweight.
-const VERSION = ['kids', 'children', 'junior', 'baby', 'mini', 'max', 'pro', 'plus', 'lite', 'xl', 'lightweight', 'heavyweight', 'combination', 'dual', 'single', 'double', 'king', 'cordless', 'corded', 'refill', 'replacement'];
+const VERSION = ['kids', 'children', 'junior', 'baby', 'mini', 'max', 'pro', 'plus', 'lite', 'xl', 'lightweight', 'heavyweight', 'combination', 'dual', 'single', 'double', 'king', 'cordless', 'corded', 'refill', 'refills', 'replacement', 'tray', 'saucer', 'spoons', 'station', 'pods', 'powder', 'heated', 'cuckoo', 'shot', 'combo', 'duo', 'insecticide', 'lawn', 'forest', 'meadow'];
+
+// Pairs where one word on each side means two different products.
+const KINDS = [['rat', 'mouse'], ['cat', 'dog'], ['indoor', 'outdoor'], ['left', 'right'], ['blanket', 'bag'], ['throw', 'duvet'], ['wasp', 'fly'], ['smoke', 'heat'], ['mains', 'battery'],
+  ['goose', 'duck'], ['liquid', 'pods'], ['liquid', 'powder'], ['liquid', 'kit'], ['liquid', 'spray'], ['candle', 'spray'], ['oil', 'stain'], ['wine', 'beer'], ['frying', 'saute'], ['wall', 'alarm'], ['travel', 'large'], ['medium', 'tall'], ['flat', 'spin'], ['ball', 'candle'], ['pot', 'can'], ['trimmer', 'battery'], ['hooks', 'fixings']];
+
+/*
+ * The barcode settles it when both sides have one: the page's own GTIN against every GTIN Google lists for the
+ * product. Null when either side has none, and the name rule decides. Leading zeros are dropped on both sides,
+ * so a 12-digit UPC and its 13-digit EAN compare equal.
+ */
+export function barcodeVerdict(gtins, pageGtin) {
+  const p = digits(pageGtin);
+  const want = (gtins ?? []).map(digits).filter(Boolean);
+  if (!p || !want.length) return null;
+  return want.includes(p) ? 'confirmed, barcode' : 'wrong, different barcode';
+}
 
 // Same product or not, the one rule both the picks and the page check use.
 export function sameProduct(title, brand, name, { df, brands }) {
   const b = squash(brand);
   const n = squash(name);
-  const want = modelsIn(title);
-  const have = modelsIn(name);
+  // A brand with a digit in it (Ion8, F10, 3M) names the maker, not the model.
+  const bw = new Set(b.split(' ').filter(Boolean));
+  const notBrand = (m) => !bw.has(m) && !bw.has(m.replace(/-/g, ''));
+  const want = modelsIn(title).filter(notBrand);
+  const have = modelsIn(name).filter(notBrand);
   if (want.length && want.some((m) => have.includes(m))) return 'confirmed, model';
   if (want.length && have.length) return 'wrong, different model';
   const a = measures(title);
@@ -62,17 +82,23 @@ export function sameProduct(title, brand, name, { df, brands }) {
   const nw = new Set(n.split(' '));
   const version = VERSION.find((w) => tw.has(w) !== nw.has(w));
   if (version) return `unsure, ${tw.has(version) ? 'no' : 'extra'} ${version}`;
+  // Words that make it a different thing altogether: a rat trap is not a mouse trap, a dog blanket is not a dog bag.
+  for (const [x, y] of KINDS) {
+    if ((tw.has(x) && nw.has(y) && !nw.has(x)) || (tw.has(y) && nw.has(x) && !nw.has(y))) return `wrong, ${tw.has(x) ? x : y} not ${tw.has(x) ? y : x}`;
+  }
   // A name that opens with another brand (Charles Bentley against Charles Tyrwhitt) is another product.
   const opener = [...brands].find((x) => x !== b && x.length >= 4 && (n === x || n.startsWith(`${x} `)) && !b.startsWith(x) && !` ${squash(title)} `.includes(` ${x} `));
   if (opener && !n.includes(b)) return 'wrong, different brand';
   // Plain numbers name the product as much as words do: PG 10 against PG 20, 5000 Series against 7000, a set of 2 against 3.
   // Whole numbers standing alone: 1.7L, 1/2 pint, 18/250 and "2 in 1" are sizes or specs, not names.
-  const numsIn = (t) => String(t).toLowerCase().replace(/\d+\s?-?in-?\s?\d+/g, ' ')
+  // Counts written as words (Two Tier, Three Piece) are the same numbers as 2 and 3.
+  const WORDNUM = { one: '1', two: '2', three: '3', four: '4', five: '5', six: '6', seven: '7', eight: '8', nine: '9', ten: '10', twelve: '12' };
+  const numsIn = (t) => String(t).toLowerCase().replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|twelve)\b(?=\s+(?:tier|piece|pack|drawer|shelf|shelves|cup|set|pairs?)\b)/g, (w) => WORDNUM[w]).replace(/\d+\s?-?in-?\s?\d+/g, ' ')
     .split(/[\s,()|+&:;!?"']+/).filter((w) => /^\d+$/.test(w) && !/^(19|20)\d\d$/.test(w));
   const tn = numsIn(title);
   const nn = new Set(numsIn(name));
   // Present when the page shows it anywhere not inside a longer number: iCON15, 23cm and 10-Year all count.
-  const pageText = String(name).toLowerCase();
+  const pageText = String(name).toLowerCase().replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|twelve)\b(?=\s+(?:tier|piece|pack|drawer|shelf|shelves|cup|set|pairs?)\b)/g, (w) => WORDNUM[w]);
   const lostNum = tn.find((x) => !nn.has(x) && !new RegExp(`(^|[^0-9.])${x}(?![0-9.])`).test(pageText));
   if (lostNum && nn.size) return `wrong, different number (${lostNum})`;
   if (lostNum) return `unsure, no ${lostNum} on the page`;

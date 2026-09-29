@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatGbp } from '@utils/formatGbp';
+import { isPackCheck } from '@lib/pricing';
 import styles from '@styles/ui/portal/source-list.module.css';
 
 const EMPTY = {
@@ -20,7 +21,7 @@ const num = (v) => (String(v).trim() === '' ? null : Number(v));
 // Rows written by a script carry a slug. She should read a name.
 const display = (name, suppliers) => {
   const clean = String(name ?? '').replace(/[_-]+/g, ' ').trim();
-  const known = suppliers.find((s) => s.name.toLowerCase() === clean.toLowerCase());
+  const known = suppliers.find((s) => s.name?.toLowerCase() === clean.toLowerCase());
   if (known) return known.name;
   return clean.replace(/\b\w/g, (ch) => ch.toUpperCase());
 };
@@ -29,26 +30,16 @@ const display = (name, suppliers) => {
 // months in transit is an account risk before it is a slow one.
 const SLOW_DAYS = 30;
 
-export function SourceList({ candidate, onAdd, suppliers = [], compact = false }) {
+// keepOf(source) is what she keeps a sale with that source's cost, from assess(), so a supplier line and the card agree.
+export function SourceList({ candidate, onAdd, suppliers = [], compact = false, canAdd = true, keepOf = null }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(null);
 
-  const sources = candidate.sources ?? [];
-  const headroom = Number(candidate.headroom ?? candidate.margin?.headroom ?? 0);
-  const postage = Number(candidate.margin?.postage ?? 0);
+  // A pack check marks the shelf price as the same pack; it is shown on the shelf ticket, not as a supplier.
+  const sources = (candidate.sources ?? []).filter((s) => !isPackCheck(s));
   const shelf = candidate.margin?.shelf ?? null;
-
-  // On a dropship order the supplier posts it, so the postage inside headroom
-  // is not hers to pay and comes back on.
-  const netFor = (s) => {
-    if (s.landed_unit_cost == null) return null;
-    const landed = Number(s.landed_unit_cost);
-    if (!Number.isFinite(landed) || !headroom) return null;
-    const back = s.fulfilment === 'dropship' ? postage : 0;
-    return Math.round((headroom + back - landed) * 100) / 100;
-  };
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -82,16 +73,21 @@ export function SourceList({ candidate, onAdd, suppliers = [], compact = false }
     }
   }
 
+  // Nothing to list and nowhere to add from here: draw nothing rather than an empty ruled box.
+  if (!canAdd && sources.length === 0) return null;
+
   return (
     <div className={styles.wrap}>
-      <div className={styles.head}>
-        {/* Inside a card that already names the shop and its price, a heading
-            and a sentence saying the same thing is the same fact twice. */}
-        {!compact && <p className="micro">Where it comes from</p>}
-        <button className={styles.add} onClick={() => setOpen((v) => !v)}>
-          {open ? 'Cancel' : compact ? 'Found it cheaper elsewhere?' : 'Add a supplier'}
-        </button>
-      </div>
+      {canAdd && (
+        <div className={styles.head}>
+          {/* Inside a card that already names the shop and its price, a heading
+              and a sentence saying the same thing is the same fact twice. */}
+          {!compact && <p className="micro">Where it comes from</p>}
+          <button className={styles.add} onClick={() => setOpen((v) => !v)}>
+            {open ? 'Cancel' : compact ? 'Found it cheaper elsewhere?' : 'Add a supplier'}
+          </button>
+        </div>
+      )}
 
       {!compact && sources.length === 0 && !open && (
         shelf?.shop ? (
@@ -103,13 +99,13 @@ export function SourceList({ candidate, onAdd, suppliers = [], compact = false }
         ) : (
           <p className={styles.none}>
             No supplier yet, so the goods cost is unknown and the figure above is
-            headroom rather than profit.
+            the most the eBay price allows the goods to cost.
           </p>
         )
       )}
 
       {sources.map((s) => {
-        const net = netFor(s);
+        const keep = keepOf && s.landed_unit_cost != null ? keepOf(s) : null;
         const slow = s.transit_days != null && s.transit_days > SLOW_DAYS;
 
         return (
@@ -137,8 +133,8 @@ export function SourceList({ candidate, onAdd, suppliers = [], compact = false }
               <p className={styles.landed} data-num>
                 {s.landed_unit_cost != null ? formatGbp(s.landed_unit_cost) : 'no price yet'}
               </p>
-              <p className={styles.net}>
-                {net == null ? 'nothing to work out yet' : `${formatGbp(net)} left`}
+              <p className={`${styles.net} ${keep != null && keep < 0 ? styles.netLoses : ''}`}>
+                {keep == null ? 'no price yet' : `${keep < 0 ? 'loses' : 'keeps'} ${formatGbp(Math.abs(keep))}`}
               </p>
             </div>
           </div>

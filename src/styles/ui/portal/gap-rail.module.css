@@ -1,0 +1,80 @@
+/* One line: the rail through the middle, the tag sitting on it at her price. Room kept on the right for a tag at the end. */
+.gap { display: block; min-width: 0; padding-right: 66px; }
+
+.track { position: relative; display: block; height: 22px; }
+
+.track::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 10px;
+  height: 2px;
+  border-radius: var(--r-full);
+  background: var(--c-line-mid);
+}
+
+.body {
+  position: absolute;
+  top: 9px;
+  height: 4px;
+  border-radius: var(--r-full);
+  background: var(--c-brand-strong);
+  opacity: 0.5;
+}
+
+/* The gap, as the tag's string run back along the rail to the reference. */
+.string {
+  position: absolute;
+  top: 10px;
+  height: 0;
+  border-top: 2px dotted var(--c-warning);
+}
+
+.ref {
+  position: absolute;
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border-radius: var(--r-full);
+  background: var(--c-surface);
+  border: 2px solid var(--c-positive);
+}
+
+.ref[data-kind='median'] {
+  top: 5px;
+  width: 2px;
+  height: 12px;
+  margin-left: -1px;
+  border: 0;
+  border-radius: 1px;
+  background: var(--c-brand-strong);
+}
+
+/* The tag's punched end sits on the price. */
+.hang {
+  position: absolute;
+  top: 1px;
+  margin-left: -8px;
+  transition: left var(--dur-settle) var(--ease-out);
+}
+
+.beyond {
+  position: absolute;
+  right: -2px;
+  top: 7px;
+  border: 4px solid transparent;
+  border-left: 6px solid var(--c-warning);
+}
+
+.lone { display: inline-flex; }
+.none, .gapNone { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.gapOver { font-family: var(--font-data); font-size: var(--t-caption); font-weight: 500; color: var(--c-warning); white-space: nowrap; }
+.gapIn { display: inline-flex; color: var(--c-positive); }
+.gapIcon { width: 15px; height: 15px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hang { transition: none; }
+}

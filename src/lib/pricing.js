@@ -98,40 +98,52 @@ export function marketAllows(marketPrice, c) {
   return v > 0 ? v : null;
 }
 
-// Cheapest real cost: the price where it was seen (when it counts as a cost) or any supplier she added.
-export function cheapestCost({ seen = null, seenFrom = null, sources = [] }) {
-  const quoted = sources
-    .filter((s) => s.landed_unit_cost != null && Number(s.landed_unit_cost) > 0)
-    .map((s) => ({ cost: Number(s.landed_unit_cost), from: s.supplier_name ?? s.supplier ?? s.name ?? 'Your supplier', url: s.url ?? s.product_url ?? null, basis: 'supplier' }));
-  const all = [...(seen != null && Number(seen) > 0 ? [{ cost: Number(seen), from: seenFrom ?? 'Where it was seen', basis: 'seen' }] : []), ...quoted];
-  if (!all.length) return null;
-  all.sort((a, b) => a.cost - b.cost);
-  const best = all[0];
-  const beaten = best.basis === 'supplier' && seen != null && Number(seen) > best.cost ? Number(seen) : null;
-  return { ...best, beaten };
+// A row saved by "Same item and pack" says the shelf price is the same pack. It is not a supplier. Rows from
+// before matched_on was written carry the note that button wrote.
+export const isPackCheck = (s) => s?.matched_on === 'shelf' || /checked by eye/i.test(String(s?.note ?? ''));
+
+// The cost a card is priced from. A supplier she added is where it will be bought, so her cost wins whether it is
+// under or over the shelf price, the cheapest of hers when there are several; one asked but not yet priced does
+// not count. Only with no supplier of hers does the shelf price stand in, confirmed once the pack is checked.
+export function cheapestCost({ seen = null, seenFrom = null, seenConfirmed = true, sources = [] }) {
+  const hers = sources
+    .filter((s) => !isPackCheck(s) && s.landed_unit_cost != null && Number(s.landed_unit_cost) > 0)
+    .map((s) => ({ cost: Number(s.landed_unit_cost), from: s.supplier_name ?? s.supplier ?? s.name ?? 'Your supplier', url: s.url ?? s.product_url ?? null, basis: 'supplier', fulfilment: s.fulfilment ?? 'dropship' }))
+    .sort((a, b) => a.cost - b.cost);
+  const shelf = seen != null && Number(seen) > 0 ? Number(seen) : null;
+  if (hers.length) return { ...hers[0], shelf, confirmed: true };
+  if (shelf == null) return null;
+  const checked = seenConfirmed || sources.some(isPackCheck);
+  return { cost: shelf, from: seenFrom ?? 'Where it was seen', url: null, basis: 'seen', shelf, confirmed: checked };
 }
 
-// Where a price sits against the market, in her words. Amber is "look at this", never a block.
+// Where a price sits against the market, read at a glance. One reference per channel: Google's lowest on the
+// shop; on eBay the cheapest small seller who is converting (the price someone her size is paid), else the
+// median. `short` fits under a figure (under 18 characters); `text` is the full sentence for the opened card.
 export function positionOf(price, { median = null, entry = null, lowest = null } = {}) {
   if (price == null) return null;
   const gbp = (v) => `£${Number(v).toFixed(2)}`;
-  if (lowest != null) {
-    const d = round2(price - lowest);
-    return d > 0.009
-      ? { tone: 'warning', short: `${gbp(d)} over Google's lowest`, text: `${gbp(d)} over Google's lowest price of ${gbp(lowest)}.` }
-      : { tone: 'positive', short: "at Google's lowest", text: `At or under Google's lowest price of ${gbp(lowest)}.` };
+  const ref = lowest ?? entry ?? median;
+  if (ref == null) return null;
+  const over = round2(price - ref);
+  const inMarket = over <= 0.009;
+  const refName = lowest != null ? "Google's lowest" : entry != null ? 'the cheapest seller who is selling' : 'the eBay median';
+  const parts = [inMarket ? `At or under ${refName} (${gbp(ref)})` : `${gbp(over)} over ${refName} (${gbp(ref)})`];
+  if (lowest == null && entry != null && median != null) {
+    const m = round2(price - median);
+    parts.push(m > 0.009 ? `${gbp(m)} over the median of ${gbp(median)}` : `${gbp(-m)} under the median of ${gbp(median)}`);
   }
-  if (median == null && entry == null) return null;
-  const overMedian = median != null ? round2(price - median) : null;
-  const overEntry = entry != null ? round2(price - entry) : null;
-  const parts = [];
-  if (overMedian != null) parts.push(overMedian > 0.009 ? `${gbp(overMedian)} over the eBay median of ${gbp(median)}` : `${gbp(-overMedian)} under the eBay median of ${gbp(median)}`);
-  if (overEntry != null && overEntry > 0.009) parts.push(`${gbp(overEntry)} over the cheapest seller who is selling (${gbp(entry)})`);
-  const above = (overMedian != null && overMedian > 0.009) || (overEntry != null && overEntry > 0.009);
-  const short = overMedian != null && overMedian > 0.009 ? `${gbp(overMedian)} over the median`
-    : overEntry != null && overEntry > 0.009 ? `${gbp(overEntry)} over the cheapest seller`
-      : 'in the market';
-  return { tone: above ? 'warning' : 'positive', short, text: `${parts.join('; ')}.`.replace(/^./, (x) => x.toUpperCase()) };
+  return {
+    inMarket,
+    ref,
+    refName,
+    // The gap as a share of the reference, so one scale reads the same on every row.
+    pct: Math.round((over / ref) * 1000) / 1000,
+    over: inMarket ? 0 : over,
+    tone: inMarket ? 'positive' : 'warning',
+    short: inMarket ? 'In the market' : `+${gbp(over)} over`,
+    text: `${parts.join('; ')}.`,
+  };
 }
 
 // An eBay reading costed at the gate's run band, re-costed for a known weight. No weight: left as the gate costed it.
@@ -142,5 +154,39 @@ export function ebayAtWeight(ebay, grams) {
   return { ...ebay, postage: b.postage, packaging: b.packaging, band: b.key, band_label: b.label, headroom_band: b.key, postage_basis: 'weight', grams: b.grams };
 }
 
+// A supplier's cost by the time a unit is ready to sell. The same sum as candidate_sources.landed_unit_cost
+// (0026), so a figure she tries is the figure the database stores. Null until there is a price.
+export function landedOf({ fulfilment = 'dropship', unit_cost = null, price_at_moq = null, supplier_shipping = null, inbound_freight_per_unit = null, duty_pct = null }) {
+  const n = (v) => (v == null || v === '' ? null : Number(v));
+  const goods = n(price_at_moq) ?? n(unit_cost);
+  if (goods == null || !Number.isFinite(goods)) return null;
+  if (fulfilment === 'stock') return round2(goods * (1 + (n(duty_pct) ?? 0)) + (n(inbound_freight_per_unit) ?? 0));
+  return round2(goods + (n(supplier_shipping) ?? 0));
+}
+
+// A channel's costs when the supplier posts to the buyer (0023): her postage and packing drop out, since the
+// supplier's postage is inside the landed cost. The returns allowance stays; returns happen whoever posts.
+export function dropshipCosts(c, { postage = 0, packaging = 0 } = {}) {
+  if (!c) return null;
+  return { pct: c.pct, fixed: round2(c.fixed - Number(postage ?? 0) - Number(packaging ?? 0)) };
+}
+
 // The profit a price's step asks for.
 export const profitAt = (price, steps) => (price == null ? null : (steps.find((s) => s.below == null || price < s.below) ?? steps[steps.length - 1]).profit);
+
+// Down to the last .49 or .99 at or under a price: the dearest floor that still lists on it.
+export const downToPrice = (v) => {
+  const w = Math.floor(v + 1e-9);
+  if (v >= w + 0.99 - 1e-9) return w + 0.99;
+  if (v >= w + 0.49 - 1e-9) return w + 0.49;
+  return w - 0.01;
+};
+
+// The most the goods can cost and still list on a market price with the full profit.
+export function goodsToList(market, c, steps) {
+  if (market == null || !c) return null;
+  const top = downToPrice(market);
+  if (top <= 0) return null;
+  const v = Math.floor((top * (1 - c.pct) - c.fixed - profitAt(top, steps)) * 100 + 1e-6) / 100;
+  return v > 0 ? v : null;
+}

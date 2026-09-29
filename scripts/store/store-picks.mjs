@@ -14,13 +14,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseCsv } from '../lib/sources.js';
 import { digits, modelsIn, needOf, queryOf, sameProduct, seasonOf, squash, wordCounts } from './match.mjs';
+import { loadShelves, normShop, titleGrams } from './shelf.mjs';
 import { PROFIT, floorFor, storeBandFor, storeCosts } from '../../src/lib/pricing.js';
 
 const arg = (k, d = null) => process.argv.slice(2).find((a) => a.startsWith(`--${k}=`))?.split('=').slice(1).join('=') ?? d;
 const googlePath = arg('google');
-// Shop names compared without case, spaces or hyphens, so festive-lights, festivelights and "Festive Lights" all match.
-const norm = (v) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
-const skipShops = new Set(String(arg('skip-shops', '')).split(',').map(norm).filter(Boolean));
+const skipShops = new Set(String(arg('skip-shops', '')).split(',').map(normShop).filter(Boolean));
 const shelfDir = arg('shelves', 'research/shelf');
 const minPrice = Number(arg('min', 8));
 const maxPrice = Number(arg('max', 60));
@@ -55,7 +54,7 @@ const ctx = { df: wordCounts(google.map((g) => g.Title)), brands: new Set(google
 const bigAt = Number(arg('big-brand', 30));
 const brandCount = new Map();
 for (const g of google) { const b = squash(g.Brand); if (b) brandCount.set(b, (brandCount.get(b) ?? 0) + 1); }
-const tally = { exports: exports.length, best_sellers: google.length, own_label: 0, not_shelf: 0, outside_price: 0, considered: 0, only_a_part_seen: 0 };
+const tally = { exports: exports.length, best_sellers: google.length, own_label: 0, not_shelf: 0, outside_price: 0, considered: 0, only_a_part_seen: 0, bigger_pack_seen: 0 };
 const wanted = [];
 for (const g of google) {
   const min = Number(g['Price Range Min']);
@@ -66,64 +65,17 @@ for (const g of google) {
   wanted.push({ ...g, min, max: Number(g['Price Range Max']) || min, gtins: String(g.GTINs ?? '').split(/\s+/).map(digits).filter(Boolean), brand: squash(g.Brand), models: modelsIn(g.Title) });
 }
 
-/*
- * Weight in grams, for the postage band. Shopify shelves carry grams; other readers may write "1.2 kg" or "500g".
- * A bare number is grams, unless it has a decimal point and is under 100, which is kilograms. Nought is unknown.
- */
-function gramsOf(r) {
-  const raw = String([r.grams, r.weight_g, r.weight].find((v) => String(v ?? '').trim() !== '') ?? '').trim().toLowerCase();
-  const m = raw.match(/^(\d+(?:\.\d+)?)\s*(kg|g|grams?|lb|lbs)?$/);
-  if (!m) return null;
-  const n = Number(m[1]);
-  const g = m[2] === 'kg' ? n * 1000 : /^lb/.test(m[2] ?? '') ? n * 453.6 : !m[2] && m[1].includes('.') && n < 100 ? n * 1000 : n;
-  return g > 0 ? Math.round(g) : null;
-}
-// A weight in the title ("Paving Sand 20kg") when no shop gave one; a capacity ("holds up to 150kg") is not its weight.
-function titleGrams(title) {
-  let best = null;
-  for (const m of String(title).matchAll(/(up to|max(?:imum)?|capacity|holds|supports|load|user weight)?\s*(\d+(?:\.\d+)?)\s?(kg|g)\b/gi)) {
-    if (m[1]) continue;
-    const g = Number(m[2]) * (m[3].toLowerCase() === 'kg' ? 1000 : 1);
-    if (g > 0 && (best == null || g > best)) best = g;
-  }
-  return best;
-}
-const weighed = new Map();
-
-// Names-only shelves count: seeing the product listed is the proof, a price is not needed.
-const shelfFiles = fs.readdirSync(shelfDir).filter((f) => /^shelf-.*\.csv$/.test(f));
-const byGtin = new Map();
-const byBrand = new Map();
-let shelfRows = 0;
-let shelfKept = 0;
 // Only shelf products that could match a wanted best seller are kept: its barcode, or its brand's key.
-// Holding all 730,000 rows, and copying a brand's list on every add, ran Node out of memory.
-const wantGtins = new Set(wanted.flatMap((g) => g.gtins));
-const wantKeys = new Set(wanted.flatMap((g) => [g.brand, g.brand.split(' ')[0]]).filter(Boolean));
-const add = (map, key, s) => { const list = map.get(key); if (list) list.push(s); else map.set(key, [s]); };
-const OWN_SHOP_BRAND = /^(b and m|home bargains|savers|poundland|the works|home discount|monstershop)$/;
-for (const f of shelfFiles) {
-  const tag = f.replace(/^shelf-|(-names)?\.csv$/g, '');
-  for (const r of parseCsv(fs.readFileSync(path.join(shelfDir, f), 'utf8'))) {
-    const name = String(r.name ?? r.product ?? r.title ?? '').trim();
-    if (!name) continue;
-    const shop = r.shop || tag;
-    if (skipShops.has(norm(shop)) || skipShops.has(norm(tag))) continue;
-    shelfRows += 1;
-    const price = Number(r.price);
-    const grams = gramsOf(r);
-    if (grams) { const w = weighed.get(shop) ?? []; w.push(grams); weighed.set(shop, w); }
-    const s = { shop, name, brand: squash(r.brand), price: price > 0 ? price : null, url: r.url ?? '', image: String(r.image ?? r.image_url ?? '').split(/[|\s]/)[0], grams };
-    const g = digits(r.gtin);
-    const key = s.brand && !OWN_SHOP_BRAND.test(s.brand) ? s.brand : squash(name).split(' ')[0];
-    const byCode = g && wantGtins.has(g);
-    const byName = key && wantKeys.has(key);
-    if (!byCode && !byName) continue;
-    shelfKept += 1;
-    if (byCode) add(byGtin, g, s);
-    if (byName) add(byBrand, key, s);
-  }
-}
+const shelf = loadShelves({
+  dir: shelfDir,
+  wantGtins: new Set(wanted.flatMap((g) => g.gtins)),
+  wantKeys: new Set(wanted.flatMap((g) => [g.brand, g.brand.split(' ')[0]]).filter(Boolean)),
+  skipShops,
+});
+const { byGtin, byBrand, weighed } = shelf;
+const shelfFiles = shelf.files;
+const shelfRows = shelf.rows;
+const shelfKept = shelf.kept;
 
 // Best sellers no collected shop was seen selling: the gap, and where to look next.
 const unseen = [];
@@ -146,8 +98,14 @@ for (const g of wanted) {
   // A match priced under 40% of Google's lowest is a refill, part or cover, which proves nothing about the product.
   const real = hits.filter((h) => h.s.price == null || h.s.price >= g.min * 0.4);
   if (!real.length) { tally.only_a_part_seen += 1; continue; }
+  // Over twice Google's highest price is a bigger pack or another model (a 5L sprayer for a 500ml spray), not a cost.
+  const sane = real.filter((h) => h.s.price == null || h.s.price <= g.max * 2);
+  if (!sane.length) { tally.bigger_pack_seen += 1; continue; }
+  real.splice(0, real.length, ...sane);
   const shops = [...new Set(real.map((h) => h.s.shop))];
-  const first = real.sort((a, b) => (RANK[a.via] ?? RANK[a.via.split(' ')[0]]) - (RANK[b.via] ?? RANK[b.via.split(' ')[0]]))[0];
+  // The surest match first; among equally sure matches, the cheapest price, since that is the cost she can get.
+  const rankOf = (h) => RANK[h.via] ?? RANK[h.via.split(' ')[0]];
+  const first = real.sort((a, b) => rankOf(a) - rankOf(b) || (a.s.price ?? 1e9) - (b.s.price ?? 1e9))[0];
   const weight = (() => {
     const shelfG = Math.max(0, ...real.map((h) => h.s.grams ?? 0));
     if (shelfG) return { grams: shelfG, weight_from: 'shop' };

@@ -24,6 +24,15 @@ const metaPrice = (html) => (
   ?? ''
 ).replace(/,/g, '');
 
+// A barcode kept outside the structured data: itemprop or meta gtin tags, or a "gtin13"/"ean" field in the page's own data.
+const metaGtin = (html) => String(
+  html.match(/itemprop=["']gtin(?:13|12|14|8)?["'][^>]*content=["'](\d{8,14})/i)?.[1]
+  ?? html.match(/content=["'](\d{8,14})["'][^>]*itemprop=["']gtin(?:13|12|14|8)?["']/i)?.[1]
+  ?? html.match(/<meta[^>]+(?:property|name)=["'](?:product:)?(?:gtin13|gtin|ean)["'][^>]+content=["'](\d{8,14})/i)?.[1]
+  ?? html.match(/"(?:gtin13|gtin|ean|barcode)"\s*:\s*"(\d{8,14})"/i)?.[1]
+  ?? '',
+);
+
 // The product as the page states it: structured data first, then meta tags and the page title.
 export function readPage(html) {
   for (const m of html.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)) {
@@ -41,13 +50,13 @@ export function readPage(html) {
       exVat: spec.valueAddedTaxIncluded === false || spec.valueAddedTaxIncluded === 'false',
       stock: String(offer.availability ?? '').replace(/.*\//, ''),
       brand: decode(typeof p.brand === 'string' ? p.brand : p.brand?.name ?? ''),
-      gtin: String(p.gtin13 ?? p.gtin ?? p.gtin12 ?? p.gtin14 ?? p.gtin8 ?? '').replace(/\D/g, ''),
+      gtin: String(p.gtin13 ?? p.gtin ?? p.gtin12 ?? p.gtin14 ?? p.gtin8 ?? offer.gtin13 ?? offer.gtin ?? '').replace(/\D/g, '') || metaGtin(html),
       image: decode(typeof img === 'string' ? img : img?.url ?? '') || ogImage(html),
     };
   }
   const og = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)/i)?.[1];
   const title = html.match(/<title[^>]*>([^<]+)/i)?.[1];
-  return { name: decode(og ?? title ?? ''), price: metaPrice(html), exVat: false, stock: '', brand: '', gtin: '', image: ogImage(html) };
+  return { name: decode(og ?? title ?? ''), price: metaPrice(html), exVat: false, stock: '', brand: '', gtin: metaGtin(html), image: ogImage(html) };
 }
 
 // The price she would pay, VAT in. Null when the page gives none.

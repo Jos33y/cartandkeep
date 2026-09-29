@@ -41,7 +41,7 @@ export function useApproved(tenantId) {
           id, supplier, supplier_kind, fulfilment, status, url, note,
           unit_cost, moq, price_at_moq, supplier_shipping,
           inbound_freight_per_unit, duty_pct, landed_unit_cost,
-          ships_from, transit_days, confirmed, quoted_on
+          ships_from, transit_days, confirmed, quoted_on, matched_on
         )
       `)
       .eq('tenant_id', tenantId)
@@ -79,7 +79,7 @@ export function useApproved(tenantId) {
           id, supplier, supplier_kind, fulfilment, status, url, note,
           unit_cost, moq, price_at_moq, supplier_shipping,
           inbound_freight_per_unit, duty_pct, landed_unit_cost,
-          ships_from, transit_days, confirmed, quoted_on
+          ships_from, transit_days, confirmed, quoted_on, matched_on
         `)
         .single();
 

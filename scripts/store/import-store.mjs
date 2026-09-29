@@ -18,7 +18,9 @@
 import fs from 'node:fs';
 import { parseCsv } from '../lib/sources.js';
 import { queryOf, squash } from './match.mjs';
-import { PROFIT, STORE, ebayAtWeight, listFor, storeBandFor, storeCosts } from '../../src/lib/pricing.js';
+import { PROFIT, STORE, ebayAtWeight } from '../../src/lib/pricing.js';
+import { priceStore } from './price-store.mjs';
+import { categorise } from '../categories/categorise.mjs';
 
 const args = process.argv.slice(2);
 const arg = (k, d = null) => args.find((a) => a.startsWith(`--${k}=`))?.split('=').slice(1).join('=') ?? d;
@@ -42,18 +44,8 @@ if (!label) {
   process.exit(1);
 }
 
-// The store figures for one product: band from its weight, floor from its cost, list at Google's lowest when that clears it.
-export function priceStore(cost, googleMin, grams) {
-  const band = storeBandFor(grams);
-  if (!band) return { band: null };
-  const c = storeCosts({ postage: band.postage, packaging: band.packaging });
-  const market = googleMin > 0 ? googleMin : null;
-  const l = cost != null ? listFor(cost, market, c, PROFIT.store) : null;
-  return { band, costs: c, list: l, aboveMarket: Boolean(l && market != null && !l.onMarket) };
-}
-
 const rows = parseCsv(fs.readFileSync(picksPath, 'utf8'));
-const tally = { read: rows.length, wrong_match: 0, unsure_match: 0, not_checked: 0, big_brand: 0, no_price: 0, over_20kg: 0, kept: 0 };
+const tally = { read: rows.length, wrong_match: 0, unsure_match: 0, not_checked: 0, big_brand: 0, no_price: 0, bigger_pack: 0, over_20kg: 0, kept: 0 };
 const bandCount = {};
 const cards = [];
 const seenRefs = new Set();
@@ -66,6 +58,8 @@ for (const r of rows) {
   if (r.big_brand === 'yes' && !r.need && !bigBrands) { tally.big_brand += 1; continue; }
   const cost = Number(r.seen_price) > 0 ? Number(r.seen_price) : Number(r.page_price) > 0 ? Number(r.page_price) : null;
   if (cost == null && !withoutPrice) { tally.no_price += 1; continue; }
+  // A cost over twice Google's highest price is a bigger pack or another model: the page check read the wrong thing.
+  if (cost != null && Number(r.google_max) > 0 && cost > Number(r.google_max) * 2) { tally.bigger_pack += 1; continue; }
   // The same key store-picks wrote and the eBay query file carries; drafted here only for a picks file that predates it.
   const ref = String(r.query ?? '').trim() || queryOf(r.title, r.brand);
   if (seenRefs.has(ref)) continue;
@@ -150,10 +144,18 @@ if (!tenant) { console.error(`Tenant "${slug}" not found.`); process.exit(1); }
 
 // A product already in her queue under another batch is the same card twice, so no second card is made.
 // If that card is an eBay card she has not decided, it gains the shop: the mirror of import-gate adding eBay to a store card.
-const { data: prior, error: pErr } = await db.from('candidates')
-  .select('id, external_ref, batch_id, margin, recommended_channels, image_url, decisions ( id )')
-  .eq('tenant_id', tenant.id).in('external_ref', cards.map((c) => c.external_ref));
-if (pErr) { console.error(`Duplicate check failed, nothing imported: ${pErr.message}`); process.exit(1); }
+// Asked 100 references at a time: all 578 in one request made a URL too long for the server, and the request failed.
+const prior = [];
+{
+  const refs = cards.map((c) => c.external_ref);
+  for (let i = 0; i < refs.length; i += 100) {
+    const { data, error: pErr } = await db.from('candidates')
+      .select('id, external_ref, batch_id, margin, recommended_channels, image_url, decisions ( id )')
+      .eq('tenant_id', tenant.id).in('external_ref', refs.slice(i, i + 100));
+    if (pErr) { console.error(`Duplicate check failed, nothing imported: ${pErr.message}`); process.exit(1); }
+    prior.push(...(data ?? []));
+  }
+}
 
 const { data: batch, error: bErr } = await db.from('batches').upsert({
   tenant_id: tenant.id, delivered_for: date, term, category_label: label, status: 'delivered',
@@ -188,6 +190,7 @@ const ours = (c) => !isStore(c) || c.margin?.store_import === term;
 const otherStore = elsewhere.filter((c) => !ours(c)).length;
 let gainedStore = 0;
 let decidedEbay = 0;
+const gainedIds = [];
 for (const card of elsewhere) {
   if (!ours(card)) continue;
   if (decidedOf(card)) { decidedEbay += 1; continue; }
@@ -199,7 +202,7 @@ for (const card of elsewhere) {
     image_url: card.image_url ?? storeCard.image_url,
   }).eq('id', card.id);
   if (error) console.error(`  ${card.external_ref}: shop not added, ${error.message}`);
-  else gainedStore += 1;
+  else { gainedStore += 1; gainedIds.push(card.id); }
 }
 const skip = new Set(elsewhere.map((p) => p.external_ref));
 const held = new Set([...own.values()].filter(decidedOf).map((p) => p.external_ref));
@@ -221,11 +224,21 @@ if (decidedEbay) console.log(`  ${decidedEbay} already decided by her as eBay ca
 if (otherStore) console.log(`  ${otherStore} already store cards in another import, left there`);
 if (held.size) console.log(`  ${held.size} already decided by her, left exactly as they are`);
 
-const { error: cErr } = fresh.length
-  ? await db.from('candidates').upsert(fresh, { onConflict: 'batch_id,external_ref' })
-  : { error: null };
-if (cErr) { console.error('Candidate upsert failed:', cErr.message); process.exit(1); }
+// Written 100 at a time, so one large request never fails the whole import.
+for (let i = 0; i < fresh.length; i += 100) {
+  const { error: cErr } = await db.from('candidates').upsert(fresh.slice(i, i + 100), { onConflict: 'batch_id,external_ref' });
+  if (cErr) { console.error(`Candidate upsert failed after ${i} cards: ${cErr.message}. Rerun to finish; written cards are refreshed, not doubled.`); process.exit(1); }
+}
 
 const { count } = await db.from('candidates').select('id', { count: 'exact', head: true }).eq('batch_id', batch.id);
 if (count != null) await db.from('batches').update({ candidate_count: count }).eq('id', batch.id);
-console.log(`\n  "${label}" ${date}: ${fresh.length} written, ${count ?? fresh.length} in the batch.\n`);
+console.log(`\n  "${label}" ${date}: ${fresh.length} written, ${count ?? fresh.length} in the batch.`);
+
+// Google category and source labels: the export's top category, made specific from the title. Hers never move.
+try {
+  const { tally } = await categorise(db, tenant.id, { batchIds: [batch.id] });
+  if (gainedIds.length) await categorise(db, tenant.id, { ids: gainedIds });
+  console.log(`  Categories: ${tally.set} set, ${tally.deeper} made more specific, ${tally.ai_calls} classification calls\n`);
+} catch (e) {
+  console.error(`  Categories not set (${e.message}). Run scripts/categories/fill-categories.mjs once the migration is in.\n`);
+}

@@ -351,6 +351,11 @@ export function buildRow({ r, tenant, cluster, checkedAt, shelf = null, shops = 
 
       // Proposed, not found. Rendered as searches on the card.
       shops: shops && shops.length ? shops : null,
+
+      // The category most of the sampled listings sit in (gate CSVs from 29 Sept on). Mapped to Google's by categorise.
+      ebay_category: (r.ebay_category_path || '').trim()
+        ? { id: (r.ebay_category_id || '').trim() || null, path: r.ebay_category_path.trim() }
+        : null,
     },
 
     // Everything a listing needs, read off the shop's own product page. Kept

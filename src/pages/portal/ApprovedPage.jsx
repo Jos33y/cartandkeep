@@ -311,7 +311,7 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
         <div className={styles.figures}>
           <span className={styles.figLabel}>You keep</span>
           <span className={`figure ${styles.figKeep} ${a.keep < 0 ? styles.loss : ''}`}>
-            {a.keep != null ? formatGbp(a.keep) : 'Unknown'}
+            {a.keep != null ? formatGbp(a.keep) : 'Unknown'}{a.keep != null && a.costConfirmed === false && <span className={styles.figLabel}> est.</span>}
           </span>
         </div>
 
@@ -484,7 +484,10 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
                 </div>
               )}
 
-              <SourceList candidate={row} onAdd={onSource} suppliers={suppliers} compact />
+              <SourceList candidate={row} onAdd={onSource} suppliers={suppliers} compact
+                keepOf={(s) => assess({ ...row, draft }, {
+                  tryCost: Number(s.landed_unit_cost), tryPosted: s.fulfilment === 'stock' ? 'you' : 'supplier', holdPrice: true,
+                }).keep} />
             </Card>
           </div>
 

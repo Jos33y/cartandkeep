@@ -93,7 +93,8 @@ async function writeCsv(csvPath, results, cfg) {
       + 'entry_item_id,image_url,price_low,price_high,price_band,price_p25,price_p75,'
       + 'lowest_feedback,sold_lifetime,listings_with_sold,route,'
       + 'unbranded_share,top_brands,outcome,best_price,best_units_per_month,best_max_goods,reasons,'
-      + 'entry_title,entry_ceiling,refusal,listings,median_listed,price_basis,selling_seen\n';
+      + 'entry_title,entry_ceiling,refusal,listings,median_listed,price_basis,selling_seen,'
+      + 'ebay_category_id,ebay_category_path\n';
     const rows = results.map((r) => [
       JSON.stringify(r.q), r.competitors, r.price?.median ?? '',
       r.headroom ?? '', r.maxGoods ?? '', r.band ?? '',
@@ -125,6 +126,7 @@ async function writeCsv(csvPath, results, cfg) {
         feedback: l.sellerFeedback,
       })))),
       r.price?.listedMedian ?? '', r.price?.basis ?? '', r.price?.sellingSeen ?? '',
+      r.category?.id ?? '', cell(r.category?.path),
     ].join(','));
     await writeFile(csvPath, head + rows.join('\n') + '\n');
 }

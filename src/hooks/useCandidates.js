@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@lib/supabase';
 
 // The unique constraint on candidate_id makes this a to-one embed, so PostgREST
@@ -6,6 +6,23 @@ import { supabase } from '@lib/supabase';
 function one(decisions) {
   if (Array.isArray(decisions)) return decisions[0] ?? null;
   return decisions ?? null;
+}
+
+// The light read behind the category tabs: every live card's category, labels and decision, no market data.
+const INDEX = 'id, batch_id, category_id, category_top_id, category_level2_id, category_source, category_flag, source_labels, decisions ( action )';
+
+async function readPages(build) {
+  const data = [];
+  // In pages, ordered by id so none is skipped or read twice. One request stopped at the API's row ceiling
+  // (1,000 by default) without an error, so a category past that would have lost cards silently.
+  // A ceiling on pages, so a server that ignored the range could never loop for ever.
+  for (let from = 0; from < PAGE * 60; from += PAGE) {
+    const page = await build().order('id').range(from, from + PAGE - 1);
+    if (page.error) return { data, error: page.error };
+    data.push(...page.data);
+    if (page.data.length < PAGE) break;
+  }
+  return { data, error: null };
 }
 
 function flatten(row) {
@@ -57,22 +74,42 @@ function byWorkOrder(a, b) {
     || (b.margin?.net ?? b.margin?.max_goods_cost ?? 0) - (a.margin?.net ?? a.margin?.max_goods_cost ?? 0);
 }
 
-// One id or several. A shop delivers a batch a week and she works the shop,
-// not the week, so the page asks for every batch behind one tab at once.
-export function useCandidates(batchId) {
+const PAGE = 500;
+
+/*
+ * The live batches' cards, full rows for one Google top category (the tab) or all of them, and a light index of every
+ * live card for the tab and filter counts. `top` is a category id or 'all'.
+ */
+export function useCandidates(batchId, { top = 'all' } = {}) {
   const ids = Array.isArray(batchId) ? batchId : (batchId ? [batchId] : []);
   // A stable key, because a fresh array on every render would refetch forever.
-  const key = ids.join(',');
+  const batchKey = ids.join(',');
+  const key = `${batchKey}|${top}`;
   const [state, setState] = useState({ status: 'loading', rows: [], error: null });
+  const [index, setIndex] = useState({ status: 'loading', rows: [] });
+  const current = useRef(key);
+  current.current = key;
+
+  const loadIndex = useCallback(async () => {
+    if (!batchKey) return;
+    const { data, error } = await readPages(() => supabase.from('candidates').select(INDEX).in('batch_id', batchKey.split(',')));
+    if (error) return setIndex({ status: 'error', rows: [] });
+    setIndex({ status: 'ready', rows: data.map(({ decisions, ...r }) => ({ ...r, decision: one(decisions) })) });
+    return undefined;
+  }, [batchKey]);
+
+  useEffect(() => { loadIndex(); }, [loadIndex]);
 
   const load = useCallback(async () => {
-    if (!key) return;
+    if (!batchKey) return;
     setState((s) => ({ ...s, status: 'loading' }));
 
-    const { data, error } = await supabase
-      .from('candidates')
-      .select(`
-        id, title, category, image_url, supplier_url, reference_url, external_ref,
+    const { data, error } = await readPages(() => {
+      const q = supabase
+        .from('candidates')
+        .select(`
+        id, batch_id, category_id, category_top_id, category_level2_id, category_source, category_flag, source_labels,
+        title, category, image_url, supplier_url, reference_url, external_ref,
         classification, tier, score, component_count, breakdown,
         ebay_category_id, ebay_category_path, cluster, variation_count,
         monthly_headroom,
@@ -88,30 +125,54 @@ export function useCandidates(batchId) {
           id, supplier, supplier_kind, fulfilment, status, url, note,
           unit_cost, moq, price_at_moq, supplier_shipping,
           inbound_freight_per_unit, duty_pct, landed_unit_cost,
-          ships_from, transit_days, confirmed, quoted_on
+          ships_from, transit_days, confirmed, quoted_on, matched_on
         )
       `)
-      .in('batch_id', key.split(','));
+        .in('batch_id', batchKey.split(','));
+      return top === 'all' ? q : q.eq('category_top_id', top);
+    });
 
+    // A tab changed while the pages were loading: this answer is for the old one.
+    if (current.current !== key) return undefined;
     if (error) return setState({ status: 'error', rows: [], error });
     setState({ status: 'ready', rows: data.map(flatten).sort(byWorkOrder), error: null });
-  }, [key]);
+  }, [key, batchKey, top]);
 
   useEffect(() => {
     load();
   }, [load]);
 
+  // One card's fields changed in both the full rows and the index, so the tab counts follow.
+  const patch = useCallback((candidateId, fields) => {
+    setState((s) => ({ ...s, rows: s.rows.map((r) => (r.id === candidateId ? { ...r, ...fields } : r)) }));
+    setIndex((s) => ({ ...s, rows: s.rows.map((r) => (r.id === candidateId ? { ...r, ...fields } : r)) }));
+  }, []);
+
+  // Her choice of category, through the one database function. Undo passes the previous source and flag back.
+  const setCategory = useCallback(async ({ candidateId, category, restoreSource = null, restoreFlag = null }) => {
+    const { data, error } = await supabase.rpc('set_candidate_category', {
+      p_candidate: candidateId,
+      p_category: category,
+      p_restore_source: restoreSource,
+      p_restore_flag: restoreFlag,
+    });
+    if (error) throw error;
+    const r = Array.isArray(data) ? data[0] : data;
+    const fields = {
+      category_id: r.category_id,
+      category_top_id: r.category_top_id,
+      category_level2_id: r.category_level2_id,
+      category_source: r.category_source,
+      category_flag: r.category_flag,
+    };
+    patch(candidateId, fields);
+    return fields;
+  }, [patch]);
+
   // Optimistic so a batch can be worked through without a round trip per card.
   const decide = useCallback(
     async ({ candidateId, tenantId, action, reason = null, note = null }) => {
-      setState((s) => ({
-        ...s,
-        rows: s.rows.map((r) =>
-          r.id === candidateId
-            ? { ...r, decision: { action, reason, note, decided_at: new Date().toISOString() } }
-            : r,
-        ),
-      }));
+      patch(candidateId, { decision: { action, reason, note, decided_at: new Date().toISOString() } });
 
       const { error } = await supabase
         .from('decisions')
@@ -121,30 +182,27 @@ export function useCandidates(batchId) {
         );
 
       if (error) {
-        await load();
+        await Promise.all([load(), loadIndex()]);
         throw error;
       }
     },
-    [load],
+    [load, loadIndex, patch],
   );
 
   // Change means back to undecided. Writing defer again looked like a dead
   // button because the row was already deferred.
   const clear = useCallback(
     async ({ candidateId }) => {
-      setState((s) => ({
-        ...s,
-        rows: s.rows.map((r) => (r.id === candidateId ? { ...r, decision: null } : r)),
-      }));
+      patch(candidateId, { decision: null });
 
       const { error } = await supabase.from('decisions').delete().eq('candidate_id', candidateId);
 
       if (error) {
-        await load();
+        await Promise.all([load(), loadIndex()]);
         throw error;
       }
     },
-    [load],
+    [load, loadIndex, patch],
   );
 
   // A note is not a decision, so it does not touch the decision row and does
@@ -182,7 +240,7 @@ export function useCandidates(batchId) {
           id, supplier, supplier_kind, fulfilment, status, url, note,
           unit_cost, moq, price_at_moq, supplier_shipping,
           inbound_freight_per_unit, duty_pct, landed_unit_cost,
-          ships_from, transit_days, confirmed, quoted_on
+          ships_from, transit_days, confirmed, quoted_on, matched_on
         `)
         .single();
 
@@ -203,7 +261,7 @@ export function useCandidates(batchId) {
     [],
   );
 
-  return { ...state, reload: load, decide, clear, addNote, addSource };
+  return { ...state, index, reload: load, decide, clear, addNote, addSource, setCategory };
 }
 
 // undefined while resolving, null when there is genuinely no batch. Without the

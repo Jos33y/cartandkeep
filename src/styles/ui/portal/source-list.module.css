@@ -72,6 +72,7 @@
 }
 
 .net { font-size: var(--t-caption); color: var(--c-ink-soft); }
+.netLoses { color: var(--c-negative); }
 
 .form {
   display: grid;

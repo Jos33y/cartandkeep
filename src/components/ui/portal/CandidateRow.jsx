@@ -1,13 +1,18 @@
-import { useState } from 'react';
-import { Card, CardHead, Tip } from './primitives';
+import { useCallback, useMemo, useState } from 'react';
+import { Tip } from './primitives';
 import { MarketBand } from './MarketBand';
 import { SellerGauge } from './SellerGauge';
 import { ImageLightbox } from './ImageLightbox';
 import { SourceList } from './SourceList';
 import { ChannelMarks } from './ChannelMarks';
+import { GapFigure, GapRail, REF_WORD } from './GapRail';
+import { TillRoll } from './TillRoll';
+import { CostTry } from './CostTry';
+import { CategoryPicker } from './CategoryPicker';
+import { HOW_SET, categoryPath } from '@lib/categories';
 import { Icon } from '@components/ui/icons';
 import { formatGbp } from '@utils/formatGbp';
-import { shopName } from '@lib/assess';
+import { assess, shopName } from '@lib/assess';
 import { REJECTION_REASONS } from '@utils/constants';
 import styles from '@styles/ui/portal/candidate-row.module.css';
 
@@ -47,7 +52,7 @@ const SHOP_SEARCH = {
 const searchUrlFor = (name, q) => SHOP_SEARCH[name]?.(q)
   ?? `https://www.google.com/search?q=${q}+${encodeURIComponent(name)}+uk`;
 
-const fb = (n) => (n == null ? null : `${n.toLocaleString('en-GB')} feedback`);
+const fb = (n) => (n == null ? 'unknown' : Number(n).toLocaleString('en-GB'));
 
 const NEED_LABEL = { part: 'Part or refill', pest: 'Pest', damp: 'Damp and mould', 'clean-fix': 'Fix', safety: 'Safety', plumbing: 'Plumbing part', care: 'Care aid', winter: 'Winter need' };
 
@@ -58,25 +63,24 @@ function storeEvidence(a) {
   return { icon: 'IconCheck', tone: 'positive', text: `Google best seller #${g.rank.toLocaleString('en-GB')}${months}` };
 }
 
+// Who proves the market, in one line with the numbers first.
 function evidenceOf(a) {
   if (a.store) return storeEvidence(a);
   const e = a.entry;
   if (!e) return { icon: 'IconInfo', tone: 'muted', text: 'No recent seller in the sample' };
   if (a.entryLoses) {
-    // Losing at the small seller's price is half the answer; the other half is where it starts to pay.
-    const pays = a.floor != null ? `, and pays from ${formatGbp(a.floor)}` : '';
-    return { icon: 'IconInfo', tone: 'warning', text: `A ${fb(e.seller_feedback)} seller is at ${formatGbp(e.price)}, where this loses money${pays}` };
+    return { icon: 'IconInfo', tone: 'warning', text: `Small seller, ${fb(e.seller_feedback)} feedback, sells at ${formatGbp(e.price)}, where this loses money` };
   }
   if (e.proved && a.trusted) {
-    return { icon: 'IconCheck', tone: 'positive', text: `A ${fb(e.seller_feedback)} seller is converting at ${formatGbp(e.price)}` };
+    return { icon: 'IconCheck', tone: 'positive', text: `Small seller, ${fb(e.seller_feedback)} feedback, sells at ${formatGbp(e.price)}` };
   }
   if (e.proved) {
-    return { icon: 'IconCheck', tone: 'warning', text: `A ${fb(e.seller_feedback)} seller is converting at ${formatGbp(e.price)}, listed at the median` };
+    return { icon: 'IconInfo', tone: 'warning', text: `Small seller at ${formatGbp(e.price)}, outside this search's prices` };
   }
   if (a.entryThin) {
-    return { icon: 'IconInfo', tone: 'warning', text: `A ${fb(e.seller_feedback)} seller has sold ${e.sold_lifetime ?? 'a few'} in ${e.age_days} days, not yet one a month` };
+    return { icon: 'IconInfo', tone: 'warning', text: `Small seller, ${fb(e.seller_feedback)} feedback, sold ${e.sold_lifetime ?? 'a few'} in ${e.age_days} days` };
   }
-  return { icon: 'IconInfo', tone: 'warning', text: `Only large accounts selling, smallest ${fb(e.seller_feedback)}` };
+  return { icon: 'IconInfo', tone: 'warning', text: `Only large accounts selling, smallest ${fb(e.seller_feedback)} feedback` };
 }
 
 // How the shelf product compares with the listing proving the market.
@@ -90,24 +94,70 @@ function matchPill(match) {
   return null;
 }
 
+// One pill on the row, the one that asks something of her first; the rest are on the card.
+function pillsOf(c, a) {
+  const from = String(a.best?.ships_from ?? '').trim().toUpperCase();
+  const pill = matchPill(a.match);
+  return [
+    c.category_flag === 'check_same_product' && { tone: 'warning', text: 'Check it is the same product' },
+    a.packCheck && { tone: 'warning', text: 'Check pack size' },
+    !a.store && !a.packCheck && a.costBasis === 'seen' && !a.costConfirmed && { tone: 'warning', text: 'Check pack' },
+    pill,
+    a.store && c.cluster && c.cluster !== 'All year' && { tone: 'quiet', text: c.cluster },
+    a.store && a.m.need && { tone: 'quiet', text: NEED_LABEL[a.m.need] ?? a.m.need },
+    Boolean(from) && from !== 'GB' && from !== 'UK' && { tone: 'quiet', text: `Import, from ${from}` },
+    c.routes === 'branded' && { tone: 'quiet', text: 'Branded' },
+    c.routes === 'china' && { tone: 'quiet', text: 'Open market' },
+  ].filter(Boolean).slice(0, 1);
+}
+
+// Marks the shelf price as the same pack as eBay. Saved as a pack check, never as a supplier, so a supplier she adds
+// later still sets the cost. Shared with the C key on the page.
+export function confirmSource(c, a) {
+  const shelf = a.m?.shelf ?? null;
+  if (a.store || a.costBasis !== 'seen' || a.shelfIsCost || shelf?.price == null) return null;
+  return {
+    supplier: shopName(shelf.shop) ?? 'Where it was seen',
+    fulfilment: 'dropship',
+    supplier_kind: 'retailer',
+    unit_cost: shelf.price,
+    price_at_moq: shelf.price,
+    url: shelf.url ?? null,
+    note: 'Same item and pack as the eBay seller, checked by eye',
+    matched_on: 'shelf',
+    confirmed: true,
+    confirmed_at: new Date().toISOString(),
+    status: 'quoted',
+    quoted_on: new Date().toISOString().slice(0, 10),
+  };
+}
+
+// The middle of the market on the row's rail: eBay's quartiles, or Google's lowest to highest.
+function bandOf(c, a) {
+  if (a.store) return a.g?.min != null ? { low: Number(a.g.min), high: Number(a.g.max ?? a.g.min) } : null;
+  const comp = c.competition ?? {};
+  return comp.p25 != null && comp.p75 != null ? { low: comp.p25, high: comp.p75 } : null;
+}
+
 export function CandidateRow({
-  candidate: c, a, active, open, rejecting,
-  onActivate, onToggle, onReject, onDecide, onClear, onNote, onSource, suppliers,
+  candidate: c, a: base, active, open, rejecting, selected = false,
+  onActivate, onToggle, onReject, onDecide, onClear, onNote, onSource, onSelect, onMove, suppliers,
 }) {
   const [zoomed, setZoomed] = useState(false);
   const [note, setNote] = useState('');
   const [noteDraft, setNoteDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(null);
+  const [trial, setTrial] = useState(null);
+  const onTry = useCallback((cost, posted) => setTrial(cost == null ? null : { cost, posted }), []);
+
+  // A cost she is trying moves every figure on the card, from the same assess() the page uses. The lane stays put.
+  const a = useMemo(() => (open && trial ? assess(c, { tryCost: trial.cost, tryPosted: trial.posted }) : base), [c, base, trial, open]);
 
   const decision = c.decision;
-  const ev = evidenceOf(a);
-  const search = encodeURIComponent(c.title);
-  const shelf = a.m.shelf ?? null;
-  const pill = matchPill(a.match);
-  // Sourced from outside the UK and held as stock: the import route, labelled until it earns its own lane.
-  const from = String(a.best?.ships_from ?? '').trim().toUpperCase();
-  const imported = Boolean(from) && from !== 'GB' && from !== 'UK';
+  const ev = evidenceOf(base);
+  const pill = pillsOf(c, base)[0] ?? null;
+  const shelf = base.m.shelf ?? null;
 
   async function run(fn) {
     setBusy(true);
@@ -122,23 +172,32 @@ export function CandidateRow({
   }
 
   const decide = (action, extra = {}) => run(() => onDecide({ action, ...extra }));
+  // Each supplier's keep at the card's own price, so the lines compare like for like.
+  const keepOf = (s) => (s.landed_unit_cost == null || base.price == null ? null
+    : assess({ ...c, draft: { ...(c.draft ?? {}), price: base.price } }, {
+      tryCost: Number(s.landed_unit_cost), tryPosted: s.fulfilment === 'stock' ? 'you' : 'supplier', holdPrice: true,
+    }).keep);
 
   return (
     <article
       className={`${styles.row} ${open ? styles.open : ''} ${active ? styles.active : ''}`}
-      data-lane={decision ? `decided-${decision.action}` : a.lane}
+      data-lane={decision ? `decided-${decision.action}` : base.lane}
+      data-selected={selected || undefined}
       data-candidate={c.id}
       onPointerDown={onActivate}
     >
-      {zoomed && <ImageLightbox src={c.image_url} alt={a.title} onClose={() => setZoomed(false)} />}
-
-      <span className={styles.rail} aria-hidden="true" />
+      {zoomed && <ImageLightbox src={c.image_url} alt={base.title} onClose={() => setZoomed(false)} />}
 
       <div className={styles.top}>
+        <label className={styles.check}>
+          <input type="checkbox" checked={selected} readOnly
+            onClick={(e) => onSelect?.(e.shiftKey)} aria-label={`Select ${base.title}`} />
+        </label>
+
         {c.image_url ? (
           <button type="button" className={styles.thumb} onClick={() => setZoomed(true)}
-            aria-label={`View ${a.title} larger`}
-            title={a.store ? 'Photo from where it was seen, to recognise it. Not for your shop.' : undefined}>
+            aria-label={`View ${base.title} larger`}
+            title="Photo from where it was seen, to recognise it. Not for your shop or eBay.">
             <img src={thumb(c.image_url)} alt="" loading="lazy" />
           </button>
         ) : (
@@ -147,116 +206,42 @@ export function CandidateRow({
 
         <button type="button" className={styles.subject} onClick={onToggle} aria-expanded={open}>
           <span className={styles.nameRow}>
-            <span className={styles.name}>{a.title}</span>
-            <ChannelMarks channels={a.channels} />
+            <span className={styles.name}>{base.title}</span>
+            <ChannelMarks channels={base.channels} />
           </span>
-          <span className={styles.evidence}>
-            <span className={`${styles.ev} ${styles[ev.tone]}`}>
-              <Icon name={ev.icon} className={styles.evIcon} />
-              {ev.text}
-            </span>
-            {a.store && c.cluster && c.cluster !== 'All year' && <span className="pill pill-quiet">{c.cluster}</span>}
-            {a.store && a.m.need && <span className="pill pill-quiet">{NEED_LABEL[a.m.need] ?? a.m.need}</span>}
-            {a.packCheck && <span className="pill pill-warning">Check pack size</span>}
-            {pill && <span className={`pill pill-${pill.tone}`}>{pill.text}</span>}
-            {imported && <span className="pill pill-quiet">Import, from {from}</span>}
-            {c.routes === 'branded' && <span className="pill pill-quiet">Branded</span>}
-            {c.routes === 'china' && <span className="pill pill-quiet">Open market</span>}
-            {a.store && a.shops.length > 0 && (
-              <span className={styles.shelf}>
-                Seen at {a.shops.slice(0, 2).join(', ')}{a.shops.length > 2 && ` and ${a.shops.length - 2} more`}
-                {a.cost != null && <> <span data-num>{formatGbp(a.cost)}</span></>}
-              </span>
-            )}
-            {!a.store && (shelf?.price != null || shelf?.url) && (
-              <span className={styles.shelf}>
-                {a.shelfIsCost ? '' : 'Seen at '}{shopName(shelf.shop) ?? 'Shelf'}{shelf.price != null && <> <span data-num>{formatGbp(shelf.price)}</span></>}
-              </span>
-            )}
+          <span className={`${styles.ev} ${styles[ev.tone]}`}>
+            <Icon name={ev.icon} className={styles.evIcon} />
+            <span className={styles.evText}>{ev.text}</span>
+            {pill && <span className={`pill pill-${pill.tone} ${styles.pill}`}>{pill.text}</span>}
           </span>
         </button>
 
-        {a.store ? (
-          <>
-            <div className={`${styles.cellFig} ${styles.cellMarket}`}>
-              {a.g.rank != null ? (
-                <>
-                  <span className={styles.market} data-num>#{a.g.rank.toLocaleString('en-GB')}</span>
-                  <span className={styles.figFoot}>{a.g.months != null ? `${a.g.months} ${a.g.months === 1 ? 'month' : 'months'}` : 'on Google'}</span>
-                </>
-              ) : (
-                <span className={styles.none}>Not ranked</span>
-              )}
-            </div>
+        <div className={styles.cellMarket}>
+          {base.store ? (
+            base.g.rank != null
+              ? <span className={styles.market} data-num title={base.g.months != null ? `${base.g.months} of the months checked` : undefined}>#{base.g.rank.toLocaleString('en-GB')}</span>
+              : <span className={styles.none}>Not ranked</span>
+          ) : c.sold_30d != null
+            ? <span className={styles.market} data-num>{c.sold_30d.toLocaleString('en-GB')}</span>
+            : <span className={styles.none}>Not read</span>}
+        </div>
 
-            <div className={`${styles.cellFig} ${styles.cellKeep}`}>
-              {a.price != null ? (
-                <>
-                  <span className={`figure ${styles.keep}`}>{formatGbp(a.price)}</span>
-                  <span className={`${styles.figFoot} ${a.position ? styles[`foot_${a.position.tone}`] : ''}`}>
-                    {a.position ? a.position.short : a.floor != null && a.price !== a.floor ? <>floor <span data-num>{formatGbp(a.floor)}</span></> : 'at your floor'}
-                  </span>
-                </>
-              ) : (
-                <span className={styles.none}>Needs a price</span>
-              )}
-            </div>
+        <div className={styles.cellPrice}>
+          <GapRail price={a.price} position={a.position} band={bandOf(c, base)} />
+        </div>
 
-            <div className={`${styles.cellFig} ${styles.cellMonth}`}>
-              {a.keep != null ? (
-                <>
-                  <span className={`figure ${styles.month} ${a.keep < 0 ? styles.loses : ''}`}>{formatGbp(a.keep)}</span>
-                  <span className={styles.figFoot}>a sale, cost <span data-num>{formatGbp(a.cost)}</span></span>
-                </>
-              ) : (
-                <span className={styles.none}>Needs a price</span>
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-          <div className={`${styles.cellFig} ${styles.cellMarket}`}>
-            {c.sold_30d != null ? (
-              <>
-                <span className={styles.market}>{c.sold_30d.toLocaleString('en-GB')}</span>
-                <span className={styles.figFoot}>sold a month</span>
-              </>
-            ) : (
-              <span className={styles.none}>Not read</span>
-            )}
-          </div>
+        <div className={styles.cellGap}><GapFigure position={a.position} /></div>
 
-          <div className={`${styles.cellFig} ${styles.cellKeep}`}>
-            {a.price != null ? (
-              <>
-                <span className={`figure ${styles.keep}`}>{formatGbp(a.price)}</span>
-                <span className={`${styles.figFoot} ${a.position ? styles[`foot_${a.position.tone}`] : ''}`}>
-                  {a.position ? a.position.short : 'list at'}
-                </span>
-              </>
-            ) : (
-              <span className={styles.none}>No eBay price</span>
-            )}
-          </div>
-
-          <div className={`${styles.cellFig} ${styles.cellMonth}`}>
-            {a.packCheck ? (
-              <span className={styles.none}>Check pack first</span>
-            ) : a.keep != null ? (
-              <>
-                <span className={`figure ${styles.month} ${a.keep < 0 ? styles.loses : a.lane === 'short' ? styles.short : ''}`}>{formatGbp(a.keep)}</span>
-                <span className={`${styles.figFoot} ${a.costBasis === 'market' ? styles.foot_warning : ''}`}>
-                  {a.costBasis === 'market'
-                    ? <>if it costs <span data-num>{formatGbp(a.assumed)}</span> or less</>
-                    : <>a sale, cost <span data-num>{formatGbp(a.goods)}</span></>}
-                </span>
-              </>
-            ) : (
-              <span className={styles.none}>No eBay price</span>
-            )}
-          </div>
-          </>
-        )}
+        <div className={styles.cellKeep}>
+          {!a.trying && base.packCheck ? (
+            <span className={styles.none} title="The converting listing may be a bigger pack than the shelf one">Pack?</span>
+          ) : a.keep != null ? (
+            <KeepCell keep={a.keep} short={!a.trying && base.lane === 'short'} confirmed={a.costConfirmed && !a.trying}
+              trying={a.trying} market={a.costBasis === 'market'} />
+          ) : (
+            <span className={styles.none}>--</span>
+          )}
+        </div>
 
         <div className={styles.actions}>
           {decision ? (
@@ -265,22 +250,22 @@ export function CandidateRow({
                 {VERDICT[decision.action]}
               </span>
               <button type="button" className={styles.quiet} disabled={busy} onClick={() => run(onClear)}>
-                Undo<span className="visually-hidden"> decision on {a.title}</span>
+                Undo<span className="visually-hidden"> decision on {base.title}</span>
               </button>
             </>
           ) : (
             <>
-              <button type="button" className={styles.icon} disabled={busy}
-                onClick={() => decide('defer')} title="Later (L)" aria-label={`Later, ${a.title}`}>
+              <button type="button" className={styles.act} disabled={busy}
+                onClick={() => decide('defer')} title="Later (L)" aria-label={`Later, ${base.title}`}>
                 <Icon name="IconClock" className={styles.btnIcon} />
               </button>
-              <button type="button" className={`${styles.icon} ${rejecting ? styles.iconOn : ''}`} disabled={busy}
-                onClick={onReject} title="Reject (R)" aria-label={`Reject, ${a.title}`} aria-expanded={rejecting}>
+              <button type="button" className={`${styles.act} ${styles.reject} ${rejecting ? styles.actOn : ''}`} disabled={busy}
+                onClick={onReject} title="Reject (R)" aria-label={`Reject, ${base.title}`} aria-expanded={rejecting}>
                 <Icon name="IconX" className={styles.btnIcon} />
               </button>
               <button type="button" className={styles.approve} disabled={busy}
                 onClick={() => decide('approve')} title="Approve (A)">
-                Approve<span className="visually-hidden"> {a.title}</span>
+                Approve<span className="visually-hidden"> {base.title}</span>
               </button>
             </>
           )}
@@ -288,7 +273,7 @@ export function CandidateRow({
       </div>
 
       {rejecting && !decision && (
-        <div className={styles.reasons} role="group" aria-label={`Why reject ${a.title}`}>
+        <div className={styles.reasons} role="group" aria-label={`Why reject ${base.title}`}>
           <span className={styles.reasonsLabel}>Why</span>
           {REJECTION_REASONS.map((r, i) => (
             <button key={r.value} type="button" className={styles.reason} disabled={busy}
@@ -306,289 +291,256 @@ export function CandidateRow({
 
       {open && (
         <div className={styles.work}>
-          {a.warnings.length > 0 && (
+          {base.warnings.length > 0 && (
             <ul className={styles.warnings}>
-              {a.warnings.map((w) => (
+              {base.warnings.map((w) => (
                 <li key={w}><Icon name="IconInfo" className={styles.warnIcon} />{w}</li>
               ))}
             </ul>
           )}
 
-          {a.store ? <StoreWork c={c} a={a} onSource={onSource} suppliers={suppliers} /> : (<>
-          <Card raised className={styles.wide}>
-            <CardHead title="Where it sells, and where it pays"
-              aside={<Tip side="end">The top rail is the market: half of listings sit in the shaded band, the tick is the median, the ring is the smallest seller who is converting. The bottom rail is the same prices after fees, postage and the goods, and the dot is where your price lands.</Tip>} />
-            <MarketBand market={c.competition} entry={a.entry} price={a.price} keep={a.keep}
-              breakEven={a.breakEven} floor={a.floor} target={a.target} />
-            {a.position && <p className={`${styles.position} ${styles[`foot_${a.position.tone}`]}`}>{a.position.text}</p>}
-          </Card>
-
-          <Card>
-            <CardHead title="Who is selling it"
-              aside={<Tip side="end">A seller small enough to be starting out, selling this on a listing under 90 days old, is proof a new account can get in. A large account selling proves demand, not entry.</Tip>} />
-            <SellerGauge entry={a.entry} ceiling={a.ceiling} />
-            {a.entry ? (
-              <dl className={styles.proofs}>
-                <Proof value={a.entry.seller_feedback.toLocaleString('en-GB')} label="feedback" />
-                <Proof value={a.entry.sold_lifetime ?? 'Unknown'} label={`sold in ${a.entry.age_days} days`} />
-                <Proof value={a.perMonth != null ? a.perMonth.toLocaleString('en-GB') : 'Too new'} label="they sell a month" />
-                <Proof value={(c.active_listings ?? c.competition?.competitors ?? 'Unknown').toLocaleString('en-GB')} label="listings competing" />
-              </dl>
-            ) : (
-              <p className={styles.quietText}>Nobody in the sample has listed this recently, so entry is untested.</p>
-            )}
-            {a.entry?.item_id && (
-              <a className={styles.out} href={itmUrl(a.entry.item_id)} target="_blank" rel="noreferrer noopener">
-                Open that listing <Icon name="IconOut" className={styles.outIcon} />
-              </a>
-            )}
-          </Card>
-
-          <Card>
-            <CardHead title="Where the money goes"
-              note={a.price != null ? `On a ${formatGbp(a.price)} sale${a.month != null ? `, about ${formatGbp(a.month)} a month at the proving seller's rate` : ''}` : null} />
-            <Split a={a} />
-          </Card>
-
-          <Card>
-            <CardHead title="Where it was seen" />
-            {shelf?.url && (
-              <a className={styles.seen} href={shelf.url} target="_blank" rel="noreferrer noopener">
-                <span className={styles.seenShop}>{shelf.shop ?? 'The shop'}</span>
-                <span className={styles.seenProduct}>{shelf.product}</span>
-                {shelf.price != null && <span className={`figure ${styles.seenPrice}`}>{formatGbp(shelf.price)}</span>}
-              </a>
-            )}
-            {/* Which figure the price is built on, said plainly. */}
-            {a.costBasis === 'market' && (
-              <p className={styles.quietText}>
-                No price from a shop yet, so it is priced as if it costs{' '}
-                <span data-num>{formatGbp(a.assumed)}</span>, the most the eBay price allows.
-                A real price found here, or a supplier you add, brings the list price down.
-              </p>
-            )}
-            {/* A price seen but not matched to the seller's pack: she confirms it is the same item, and it becomes her cost. */}
-            {shelf?.price != null && !a.shelfIsCost && a.costFrom?.basis !== 'supplier' && (
-              <div className={styles.useCost}>
-                <p className={styles.quietText}>
-                  Seen at <span data-num>{formatGbp(shelf.price)}</span>{shelf.vat_added ? ' with VAT' : ''}. Not matched to the eBay seller&apos;s pack yet, so it is not your cost.
-                </p>
-                <button type="button" className={styles.quiet} disabled={busy}
-                  onClick={() => run(() => onSource({
-                    supplier: shopName(shelf.shop) ?? 'Where it was seen',
-                    fulfilment: 'dropship',
-                    supplier_kind: 'unknown',
-                    unit_cost: shelf.price,
-                    price_at_moq: shelf.price,
-                    url: shelf.url ?? null,
-                    note: 'Same item as the eBay seller, checked by eye',
-                    status: 'quoted',
-                    quoted_on: new Date().toISOString().slice(0, 10),
-                  }))}>
-                  Same item, use <span data-num>{formatGbp(shelf.price)}</span> as my cost
-                </button>
-              </div>
-            )}
-            {a.costFrom?.basis === 'supplier' && (
-              <p className={styles.quietText}>
-                Priced from {a.costFrom.from} at <span data-num>{formatGbp(a.costFrom.cost)}</span>
-                {a.costFrom.beaten != null && <>, cheaper than the shop&apos;s <span data-num>{formatGbp(a.costFrom.beaten)}</span></>}.
-              </p>
-            )}
-            {a.m.shops?.length > 0 && (
-              <p className={styles.shops}>
-                <span className={styles.shopsLabel}>Also look at</span>
-                {a.m.shops.map((name) => (
-                  <a key={name} href={searchUrlFor(name, search)} target="_blank" rel="noreferrer noopener">{name}</a>
+          <div className={styles.main}>
+          <section className={styles.marketPanel} aria-label="Where it sells, and where it pays">
+            <PriceHead a={a} base={base} />
+            <CategoryLine c={c} channels={base.channels} onMove={onMove} />
+            <MarketBand
+              {...(base.store
+                ? {
+                  market: base.g.min != null ? { p25: base.g.min, p75: base.g.max ?? base.g.min, low: base.g.min, high: base.g.max } : null,
+                  sellsLabel: 'On Google', bodyLabel: "Google's price range",
+                }
+                : {
+                  market: c.competition, entry: base.entry,
+                  listings: base.marketRead?.listings ?? [],
+                  medianLabel: medianLabelOf(base.marketRead),
+                  medianListed: base.marketRead?.basis === 'selling' ? base.marketRead.medianListed : null,
+                })}
+              price={a.price} keep={a.keep} breakEven={a.breakEven} floor={a.floor} target={a.target}
+              scale={[base.entry?.price, base.price, base.breakEven, base.floor, base.position?.ref]}
+              ghost={!a.trying && base.position && !base.position.inMarket && base.landsUnder != null
+                ? { price: base.position.ref, note: `goods ${formatGbp(base.landsUnder)}` }
+                : null} />
+            {base.store ? <GoogleStrip base={base} /> : <SellerStrip base={base} c={c} />}
+            <div className={styles.tryRule} />
+            <CostTry onTry={onTry} base={base} view={a} suppliers={suppliers} onSave={(fields) => onSource(fields)} />
+          </section>
+            <section className={styles.notes} aria-label="Notes">
+              <h3 className={styles.panelTitle}>Notes</h3>
+              <div className={styles.notesBody}>
+                {(c.notes ?? []).map((n) => (
+                  <p key={n.id} className={styles.noteItem}>
+                    <span className={styles.noteWhen} data-num>
+                      {new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'short' })
+                        .format(new Date(n.created_at))}
+                    </span>
+                    {n.body}
+                  </p>
                 ))}
-              </p>
-            )}
-            <SourceList candidate={c} onAdd={onSource} suppliers={suppliers} compact />
-          </Card>
-          </>)}
+                <div className={styles.noteAdd}>
+                  <input className={styles.noteInput} value={noteDraft}
+                    aria-label={`Add a note about ${base.title}`}
+                    placeholder="Supplier lead, a size question, something to check"
+                    onChange={(e) => setNoteDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && noteDraft.trim()) {
+                        e.preventDefault();
+                        run(async () => { await onNote(noteDraft); setNoteDraft(''); });
+                      }
+                    }} />
+                  <button type="button" className={styles.quiet} disabled={!noteDraft.trim() || busy}
+                    onClick={() => run(async () => { await onNote(noteDraft); setNoteDraft(''); })}>
+                    Add
+                  </button>
+                </div>
+              </div>
+            </section>
+          </div>
 
-          <Card>
-            <CardHead title="Notes" />
-            {(c.notes ?? []).map((n) => (
-              <p key={n.id} className={styles.noteItem}>
-                <span className={styles.noteWhen} data-num>
-                  {new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'short' })
-                    .format(new Date(n.created_at))}
-                </span>
-                {n.body}
-              </p>
-            ))}
-            <div className={styles.noteAdd}>
-              <input className={styles.noteInput} value={noteDraft}
-                aria-label={`Add a note about ${a.title}`}
-                placeholder="Supplier lead, a size question, something to check"
-                onChange={(e) => setNoteDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && noteDraft.trim()) {
-                    e.preventDefault();
-                    run(async () => { await onNote(noteDraft); setNoteDraft(''); });
-                  }
-                }} />
-              <button type="button" className={styles.quiet} disabled={!noteDraft.trim() || busy}
-                onClick={() => run(async () => { await onNote(noteDraft); setNoteDraft(''); })}>
-                Add
-              </button>
-            </div>
-          </Card>
+          <aside className={styles.side}>
+            <section className={styles.moneyPanel} aria-label="Where the money goes">
+              <TillRoll a={a} />
+            </section>
+
+            <section className={styles.seenPanel} aria-label="Where it was seen">
+              <h3 className={styles.panelTitle}>
+                Where it was seen
+                <Tip side="end">Proof it can be bought in the UK. The photo and wording are the shop&apos;s, so never used on your listings.</Tip>
+              </h3>
+              {base.store ? (
+                <ShelfLabel shop={shopName(base.m.cost_from?.shop) ?? 'The shop'} product={base.m.cost_from?.product ?? c.title}
+                  price={base.m.cost} url={base.m.cost_from?.url} state="confirmed" />
+              ) : (shelf?.price != null || shelf?.url) ? (
+                <ShelfLabel shop={shopName(shelf.shop) ?? 'The shop'} product={shelf.product} price={shelf.price} url={shelf.url}
+                  state={base.costFrom?.basis === 'supplier' ? 'aside' : base.shelfIsCost ? 'confirmed' : 'estimate'} />
+              ) : (
+                <p className={styles.quietText}>Not seen in a UK shop yet. The price is built on the most the eBay price allows the goods to cost.</p>
+              )}
+
+              {confirmSource(c, base) && (
+                <button type="button" className={styles.confirm} disabled={busy}
+                  onClick={() => run(() => onSource(confirmSource(c, base)))}>
+                  <Icon name="IconCheck" className={styles.confirmIcon} />
+                  Same item and pack, confirm <span data-num>{formatGbp(shelf.price)}</span>
+                  <kbd className={styles.kbd}>C</kbd>
+                </button>
+              )}
+
+              <AlsoLook names={base.store ? base.shops.slice(1) : (base.m.shops ?? [])} seen={base.store ? shopName(base.m.cost_from?.shop) : shopName(shelf?.shop)}
+                label={base.store ? 'Also stocked at' : 'Also look at'} q={encodeURIComponent(c.title)} />
+
+              <SourceList candidate={c} onAdd={onSource} suppliers={suppliers} compact canAdd={false} keepOf={keepOf} />
+            </section>
+          </aside>
+
         </div>
       )}
     </article>
   );
 }
 
-function Proof({ value, label }) {
+// Where the card sits in Google's taxonomy, how that was decided, where it came from, and the one way to move it.
+function CategoryLine({ c, channels, onMove }) {
+  const [moving, setMoving] = useState(false);
+  const path = categoryPath(c.category_id);
+  const how = HOW_SET[c.category_source];
   return (
-    <div className={styles.proof}>
-      <dt className={styles.proofLabel}>{label}</dt>
-      <dd className={`figure ${styles.proofValue}`}>{value}</dd>
-    </div>
-  );
-}
-
-function Split({ a }) {
-  if (a.price == null || a.fees == null || a.keep == null) {
-    return <p className={styles.quietText}>Needs an eBay price.</p>;
-  }
-  // With no real cost yet, the goods are the most the eBay price allows, and the label says so.
-  const market = a.costBasis === 'market';
-  const goods = market ? a.assumed : a.goods;
-  const keep = a.keep;
-
-  const parts = [
-    { key: 'fees', label: 'eBay fees', value: a.fees },
-    { key: 'post', label: 'Postage, packing, returns', value: a.postage },
-    { key: 'goods', label: market ? 'Goods, at most' : `Goods, ${a.costFrom?.from ?? 'cost'}`, value: goods ?? 0 },
-    // The bar cannot draw a loss, but the figure must say it: this read £0.00 on a £12.63 loss.
-    { key: 'keep', label: keep < 0 ? 'You lose' : 'You keep', value: Math.max(0, keep), shown: Math.abs(keep) },
-  ];
-  const total = parts.reduce((s, p) => s + p.value, 0) || 1;
-
-  return (
-    <div className={styles.split}>
-      <div className={styles.splitBar}>
-        {parts.map((p) => (
-          <span key={p.key} className={styles[`seg_${p.key}`]} style={{ flexBasis: `${(p.value / total) * 100}%` }} />
-        ))}
-      </div>
-      <dl className={styles.splitKey}>
-        {parts.map((p) => (
-          <div key={p.key} className={styles.splitItem}>
-            <dt><i className={styles[p.key === 'keep' && keep < 0 ? 'seg_lose' : `seg_${p.key}`]} />{p.label}</dt>
-            <dd data-num className={p.key === 'keep' ? (keep < 0 ? styles.splitLoses : styles.splitKeep) : undefined}>
-              {formatGbp(p.shown ?? p.value)}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </div>
-  );
-}
-
-// The opened store card: what Google shows it selling for, how her price is built, and where it was seen.
-function StoreWork({ c, a, onSource, suppliers }) {
-  const g = a.g;
-  const from = a.m.cost_from ?? {};
-  const parts = a.price != null && a.cost != null ? [
-    { key: 'goods', label: a.costFrom?.basis === 'supplier' ? `Cost, ${a.costFrom.from}` : 'Cost where seen', value: a.cost },
-    { key: 'post', label: a.postageBand?.basis === 'weight' ? `${a.postageBand.key === 'rm-small' ? 'Royal Mail small parcel' : `Royal Mail medium parcel, ${(a.postageBand.grams / 1000).toFixed(1)}kg`}, packing and returns` : 'Royal Mail, packing and returns', value: a.postage },
-    { key: 'fees', label: 'Card fee', value: a.fees },
-    { key: 'keep', label: a.keep < 0 ? 'You lose' : 'You keep', value: Math.max(0, a.keep), shown: Math.abs(a.keep) },
-  ] : null;
-  const total = parts ? parts.reduce((s, p) => s + p.value, 0) || 1 : 1;
-
-  return (
-    <>
-      <Card raised className={styles.wide}>
-        <CardHead title="Where it sells on Google, and where it pays"
-          aside={<Tip side="end">The top rail is what shops charge for it on Google, lowest to highest. The bottom rail is the same prices after the cost, Royal Mail, packing, returns and the card fee: red loses money, amber keeps less than your profit, green keeps your profit. The dot is your price.</Tip>} />
-        <MarketBand
-          market={g.min != null ? { p25: g.min, p75: g.max ?? g.min, low: g.min, high: g.max } : null}
-          price={a.price} keep={a.keep} breakEven={a.breakEven} floor={a.floor} target={a.target}
-          sellsLabel="On Google" bodyLabel="Google's price range" />
-        <dl className={styles.proofs}>
-          <Proof value={g.rank != null ? `#${g.rank.toLocaleString('en-GB')}` : 'Unknown'} label={`best seller, ${g.category ?? 'this category'}`} />
-          <Proof value={g.months ?? 'Unknown'} label={g.months === 1 ? 'month ranked' : 'months ranked'} />
-          <Proof value={a.shops.length} label={a.shops.length === 1 ? 'UK shop stocks it' : 'UK shops stock it'} />
-          <Proof value={a.floor != null ? formatGbp(a.floor) : 'No cost yet'} label="your floor" />
-        </dl>
-      </Card>
-
-      <Card>
-        <CardHead title="Your price" note={a.price != null ? `Listed at ${formatGbp(a.price)}${a.floor != null ? `, floor ${formatGbp(a.floor)}` : ''}` : null} />
-        {a.position && <p className={`${styles.position} ${styles[`foot_${a.position.tone}`]}`}>{a.position.text}</p>}
-        {parts ? (
-          <div className={styles.split}>
-            <div className={styles.splitBar}>
-              {parts.map((p) => (
-                <span key={p.key} className={styles[`seg_${p.key}`]} style={{ flexBasis: `${(p.value / total) * 100}%` }} />
-              ))}
-            </div>
-            <dl className={styles.splitKey}>
-              {parts.map((p) => (
-                <div key={p.key} className={styles.splitItem}>
-                  <dt><i className={styles[p.key === 'keep' && a.keep < 0 ? 'seg_lose' : `seg_${p.key}`]} />{p.label}</dt>
-                  <dd data-num className={p.key === 'keep' ? (a.keep < 0 ? styles.splitLoses : styles.splitKeep) : undefined}>
-                    {formatGbp(p.shown ?? p.value)}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        ) : (
-          <p className={styles.quietText}>Needs the price it is sold at where it was seen.</p>
-        )}
-      </Card>
-
-      <Card>
-        <CardHead title="Where it was seen" aside={<Tip side="end">Proof it can be bought in the UK. You buy wherever is cheapest once an order comes in.</Tip>} />
-        {from.url && (
-          <a className={styles.seen} href={from.url} target="_blank" rel="noreferrer noopener">
-            <span className={styles.seenShop}>{shopName(from.shop) ?? 'The shop'}</span>
-            <span className={styles.seenProduct}>{from.product ?? c.title}</span>
-            {from.price != null && <span className={`figure ${styles.seenPrice}`}>{formatGbp(from.price)}</span>}
-          </a>
-        )}
-        {a.shops.length > 1 && (
-          <p className={styles.shops}>
-            <span className={styles.shopsLabel}>Also stocked at</span>
-            {a.shops.slice(1).map((name) => (
-              <a key={name} href={searchUrlFor(name, encodeURIComponent(c.title))} target="_blank" rel="noreferrer noopener">{name}</a>
-            ))}
-          </p>
-        )}
-        {a.costFrom?.basis === 'supplier' && (
-          <p className={styles.quietText}>
-            Priced from {a.costFrom.from} at <span data-num>{formatGbp(a.costFrom.cost)}</span>
-            {a.costFrom.beaten != null && <>, cheaper than <span data-num>{formatGbp(a.costFrom.beaten)}</span> where it was seen</>}.
-          </p>
-        )}
-        <SourceList candidate={c} onAdd={onSource} suppliers={suppliers} compact />
-      </Card>
-
-      {a.entry && (
-        <Card>
-          <CardHead title="On eBay" aside={<Tip side="end">The gate found this selling on eBay too. A seller your size converting is proof a new account can get in.</Tip>} />
-          <SellerGauge entry={a.entry} ceiling={a.entry.ceiling ?? 1000} />
-          {a.ebay && (
-            <dl className={styles.proofs}>
-              <Proof value={a.ebay.price != null ? formatGbp(a.ebay.price) : 'Unknown'} label="eBay price" />
-              <Proof value={a.ebay.keep != null ? formatGbp(a.ebay.keep) : 'Unknown'} label={a.ebay.position ? `you keep on eBay, ${a.ebay.position.short}` : 'you keep on eBay'} />
-              <Proof value={a.ebay.perMonth != null ? a.ebay.perMonth.toLocaleString('en-GB') : 'Too new'} label="sales a month" />
-              <Proof value={(a.ebay.m?.competition?.competitors ?? 'Unknown').toLocaleString('en-GB')} label="listings competing" />
-            </dl>
-          )}
-          {a.entry.item_id && (
-            <a className={styles.out} href={itmUrl(a.entry.item_id)} target="_blank" rel="noreferrer noopener">
-              Open that listing <Icon name="IconOut" className={styles.outIcon} />
-            </a>
-          )}
-        </Card>
+    <div className={styles.category}>
+      <span className={styles.crumbs}>
+        {path
+          ? path.split(' > ').map((part, i, all) => (
+            <span key={`${part}-${i}`} className={i === all.length - 1 ? styles.crumbLast : undefined}>
+              {part}{i < all.length - 1 && <span className={styles.crumbSep} aria-hidden="true">›</span>}
+            </span>
+          ))
+          : <span className={styles.crumbNone}>No category yet</span>}
+      </span>
+      {how && <span className={styles.how} data-source={c.category_source}>{how}</span>}
+      <span className={styles.labels}>
+        <ChannelMarks channels={channels} />
+        {(c.source_labels ?? []).map((l) => <span key={l} className={styles.sourceLabel}>{l}</span>)}
+      </span>
+      {onMove && (
+        <span className={styles.moveWrap}>
+          <button type="button" className={styles.move} aria-expanded={moving} onClick={() => setMoving((v) => !v)}>
+            Move to…
+          </button>
+          {moving && <CategoryPicker current={c.category_id} onPick={onMove} onClose={() => setMoving(false)} />}
+        </span>
       )}
-    </>
+    </div>
+  );
+}
+
+// What the median was taken from, so a figure from three listings says so.
+function medianLabelOf(read) {
+  if (read?.basis === 'selling' && read.sellingSeen) return `median of ${read.sellingSeen} selling`;
+  if (read?.basis === 'listed') return 'median of all listed, too few selling';
+  return 'median';
+}
+
+// The headline over the rails: her price, where it sits, and whether that is a cost she is only trying.
+function PriceHead({ a, base }) {
+  const p = a.position;
+  const word = p ? REF_WORD[p.refName] ?? p.refName : null;
+  return (
+    <header className={styles.priceHead}>
+      <p className={styles.headline}>
+        <span className={styles.headLabel}>List at</span>
+        <span className={styles.headPrice} data-num>{formatGbp(a.price)}</span>
+        {p && (p.inMarket
+          ? <span className={styles.headIn}>in the market, level with {word} at <span data-num>{formatGbp(p.ref)}</span></span>
+          : <span className={styles.headOver}><span data-num>+{formatGbp(p.over)}</span> over {word} at <span data-num>{formatGbp(p.ref)}</span></span>)}
+        {a.trying && <span className={styles.headIf}>if the goods cost <span data-num>{formatGbp(a.goods)}</span></span>}
+      </p>
+      <Tip side="end">
+        {base.store
+          ? 'The top rail is what shops charge for it on Google, lowest to highest. The bottom rail is what you keep at each of those prices. The tag is your price.'
+          : 'The top rail is the market: the shaded band is the middle half of what is listed, each dot a listing the check opened (filled if it has sold), the tick the median, the ring the small seller. The bottom rail is what you keep at each of those prices. The tag is your price.'}
+      </Tip>
+    </header>
+  );
+}
+
+// Who is selling, on one line under the rails.
+function SellerStrip({ base, c }) {
+  const e = base.entry;
+  return (
+    <div className={styles.strip}>
+      <span className={styles.stripLabel}>Who is selling</span>
+      <span className={styles.stripGauge}><SellerGauge entry={e} ceiling={base.ceiling} compact /></span>
+      {e ? (
+        <span className={styles.stripFacts}>
+          <span><b data-num>{e.sold_lifetime ?? '?'}</b> sold in {e.age_days} days</span>
+          <span><b data-num>{base.perMonth != null ? base.perMonth.toLocaleString('en-GB') : 'too new'}</b> a month</span>
+          <span><b data-num>{(c.active_listings ?? c.competition?.competitors ?? 0).toLocaleString('en-GB')}</b> competing</span>
+          {e.item_id && <ListingLink id={e.item_id} />}
+        </span>
+      ) : (
+        <span className={styles.stripFacts}>Untested: nobody in the sample has listed this recently.</span>
+      )}
+    </div>
+  );
+}
+
+function GoogleStrip({ base }) {
+  const g = base.g;
+  return (
+    <div className={styles.strip}>
+      <span className={styles.stripLabel}>On Google</span>
+      <span className={styles.stripFacts}>
+        <span><b data-num>{g.rank != null ? `#${g.rank.toLocaleString('en-GB')}` : '?'}</b> in {g.category ?? 'its category'}</span>
+        <span><b data-num>{g.months ?? '?'}</b> {g.months === 1 ? 'month' : 'months'} ranked</span>
+        <span><b data-num>{base.shops.length}</b> UK {base.shops.length === 1 ? 'shop' : 'shops'}</span>
+        <span>floor <b data-num>{base.floor != null ? formatGbp(base.floor) : '--'}</b></span>
+        {base.ebay && <span>on eBay <b data-num>{formatGbp(base.ebay.price)}</b>, keeps <b data-num>{formatGbp(base.ebay.keep)}</b></span>}
+      </span>
+    </div>
+  );
+}
+
+// A shelf edge ticket: the shop, what it called the product, the price, and how sure the price is as her cost.
+function ShelfLabel({ shop, product, price, url, state }) {
+  const Tag = url ? 'a' : 'div';
+  const word = { confirmed: 'Same pack', estimate: 'Pack not checked', aside: 'Your supplier\'s cost is used' }[state];
+  return (
+    <Tag className={styles.label} data-state={state} {...(url ? { href: url, target: '_blank', rel: 'noreferrer noopener' } : {})}>
+      <span className={styles.labelShop}>{shop}{url && <Icon name="IconOut" className={styles.labelOut} />}</span>
+      <span className={styles.labelProduct}>{product}</span>
+      <span className={styles.labelPrice} data-num>{price != null ? formatGbp(price) : 'No price'}</span>
+      <span className={styles.labelState}>{word}</span>
+    </Tag>
+  );
+}
+
+function AlsoLook({ names, seen, label, q }) {
+  const list = [...new Set(names.map(shopName))].filter((n) => n && n !== 'eBay' && n !== seen);
+  if (!list.length) return null;
+  return (
+    <p className={styles.shops}>
+      <span className={styles.shopsLabel}>{label}</span>
+      {list.map((name) => (
+        <a key={name} href={searchUrlFor(name, q)} target="_blank" rel="noreferrer noopener">{name}</a>
+      ))}
+    </p>
+  );
+}
+
+function ListingLink({ id }) {
+  return (
+    <a className={styles.out} href={itmUrl(id)} target="_blank" rel="noreferrer noopener">
+      Open listing <Icon name="IconOut" className={styles.outIcon} />
+    </a>
+  );
+}
+
+// What she keeps a sale, on one line. Green only when the cost is confirmed; est. in amber when it is not.
+function KeepCell({ keep, confirmed, short = false, trying = false, market = false }) {
+  const tone = keep < 0 ? styles.loses : short ? styles.short : trying ? styles.keepTry : confirmed ? styles.keepSure : styles.keepEst;
+  return (
+    <span className={styles.keepLine}>
+      <span className={`${styles.keepFig} ${tone}`} data-num>{formatGbp(keep)}</span>
+      {trying ? <b className={styles.ifMark}>if</b>
+        : !confirmed && <b className={styles.est} title={market ? 'No shop price: the goods at the most the eBay price allows' : 'Pack not confirmed'}>est</b>}
+    </span>
   );
 }

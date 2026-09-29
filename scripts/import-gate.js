@@ -42,6 +42,7 @@ import { entryKeepOf, listingsOf, refusalsOf } from './lib/refusals.js';
 import { BAND_LABEL, entryRank, buildRow, listPrice, titleOf } from './lib/row.js';
 import { MARKET, refreshMarket, writeCoverage } from './lib/persist.js';
 import { ebayAtWeight } from '../src/lib/pricing.js';
+import { categorise } from './categories/categorise.mjs';
 
 export { listPrice, buildRow, parseCsv, readShelf };
 
@@ -345,6 +346,9 @@ async function main() {
     process.exit(1);
   }
 
+  // Store cards this run gave eBay to, so their category can be refined from the eBay listing too.
+  const touched = [];
+
   // A query already in another batch is the same card twice in her queue.
   // This batch's own rows are kept, so a re-import still refreshes them.
   if (!allowDuplicates) {
@@ -385,6 +389,7 @@ async function main() {
       const byRef = new Map(rows.map((r) => [r.external_ref, r]));
       let labelled = 0;
       let decidedStore = 0;
+      touched.push(...(storeCards ?? []).map((c) => c.id));
       for (const card of storeCards ?? []) {
         const gated = byRef.get(card.external_ref);
         if (!gated) continue;
@@ -497,6 +502,15 @@ async function main() {
   }
 
   await writeCoverage(db, tenant.id, batch.id, coverage);
+
+  // Google category and source labels for what this run wrote. A card she has placed herself is never moved.
+  try {
+    const { tally } = await categorise(db, tenant.id, { batchIds: [batch.id] });
+    if (touched.length) await categorise(db, tenant.id, { ids: touched });
+    console.log(`  Categories: ${tally.set} set, ${tally.deeper} made more specific, ${tally.flagged} flagged to check`);
+  } catch (e) {
+    console.error(`  Categories not set (${e.message}). Run scripts/categories/fill-categories.mjs once the migration is in.`);
+  }
 
   const { error: sErr, count } = await db
     .from('tenant_sources')

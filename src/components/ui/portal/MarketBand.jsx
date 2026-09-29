@@ -1,3 +1,4 @@
+import { PriceTag } from './PriceTag';
 import { formatGbp } from '@utils/formatGbp';
 import styles from '@styles/ui/portal/market-band.module.css';
 
@@ -29,8 +30,16 @@ function domainOf(market, points) {
   return { lo: Math.max(0, lo), hi };
 }
 
-export function MarketBand({ market, entry, price, keep, breakEven, floor, target, sellsLabel = 'Where it sells', bodyLabel = 'half of listings' }) {
-  const { lo, hi } = domainOf(market, [entry?.price, price, breakEven, floor]);
+/*
+ * The market on top, what she keeps at each of those prices underneath, and her price as a kraft tag whose string
+ * drops through both rails. `scale` holds the points the scale was first drawn for, so trying a cost moves the tag
+ * rather than redrawing the rails under it. `ghost` is where the tag would hang at a cost that lists in the market.
+ */
+export function MarketBand({
+  market, entry, price, keep, breakEven, floor, target, ghost = null, scale = null, listings = [], medianListed = null,
+  sellsLabel = 'Where it sells', bodyLabel = 'half of all listed', medianLabel = 'median of those selling',
+}) {
+  const { lo, hi } = domainOf(market, [...(scale ?? [entry?.price, breakEven, floor]), price, ghost?.price]);
   const at = (v) => Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100));
 
   const loss = breakEven != null ? at(breakEven) : null;
@@ -39,25 +48,34 @@ export function MarketBand({ market, entry, price, keep, breakEven, floor, targe
     market?.low != null && market.low < lo && `lowest ${formatGbp(market.low)}`,
     market?.high != null && market.high > hi && `highest ${formatGbp(market.high)}`,
   ].filter(Boolean);
+  const short = keep != null && keep < (target ?? 0);
+  const x = price != null ? at(price) : null;
 
   return (
-    <figure className={styles.band}>
+    <figure className={styles.band} data-ghost={ghost?.price != null || undefined}>
       <div className={styles.lanes}>
         <span className={styles.laneLabel}>{sellsLabel}</span>
         <div className={styles.rail}>
           {market?.p25 != null && market?.p75 != null && (
             <span className={styles.body}
-              style={{ left: `${at(market.p25)}%`, width: `${at(market.p75) - at(market.p25)}%` }}
+              style={{ left: `${at(market.p25)}%`, width: `${Math.max(0.5, at(market.p75) - at(market.p25))}%` }}
               title={`${bodyLabel[0].toUpperCase()}${bodyLabel.slice(1)}: ${formatGbp(market.p25)} to ${formatGbp(market.p75)}`} />
           )}
+          {listings.map((l, i) => (
+            <a key={l.item_id ?? i} className={styles.dot} data-sold={Number(l.sold) > 0 || undefined}
+              href={l.url} target="_blank" rel="noreferrer noopener"
+              style={{ left: `${at(Number(l.price))}%` }}
+              title={`${formatGbp(l.price)}${Number(l.sold) > 0 ? `, ${l.sold} sold` : ', none sold'}${l.title ? `: ${l.title}` : ''}`}
+              aria-label={`Listing at ${formatGbp(l.price)}`} />
+          ))}
           {market?.median != null && (
             <span className={styles.median} style={{ left: `${at(market.median)}%` }}
-              title={`Median ${formatGbp(market.median)}`} />
+              title={`${medianLabel[0].toUpperCase()}${medianLabel.slice(1)}: ${formatGbp(market.median)}`} />
           )}
           {entry?.price != null && (
             <span className={`${styles.seller} ${entry.proved ? styles.sellerProved : ''}`}
               style={{ left: `${at(entry.price)}%` }}
-              title={`${entry.seller_feedback.toLocaleString('en-GB')} feedback seller converting at ${formatGbp(entry.price)}`} />
+              title={`${Number(entry.seller_feedback).toLocaleString('en-GB')} feedback seller at ${formatGbp(entry.price)}`} />
           )}
         </div>
 
@@ -74,22 +92,25 @@ export function MarketBand({ market, entry, price, keep, breakEven, floor, targe
           )}
         </div>
 
-        {price != null && (
-          <span className={styles.overlay} aria-hidden="true">
-          <span className={`${styles.knob} ${keep != null && keep < (target ?? 0) ? styles.short : ''}`}
-            style={{ left: `${at(price)}%` }} />
-          <span className={styles.list} style={{ left: `${at(price)}%` }}>
-            <span className={styles.flag}>
-              <span className={styles.flagPrice} data-num>{formatGbp(price)}</span>
-              {keep != null && (
-                <span className={`${styles.flagKeep} ${keep < (target ?? 0) ? styles.flagShort : ''}`}>
-                  keeps <span data-num>{formatGbp(keep)}</span>
-                </span>
-              )}
+        <span className={styles.overlay} aria-hidden="true">
+          {x != null && (
+            <span className={styles.list} style={{ left: `${x}%` }}>
+              <span className={styles.tagAt} data-flip={x > 62 || undefined}>
+                <PriceTag price={price} size="big" flip={x > 62}
+                  note={keep != null ? `${keep < 0 ? 'loses' : 'keeps'} ${formatGbp(Math.abs(keep))}` : null} />
+              </span>
+              <span className={styles.string} />
+              <span className={`${styles.knob} ${short ? styles.short : ''}`} />
             </span>
-          </span>
-          </span>
-        )}
+          )}
+          {ghost?.price != null && (
+            <span className={styles.ghost} style={{ left: `${at(ghost.price)}%` }}>
+              <span className={styles.ghostAt} data-flip={at(ghost.price) > 62 || undefined}>
+                <PriceTag price={ghost.price} tone="ghost" flip={at(ghost.price) > 62} note={ghost.note} />
+              </span>
+            </span>
+          )}
+        </span>
       </div>
 
       <div className={styles.axis} data-num>
@@ -98,18 +119,32 @@ export function MarketBand({ market, entry, price, keep, breakEven, floor, targe
       </div>
 
       <figcaption className={styles.key}>
-        <span className={styles.keyItem}><i className={styles.keyBody} />{bodyLabel}</span>
+        {market?.p25 != null && market?.p75 != null && (
+          <span className={styles.keyItem}><i className={styles.keyBody} />{bodyLabel}, <b data-num>{formatGbp(market.p25)}</b> to <b data-num>{formatGbp(market.p75)}</b></span>
+        )}
+        {market?.median != null && (
+          <span className={styles.keyItem}>
+            <i className={styles.keyMedian} />{medianLabel}, <b data-num>{formatGbp(market.median)}</b>
+            {medianListed != null && <>; all listed <b data-num>{formatGbp(medianListed)}</b></>}
+          </span>
+        )}
+        {listings.length > 0 && (
+          <span className={styles.keyItem}><i className={styles.keyDots} />{listings.length} listings opened, filled if sold</span>
+        )}
         {entry?.price != null && (
           <span className={styles.keyItem}>
             <i className={`${styles.keyDot} ${entry.proved ? styles.sellerProved : ''}`} />
-            smallest seller converting
+            {entry.proved ? 'small seller selling' : 'smallest seller seen'}, <b data-num>{formatGbp(entry.price)}</b>
           </span>
         )}
         {breakEven != null && (
           <>
             <span className={styles.keyItem}><i className={styles.keyLoss} />loses money under <b data-num>{formatGbp(breakEven)}</b></span>
-            {target != null && (
-              <span className={styles.keyItem}><i className={styles.keyGain} />keeps {formatGbp(target)} from <b data-num>{formatGbp(floor)}</b></span>
+            {target != null && floor != null && (
+              <>
+                {floor > breakEven && <span className={styles.keyItem}><i className={styles.keyThin} />keeps under your {formatGbp(target)} profit</span>}
+                <span className={styles.keyItem}><i className={styles.keyGain} />keeps your {formatGbp(target)} from <b data-num>{formatGbp(floor)}</b>, your floor</span>
+              </>
             )}
           </>
         )}

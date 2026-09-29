@@ -7,6 +7,7 @@ C:.
 |   decide.js
 |   dedupe-candidates.js
 |   ebay-auth.js
+|   fill-costs.mjs
 |   gate.js
 |   import-coverage.js
 |   import-gate.js
@@ -177,12 +178,23 @@ C:.
 |       shelf-probe.js
 |       shop-probe.mjs
 |       
++---qa
+|       fixture.json
+|       pages.mjs
+|       
 +---sql
 |       buy-now.sql
 |       
 \---store
+        brand-rank.mjs
         build-sitemap.js
+        check-picks.mjs
         enrich-store.js
+        icecat-check.mjs
+        import-store.mjs
+        match.mjs
+        page.mjs
         replace-loading.mjs
         seed-store.js
+        store-picks.mjs
         

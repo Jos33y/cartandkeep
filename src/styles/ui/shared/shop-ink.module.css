@@ -1,0 +1,7 @@
+/* The shop's kraft and paper for shop pieces drawn inside the portal, which does not load store-tokens.css. Same values. */
+.ink {
+  --c-kraft: #e3d3b6;
+  --c-kraft-deep: #cdb893;
+  --c-kraft-ink: #806436;
+  --c-paper: #fffdf8;
+}

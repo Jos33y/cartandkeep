@@ -61,6 +61,9 @@ export async function assess({ access, marketplace, q, cfg, probe }) {
       seller: s.username,
       sellerFeedback: s.feedback,
       accountType: it.seller?.sellerAccountType ?? null,
+      // eBay's category rides on the item details already fetched; kept so cards can be filed by what they are.
+      categoryId: detail?.categoryId ?? it.categories?.[0]?.categoryId ?? null,
+      categoryPath: detail?.categoryPath ?? null,
       ageDays: ageDays == null ? null : Math.round(ageDays),
       soldLifetime: sold,
       // Lifetime sold over the listing's own age is a rate on the first run,
@@ -91,9 +94,18 @@ export async function assess({ access, marketplace, q, cfg, probe }) {
     }
     : null;
 
+  // The market's category is the one most of the sampled listings sit in, not one seller's choice.
+  const counts = new Map();
+  for (const l of listings) if (l.categoryId) counts.set(l.categoryId, (counts.get(l.categoryId) ?? 0) + 1);
+  const topId = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  const category = topId
+    ? { id: topId, path: listings.find((l) => l.categoryId === topId && l.categoryPath)?.categoryPath ?? null, share: counts.get(topId) / listings.length }
+    : null;
+
   return {
     q,
     competitors,
+    category,
     feedback,
     sourcing: routeOf(listings),
     entry,

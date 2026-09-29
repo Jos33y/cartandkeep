@@ -1,0 +1,249 @@
+Folder PATH listing
+Volume serial number is 5037-8652
+C:.
+|   AUTH.md
+|   ck_supabase_tree
+|   config.toml
+|   README.md
+|   
++---.temp
+|       cli-latest
+|       linked-project.json
+|       
++---functions
+|   +---checkout
+|   |       index.ts
+|   |       
+|   +---draft
+|   |       index.ts
+|   |       
+|   +---ebay-compose
+|   |       index.ts
+|   |       
+|   +---ebay-import
+|   |       index.ts
+|   |       
+|   +---ebay-item
+|   |       index.ts
+|   |       
+|   +---ebay-list
+|   |       index.ts
+|   |       
+|   +---ebay-oauth
+|   |       index.ts
+|   |       
+|   +---ebay-sales
+|   |       index.ts
+|   |       
+|   +---ebay-traffic
+|   |       index.ts
+|   |       
+|   +---feed
+|   |       index.ts
+|   |       
+|   +---google-feed
+|   |       index.ts
+|   |       
+|   +---notify
+|   |       index.ts
+|   |       
+|   +---order
+|   |       index.ts
+|   |       
+|   +---request
+|   |       index.ts
+|   |       
+|   +---review
+|   |       index.ts
+|   |       
+|   +---stripe-webhook
+|   |       index.ts
+|   |       
+|   +---subscribe
+|   |       index.ts
+|   |       
+|   +---thread
+|   |       index.ts
+|   |       
+|   \---_shared
+|       \---email
+|           |   context.ts
+|           |   dates.ts
+|           |   index.ts
+|           |   kit.ts
+|           |   rights.ts
+|           |   send.ts
+|           |   
+|           \---templates
+|                   asked.ts
+|                   confirmation.ts
+|                   dispatch.ts
+|                   pull.ts
+|                   recipient.ts
+|                   reply.ts
+|                   review.ts
+|                   sale.ts
+|                   stock.ts
+|                   topic.ts
+|                   toShop.ts
+|                   wants.ts
+|                   
++---migrations
+|       0001_platform.sql
+|       0002_correct_source_kinds.sql
+|       0003_terapeak_weight.sql
+|       0004_tenant_research_config.sql
+|       0005_category_boundaries.sql
+|       0006_cj_source_config.sql
+|       0007_candidate_scoring.sql
+|       0008_tenant_sources_demand.sql
+|       0009_notes.sql
+|       0010_rate_cards_and_scoring_config.sql
+|       0011_brand_screen_config.sql
+|       0012_terapeak_candidates.sql
+|       0013_decision_history.sql
+|       0014_candidate_ebay_meta.sql
+|       0015_candidate_batch_ref_constraint.sql
+|       0016_candidate_variations.sql
+|       0017_research_coverage.sql
+|       0018_pet_boundaries.sql
+|       0019_pet_leaf_boundaries.sql
+|       0020_candidate_tier.sql
+|       0021_candidate_sources.sql
+|       0022_supplier_categories.sql
+|       0023_source_fulfilment.sql
+|       0024_candidate_notes.sql
+|       0025_source_status.sql
+|       0026_suppliers.sql
+|       0027_marketplace_suppliers.sql
+|       0028_cluster.sql
+|       0029_batch_retirement.sql
+|       0030_competition.sql
+|       0031_dimensions.sql
+|       0032_batch_category.sql
+|       0033_rejection_reasons.sql
+|       0034_store_products.sql
+|       0035_store_category.sql
+|       0036_store_product_detail.sql
+|       0037_orders.sql
+|       0038_order_dispatch.sql
+|       0039_store_events.sql
+|       0040_email_events_webhook.sql
+|       0040_tenant_store_config.sql
+|       0041_delivery_zones.sql
+|       0042_orders_portal_access.sql
+|       0043_order_emails.sql
+|       0044_trader_identity.sql
+|       0045_funnel_purchases.sql
+|       0046_store_images_bucket.sql
+|       0047_stock.sql
+|       0048_tenant_scoped_policies.sql
+|       0049_store_settings_write.sql
+|       0050_interest.sql
+|       0051_seo_reports.sql
+|       0052_product_cost.sql
+|       0053_traffic_sources.sql
+|       0054_channel_sales.sql
+|       0055_selling_costs.sql
+|       0056_public_store_config.sql
+|       0057_product_drafts.sql
+|       0058_variants.sql
+|       0059_reviews.sql
+|       0060_review_requests.sql
+|       0061_customers.sql
+|       0062_subscribers.sql
+|       0063_requests.sql
+|       0064_category_names.sql
+|       0065_archive_and_stock.sql
+|       0066_low_stock_alerts.sql
+|       0067_messages.sql
+|       0068_thread_uniqueness.sql
+|       0069_basket_threads.sql
+|       0070_offers.sql
+|       0071_views_security_invoker.sql
+|       0072_candidate_entry.sql
+|       0073_candidate_listing.sql
+|       0074_tenant_credentials.sql
+|       0075_ebay_traffic.sql
+|       0076_ebay_traffic_daily.sql
+|       0077_ebay_settings.sql
+|       0078_candidate_ebay.sql
+|       0079_candidate_draft.sql
+|       0080_store_products_tenant_scope.sql
+|       0081_listing_images.sql
+|       0082_sale_costs.sql
+|       0083_research_queries.sql
+|       0084_notes_shared.sql
+|       0085_research_query_reasons.sql
+|       0086_research_query_goods.sql
+|       0087_crowded_but_selling.sql
+|       0088_own_sections.sql
+|       0089_safe_basket_totals.sql
+|       0090_review_request_emails.sql
+|       0091_subscriber_email_case.sql
+|       0092_visit_funnel.sql
+|       0093_delivery_key_names.sql
+|       0094_batches_per_term.sql
+|       0095_analytics_views.sql
+|       0096_legal_settings.sql
+|       0097_review_hold_reasons.sql
+|       0098_portal_visits.sql
+|       0099_daily_ebay_pulls.sql
+|       0100_scheduler_secret.sql
+|       0101_catalogue_browse.sql
+|       0102_keeper_jobs.sql
+|       0103_own_sections_only.sql
+|       0104_gift_orders.sql
+|       0105_about_words.sql
+|       0106_about_plain_words.sql
+|       0107_about_list.sql
+|       
+\---queries
+        2026-09-26-agent-name.sql
+        2026-09-26-clean-drafts.sql
+        
+
+
+Category
+Animals & Pet Supplies
+Apparel & Accessories
+Arts & Entertainment
+Baby & Toddler
+Business & Industrial
+Cameras & Optics
+Electronics
+Food, Beverages & Tobacco
+Furniture
+Hardware
+Health & Beauty
+Home & Garden
+	Bathroom Accessories
+        Business & Home Security
+        Decor
+        Emergency Preparedness
+        Fireplace & Wood Stove Accessories
+        Fireplaces
+        Flood, Fire & Gas Safety
+        Household Appliance Accessories
+        Household Appliances
+        Household Supplies
+        Kitchen & Dining
+        Lawn & Garden
+        Lighting
+        Lighting Accessories
+        Linens & Bedding
+        Parasols & Rain Umbrellas
+        Plants
+        Pool & Spa
+        Smoking Accessories
+        Umbrella Sleeves & Cases
+	Wood Stoves
+Luggage & Bags
+Mature
+Media
+Office Supplies
+Religious & Ceremonial
+Software
+Sporting Goods
+Toys & Games
+Vehicles & Parts
