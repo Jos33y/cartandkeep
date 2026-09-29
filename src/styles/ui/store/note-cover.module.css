@@ -1,0 +1,26 @@
+/* A note's drawn cover. Five colourways from the shop's own palette; the drawing always in one line weight, whatever its size. */
+
+.cover { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; border-radius: 4px; }
+
+.cover path, .cover circle, .cover rect:not(.bg):not(.board), .cover ellipse:not(.shade) { vector-effect: non-scaling-stroke; }
+
+.cover { --bg: var(--c-sage-deep); --ink: var(--c-paper); --line: var(--c-sage-on-dark); --accent: var(--c-paper); }
+.cover[data-way='kraft'] { --bg: var(--c-kraft); --ink: var(--c-ink); --line: var(--c-ink); --accent: var(--c-sage-deep); }
+.cover[data-way='ink'] { --bg: var(--c-ink-deep); --ink: var(--c-paper); --line: var(--c-kraft); --accent: var(--c-sage-on-dark); }
+.cover[data-way='shelf'] { --bg: var(--c-shelf-back); --ink: var(--c-ink); --line: var(--c-wood-dark); --accent: var(--c-ink); }
+.cover[data-way='paper'] { --bg: var(--c-paper); --ink: var(--c-ink); --line: var(--c-sage-deep); --accent: var(--c-ink); }
+
+.bg { fill: var(--bg); }
+
+.art { stroke: var(--line); }
+.big { stroke-width: 5; }
+.mid { stroke-width: 4; }
+.small { stroke-width: 3.2; }
+.faint { stroke-width: 2; opacity: 0.4; }
+.odd { stroke-width: 3; stroke: var(--accent); }
+
+.board { fill: var(--line); opacity: 0.9; }
+.shade { fill: var(--ink); opacity: 0.12; }
+
+.no { fill: var(--ink); font-family: var(--font-display); font-stretch: var(--wide); font-weight: 720; font-size: 50px; letter-spacing: -0.02em; }
+.series { fill: var(--ink); opacity: 0.75; font-family: var(--font-store-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; }

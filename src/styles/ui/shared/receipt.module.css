@@ -124,6 +124,47 @@
   .receipt { animation: none; }
 }
 
+/* --- the slip: the same roll, for the person packing and whoever opens it --- */
+
+.stamp[data-tone='packed'] { color: var(--c-sage-deep); }
+.stamp[data-tone='gift']   { color: var(--c-action-strong); }
+
+.listHead { display: flex; justify-content: space-between; gap: var(--s-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: var(--s-2); }
+
+.ticks { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.tick { display: grid; grid-template-columns: 14px auto minmax(0, 1fr); gap: var(--s-2); align-items: start; }
+
+/* A box to tick in pen, drawn rather than typed, so it prints as a box on any printer. */
+.tickBox { display: inline-block; width: 12px; height: 12px; margin-top: 0.3em; border: 1.5px solid currentColor; border-radius: 2px; }
+.tickQty { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* More than one of a thing: set bold and ringed, so two brushes never go out as one. */
+.tickQty[data-many] { font-weight: 700; padding: 0 4px; border: 1.5px solid currentColor; border-radius: 3px; }
+.tickTitle { line-height: 1.4; }
+
+/* Their words are the reason the parcel exists, so they read larger than anything else on the roll. */
+.giftNote { display: flex; flex-direction: column; gap: var(--s-1); text-align: center; margin-bottom: var(--s-2); }
+.giftWords { font-size: 1.05rem; line-height: 1.45; white-space: pre-line; }
+
+.signed, .writeLine { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s-2); align-items: end; margin-top: var(--s-4); }
+.signed span, .writeLine span { text-transform: uppercase; letter-spacing: 0.06em; }
+.signed i, .writeLine i { height: 1.2em; border-bottom: 1px solid var(--c-line-mid); }
+
+/* The tear line: dashes the full width with the scissors sitting on it. */
+.cut { position: relative; margin: var(--s-5) calc(-1 * var(--s-4)) var(--s-4); border-top: 1.5px dashed var(--c-ink-soft); }
+.cut span { position: absolute; top: -0.62em; left: var(--s-3); padding: 0 4px; background: #fff; font-family: var(--font-ui); font-size: 1.1rem; line-height: 1; }
+
+.stub { display: flex; flex-direction: column; gap: var(--s-2); }
+.stubHead { display: flex; justify-content: space-between; gap: var(--s-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+.stubTerms { color: var(--c-ink-soft); line-height: 1.5; }
+.stubTerms b { color: var(--c-ink); font-weight: 600; overflow-wrap: anywhere; }
+.reasons { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.reasons li { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: var(--s-2); align-items: start; }
+.stub .writeLine { margin-top: var(--s-1); }
+
+/* Her line, as she wrote it. */
+.tagline { margin-top: var(--s-5); text-align: center; font-family: var(--font-display); font-stretch: var(--wide, 100%); font-size: 0.95rem; font-weight: 600; letter-spacing: -0.01em; }
+
 /* --- printing ------------------------------------------------------------- */
 
 @media print {
@@ -144,10 +185,13 @@
   /* Kept rather than dropped. A receipt that prints its status in grey on a
      colour printer has thrown away the one thing it was carrying. */
   .stamp,
-  .state {
+  .state,
+  .giftNote {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
 
   .rule { border-top-color: #000; }
+  .cut { margin-left: 0; margin-right: 0; border-top-color: #000; }
+  .signed i, .writeLine i { border-bottom-color: #000; }
 }

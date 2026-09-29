@@ -1,115 +1,120 @@
 .page {
   width: 100%;
-  max-width: 940px;
+  max-width: var(--store-max);
   margin: 0 auto;
   padding: var(--s-5) var(--s-4) var(--s-8);
 }
 
 @media (min-width: 900px) { .page { padding: var(--s-5) var(--s-5) var(--s-8); } }
 
-.crumbs {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  padding-bottom: var(--s-5);
-  font-size: var(--t-caption);
-  color: var(--c-faint);
-}
-
-.crumbs a { color: var(--c-ink-soft); }
+.crumbs { display: flex; align-items: center; gap: var(--s-2); padding-bottom: var(--s-5); font-size: var(--t-caption); color: var(--c-faint); }
+.crumbs a { color: var(--c-ink-soft); text-decoration: none; }
 .crumbs a:hover { color: var(--c-ink); }
 .crumbs svg { color: var(--c-line-mid); }
 
-.head { padding-bottom: var(--s-6); }
-.title { font-size: clamp(2rem, 5vw, 3rem); }
+.head { display: grid; gap: var(--s-4); padding-bottom: var(--s-6); }
+@media (min-width: 900px) { .head { grid-template-columns: auto minmax(0, 32rem); align-items: end; justify-content: space-between; } }
 
-.blurb {
-  margin-top: var(--s-3);
-  font-size: 1.0625rem;
-  line-height: 1.62;
-  color: var(--c-ink-soft);
-  max-width: 52ch;
-}
+.title { font-size: clamp(3rem, 9vw, 6.5rem); line-height: 0.9; color: var(--c-ink); letter-spacing: -0.03em; }
+.blurb { font-size: 1.0625rem; line-height: 1.6; color: var(--c-ink-soft); }
+.blurb b { font-weight: 600; color: var(--c-ink); }
 
-/* The first post is a lead card and the rest are a list. With one post that
-   reads as a featured piece rather than as a grid with a hole in it. */
-.lead {
-  background: var(--c-warm);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-card);
-  transition: border-color 180ms var(--ease);
-}
-
-.lead:hover { border-color: var(--c-line-mid); }
-.leadLink { display: block; padding: var(--s-5); text-decoration: none; color: inherit; }
-
-@media (min-width: 900px) { .leadLink { padding: var(--s-6); } }
-
-.meta { font-size: var(--t-caption); color: var(--c-faint); }
-
-.leadTitle {
-  margin-top: var(--s-3);
-  font-size: clamp(1.375rem, 3vw, 1.875rem);
-  color: var(--c-ink);
-  max-width: 22ch;
-}
-
-.leadBlurb {
-  margin-top: var(--s-3);
-  font-size: var(--t-body);
-  line-height: 1.62;
-  color: var(--c-ink-soft);
-  max-width: 60ch;
-}
-
-.more {
-  margin-top: var(--s-4);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--t-label);
-  font-weight: 500;
-  color: var(--c-action-text);
-}
-
-.more svg { transition: transform 180ms var(--ease); }
-.lead:hover .more svg { transform: translateX(3px); }
-
-.list { list-style: none; margin-top: var(--s-5); }
-
-.row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--s-5);
-  padding: var(--s-4) 0;
-  border-bottom: 1px solid var(--c-line);
-  text-decoration: none;
-  color: inherit;
-}
-
-.rowMain { min-width: 0; }
-.rowTitle { display: block; font-size: 1.0625rem; font-weight: 500; color: var(--c-ink); }
-
-.rowBlurb {
-  display: block;
-  margin-top: 3px;
-  font-size: var(--t-body);
-  line-height: 1.55;
-  color: var(--c-ink-soft);
-  max-width: 58ch;
-}
-
-.rowMeta { flex: none; font-size: var(--t-caption); color: var(--c-faint); }
-
-.empty {
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-card);
+/* Topics, from the tags posts already carry. */
+.topics { display: flex; gap: var(--s-2); padding: var(--s-4) 0; margin-bottom: var(--s-6); border-top: 2px solid var(--c-ink); border-bottom: 1px solid var(--c-line-mid); overflow-x: auto; scrollbar-width: none; }
+.topics::-webkit-scrollbar { display: none; }
+.topics button {
+  flex: none;
+  min-height: 40px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-full);
   background: var(--c-surface);
-  padding: var(--s-6) var(--s-5);
+  color: var(--c-ink);
+  font: inherit;
+  font-size: var(--t-label);
+  cursor: pointer;
 }
+.topics button b { margin-left: 4px; font-weight: 500; color: var(--c-faint); }
+.topics button[aria-pressed='true'] { background: var(--c-ink); border-color: var(--c-ink); color: var(--c-on-dark); }
+.topics button[aria-pressed='true'] b { color: var(--c-on-dark-faint); }
 
+/* --- The newest note: its cover large, what is inside it beside it --- */
+
+.featured { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); padding-top: var(--s-2); }
+@media (min-width: 760px) { .featured { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: var(--s-7); align-items: center; } }
+@media (min-width: 1100px) { .featured { grid-template-columns: 420px minmax(0, 1fr); gap: var(--s-8); } }
+
+/* The cover sits a little crooked with a page edge under it, as a booklet put down on a table. */
+.featuredCover { position: relative; display: block; max-width: 420px; transform: rotate(-1.5deg); transition: transform 300ms var(--ease-out); }
+.featuredCover::before { content: ''; position: absolute; inset: 8px -8px -8px 8px; border-radius: 4px; background: var(--c-paper); box-shadow: 0 0 0 1px rgba(90, 64, 30, 0.12); z-index: -1; }
+.featuredCover :global(svg) { box-shadow: 0 30px 50px -28px rgba(40, 30, 10, 0.55); }
+.featured:hover .featuredCover { transform: rotate(0deg) translateY(-4px); }
+
+.featuredText { min-width: 0; }
+.kicker { font-size: var(--t-micro); font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--c-kraft-ink); }
+.featuredTitle { margin-top: var(--s-3); font-size: clamp(1.9rem, 3.8vw, 3rem); line-height: 1.04; text-wrap: balance; }
+.featuredTitle a { color: var(--c-ink); text-decoration: none; }
+.featuredTitle a:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; text-decoration-color: var(--c-line-mid); }
+.featuredBlurb { margin-top: var(--s-4); font-size: 1.0625rem; line-height: 1.6; color: var(--c-ink-soft); max-width: 56ch; }
+
+ol.inside { list-style: none; margin: var(--s-5) 0 0; padding: 0; border-top: 2px solid var(--c-ink); max-width: 36rem; }
+.inside li { border-bottom: 1px solid var(--c-line-mid); }
+.inside a { display: flex; align-items: baseline; gap: var(--s-3); padding: 10px 0; font-size: var(--t-body); color: var(--c-ink); text-decoration: none; }
+.inside a:hover { color: var(--c-action-text); }
+.insideNo { flex: none; width: 1.4em; font-family: var(--font-display); font-stretch: var(--wide); font-weight: 700; color: var(--c-kraft-ink); }
+
+.featuredFoot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); margin-top: var(--s-5); }
+.read {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  min-height: 48px; padding: 0 var(--s-5);
+  border-radius: var(--r-full); background: var(--c-ink); color: var(--c-on-dark);
+  font-weight: 600; text-decoration: none; transition: background var(--dur) var(--ease);
+}
+.read:hover { background: var(--c-ink-deep); }
+.meta { font-size: var(--t-caption); color: var(--c-faint); }
+.ends { display: inline-flex; align-items: center; min-height: 26px; padding: 0 10px; border-radius: 4px; background: var(--c-kraft); font-size: var(--t-caption); font-weight: 500; color: var(--c-ink); }
+
+/* --- The rack: every other note as its cover, a dozen at a time --- */
+
+.rackHead { margin-top: var(--s-8); padding-top: var(--s-4); border-top: 2px solid var(--c-ink); font-size: var(--t-micro); font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--c-faint); }
+
+ul.rack { list-style: none; margin: var(--s-5) 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-6) var(--s-4); }
+@media (min-width: 760px) { ul.rack { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-7) var(--s-5); } }
+@media (min-width: 1100px) { ul.rack { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+.card { animation: rise 420ms var(--ease-out) both; animation-delay: calc(var(--i) * 40ms); }
+@keyframes rise { from { opacity: 0; translate: 0 10px; } to { opacity: 1; translate: 0 0; } }
+
+.cardLink { display: flex; flex-direction: column; gap: var(--s-2); color: inherit; text-decoration: none; }
+.cardCover { display: block; transition: transform 260ms var(--ease-out); }
+.cardCover :global(svg) { box-shadow: 0 1px 0 rgba(90, 64, 30, 0.12), 0 18px 30px -22px rgba(40, 30, 10, 0.5); }
+.cardLink:hover .cardCover { transform: translateY(-4px) rotate(-1deg); }
+.cardLink:focus-visible { outline: 3px solid var(--c-action-strong); outline-offset: 4px; border-radius: 4px; }
+.cardMeta { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--c-faint); }
+.cardTitle { font-family: var(--font-display); font-stretch: var(--wide-tight); font-size: clamp(1rem, 1.6vw, 1.1875rem); font-weight: 620; line-height: 1.22; color: var(--c-ink); text-wrap: pretty; }
+.cardLink:hover .cardTitle { text-decoration: underline; text-decoration-color: var(--c-line-mid); text-underline-offset: 4px; }
+
+.moreBtn {
+  display: block;
+  margin: var(--s-7) auto 0;
+  min-height: 48px;
+  padding: 0 var(--s-6);
+  border: 1px solid var(--c-ink);
+  border-radius: var(--r-full);
+  background: none;
+  color: var(--c-ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.moreBtn:hover { background: var(--c-ink); color: var(--c-on-dark); }
+
+.empty { padding: var(--s-6) 0; border-top: 2px solid var(--c-ink); }
 .emptyLead { font-size: var(--t-lead); font-weight: 500; }
 .emptyBody { margin-top: var(--s-2); font-size: var(--t-body); color: var(--c-ink-soft); }
 
-@media (prefers-reduced-motion: reduce) { .lead, .more svg { transition: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .card { animation: none; }
+  .featuredCover, .cardCover, .read { transition: none; }
+  .featured:hover .featuredCover { transform: rotate(-1.5deg); }
+}

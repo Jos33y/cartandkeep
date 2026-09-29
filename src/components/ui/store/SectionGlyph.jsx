@@ -110,6 +110,10 @@ const MATCH = [
   [/cloth|fashion|bag|wear|robe/i, 'shirt'],
 ];
 
+// The paths alone, for drawings that place several objects inside one picture.
+export const glyphPaths = (kind) => GLYPHS[kind] ?? GLYPHS.box;
+export const GLYPH_KINDS = Object.keys(GLYPHS);
+
 export const glyphFor = (name = '') => (MATCH.find(([re]) => re.test(name)) ?? [null, 'box'])[1];
 
 export function SectionGlyph({ name, kind, size = 48, className }) {

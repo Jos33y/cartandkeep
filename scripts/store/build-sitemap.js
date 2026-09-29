@@ -26,6 +26,7 @@ const arg = (name) => {
 
 const SITE = (arg('site') ?? 'https://cartandkeep.com').replace(/\/$/, '');
 const OUT = path.join('public', 'sitemap.xml');
+const TODAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date());
 
 // Priority is a hint and search engines mostly ignore it, so these are set by
 // what they are rather than argued over: the shop front and the catalogue
@@ -74,9 +75,14 @@ function posts() {
       const front = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
       const read = (key) => front?.[1].match(new RegExp(`^${key}:\\s*(.+)$`, 'm'))?.[1].trim().replace(/^['"]|['"]$/g, '');
       const slug = read('slug') ?? file.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/\.md$/, '');
-      return { slug, date: read('date') ?? null, title: read('title') };
+      return { file, slug, date: read('date') ?? null, title: read('title') };
     })
-    .filter((p) => p.title);
+    .filter((p) => p.title)
+    // Scheduled notes stay out until their day in the UK, as the blog itself does.
+    .filter((p) => !p.date || p.date <= TODAY)
+    // One entry per address, the newest file winning, as src/data/blog.js does.
+    .sort((a, b) => a.file.localeCompare(b.file))
+    .reduce((list, p) => [...list.filter((q) => q.slug !== p.slug), p], []);
 }
 
 async function main() {
@@ -123,6 +129,7 @@ async function main() {
   }
   if (leftover) departments.add('odds-and-ends');
 
+  const notes = posts();
   const entries = [
     ...STATIC.map(([loc, freq, pri]) => url(loc, freq, pri)),
     ...[...departments].sort().map((d) => url(`/c/${d}`, 'weekly', '0.8')),
@@ -132,7 +139,7 @@ async function main() {
       '0.7',
       p.updated_at ? String(p.updated_at).slice(0, 10) : null,
     )),
-    ...posts().map((p) => url(`/blog/${p.slug}`, 'monthly', '0.6', p.date)),
+    ...notes.map((p) => url(`/blog/${p.slug}`, 'monthly', '0.6', p.date)),
   ];
 
   const xml = [
@@ -149,7 +156,7 @@ async function main() {
   console.log(`  ${STATIC.length} static`);
   console.log(`  ${departments.size} departments`);
   console.log(`  ${(products ?? []).length} products`);
-  console.log(`  ${posts().length} posts`);
+  console.log(`  ${notes.length} posts`);
   console.log(`\n  ${OUT}  ${entries.length} URLs, ${(xml.length / 1024).toFixed(1)} KB`);
 
   if ((products ?? []).length === 0) {

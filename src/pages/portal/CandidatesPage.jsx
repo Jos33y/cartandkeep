@@ -32,6 +32,16 @@ const LANES = [
     tip: 'Either no small seller is proved to be selling it, or the price is the market median rather than one a small seller is being paid.',
   },
   {
+    key: 'store',
+    title: 'To list on the shop',
+    tip: 'Sells on Google in the UK and is stocked by a UK shop, so it can be sourced once an order comes in. Priced at Google\'s lowest price, which clears your floor: what it costs where seen, Royal Mail, packing, the card fee, a returns allowance and your profit.',
+  },
+  {
+    key: 'store-above',
+    title: 'Above the market',
+    tip: 'Your floor is above Google\'s lowest price, so it is priced at your floor and may sell slower. List it, find it cheaper, or leave it.',
+  },
+  {
     key: 'short',
     title: 'Keeps under the target',
     tip: 'The known cost, from the same pack on a shelf or a supplier you added, keeps under the £2 target at this price. Find it cheaper or list higher.',
@@ -41,6 +51,7 @@ const LANES = [
 const RANK = (a) => (a.entry?.proved ? 0 : a.entry ? 1 : 2);
 
 function byLane(x, y) {
+  if (x.a.store) return (!x.a.m.need) - (!y.a.m.need) || (y.a.g.months ?? 0) - (x.a.g.months ?? 0) || (x.a.g.rank ?? 1e9) - (y.a.g.rank ?? 1e9);
   if (x.a.lane === 'ready') return (y.a.month ?? 0) - (x.a.month ?? 0) || (y.a.keep ?? 0) - (x.a.keep ?? 0);
   return RANK(x.a) - RANK(y.a) || (y.a.keep ?? 0) - (x.a.keep ?? 0);
 }
@@ -193,6 +204,8 @@ export function CandidatesPage() {
   const unproved = approved.filter(({ a }) => a.month == null).length;
   const week = weekOf(group.latest);
   const total = rows.length || 1;
+  // A tab of store cards reads in store columns. One eBay card among them would misread, so it takes all of them.
+  const storeTab = assessed.length > 0 && assessed.every(({ a }) => a.store);
 
   return (
     <div className={styles.page}>
@@ -202,6 +215,13 @@ export function CandidatesPage() {
           <h1 className={styles.title}>Candidates</h1>
         </div>
 
+        {storeTab ? (
+          <div className={styles.worth}>
+            <span className={styles.worthLabel}>Approved to list</span>
+            <span className={`figure ${styles.worthValue}`} data-num>{approved.length}</span>
+            <span className={styles.worthFoot}>of {rows.length}</span>
+          </div>
+        ) : (
         <div className={styles.worth}>
           <span className={styles.worthLabel}>
             Approved here
@@ -218,6 +238,7 @@ export function CandidatesPage() {
             {unproved > 0 && `${unproved} without a proved rate`}
           </span>
         </div>
+        )}
       </header>
 
       {groups.length > 1 && (
@@ -308,18 +329,37 @@ export function CandidatesPage() {
           <div className={styles.columns} aria-hidden="true">
             <span />
             <span>Product</span>
-            <span className={`${styles.colTip} ${styles.right}`}>
-              Sold a month
-              <Tip>Units a month across the ten listings the check sampled, so it is the size of the market rather than what one seller takes.</Tip>
-            </span>
-            <span className={`${styles.colTip} ${styles.right}`}>
-              You keep
-              <Tip side="end">Per sale, after eBay fees, postage, packaging, a returns allowance and the shelf price of the goods.</Tip>
-            </span>
-            <span className={`${styles.colTip} ${styles.right}`}>
-              Keeps a month
-              <Tip side="end">What you would keep a month at the proving seller&apos;s price and rate. Only shown where a small seller is proved to be selling.</Tip>
-            </span>
+            {storeTab ? (
+              <>
+                <span className={`${styles.colTip} ${styles.right}`}>
+                  Google rank
+                  <Tip>Its place among the best sellers on Google in the UK for this category, and how many of the months checked it ranked in.</Tip>
+                </span>
+                <span className={`${styles.colTip} ${styles.right}`}>
+                  List at
+                  <Tip side="end">What it costs where it was seen, plus Royal Mail, the card fee and your profit, rounded up to .49 or .99.</Tip>
+                </span>
+                <span className={`${styles.colTip} ${styles.right}`}>
+                  You keep
+                  <Tip side="end">Per sale at that price, after the cost, Royal Mail and the card fee.</Tip>
+                </span>
+              </>
+            ) : (
+              <>
+                <span className={`${styles.colTip} ${styles.right}`}>
+                  Sold a month
+                  <Tip>Units a month across the ten listings the check sampled, so it is the size of the market rather than what one seller takes.</Tip>
+                </span>
+                <span className={`${styles.colTip} ${styles.right}`}>
+                  You keep
+                  <Tip side="end">Per sale, after eBay fees, postage, packaging, a returns allowance and the shelf price of the goods.</Tip>
+                </span>
+                <span className={`${styles.colTip} ${styles.right}`}>
+                  Keeps a month
+                  <Tip side="end">What you would keep a month at the proving seller&apos;s price and rate. Only shown where a small seller is proved to be selling.</Tip>
+                </span>
+              </>
+            )}
             <span />
           </div>
 

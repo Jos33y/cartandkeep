@@ -1,0 +1,172 @@
+/* The end of a post: where it leads in the shop. */
+
+.holder { min-height: 220px; }
+
+.micro {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-faint);
+}
+
+.head { margin-top: var(--s-2); font-size: clamp(1.5rem, 3.2vw, 2rem); line-height: 1.08; color: var(--c-ink); }
+.note { margin-top: var(--s-2); font-size: var(--t-body); color: var(--c-ink-soft); }
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 52px;
+  margin-top: var(--s-5);
+  padding: 0 var(--s-5);
+  border-radius: var(--r-control);
+  background: var(--c-action-strong);
+  color: var(--c-on-action);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--dur) var(--ease);
+}
+
+.cta:hover { background: var(--c-action); }
+
+/* --- The whole shop: a kraft board with her sections as ways in --- */
+
+.shop,
+.section {
+  padding: var(--s-5) var(--s-4);
+  border-radius: var(--r-card);
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(255, 255, 255, 0.22), transparent 60%),
+    var(--c-kraft);
+  box-shadow: inset 0 0 0 1px rgba(90, 64, 30, 0.08);
+}
+
+@media (min-width: 720px) { .shop, .section { padding: var(--s-6); } }
+
+ul.chips { list-style: none; margin: var(--s-4) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+.chips a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: var(--r-full);
+  background: var(--c-paper);
+  color: var(--c-ink);
+  font-size: var(--t-label);
+  font-weight: 500;
+  text-decoration: none;
+  box-shadow: 0 1px 0 rgba(90, 64, 30, 0.12);
+  transition: box-shadow var(--dur) var(--ease);
+}
+
+.chips a:hover { box-shadow: 0 0 0 1px var(--c-ink); }
+.chips b { font-size: var(--t-caption); font-weight: 500; color: var(--c-faint); font-variant-numeric: tabular-nums; }
+
+/* --- One section: the words, and three of its photographs pinned beside them --- */
+
+.section { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); align-items: center; }
+@media (min-width: 720px) { .section { grid-template-columns: minmax(0, 1fr) 240px; } }
+
+.sectionText { min-width: 0; }
+
+.pinned { position: relative; height: 150px; }
+@media (min-width: 720px) { .pinned { height: 180px; } }
+
+.photo {
+  position: absolute;
+  width: 110px;
+  height: 110px;
+  padding: 5px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 0 rgba(70, 48, 20, 0.08), 0 10px 22px -12px rgba(70, 48, 20, 0.45);
+}
+
+.photo img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+.photo:nth-child(1) { left: 0; top: 24px; transform: rotate(-6deg); }
+.photo:nth-child(2) { left: 70px; top: 0; transform: rotate(4deg); z-index: 2; }
+.photo:nth-child(3) { left: 130px; top: 40px; transform: rotate(-2deg); z-index: 1; }
+
+/* --- Products as price tags on string --- */
+
+ul.tagList {
+  list-style: none;
+  margin: var(--s-5) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-5) var(--s-4);
+}
+
+@media (min-width: 720px) { ul.tagList { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+.tagList li:nth-child(odd) { transform: rotate(-1.5deg); }
+.tagList li:nth-child(even) { transform: rotate(1.5deg); }
+
+/* A card tag: clipped corners at the top, a punched hole, a string running up out of it. */
+.tag {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  height: 100%;
+  padding: var(--s-5) var(--s-3) var(--s-3);
+  background: var(--c-kraft);
+  color: var(--c-ink);
+  text-decoration: none;
+  clip-path: polygon(18% 0, 82% 0, 100% 12%, 100% 100%, 0 100%, 0 12%);
+  transition: transform 200ms var(--ease-out);
+}
+
+.tag:hover { transform: translateY(-3px); }
+.tag:focus-visible { outline: 3px solid var(--c-action-strong); outline-offset: 2px; }
+
+.hole {
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border-radius: 50%;
+  background: var(--c-base);
+  box-shadow: inset 0 1px 1px rgba(70, 48, 20, 0.35);
+}
+
+.tagImg { display: block; aspect-ratio: 1; border-radius: 6px; background: var(--c-paper); overflow: hidden; }
+.tagImg img { width: 100%; height: 100%; object-fit: cover; }
+
+.tagTitle {
+  font-size: var(--t-label);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tagPrice { margin-top: auto; font-size: var(--t-lead); color: var(--c-ink); }
+
+.more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin-top: var(--s-5);
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--c-line-mid);
+  text-underline-offset: 3px;
+}
+
+.more:hover { text-decoration-color: var(--c-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cta, .chips a, .tag { transition: none; }
+}

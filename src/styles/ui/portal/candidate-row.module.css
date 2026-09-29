@@ -74,6 +74,10 @@
   color: var(--c-ink);
 }
 
+/* The name gives way to the channel marks, never the other way round. */
+.nameRow { display: flex; align-items: center; gap: var(--s-2); min-width: 0; max-width: 100%; }
+.nameRow .name { min-width: 0; }
+
 .subject:hover .name { text-decoration: underline; text-decoration-color: var(--c-line-strong); text-underline-offset: 3px; }
 
 .evidence {

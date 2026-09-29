@@ -1,5 +1,8 @@
-import { BasketIcon, CheckIcon, ClockIcon, FilesIcon, HeartIcon, StarIcon } from '@components/ui/store/icons';
+import { useEffect, useState } from 'react';
+import { BasketIcon, CheckIcon, ClockIcon, FilesIcon, HeartIcon, PersonIcon, StarIcon, VanIcon } from '@components/ui/store/icons';
 import { setRecentlyViewed, useRecentlyViewed } from '@hooks/useRecentlyViewed';
+import { DETAILS_EVENT, detailsOff, setRememberDetails } from '@lib/checkoutDraft';
+import { MY_ORDERS_EVENT, myOrdersOff, setKeepMyOrders } from '@lib/myOrders';
 import styles from '@styles/ui/store/policy-shape.module.css';
 
 // Fourteen days by law, the rest as the shop's own promise, to scale.
@@ -46,36 +49,52 @@ function Track({ cutoff, transit }) {
   );
 }
 
+// Whether something is switched off on this device, kept in step with the rest of the shop.
+function useOff(read, event) {
+  const [off, setOff] = useState(read);
+  useEffect(() => {
+    const sync = () => setOff(read());
+    window.addEventListener(event, sync);
+    window.addEventListener('storage', sync);
+    return () => { window.removeEventListener(event, sync); window.removeEventListener('storage', sync); };
+  }, [read, event]);
+  return off;
+}
+
+function Switch({ off, label, onToggle }) {
+  return (
+    <button type="button" role="switch" aria-checked={!off} aria-label={label} className={styles.switch} onClick={onToggle}>
+      <span className={styles.switchLabel}>{off ? 'Off' : 'On'}</span>
+      <span className={styles.switchTrack} aria-hidden="true"><span className={styles.switchKnob} /></span>
+    </button>
+  );
+}
+
 function Storage() {
-  const { off } = useRecentlyViewed();
+  const { off: viewedOff } = useRecentlyViewed();
+  const noDetails = useOff(detailsOff, DETAILS_EVENT);
+  const noOrders = useOff(myOrdersOff, MY_ORDERS_EVENT);
   const tiles = [
     { Icon: BasketIcon, name: 'Your basket', state: 'Needed' },
     { Icon: HeartIcon, name: 'Saved items', state: 'You asked' },
-    { Icon: ClockIcon, name: 'Recently viewed', toggle: true },
+    { Icon: ClockIcon, name: 'Recently viewed', id: 'recently-viewed',
+      toggle: { off: viewedOff, label: 'Keep recently viewed products on this device', flip: () => setRecentlyViewed(viewedOff) } },
+    { Icon: PersonIcon, name: 'Your details', id: 'your-details',
+      toggle: { off: noDetails, label: 'Remember your checkout details on this device', flip: () => setRememberDetails(noDetails) } },
+    { Icon: VanIcon, name: 'Your orders', id: 'your-orders',
+      toggle: { off: noOrders, label: 'Keep links to orders opened on this device', flip: () => setKeepMyOrders(noOrders) } },
     { Icon: FilesIcon, name: 'Shop files', state: 'Speed only' },
   ];
   return (
     <figure className={styles.shape}>
       <ul className={styles.tiles}>
-        {tiles.map(({ Icon, name, state, toggle }) => (
-          <li key={name} className={styles.tile} id={toggle ? 'recently-viewed' : undefined}>
+        {tiles.map(({ Icon, name, state, id, toggle }) => (
+          <li key={name} className={styles.tile} id={id}>
             <Icon size={20} />
             <span className={styles.tileName}>{name}</span>
-            {toggle ? (
-              <button
-                type="button"
-                role="switch"
-                aria-checked={!off}
-                aria-label="Keep recently viewed products on this device"
-                className={styles.switch}
-                onClick={() => setRecentlyViewed(off)}
-              >
-                <span className={styles.switchLabel}>{off ? 'Off' : 'On'}</span>
-                <span className={styles.switchTrack} aria-hidden="true"><span className={styles.switchKnob} /></span>
-              </button>
-            ) : (
-              <span className={styles.tileState}>{state}</span>
-            )}
+            {toggle
+              ? <Switch off={toggle.off} label={toggle.label} onToggle={toggle.flip} />
+              : <span className={styles.tileState}>{state}</span>}
           </li>
         ))}
       </ul>

@@ -708,7 +708,7 @@ function About({ initial, onSave }) {
         {draft.sections.map((p, i) => (
           <div key={i} className={styles.groupRow}>
             <Field label={`Section ${i + 1} heading`} wide value={p.heading} onChange={edit('sections', i, 'heading')} />
-            <TextArea label={`Section ${i + 1} text`} rows={5} value={p.text} onChange={edit('sections', i, 'text')} hint="A blank line starts a new paragraph." />
+            <TextArea label={`Section ${i + 1} text`} rows={5} value={p.text} onChange={edit('sections', i, 'text')} hint="A blank line starts a new paragraph. Lines starting with a dash become a list, ticked off on the page." />
             <button type="button" className={styles.quiet} onClick={() => drop('sections', i)}>Remove section {i + 1}</button>
           </div>
         ))}

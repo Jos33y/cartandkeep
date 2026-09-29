@@ -1,6 +1,6 @@
 import { Logo } from '@components/ui/shared/Logo';
 import { formatGbp } from '@utils/formatGbp';
-import { storeConfig, returnsTerms } from '@lib/storeConfig';
+import { storeConfig, returnsTerms, supportEmail } from '@lib/storeConfig';
 import { legalTrader, traderIdentity } from '@data/legal';
 import styles from '@styles/ui/shared/receipt.module.css';
 
@@ -56,7 +56,122 @@ const day = (l) => new Date(l).toLocaleDateString('en-GB', {
   timeZone: 'Europe/London', day: '2-digit', month: 'short', year: 'numeric',
 });
 
+/*
+ * The packing slip: the receipt's second copy, for whoever opens the box.
+ *
+ * Same till roll, same head, same rules and the same hand-set stamp, so the
+ * two papers in one parcel are plainly from one shop. What differs is the job.
+ * No money anywhere, because the box is often opened by somebody who was given
+ * it. A tick list for the person packing, with any quantity over one set bold
+ * so two of a thing never goes out as one. And a returns stub to tear off and
+ * send back, so a returned parcel says whose it is and why before it is opened.
+ */
+function SlipCopy({ order, items }) {
+  const gift = Boolean(order.is_gift);
+  const address = order.address ?? {};
+  const lines = [address.line1, address.line2, address.city, address.postcode].filter(Boolean);
+  const count = items.reduce((n, i) => n + Number(i.qty ?? 0), 0);
+  const terms = returnsTerms();
+  const days = terms.days ?? 14;
+  const tagline = storeConfig().voice?.tagline;
+  const from = order.name;
+
+  return (
+    <article className={styles.receipt} data-variant="slip">
+      <header className={styles.head}>
+        <Logo size={28} />
+        <p className={styles.site}>{storeConfig().domain}</p>
+        <p className={styles.slipLabel}>Packing slip</p>
+      </header>
+
+      <div className={styles.rule} />
+
+      <dl className={styles.meta}>
+        <div><dt>Order</dt><dd className={styles.mono}>{order.reference}</dd></div>
+        <div><dt>Placed</dt><dd className={styles.mono}>{day(order.paid_at ?? order.created_at)}</dd></div>
+        <div><dt>For</dt><dd>{order.recipient_name || order.name}</dd></div>
+        {gift && from && <div><dt>From</dt><dd>{from}</dd></div>}
+      </dl>
+
+      <div className={styles.rule} />
+
+      <p className={styles.listHead}><span>In this parcel</span><span className={styles.mono}>{count} {count === 1 ? 'item' : 'items'}</span></p>
+      <ul className={styles.ticks}>
+        {items.map((item, i) => (
+          <li key={item.id ?? `${item.slug}-${i}`} className={styles.tick}>
+            <span className={styles.tickBox} aria-hidden="true" />
+            <span className={styles.tickQty} data-many={Number(item.qty) > 1 || undefined}>{item.qty} x</span>
+            <span className={styles.tickTitle}>
+              {item.title}
+              {item.variant_label && <span className={styles.variant}> · {item.variant_label}</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <div className={styles.stampWrap}>
+        <p className={styles.stamp} data-tone={gift ? 'gift' : 'packed'}>{gift ? 'A GIFT FOR YOU' : 'PACKED WITH CARE'}</p>
+      </div>
+
+      {gift && order.gift_message && (
+        <p className={styles.giftNote}>
+          <span className={styles.noteHead}>{from ? `From ${from.split(' ')[0]}:` : 'Their message:'}</span>
+          <span className={styles.giftWords}>{order.gift_message}</span>
+        </p>
+      )}
+
+      {order.customer_note && (
+        <>
+          <div className={styles.rule} />
+          <p className={styles.note}><span className={styles.noteHead}>Delivery note: </span>{order.customer_note}</p>
+        </>
+      )}
+
+      <div className={styles.rule} />
+
+      <address className={styles.address}>
+        <p className={styles.addressHead}>Send to</p>
+        <p>{order.recipient_name || order.name}</p>
+        {lines.map((l) => <p key={l}>{l}</p>)}
+      </address>
+
+      <p className={styles.signed}><span>Packed by</span><i /></p>
+
+      {/* Cut along here: everything below goes back in the box with a return. */}
+      <div className={styles.cut} aria-hidden="true"><span>&#9986;</span></div>
+
+      <section className={styles.stub} aria-label="Returns slip">
+        <p className={styles.stubHead}><span>Returns slip</span><span className={styles.mono}>{order.reference}</span></p>
+        {gift ? (
+          <p className={styles.stubTerms}>A gift that is not quite right? Write to us first and we will sort it out.</p>
+        ) : (
+          <p className={styles.stubTerms}>
+            {days} days to change your mind.
+            {terms.postagePaidBy === 'customer' ? ' Return postage is yours unless it arrived faulty.' : ' We pay the return postage.'}
+          </p>
+        )}
+        <ul className={styles.reasons}>
+          {['Changed my mind', 'Arrived faulty', 'Wrong item'].map((r) => (
+            <li key={r}><span className={styles.tickBox} aria-hidden="true" />{r}</li>
+          ))}
+        </ul>
+        <p className={styles.writeLine}><span>Anything else</span><i /></p>
+        <p className={styles.stubTerms}>Tell us first at <b>{supportEmail()}</b>, then send it back with this slip inside.</p>
+      </section>
+
+      {tagline && <p className={styles.tagline}>{tagline}</p>}
+      <p className={styles.foot}>* * *</p>
+    </article>
+  );
+}
+
 export function Receipt({ order, items = [], variant = 'customer' }) {
+  return variant === 'slip'
+    ? <SlipCopy order={order} items={items} />
+    : <CustomerCopy order={order} items={items} variant={variant} />;
+}
+
+function CustomerCopy({ order, items, variant }) {
   const slip = variant === 'slip';
   const mark = stamps[order.status] ?? stamps.pending;
   const state = progress(order);

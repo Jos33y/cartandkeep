@@ -19,9 +19,11 @@ const date = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB', {
   timeZone: 'Europe/London', day: 'numeric', month: 'short', year: 'numeric',
 }) : '');
 
+// Counted in calendar days in London, not in 24 hour stretches: an order at 23:11 last night was yesterday.
+const londonDay = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(d);
 function ago(iso) {
   if (!iso) return '';
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  const days = Math.round((new Date(londonDay(new Date())) - new Date(londonDay(new Date(iso)))) / 86400000);
   if (days < 1) return 'today';
   if (days === 1) return 'yesterday';
   if (days < 45) return `${days} days ago`;
@@ -66,7 +68,7 @@ function Person({ person, index, example }) {
         </span>
         <span className={styles.money}>
           <b data-num>{formatGbp(person.spent)}</b>
-          <small>last {ago(person.last_order)}</small>
+          <small>last order {ago(person.last_order)}</small>
         </span>
         <Icon name="IconCaret" width="14" height="14" className={styles.caret} />
       </button>
@@ -79,7 +81,8 @@ function Person({ person, index, example }) {
             <div><dt>Average</dt><dd data-num>{formatGbp(person.average)}</dd></div>
             <div><dt>Spent</dt><dd data-num>{formatGbp(person.spent)}</dd></div>
           </dl>
-          <div className={styles.split}>
+          {/* A gift buyer has no address of their own on file, so the orders take the whole width. */}
+          <div className={styles.split} data-single={!person.address || undefined}>
             {person.address && (
               <address className={styles.address}>
                 <span className={styles.label}>Sends to</span>

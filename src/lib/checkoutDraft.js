@@ -17,6 +17,28 @@
 const DRAFT_KEY = 'ck.checkout.draft.v2';
 const SAVED_KEY = 'ck.checkout.saved.v2';
 const LEGACY_KEY = 'ck.checkout.v1';
+// Keeping the refusal is strictly necessary: without it the next order would remember them again.
+const OFF_KEY = 'ck.checkout.off';
+export const DETAILS_EVENT = 'ck:details-changed';
+
+export function detailsOff() {
+  if (typeof window === 'undefined') return false;
+  try { return window.localStorage.getItem(OFF_KEY) === '1'; } catch { return false; }
+}
+
+// The cookies page's switch, and the checkout's "forget them". Off deletes what was kept.
+export function setRememberDetails(on) {
+  try {
+    if (on) {
+      window.localStorage.removeItem(OFF_KEY);
+    } else {
+      window.localStorage.setItem(OFF_KEY, '1');
+      window.localStorage.removeItem(SAVED_KEY);
+      window.localStorage.removeItem(LEGACY_KEY);
+    }
+  } catch { /* private mode: nothing was kept anyway */ }
+  window.dispatchEvent(new Event(DETAILS_EVENT));
+}
 
 export const EMPTY_FORM = {
   forWhom: 'me',
@@ -43,7 +65,7 @@ function write(store, key, value) {
 
 // The buyer's own details from earlier orders, including the shape the old checkout kept.
 export function readSaved() {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined' || detailsOff()) return null;
   let saved = read('localStorage', SAVED_KEY);
   if (!saved) {
     const legacy = read('localStorage', LEGACY_KEY);
@@ -85,6 +107,7 @@ export const saveDraft = (form) => write('sessionStorage', DRAFT_KEY, form);
 
 // Written once the order is on its way to Stripe. A gift keeps the buyer's own address as it was.
 export function rememberBuyer(form, address) {
+  if (detailsOff()) return;
   const before = readSaved();
   write('localStorage', SAVED_KEY, {
     name: form.name.trim(), email: form.email.trim(), phone: form.phone.trim(),

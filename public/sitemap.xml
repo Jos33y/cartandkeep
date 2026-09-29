@@ -51,7 +51,7 @@
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://cartandkeep.com/legal/faq</loc>
+    <loc>https://cartandkeep.com/faq</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -94,6 +94,12 @@
   <url>
     <loc>https://cartandkeep.com/p/20w-fast-charger-foldable-phone-adapter-for-iphone-13-12-11-318826986654</loc>
     <lastmod>2026-09-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://cartandkeep.com/p/deep-kneading-neck-and-shoulder-massager-shawl-3-speed-modes-318669930704</loc>
+    <lastmod>2026-09-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -141,13 +147,7 @@
   </url>
   <url>
     <loc>https://cartandkeep.com/p/mineral-powder-sunscreen-brush-spf-50-face-oil-control-natur-318730971207</loc>
-    <lastmod>2026-09-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://cartandkeep.com/p/deep-kneading-neck-and-shoulder-massager-shawl-3-speed-modes-318669930704</loc>
-    <lastmod>2026-09-26</lastmod>
+    <lastmod>2026-09-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -206,13 +206,13 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://cartandkeep.com/p/3pcs-sharks-tooth-zig-zag-hair-band-toothed-headband-alice-b-318646402001</loc>
-    <lastmod>2026-09-27</lastmod>
+    <loc>https://cartandkeep.com/p/ohs-adults-drying-robe-gifts-for-mum-outdoor-waterproof-chan-318741109678</loc>
+    <lastmod>2026-09-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://cartandkeep.com/p/ohs-adults-drying-robe-gifts-for-mum-outdoor-waterproof-chan-318741109678</loc>
+    <loc>https://cartandkeep.com/p/3pcs-sharks-tooth-zig-zag-hair-band-toothed-headband-alice-b-318646402001</loc>
     <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -220,6 +220,30 @@
   <url>
     <loc>https://cartandkeep.com/blog/what-a-house-runs-out-of</loc>
     <lastmod>2026-08-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://cartandkeep.com/blog/helping-an-older-parent-at-home</loc>
+    <lastmod>2026-09-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://cartandkeep.com/blog/mechanical-or-digital-bathroom-scale</loc>
+    <lastmod>2026-09-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://cartandkeep.com/blog/make-a-manicure-last</loc>
+    <lastmod>2026-09-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://cartandkeep.com/blog/what-is-a-drying-robe</loc>
+    <lastmod>2026-09-29</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>

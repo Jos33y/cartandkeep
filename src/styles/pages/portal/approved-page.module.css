@@ -560,3 +560,57 @@ a.shop:hover .shopOut { color: var(--c-positive); }
 @media (max-width: 640px) {
   .parcelFields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* A store card's own price, typed rather than dragged along an eBay price scale. */
+.storePrice {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+}
+.storePrice input {
+  width: 120px;
+  height: 36px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  font: inherit;
+  font-size: var(--t-label);
+  color: var(--c-ink);
+  font-variant-numeric: tabular-nums;
+}
+.storePrice input:focus { outline: none; border-color: var(--c-control); }
+
+/* Name and where it is for, the name giving way first. */
+.nameRow { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.nameRow .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Shop or eBay: one card, two listings, each with its own price. */
+.channelSwitch {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: var(--s-1);
+  padding: var(--s-1);
+  border-radius: var(--r-lg);
+  background: var(--c-sunk);
+}
+.channelOption {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 34px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-md);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.channelOption:hover { background: var(--c-raised); color: var(--c-ink); }
+.channelOn { background: var(--c-surface); color: var(--c-ink); box-shadow: var(--e-1); }
+.channelIcon { width: 14px; height: 14px; color: var(--c-ink-faint); }
+.channelOn .channelIcon { color: var(--c-action); }
+.channelPrice { font-family: var(--font-data); font-size: var(--t-caption); color: var(--c-ink-faint); }
+.channelOn .channelPrice { color: var(--c-ink); }
+.channelOption:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }

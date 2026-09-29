@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
 import { ArrowRightIcon, GiftIcon, PersonIcon, PlusIcon, WalletIcon } from '@components/ui/store/icons';
@@ -10,7 +10,7 @@ import { sessionId, trackBeginCheckout } from '@lib/analytics';
 import { ZONE_LABELS, checkPostcode, normalisePostcode } from '@lib/postcode';
 import { deliveryFor, freeOver } from '@lib/storeConfig';
 import { isUkPhone, toE164 } from '@lib/phone';
-import { initialForm, readSaved, rememberBuyer, saveDraft } from '@lib/checkoutDraft';
+import { initialForm, readSaved, rememberBuyer, saveDraft, setRememberDetails } from '@lib/checkoutDraft';
 import { useQuote } from '@hooks/useQuote';
 import { startCheckout, startExpress } from '@lib/checkout';
 import { readOffer } from '@lib/threads';
@@ -68,7 +68,7 @@ export function CheckoutPage() {
     }))
     : basketLines;
 
-  const saved = useMemo(() => readSaved(), []);
+  const [saved, setSaved] = useState(() => readSaved());
   // Arriving from a shared list's "Buy these for Ada": a gift, with her first name started on the label.
   const [form, setForm] = useState(() => {
     const start = initialForm();
@@ -76,6 +76,20 @@ export function CheckoutPage() {
     return { ...start, forWhom: 'gift', rName: start.rName || cleanName(params.get('to')) };
   });
   const [quotedPostcode, setQuotedPostcode] = useState(null);
+
+  // A borrowed device: clear what it remembered, and whatever of it is still in the form untouched.
+  function forgetDetails() {
+    const was = saved;
+    setRememberDetails(false);
+    setSaved(null);
+    setForm((f) => ({
+      ...f,
+      name: f.name === was?.name ? '' : f.name,
+      email: f.email === was?.email ? '' : f.email,
+      phone: f.phone === was?.phone ? '' : f.phone,
+      addressChoice: 'new',
+    }));
+  }
 
   // Figures from the checkout function, the same code that charges the card.
   const { quote, error: quoteError, was } = useQuote(offer === undefined || offer?.error ? [] : asked, {
@@ -419,6 +433,12 @@ export function CheckoutPage() {
                 />
               </div>
             </div>
+            {saved && (
+              <p className={styles.remembered}>
+                Filled in from your last order on this device.{' '}
+                <button type="button" className={styles.forget} onClick={forgetDetails}>Not you? Forget them</button>
+              </p>
+            )}
           </fieldset>
 
           {gift && (

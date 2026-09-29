@@ -10,6 +10,7 @@ import { ListingComposer } from '@components/ui/portal/ListingComposer';
 import { SearchTile } from '@components/ui/portal/SearchTile';
 import { Breakdown } from '@components/ui/portal/Breakdown';
 import { Icon } from '@components/ui/icons';
+import { ChannelMarks } from '@components/ui/portal/ChannelMarks';
 import { useApproved } from '@hooks/useApproved';
 import { useDraft } from '@hooks/useDraft';
 import { useSuppliers } from '@hooks/useSuppliers';
@@ -223,30 +224,36 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
   const { draft, change, revert, generate, upload, saving, edited } = useDraft(row, tenantId);
 
   // Live while editing, from the same function the closed line uses.
-  const a = useMemo(() => assess({ ...row, draft }), [row, draft]);
-  const hero = a.images[0] ?? row.image_url;
+  const whole = useMemo(() => assess({ ...row, draft }), [row, draft]);
+  // A store card the gate also passed is listed in two places, each at its own price.
+  const both = Boolean(whole.store && whole.ebay);
+  const [view, setView] = useState('store');
+  const a = both && view === 'ebay' ? whole.ebay : whole;
+  const setPrice = (v) => change(both && view === 'ebay' ? { ebay_price: v } : { price: v });
+  const hero = whole.images[0] ?? row.image_url;
   const status = a.ready ? 'ready' : 'check';
 
   const inShop = (row.store_products ?? [])[0] ?? null;
-  const shopKeep = storeKeep(a.price, fees, a.goods, a.postage);
+  // Always the shop's own figures, whichever view is open: a store card already keeps them, an eBay card is re-costed here.
+  const shopKeep = whole.store ? whole.keep : storeKeep(whole.price, fees, whole.goods, whole.postage);
 
   async function sendToShop() {
     setShopping(true);
     setProblem(null);
     try {
       await onShop({
-        slug: `${slugify(a.title)}-${String(row.id).slice(0, 6)}`,
-        title: a.title,
+        slug: `${slugify(whole.title)}-${String(row.id).slice(0, 6)}`,
+        title: whole.title,
         description: draft.description ?? a.l?.description ?? null,
-        price: a.price,
-        image_url: a.images[0] ?? null,
-        images: a.images,
-        brand: a.l?.brand ?? null,
-        category: a.l?.shop_category ?? null,
-        postage_band: a.m.headroom_band ?? null,
-        landed_cost: a.goods,
-        postage_cost: a.postage,
-        cost_note: a.best ? `Shelf price at ${a.best.supplier}` : null,
+        price: whole.price,
+        image_url: whole.images[0] ?? null,
+        images: whole.images,
+        brand: whole.l?.brand ?? null,
+        category: whole.l?.shop_category ?? null,
+        postage_band: whole.store ? whole.m.postage_band?.key ?? null : whole.m.headroom_band ?? null,
+        landed_cost: whole.goods,
+        postage_cost: whole.postage,
+        cost_note: whole.best ? `${whole.store ? 'Price' : 'Shelf price'} at ${whole.best.supplier}` : null,
         cost_updated_at: new Date().toISOString(),
         source_ref: row.id,
       });
@@ -278,11 +285,16 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
           : <span className={`${styles.thumb} ${styles.thumbEmpty}`} aria-hidden="true" />}
 
         <div className={styles.subject}>
-          <h2 className={styles.name}>{a.title}</h2>
+          <span className={styles.nameRow}>
+            <h2 className={styles.name}>{a.title}</h2>
+            <ChannelMarks channels={whole.channels} />
+          </span>
           <p className={styles.evidence}>
-            {a.entry?.proved
-              ? <><Icon name="IconCheck" className={styles.evIcon} />Converting at {formatGbp(a.entry.price)}</>
-              : <><Icon name="IconInfo" className={styles.evIconWarn} />No small seller converting</>}
+            {a.store
+              ? <><Icon name="IconCheck" className={styles.evIcon} />{a.g.rank != null ? `Google best seller #${a.g.rank.toLocaleString('en-GB')}` : 'Sells on Google'}{a.onEbay && ', and on eBay'}</>
+              : a.entry?.proved
+                ? <><Icon name="IconCheck" className={styles.evIcon} />Converting at {formatGbp(a.entry.price)}</>
+                : <><Icon name="IconInfo" className={styles.evIconWarn} />No small seller converting</>}
             {a.warnings.length > 0 && (
               <span className={styles.warnCount}>{a.warnings.length} to check</span>
             )}
@@ -312,6 +324,22 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
 
       {open && (
         <div className={styles.work}>
+          {both && (
+            <div className={styles.channelSwitch} role="tablist" aria-label="Where to list it">
+              {[
+                { key: 'store', label: 'Your shop', icon: 'IconShop', at: whole.price },
+                { key: 'ebay', label: 'eBay', icon: 'IconTag', at: whole.ebay.price },
+              ].map((o) => (
+                <button key={o.key} type="button" role="tab" aria-selected={view === o.key}
+                  className={`${styles.channelOption} ${view === o.key ? styles.channelOn : ''}`}
+                  onClick={() => setView(o.key)}>
+                  <Icon name={o.icon} className={styles.channelIcon} />
+                  {o.label}
+                  {o.at != null && <span className={styles.channelPrice} data-num>{formatGbp(o.at)}</span>}
+                </button>
+              ))}
+            </div>
+          )}
           {!a.modelled && (
             <p className={styles.notice}>
               <Icon name="IconInfo" className={styles.noticeIcon} />
@@ -319,6 +347,16 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
             </p>
           )}
 
+          {a.store ? (
+            <Card raised>
+              <CardHead title="Price" note="Cost where it was seen, plus Royal Mail, the card fee and your profit" />
+              <label className={styles.storePrice}>
+                <span>List at</span>
+                <input type="number" min="0" step="0.01" inputMode="decimal" data-num
+                  value={a.price ?? ''} onChange={(e) => setPrice(e.target.value === '' ? null : Number(e.target.value))} />
+              </label>
+            </Card>
+          ) : (
           <div className={styles.deck}>
             <Card raised>
               <CardHead title="Price" note="Against what is selling, not the middle of the field" />
@@ -328,7 +366,7 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
                 price={a.price}
                 goods={a.goods}
                 margin={a.m}
-                onChange={(v) => change({ price: v })}
+                onChange={setPrice}
               />
             </Card>
 
@@ -343,12 +381,24 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
               />
             </Card>
           </div>
+          )}
 
           {/* The case for it, as evidence rather than a list of facts. */}
           <div className={styles.case}>
             <Card>
               <CardHead title="Why this one" />
 
+              {a.store ? (
+              <div className={styles.proofs}>
+                <Proof icon="IconCheck" tone="positive"
+                  value={a.g.rank != null ? `#${a.g.rank.toLocaleString('en-GB')}` : 'Ranked'}
+                  label={`among Google's UK best sellers${a.g.months ? `, in ${a.g.months} of the months checked` : ''}`} />
+                <Proof icon="IconChart"
+                  value={a.g.min != null ? `${formatGbp(a.g.min)} to ${formatGbp(a.g.max)}` : 'Unknown'}
+                  label="what shops charge for it on Google" />
+                <Proof icon="IconLayers" value={a.shops.length} label={a.shops.length === 1 ? 'UK shop stocks it' : 'UK shops stock it'} />
+              </div>
+              ) : (
               <div className={styles.proofs}>
                 <Proof
                   icon="IconCheck"
@@ -369,11 +419,13 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
                   label="listings competing on the same search"
                 />
               </div>
+              )}
 
               <div className={styles.divider} />
 
               <p className={styles.caseHead}>Where £{a.price?.toFixed(2)} goes</p>
               <Breakdown
+                feeLabel={a.store ? 'Card fee' : undefined}
                 price={a.price}
                 fees={a.fees}
                 postage={a.postage}
@@ -419,11 +471,11 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
                 </a>
               )}
 
-              {(a.m.shops ?? []).length > 0 && (
+              {(a.shops ?? a.m.shops ?? []).length > 0 && (
                 <div className={styles.alts}>
                   <span className={styles.altsLabel}>Also stocked by</span>
                   <span className={styles.altsList}>
-                    {a.m.shops.map((s) => <span key={s} className={styles.alt}>{s}</span>)}
+                    {(a.shops ?? a.m.shops).map((s) => <span key={s} className={styles.alt}>{s}</span>)}
                   </span>
                 </div>
               )}
@@ -464,13 +516,13 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
 
               {/* Same price, different arithmetic: no eBay fee or ad rate on her
                   own shop, only the card fee. */}
-              {inShop ? (
+              {both && view === 'ebay' ? null : inShop ? (
                 <span className={styles.inShop}>
                   <Icon name="IconCheck" className={styles.btnIcon} />
                   On your shop as a {inShop.status}
                 </span>
               ) : (
-                <button className={styles.ghost} disabled={shopping || a.goods == null}
+                <button className={styles.ghost} disabled={shopping || whole.goods == null}
                   onClick={sendToShop}>
                   <Icon name="IconShop" className={styles.btnIcon} />
                   {shopping ? 'Adding' : shopKeep != null
@@ -479,6 +531,7 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
                 </button>
               )}
 
+              {!a.store && (
               <button className={styles.primary} disabled={busy || a.keep == null || a.keep < 0}
                 onClick={async () => {
                   setBusy(true);
@@ -502,6 +555,7 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
                 <Icon name="IconTag" className={styles.btnIcon} />
                 {busy ? 'Checking with eBay' : `Review and list at ${formatGbp(a.price)}`}
               </button>
+              )}
             </div>
           )}
 

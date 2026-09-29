@@ -1,11 +1,12 @@
 .page {
   width: 100%;
-  max-width: 880px;
+  max-width: var(--store-max);
   margin: 0 auto;
-  padding: var(--s-5) var(--s-4) var(--s-8);
+  padding: var(--s-5) var(--edge) var(--s-8);
 }
 
-@media (min-width: 900px) { .page { padding: var(--s-5) var(--s-5) var(--s-8); } }
+/* Narrow, but hung from the shop's left edge, not centred in the window. */
+.page > * { max-width: calc(880px - 2 * var(--s-5)); }
 
 .crumbs {
   display: flex;
@@ -81,15 +82,41 @@
   color: var(--c-faint);
 }
 
-/* Ruled lines with a prompt above each, the space left to write in. */
-ul.lines { list-style: none; margin: var(--s-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-4); }
+/* Ruled lines to write on: no boxes, just the rule, which darkens under the line being written. */
+.lines { display: flex; flex-direction: column; gap: var(--s-4); margin-top: var(--s-3); }
 
-.lines li {
-  padding-bottom: var(--s-6);
-  border-bottom: 1px solid var(--c-line-mid);
-  font-size: var(--t-label);
-  color: var(--c-ink-soft);
+.line { display: flex; flex-direction: column; gap: 2px; }
+.line span { font-size: var(--t-label); color: var(--c-ink-soft); }
+
+.line input,
+.line textarea {
+  --rule: 2rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--c-ink);
+  font: inherit;
+  font-size: 1rem;
+  line-height: var(--rule);
 }
+
+.line input { border-bottom: 1px solid var(--c-line-mid); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* A textarea ruled all the way down, one rule per line of writing. */
+.line textarea {
+  resize: none;
+  background: repeating-linear-gradient(180deg, transparent 0 calc(var(--rule) - 1px), var(--c-line-mid) calc(var(--rule) - 1px) var(--rule));
+}
+
+.line input::placeholder { color: var(--c-line-strong); letter-spacing: 0.04em; }
+
+.line input:focus,
+.line textarea:focus { outline: none; }
+.line input:focus { border-bottom-color: var(--c-ink); }
+.line textarea:focus { background: repeating-linear-gradient(180deg, transparent 0 calc(var(--rule) - 1px), var(--c-ink-faint) calc(var(--rule) - 1px) var(--rule)); }
+.line:focus-within span { color: var(--c-ink); }
 
 .note { margin-top: var(--s-5); font-size: var(--t-body); line-height: 1.55; color: var(--c-ink); }
 
@@ -178,7 +205,22 @@ ul.lines { list-style: none; margin: var(--s-3) 0 0; padding: 0; display: flex; 
 
 .send:hover { background: var(--c-action); }
 
-.hint { flex: 1 1 16rem; font-size: var(--t-label); line-height: 1.5; color: var(--c-ink-soft); }
+.copyMsg {
+  min-height: 52px;
+  padding: 0 var(--s-5);
+  border-radius: var(--r-control);
+  border: 1px solid var(--c-line-mid);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease);
+}
+
+.copyMsg:hover { border-color: var(--c-ink); }
+
+.hint { flex: 1 1 100%; font-size: var(--t-label); line-height: 1.5; color: var(--c-ink-soft); }
 
 .stock { margin-top: var(--s-7); padding-top: var(--s-5); border-top: 1px solid var(--c-line); font-size: var(--t-body); color: var(--c-ink-soft); }
 .stock a { color: var(--c-ink); font-weight: 500; text-decoration: underline; text-decoration-color: var(--c-line-mid); text-underline-offset: 3px; }
@@ -189,5 +231,5 @@ ul.lines { list-style: none; margin: var(--s-3) 0 0; padding: 0; display: flex; 
 .trader a { color: var(--c-ink); text-decoration: underline; text-decoration-color: var(--c-line-mid); text-underline-offset: 3px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .tab, .send { transition: none; }
+  .tab, .send, .copyMsg { transition: none; }
 }

@@ -22,10 +22,10 @@
   max-width: var(--store-max);
   height: 56px;
   margin: 0 auto;
-  padding: 0 var(--s-3);
+  padding: 0 var(--edge);
 }
 
-@media (min-width: 1024px) { .bar { gap: var(--s-5); padding: 0 var(--s-5); height: 60px; } }
+@media (min-width: 1024px) { .bar { gap: var(--s-5); height: 60px; } }
 
 .mark { display: inline-flex; align-items: center; min-height: var(--tap); text-decoration: none; }
 
@@ -56,6 +56,9 @@
 .icon:hover { background: var(--c-sunk); }
 
 .menuButton, .searchButton { display: grid; }
+
+/* The tap area is wider than the 20px icon, so pull it out until the first stroke (x 4 of 24, so 3px) lands on the edge. */
+.menuButton { margin-left: calc((var(--tap) - 20px) / -2 - 3px); }
 
 @media (min-width: 1024px) { .menuButton, .searchButton { display: none; } }
 
@@ -117,7 +120,7 @@
   max-width: var(--store-max);
   height: 44px;
   margin: 0 auto;
-  padding: 0 var(--s-5);
+  padding: 0 var(--edge);
 }
 
 /* ul. so the reset's ul[class] padding rule cannot win. */
@@ -220,7 +223,7 @@ ul.shelves > li { display: flex; }
 
 /* The smallest phones: tighter gaps so the basket is never cut at the edge. */
 @media (max-width: 400px) {
-  .bar { gap: 6px; padding: 0 10px; }
+  .bar { gap: 6px; padding: 0 10px 0 var(--edge); }
   .tools { gap: 2px; }
   .icon, .saved { min-width: 40px; }
 }

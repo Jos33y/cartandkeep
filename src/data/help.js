@@ -34,6 +34,7 @@ export function faq() {
     {
       topic: 'delivery',
       q: 'Can I send it to someone else?',
+      chip: 'Yes',
       a: [
         'Yes. Put their name and address at the checkout and your own email, so the confirmation and the tracking link come to you.',
         open.length ? `We deliver to ${joinOr(open)}${blocked.length ? `, but not to ${joinOr(blocked, 'or')}` : ''}.` : null,
@@ -42,6 +43,7 @@ export function faq() {
     {
       topic: 'delivery',
       q: 'How do I track my order?',
+      chip: 'From your dispatch email',
       a: ['Your dispatch email has the tracking link. You can also look your order up on the tracking page with its order reference.'],
       link: { label: 'Track an order', to: '/orders' },
     },
@@ -68,6 +70,7 @@ export function faq() {
     {
       topic: 'returns',
       q: 'Can I change or cancel my order?',
+      chip: 'Until it is sent',
       a: [
         'Yes, until it has been dispatched, and you are refunded in full. Write to us with your order reference as soon as you can.',
         `Once it has been sent, you can still return it within ${T.returnDays} days.`,
@@ -83,17 +86,20 @@ export function faq() {
     {
       topic: 'ordering',
       q: 'When am I charged?',
+      chip: 'When you order',
       a: ['When you place your order. If we cannot send it, for example because it has sold out, we tell you and refund you in full.'],
       link: { label: 'Terms of sale', to: '/legal/terms#how-an-order-works' },
     },
     {
       topic: 'ordering',
       q: 'Is my card safe?',
+      chip: 'Yes, Stripe takes it',
       a: ['Payment is taken by Stripe on its own secure page. Your card details never reach this shop.'],
     },
     {
       topic: 'ordering',
       q: 'Do you charge VAT?',
+      chip: tr.vat ? 'Included in prices' : 'No VAT',
       a: [tr.vat
         ? 'Prices include VAT, so the price you see is the price you pay.'
         : 'No. We are not registered for VAT, so the price you see is the full price.'],
@@ -101,13 +107,16 @@ export function faq() {
     {
       topic: 'shop',
       q: 'You do not stock what I need. Can you find it?',
+      chip: 'Often, yes',
       a: ['Often, yes. Tell us what you are looking for and we will let you know if we can get it.'],
       link: { label: 'Ask for something', to: '/request' },
     },
     {
       topic: 'shop',
       q: 'Who am I buying from?',
-      a: [`${who ?? tr.tradingAs ?? 'A UK business'}${who || tr.tradingAs ? ', a UK business' : ''}.${tr.address ? ` Our address is ${tr.address}.` : ''}`],
+      chip: tr.tradingAs ?? undefined,
+      // No street address here: it is an online shop, and the terms carry the address the law asks for.
+      a: [`${who ?? tr.tradingAs ?? 'A UK business'}${who || tr.tradingAs ? ', a UK business' : ''}. The terms of sale give our full details.`],
       link: { label: 'Terms of sale', to: '/legal/terms' },
     },
     {

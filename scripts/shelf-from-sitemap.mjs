@@ -5,6 +5,7 @@
 
 import { readFile, writeFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
+import { gunzipSync } from 'node:zlib';
 
 const args = Object.fromEntries(
   process.argv.slice(2).map((a) => a.replace(/^--/, '').split('=')).map(([k, ...v]) => [k, v.join('=') || true])
@@ -20,27 +21,38 @@ const exists = (p) => access(p).then(() => true, () => false);
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 const locs = (xml) => [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((m) => m[1].replace(/&amp;/g, '&'));
 
-// Sitemap index and its children, nothing else. A gzipped sitemap is skipped rather than guessed at.
+// Sitemap index and its children, nothing else. Gzipped sitemaps (John Lewis) are unpacked here.
+// --maps=<text> follows only child sitemaps whose address contains it, so a shop's category and
+// guide sitemaps are not fetched.
 async function readSitemaps(base) {
-  const seen = new Set();
-  const found = [];
+  const only = args.maps ? String(args.maps).toLowerCase() : null;
+  // --sitemap=<url> starts from that sitemap alone (John Lewis' product index), skipping robots.txt.
+  if (args.sitemap) return readFrom([String(args.sitemap)], only);
   const queue = [`${base.replace(/\/$/, '')}/sitemap.xml`];
   try {
     const robots = await (await fetch(`${base.replace(/\/$/, '')}/robots.txt`, { headers: { 'user-agent': UA } })).text();
     for (const m of robots.matchAll(/^sitemap:\s*(\S+)/gim)) queue.push(m[1]);
   } catch { /* robots is optional */ }
+  return readFrom(queue, only);
+}
+
+async function readFrom(queue, only) {
+  const seen = new Set();
+  const found = [];
   while (queue.length) {
     const u = queue.shift();
-    if (seen.has(u) || /\.gz$/i.test(u)) continue;
+    if (seen.has(u)) continue;
     seen.add(u);
     const res = await fetch(u, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(60000) }).catch(() => null);
     if (!res?.ok) { console.log(`  sitemap ${res?.status ?? 'failed'}: ${u}`); continue; }
-    const xml = await res.text();
+    const buf = Buffer.from(await res.arrayBuffer());
+    const xml = (buf[0] === 0x1f && buf[1] === 0x8b ? gunzipSync(buf) : buf).toString('utf8');
     const list = locs(xml);
-    if (/<sitemapindex/i.test(xml)) queue.push(...list);
+    if (/<sitemapindex/i.test(xml)) queue.push(...list.filter((c) => !only || c.toLowerCase().includes(only)));
     else found.push(...list);
     await new Promise((r) => setTimeout(r, 400));
   }
+  console.log(`  ${seen.size} sitemaps read`);
   return found;
 }
 
@@ -56,10 +68,15 @@ const cap = (w) => (w.length <= 3 && /\d/.test(w) ? w.toUpperCase() : w.charAt(0
 // Wickes: /Evo-Stik-Gripfill-Grab-Adhesive---350ml/p/101260. Toolstation: /dewalt-dch133p1-gb-sds-drill/p10646.
 function nameOf(url) {
   const parts = new URL(url).pathname.split('/').filter(Boolean);
-  const at = parts.findIndex((p, i) => /^p$/i.test(p) || (i === parts.length - 1 && /^p[A-Z]{0,3}\d+$/i.test(p)));
-  // Otherwise the name is the last part of the link: "saucepan-with-lid-em05.html", "gel-pen-3-pack-850001".
+  // The last "p" marker: City Plumbing links read /p/<name>/p/<number>, so the first "p" is not the one.
+  const at = parts.findLastIndex((p, i) => /^p$/i.test(p) || (i === parts.length - 1 && /^p[A-Z]{0,3}\d+$/i.test(p)));
+  // Otherwise the name is the last part of the link: "saucepan-with-lid-em05.html", "gel-pen-3-pack-850001",
+  // Debenhams' "…-book_p-<code>". When the last part is only a number (Very's "1600123456.prd"),
+  // the name is the part before it.
+  const last = (parts[parts.length - 1] ?? '').replace(/\.(html?|prd)$/i, '');
   const slug = at > 0 ? parts[at - 1]
-    : (parts[parts.length - 1] ?? '').replace(/\.html?$/i, '').replace(/-\d{5,}$/, '');
+    : /^\d{5,}[a-z]?$/i.test(last) ? (parts[parts.length - 2] ?? '')
+      : last.replace(/_p-[0-9a-f-]+$/i, '').replace(/-\d{5,}$/, '');
   if (!slug) return null;
   let text;
   try { text = decodeURIComponent(slug); } catch { text = slug; }

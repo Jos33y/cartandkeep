@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
-import { ArrowRightIcon, ChevronRightIcon } from '@components/ui/store/icons';
-import { POSTS, formatDate, postBySlug, relatedPosts } from '@data/blog';
+import { ChevronRightIcon } from '@components/ui/store/icons';
+import { NoteCover } from '@components/ui/store/NoteCover';
+import { PostLeads } from '@components/ui/store/PostLeads';
+import { gbp, legalTerms } from '@data/legal';
+import { replyPromise, siteUrl, storeConfig } from '@lib/storeConfig';
+import { fillNumbers, formatDate, headingId, postBySlug, relatedPosts } from '@data/blog';
 import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/pages/store/blog-post-page.module.css';
 
-const SITE = 'https://cartandkeep.com';
 
 /*
  * One post.
@@ -20,10 +23,20 @@ const SITE = 'https://cartandkeep.com';
  * sanitising step. That stops being true the moment anybody else can write
  * one, and this comment is here so that change is not made quietly.
  */
+const storeName = () => storeConfig().shopName || 'the shop';
+
 export function BlogPostPage() {
   const { slug } = useParams();
   const post = postBySlug(slug);
   const [html, setHtml] = useState(null);
+
+  const body = useMemo(() => {
+    if (!post) return '';
+    const T = legalTerms();
+    return fillNumbers(post.body, {
+      free_over: gbp(T.freeDeliveryOver), postage: gbp(T.postage), return_days: String(T.returnDays), reply: replyPromise(),
+    });
+  }, [post?.slug]);
 
   useEffect(() => {
     if (!post) return undefined;
@@ -33,7 +46,10 @@ export function BlogPostPage() {
     import('marked')
       .then(({ marked }) => {
         if (!live) return;
-        setHtml(marked.parse(post.body, { async: false, gfm: true, breaks: false }));
+        // Each second level heading gets the address the margin index links to.
+        const out = marked.parse(body, { async: false, gfm: true, breaks: false })
+          .replace(/<h2>([\s\S]*?)<\/h2>/g, (_, inner) => `<h2 id="${headingId(inner.replace(/<[^>]+>/g, ''))}">${inner}</h2>`);
+        setHtml(out);
       })
       .catch((err) => {
         console.error('[blog] could not render markdown', err);
@@ -45,6 +61,34 @@ export function BlogPostPage() {
     return () => { live = false; };
   }, [post?.slug]);
 
+  // Which heading the reader is in, for the margin index.
+  const bodyRef = useRef(null);
+  const [current, setCurrent] = useState(null);
+  useEffect(() => {
+    const root = bodyRef.current;
+    if (!root || !html) return undefined;
+    const heads = [...root.querySelectorAll('h2[id]')];
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      // Just under the sticky header: the heading the reader is actually reading, not the one coming up.
+      const line = 160;
+      const passed = window.scrollY < 40 ? [] : heads.filter((h) => h.getBoundingClientRect().top < line);
+      setCurrent(passed.length ? passed[passed.length - 1].id : null);
+    };
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(measure); };
+    measure();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => { window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); cancelAnimationFrame(frame); };
+  }, [html]);
+
+  // Arriving from "Inside" on the list: the heading only exists once the markdown has rendered, so jump then.
+  useEffect(() => {
+    if (!html || !window.location.hash) return;
+    document.getElementById(decodeURIComponent(window.location.hash.slice(1)))?.scrollIntoView();
+  }, [html]);
+
   if (!post) {
     return (
       <section className={styles.page}>
@@ -55,6 +99,7 @@ export function BlogPostPage() {
     );
   }
 
+  const SITE = siteUrl();
   const related = relatedPosts(post);
   const path = `/blog/${post.slug}`;
 
@@ -99,38 +144,56 @@ export function BlogPostPage() {
         <span aria-current="page">{post.title}</span>
       </nav>
 
-      <article className={styles.article}>
-        <p className={styles.meta}>
-          {formatDate(post.date)} &middot; {post.readingMinutes} minute read
-        </p>
-        <h1 className={`${styles.title} wide`}>{post.title}</h1>
-        {post.description && <p className={styles.lede}>{post.description}</p>}
+      <div className={styles.layout}>
+        <header className={styles.masthead}>
+          <div className={styles.mastText}>
+            <p className={styles.issue}>
+              <span className={styles.issueNo}>No. {post.no}</span>
+              <span className={styles.issueMeta}>Notes from {storeName()} &middot; {formatDate(post.date)} &middot; {post.readingMinutes} minute read</span>
+            </p>
+            <h1 className={`${styles.title} wide`}>{post.title}</h1>
+            {post.description && <p className={styles.lede}>{post.description}</p>}
+          </div>
+          <div className={styles.mastCover} aria-hidden="true"><NoteCover post={post} /></div>
+        </header>
 
-        {html === null ? (
-          // Not a spinner. The markdown chunk arrives in a fraction of a
-          // second and a spinner for that is a flash of anxiety for nothing.
-          <div className={styles.body}>{post.body}</div>
-        ) : (
-          <div className={styles.body} dangerouslySetInnerHTML={{ __html: html }} />
+        {post.contents.length > 1 && (
+          <nav className={styles.index} aria-label="In this note">
+            <p className={styles.indexHead}>In this note</p>
+            <ol>
+              {post.contents.map((c, i) => (
+                <li key={c.id} data-on={current === c.id || undefined}>
+                  <a href={`#${c.id}`}><span className={styles.indexNo}>{i + 1}</span>{c.text}</a>
+                </li>
+              ))}
+            </ol>
+          </nav>
         )}
-      </article>
 
-      <aside className={styles.after}>
-        <Link className={styles.cta} to={STORE_ROUTES.HOME}>
-          Everything in the shop <ArrowRightIcon size={16} />
-        </Link>
+        <article className={styles.article}>
+          {html === null ? (
+            // Not a spinner. The markdown chunk arrives in a fraction of a second.
+            <div className={`${styles.body} ${styles.raw}`}>{body}</div>
+          ) : (
+            <div ref={bodyRef} className={styles.body} dangerouslySetInnerHTML={{ __html: html }} />
+          )}
+        </article>
+      </div>
+
+      <div className={styles.after}>
+        <PostLeads leads={post.leads} />
 
         {related.length > 0 && (
-          <div className={styles.related}>
+          <nav className={styles.related} aria-label="More writing">
             <h2 className={styles.relatedHead}>More writing</h2>
             <ul>
               {related.map((p) => (
                 <li key={p.slug}><Link to={`/blog/${p.slug}`}>{p.title}</Link></li>
               ))}
             </ul>
-          </div>
+          </nav>
         )}
-      </aside>
+      </div>
     </section>
   );
 }

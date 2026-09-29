@@ -1,12 +1,13 @@
 .page {
   width: 100%;
-  padding: var(--s-5) var(--s-4) var(--s-8);
+  max-width: var(--store-max);
+  margin: 0 auto;
+  padding: var(--s-5) var(--edge) var(--s-8);
 }
 
-@media (min-width: 900px) { .page { padding: var(--s-5) var(--s-5) var(--s-8); } }
-
-/* Rail, gap and text, exactly: the tabs, the panel and the end of the text share one right edge. */
-.frame { max-width: calc(220px + var(--s-7) + 640px); margin: 0 auto; }
+/* Rail, gap and text, exactly: the tabs, the panel and the end of the text share one right edge.
+   Hung from the shop's left edge like every other page, not centred in the window. */
+.frame { max-width: calc(220px + var(--s-7) + 640px); }
 
 .crumbs {
   display: flex;

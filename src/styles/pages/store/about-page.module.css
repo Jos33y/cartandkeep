@@ -70,18 +70,112 @@
 }
 
 .text { margin-top: var(--s-4); max-width: 62ch; }
-.part .text p { font-size: 1.0625rem; line-height: 1.72; color: var(--c-ink-soft); }
+.text { display: flex; flex-direction: column; gap: var(--s-4); }
+.para { font-size: 1.0625rem; line-height: 1.72; color: var(--c-ink-soft); white-space: pre-line; }
 
-/* --- What we will not do: each one crossed out, in ink, as it comes into view --- */
+/*
+ * The notepad: ruled paper with a margin line, set a fraction off square.
+ * Each line is ticked in turn once the page is on screen, the counterpart of the struck-through notice below.
+ */
+.notepad {
+  --rule: 2.5rem;
+  position: relative;
+  isolation: isolate;
+  max-width: 420px;
+  margin: var(--s-2) 0;
+  padding: calc(var(--rule) * 0.75) var(--s-5) calc(var(--rule) * 0.5) calc(var(--s-5) + 2.25rem);
+}
 
-ul.refusals { margin-top: var(--s-4); padding: 0; list-style: none; border-top: 1px solid var(--c-line-mid); }
+/* The paper is turned a fraction off square; the words on it are not, so they stay crisp. */
+.notepad::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, transparent calc(var(--s-5) + 1.5rem), #e7b9aa calc(var(--s-5) + 1.5rem), #e7b9aa calc(var(--s-5) + 1.5rem + 1.5px), transparent calc(var(--s-5) + 1.5rem + 1.5px)),
+    repeating-linear-gradient(180deg, transparent 0 calc(var(--rule) - 1px), #dfe6ea calc(var(--rule) - 1px) var(--rule)) 0 calc(var(--rule) * 0.75) / 100% calc(100% - var(--rule) * 1.25) no-repeat,
+    var(--c-paper);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(90, 64, 30, 0.08), 0 16px 30px -22px rgba(70, 48, 20, 0.45);
+  transform: rotate(-0.8deg);
+}
 
-.refusal { padding: var(--s-4) 0; border-bottom: 1px solid var(--c-line-mid); }
+ul.list { margin: 0; padding: 0; list-style: none; }
+
+.list li {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: var(--rule);
+  padding-bottom: 7px;
+  font-size: 1.0625rem;
+  color: var(--c-ink);
+}
+
+.tick {
+  position: absolute;
+  left: -2.1rem;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: var(--c-sage-deep);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 420ms var(--ease-out) calc(200ms + var(--i) * 260ms);
+}
+
+.notepad[data-seen] .tick { stroke-dashoffset: 0; }
+
+/* --- What we will not do: the house rules on a card, pinned up, each struck through as it comes into view --- */
+
+.notice {
+  position: relative;
+  isolation: isolate;
+  max-width: 560px;
+  padding: var(--s-6) var(--s-5) var(--s-4);
+}
+
+.notice::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--c-paper);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(90, 64, 30, 0.08), 0 20px 36px -24px rgba(70, 48, 20, 0.5);
+  transform: rotate(0.6deg);
+}
+
+@media (min-width: 720px) { .notice { padding: var(--s-6) var(--s-6) var(--s-5); } }
+
+/* A drawing pin, head and a little shadow, holding the card up at the top. */
+.pin {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #8fa58a, var(--c-sage-deep) 60%, var(--c-wood-dark));
+  box-shadow: 0 3px 4px -1px rgba(30, 28, 25, 0.35);
+}
+
+.noticeHead { font-size: clamp(1.35rem, 2.6vw, 1.75rem); line-height: 1.1; color: var(--c-ink); text-align: center; }
+
+ul.refusals { margin-top: var(--s-4); padding: 0; list-style: none; border-top: 2px solid var(--c-ink); }
+
+.refusal { padding: var(--s-4) 0; border-bottom: 1px dashed var(--c-line-mid); }
+.refusal:last-child { border-bottom: 0; padding-bottom: 0; }
 
 .no {
   font-family: var(--font-display);
   font-stretch: var(--wide-tight);
-  font-size: 1.25rem;
+  font-size: 1.1875rem;
   font-weight: 620;
   letter-spacing: -0.01em;
   line-height: 1.3;
@@ -95,10 +189,10 @@ ul.refusals { margin-top: var(--s-4); padding: 0; list-style: none; border-top: 
   background-repeat: no-repeat;
   background-position: 0 58%;
   background-size: 0% 2px;
-  transition: background-size 520ms var(--ease-out) calc(var(--i) * 140ms);
+  transition: background-size 520ms var(--ease-out) calc(200ms + var(--i) * 160ms);
 }
 
-.refusals[data-seen] .no s { background-size: 100% 2px; }
+.notice[data-seen] .no s { background-size: 100% 2px; }
 
 .why { margin-top: var(--s-1); font-size: 1rem; line-height: 1.6; color: var(--c-ink-soft); }
 
@@ -126,6 +220,6 @@ ul.refusals { margin-top: var(--s-4); padding: 0; list-style: none; border-top: 
 .afterNote a:hover { text-decoration-color: var(--c-ink); }
 
 @media (prefers-reduced-motion: reduce) {
-  .no s { transition: none; }
+  .no s, .tick { transition: none; }
   .cta { transition: none; }
 }

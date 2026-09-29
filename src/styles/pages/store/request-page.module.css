@@ -1,105 +1,192 @@
-/* Asking the shop to stock something.
-   ------------------------------------------------------------------------
-   A narrow column. One required field and four optional ones, and every
-   optional field is a percentage of people who stop, so nothing is here that
-   does not change what she can do with the request. */
-
 .page {
-  max-width: 36rem;
-  margin: 0 auto;
-  padding: var(--s-7) var(--s-4) var(--s-8);
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-5);
-}
-
-.head { display: flex; flex-direction: column; gap: var(--s-2); }
-
-.eyebrow {
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--c-faint);
-}
-
-.title { font-size: var(--ts-title); font-weight: 500; letter-spacing: -0.02em; }
-.body { font-size: var(--t-body); line-height: var(--lh-body); color: var(--c-ink-soft); }
-
-.form { display: flex; flex-direction: column; gap: var(--s-4); }
-
-/* Two questions on one line, because they are one question about price and
-   they read as two more things to fill in when stacked. */
-.pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
-
-@media (max-width: 520px) {
-  .pair { grid-template-columns: 1fr; }
-}
-
-.field { display: flex; flex-direction: column; gap: var(--s-1); }
-.label { font-size: var(--t-label); font-weight: 500; }
-.hint { font-size: var(--t-caption); color: var(--c-faint); line-height: var(--lh-snug); }
-
-.input,
-.textarea {
   width: 100%;
-  min-height: var(--tap);
-  padding: var(--s-2) var(--s-3);
-  border: 1px solid var(--c-line-mid);
-  border-radius: var(--r-control);
-  background: var(--c-surface);
-  font: inherit;
-  font-size: var(--t-body);
-  color: var(--c-ink);
+  max-width: var(--store-max);
+  margin: 0 auto;
+  padding: var(--s-5) var(--edge) var(--s-8);
 }
 
-.textarea { resize: vertical; line-height: var(--lh-body); }
+/* Narrow, but hung from the shop's left edge, not centred in the window. */
+.page > * { max-width: calc(720px - 2 * var(--s-5)); }
 
-.input:focus-visible,
-.textarea:focus-visible { outline: 2px solid var(--c-ink); outline-offset: 1px; }
-
-/* Off screen rather than display none. A bot reading the markup fills it in;
-   display none is the one thing some of them check for. */
-.trap {
-  position: absolute;
-  left: -9999px;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-}
-
-.submit {
-  min-height: 48px;
-  border: 0;
-  border-radius: var(--r-control);
-  background: var(--c-action-strong);
-  color: #fff;
-  font: inherit;
-  font-size: var(--t-body);
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.submit:hover:not(:disabled) { filter: brightness(0.93); }
-.submit:disabled { opacity: 0.45; cursor: not-allowed; }
-
-.error { font-size: var(--t-caption); color: var(--c-negative); }
-
-.aside {
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding-bottom: var(--s-5);
   font-size: var(--t-caption);
   color: var(--c-faint);
-  line-height: var(--lh-snug);
 }
 
-.aside a { color: var(--c-action-text); }
+.crumbs a { color: var(--c-ink-soft); text-decoration: none; }
+.crumbs a:hover { color: var(--c-ink); }
+.crumbs svg { color: var(--c-line-mid); }
 
-.back {
-  align-self: flex-start;
-  min-height: var(--tap);
+.title { font-size: clamp(2.1rem, 5.2vw, 3.25rem); color: var(--c-ink); }
+/* Each clause on its own line, as on the home page, so a line never ends on a stray word. */
+.titleLine { display: block; }
+.lede { margin-top: var(--s-4); max-width: 46ch; font-size: clamp(1.0625rem, 1.8vw, 1.1875rem); line-height: 1.55; color: var(--c-ink-soft); }
+
+/* The slip from the home page, bigger: paper torn from a pad, perforated along the top. Kept square so what is typed stays crisp. */
+.slip {
+  position: relative;
+  margin-top: var(--s-6);
+  padding: var(--s-5) var(--s-4) var(--s-5);
+  background: #fbf7ef;
+  color: var(--c-ink);
+  border-radius: 6px;
+  box-shadow: 0 30px 60px -34px rgba(40, 30, 10, 0.5), 0 0 0 1px rgba(90, 64, 30, 0.08);
+}
+
+@media (min-width: 720px) {
+  .slip { padding: var(--s-6) var(--s-6) var(--s-5); }
+}
+
+.slip::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: var(--s-5);
+  right: var(--s-5);
+  border-top: 2px dotted var(--c-line-mid);
+}
+
+.slipHead { display: flex; align-items: flex-start; justify-content: space-between; height: 40px; padding-top: var(--s-3); }
+
+.slipLabel { font-size: var(--t-micro); font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--c-faint); }
+
+.stamp {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 70px;
+  height: 70px;
+  margin: -6px -4px 0 0;
+  border: 2px solid var(--c-sage-deep);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 4px #fbf7ef, inset 0 0 0 5px var(--c-sage-deep);
+  color: var(--c-sage-deep);
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+  transform: rotate(12deg);
+  opacity: 0.9;
+}
+
+/* Stamped on receipt: the postmark lands where Free to ask was. */
+.slipHead .received { --pm-size: 108px; --pm-gap: #fbf7ef; flex: none; margin: -12px -4px -24px 0; }
+
+.field { display: flex; flex-direction: column; min-width: 0; margin-top: var(--s-4); }
+
+.lineLabel { font-size: var(--t-caption); font-weight: 600; color: var(--c-ink-faint); }
+
+/* The one line that matters, written large on a heavy rule. */
+.big {
+  width: 100%;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  border-bottom: 2px solid var(--c-ink);
+  border-radius: 0;
+  background: none;
+  color: var(--c-ink);
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 3vw, 1.5rem);
+  font-weight: 560;
+}
+
+/* The stamp hangs over the end of this line; what is typed stops short of it. */
+.slip .big { padding-right: 88px; }
+
+/* The rest, on lighter rules. */
+.line {
+  width: 100%;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--c-line-mid);
+  border-radius: 0;
+  background: none;
+  color: var(--c-ink);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.big::placeholder, .line::placeholder { color: var(--c-ink-faint); opacity: 0.55; font-weight: 400; }
+.big:focus, .line:focus { outline: none; }
+.big:focus { border-bottom-color: var(--c-action-strong); }
+.line:focus { border-bottom-color: var(--c-ink); }
+.field:focus-within .lineLabel { color: var(--c-ink); }
+
+.field[data-missing] .big { border-bottom-color: var(--c-negative); }
+.missing { margin-top: var(--s-2); font-size: var(--t-label); font-weight: 500; color: var(--c-negative); }
+
+.slip[data-done] .big, .slip[data-done] .line { cursor: default; }
+
+.pair { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: var(--s-5); }
+@media (min-width: 560px) { .pair { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.try { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: var(--s-3); }
+
+.tryLabel { font-size: var(--t-caption); font-weight: 600; color: var(--c-faint); margin-right: 2px; }
+
+.tryChip {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px dashed var(--c-line-strong);
+  border-radius: var(--r-full);
+  background: none;
+  color: var(--c-ink-soft);
+  font: inherit;
+  font-size: var(--t-caption);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.tryChip:hover { background: var(--c-surface); border-style: solid; color: var(--c-ink); }
+.tryChip[aria-pressed='true'] { background: var(--c-ink); border: 1px solid var(--c-ink); color: var(--c-on-dark); }
+@media (pointer: coarse) { .tryChip { min-height: 40px; } }
+
+/* Off screen rather than display none. A bot reading the markup fills it in. */
+.trap { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+
+.error { margin-top: var(--s-4); font-size: var(--t-label); color: var(--c-negative); }
+
+.foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-4); margin-top: var(--s-6); }
+
+/* Ink, as on the home page's slip, so the two read as the same object. */
+.send {
   display: inline-flex;
   align-items: center;
-  padding: 0 var(--s-4);
-  border: 1px solid var(--c-line-mid);
-  border-radius: var(--r-control);
-  font-size: var(--t-body);
+  gap: var(--s-2);
+  min-height: 52px;
+  padding: 0 var(--s-5);
+  border: 0;
+  border-radius: var(--r-full);
+  background: var(--c-ink);
+  color: var(--c-on-dark);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.send:hover { background: var(--c-ink-deep); transform: translateY(-1px); }
+.send:disabled { cursor: progress; }
+.send svg { transition: transform var(--dur) var(--ease); }
+.send:hover svg { transform: translateX(3px); }
+
+.fine { font-size: var(--t-caption); color: var(--c-faint); }
+
+.aside { margin-top: var(--s-6); font-size: var(--t-label); color: var(--c-ink-soft); }
+.aside a { color: var(--c-ink); text-decoration: underline; text-decoration-color: var(--c-line-mid); text-underline-offset: 3px; }
+.aside a:hover { text-decoration-color: var(--c-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .send, .send svg, .tryChip { transition: none; }
 }

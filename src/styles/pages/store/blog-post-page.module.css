@@ -1,6 +1,6 @@
 .page {
   width: 100%;
-  max-width: 940px;
+  max-width: var(--store-max);
   margin: 0 auto;
   padding: var(--s-5) var(--s-4) var(--s-8);
 }
@@ -22,31 +22,96 @@
 .crumbs svg { color: var(--c-line-mid); }
 .crumbs span { max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* 68 characters. Prose set to the full width of a 940px column is prose
-   nobody finishes. */
-.article { max-width: 68ch; }
+/*
+ * Set like a printed guide: a masthead with the issue number, then on laptops the
+ * contents in the left margin, holding still and marking the reader's place, with
+ * the text at a readable measure beside it.
+ */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: 'head' 'index' 'article'; }
 
-.meta { font-size: var(--t-caption); color: var(--c-faint); }
-.title { margin-top: var(--s-2); font-size: clamp(1.875rem, 4.4vw, 2.75rem); }
+@media (min-width: 1024px) {
+  .layout {
+    grid-template-columns: 220px minmax(0, 680px) minmax(0, 1fr);
+    grid-template-areas: 'head head head' 'index article .';
+    column-gap: var(--s-8);
+  }
+}
+
+/* The masthead: the words on the left, the note's drawn cover beside them, tipped a little as if set down. */
+.masthead { grid-area: head; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); margin-bottom: var(--s-7); }
+@media (min-width: 760px) { .masthead { grid-template-columns: minmax(0, 1fr) minmax(0, 300px); align-items: end; gap: var(--s-7); } }
+@media (min-width: 1024px) { .masthead { grid-template-columns: 220px minmax(0, 680px) minmax(0, 340px); column-gap: var(--s-8); } .mastText { grid-column: 2; } }
+
+.mastText { min-width: 0; }
+.mastCover { width: min(62%, 240px); transform: rotate(2deg); }
+.mastCover :global(svg) { box-shadow: 0 30px 50px -28px rgba(40, 30, 10, 0.55); }
+@media (min-width: 760px) { .mastCover { width: 100%; } }
+.article { grid-area: article; min-width: 0; }
+
+.issue { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); }
+
+/* The number is on the cover; here it is a label, in the kraft of the parcel. */
+.issueNo { padding: 2px 8px; border-radius: 4px; background: var(--c-kraft); font-size: var(--t-caption); font-weight: 700; letter-spacing: 0.06em; color: var(--c-ink); }
+.issueMeta { font-size: var(--t-caption); color: var(--c-faint); letter-spacing: 0.02em; }
+
+.title { margin-top: var(--s-4); font-size: clamp(2rem, 4.6vw, 3.25rem); line-height: 1.04; text-wrap: balance; }
 
 .lede {
-  margin-top: var(--s-4);
-  font-size: 1.125rem;
-  line-height: 1.6;
+  margin-top: var(--s-5);
+  font-size: clamp(1.125rem, 1.8vw, 1.3125rem);
+  line-height: 1.55;
   color: var(--c-ink-soft);
+}
+
+/* The contents: a numbered list in the margin that holds still and marks where the reader is. */
+.index { grid-area: index; min-width: 0; margin-bottom: var(--s-5); }
+
+@media (min-width: 1024px) {
+  .index { align-self: start; position: sticky; top: calc(var(--store-bar-h) + var(--s-6)); margin: 0; }
+}
+
+.indexHead { font-size: var(--t-micro); font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--c-faint); }
+
+.index ol { list-style: none; margin: var(--s-3) 0 0; padding: 0; border-left: 2px solid var(--c-line); }
+
+.index a {
+  display: flex;
+  gap: var(--s-3);
+  padding: var(--s-2) 0 var(--s-2) var(--s-4);
+  margin-left: -2px;
+  border-left: 2px solid transparent;
+  font-size: var(--t-label);
+  line-height: 1.4;
+  color: var(--c-ink-soft);
+  text-decoration: none;
+  transition: color var(--dur) var(--ease), border-color var(--dur-settle) var(--ease);
+}
+
+.index a:hover { color: var(--c-ink); }
+.index li[data-on] a { border-left-color: var(--c-action-strong); color: var(--c-ink); font-weight: 600; }
+
+.indexNo { flex: none; width: 1.25em; font-variant-numeric: tabular-nums; color: var(--c-faint); }
+.index li[data-on] .indexNo { color: var(--c-action-text); }
+
+/* Phones: the contents sit under the lede as a short numbered list, and do not follow. */
+@media (max-width: 1023px) {
+  .index ol { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); border-left: 0; }
+  .index a { padding-left: 0; border-left: 0; }
+  .index li[data-on] a { font-weight: 400; color: var(--c-ink-soft); }
 }
 
 /* The markdown lands here as HTML, so every tag it can emit is styled rather
    than left to the browser default. */
 .body {
-  margin-top: var(--s-6);
-  padding-top: var(--s-5);
-  border-top: 1px solid var(--c-line);
+  padding-top: var(--s-6);
+  border-top: 2px solid var(--c-ink);
   font-size: 1.0625rem;
   line-height: 1.72;
   color: var(--c-ink);
-  white-space: pre-line;
 }
+
+/* Only while the markdown is still loading, when the body is the raw text. Set on the rendered HTML, it turned the newlines between paragraphs into blank lines. */
+.raw { white-space: pre-line; }
 
 .body :global(h2) {
   margin: var(--s-7) 0 var(--s-3);
@@ -65,6 +130,32 @@
 }
 
 .body :global(p) { margin: var(--s-4) 0; white-space: normal; }
+
+/* A drop cap on the opening paragraph, in the display face, three lines deep. */
+.body > :global(p:first-child)::first-letter {
+  float: left;
+  margin: 0.08em 0.12em 0 0;
+  font-family: var(--font-display);
+  font-stretch: var(--wide);
+  font-size: 3.6em;
+  font-weight: 700;
+  line-height: 0.82;
+  color: var(--c-ink);
+}
+
+/* Each heading numbered to match the margin. The sticky header is cleared by the scroll padding in store-tokens.css. */
+.body { counter-reset: part; }
+.body :global(h2) { counter-increment: part; }
+.body :global(h2)::before {
+  content: counter(part);
+  display: block;
+  margin-bottom: var(--s-2);
+  font-family: var(--font-display);
+  font-stretch: var(--wide);
+  font-size: 0.8em;
+  font-weight: 700;
+  color: var(--c-kraft-ink);
+}
 .body :global(strong) { font-weight: 600; }
 .body :global(em) { font-style: italic; }
 
@@ -79,13 +170,25 @@
 .body :global(li) { margin: var(--s-2) 0; }
 .body :global(li)::marker { color: var(--c-brand); }
 
+/* A quote pulled out of the text, set large between two kraft rules, the way a guide stops to make its point. */
 .body :global(blockquote) {
-  margin: var(--s-5) 0;
-  padding: var(--s-3) var(--s-4);
-  background: var(--c-warm);
-  border-radius: var(--r-control);
-  color: var(--c-ink-soft);
+  margin: var(--s-7) 0;
+  padding: var(--s-5) 0;
+  border-top: 3px solid var(--c-kraft);
+  border-bottom: 3px solid var(--c-kraft);
   white-space: normal;
+}
+
+.body :global(blockquote p) {
+  margin: 0;
+  font-family: var(--font-display);
+  font-stretch: var(--wide-tight);
+  font-size: clamp(1.5rem, 3.4vw, 2.1rem);
+  font-weight: 620;
+  line-height: 1.18;
+  letter-spacing: -0.015em;
+  color: var(--c-ink);
+  text-wrap: balance;
 }
 
 .body :global(img) { margin: var(--s-5) 0; border-radius: var(--r-card); }
@@ -101,32 +204,12 @@
 
 .after {
   margin-top: var(--s-7);
-  padding-top: var(--s-5);
-  border-top: 1px solid var(--c-line);
   display: flex;
   flex-direction: column;
-  gap: var(--s-5);
-  max-width: 68ch;
+  gap: var(--s-6);
 }
 
-/* Every post ends at the shop. A piece about what a house runs out of that
-   does not offer the things it names is a piece that converts nobody. */
-.cta {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-  min-height: 52px;
-  padding: 0 var(--s-5);
-  border-radius: var(--r-control);
-  background: var(--c-action-strong);
-  color: #fff;
-  font-size: 1rem;
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.related ul { list-style: none; margin-top: var(--s-2); }
+.related ul { list-style: none; margin-top: var(--s-2); padding: 0; }
 .relatedHead {
   font-size: var(--t-micro);
   font-weight: 600;

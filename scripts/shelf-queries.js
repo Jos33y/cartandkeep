@@ -282,7 +282,7 @@ for (const r of rows) {
   // Forced search is typed as brand and model: "dewalt dch133p1", not "sds hammer drill".
   const model = modelOf(r.name)
   // Names read off a sitemap carry no brand field; the first word of a trade name is nearly always it.
-  const lead = named ? brand : (!brand && model ? words(r.name)[0] : null)
+  const lead = named ? brand : (!brand && model ? words(r.name).find((x) => !/^(compatible|universal|replacement|genuine|original)$/.test(x)) : null)
   const extra = model && lead && lead !== model.toLowerCase() ? [`${lead} ${model.toLowerCase()}`] : []
   // One query per product: two or three were mostly the same market asked twice, at a call each.
   // The strongest one wins: model number, then brand and product, then the product alone.
@@ -291,11 +291,20 @@ for (const r of rows) {
   // ("joseph joseph") or the first word, unless that word is a generic opener.
   const GENERIC = new Set(['stainless', 'steel', 'large', 'small', 'medium', 'mini', 'set', 'pack', 'new', 'the',
     'kids', 'childrens', 'mens', 'womens', 'ladies', 'deluxe', 'premium', 'classic', 'round', 'square', 'glass',
-    'plastic', 'wooden', 'silicone', 'electric', 'digital', 'kitchen', 'home', 'garden', 'test', 'food', 'baking'])
+    'plastic', 'wooden', 'silicone', 'electric', 'digital', 'kitchen', 'home', 'garden', 'test', 'food', 'baking',
+    // "Compatible Dyson DC25 Filter Kit": the brand is the second word, and eBay titles say "for Dyson" as often
+    'compatible', 'universal', 'replacement', 'genuine', 'original'])
+  // Brands of two words that do not repeat: "le" alone is not Le Creuset.
+  const PAIRS = ['le creuset', 'russell hobbs', 'morphy richards', 'emma bridgewater', 'mason cash', 'kitchen craft',
+    'good grips', 'de longhi', 'black decker', 'stanley fatmax', 'cole mason', 'garden trading', 'dr beckmann',
+    'james wellbeloved', 'royal canin', 'arden grange', 'lilys kitchen', 'natures menu', 'pet munchies',
+    'laughing dog', 'pooch mutt', 'taste of', 'wainwrights', 'hills science', 'hills prescription']
   let nameBrand = null
   if (!brand && !(price > 0)) {
     const ws = words(r.name)
-    if (ws[0] && ws[0] === ws[1]) nameBrand = `${ws[0]} ${ws[1]}`
+    const pair = ws.length > 1 ? `${ws[0]} ${ws[1]}` : ''
+    if (PAIRS.includes(pair)) nameBrand = pair
+    else if (ws[0] && ws[0] === ws[1]) nameBrand = `${ws[0]} ${ws[1]}`
     else if (ws[0] && !GENERIC.has(ws[0]) && !/\d/.test(ws[0])) nameBrand = ws[0]
   }
   const withBrand = nameBrand && !core.startsWith(nameBrand)

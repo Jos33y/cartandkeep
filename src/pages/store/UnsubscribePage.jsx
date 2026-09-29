@@ -50,30 +50,32 @@ export function UnsubscribePage() {
     <section className={styles.page}>
       <Head title="Unsubscribe" description="Unsubscribe." path="/unsubscribe" noindex />
 
-      {state === 'working' && <p className={styles.body}>One moment.</p>}
+      {state === 'working' && (
+        <p className={styles.working} role="status">Taking you off the list.</p>
+      )}
 
       {state === 'off' && (
         <>
-          <h1 className={`${styles.title} wide`}>Done</h1>
-          {/* Said plainly and without asking for anything. No survey, no offer
-              to stay, no reduced frequency option. Those are what turn one
-              unsubscribe into a spam complaint. */}
+          <h1 className={`${styles.title} wide`}>You are off the list.</h1>
+          {/* Said plainly and without asking for anything. No survey and no offer to stay:
+              those are what turn one unsubscribe into a spam complaint. */}
           <p className={styles.body}>
-            {email ? `${email} is off the list.` : 'You are off the list.'} No
-            more emails, and nothing else changes about your orders.
+            {email ? <><b>{email}</b> will not get any more emails from us.</> : 'You will not get any more emails from us.'}{' '}
+            Anything you have ordered is not affected.
           </p>
+          <p className={styles.note}>Changed your mind? You can sign up again at the foot of any page.</p>
           <Link className={styles.back} to={STORE_ROUTES.HOME}>Back to the shop</Link>
         </>
       )}
 
       {state === 'failed' && (
         <>
-          <h1 className={`${styles.title} wide`}>That link did not work</h1>
+          <h1 className={`${styles.title} wide`}>That link did not work.</h1>
           <p className={styles.body}>
-            It may have been copied without the whole address. Write to us and
-            we will take you off by hand, which takes a minute.
+            It may have been copied without the whole address. Write to us from the
+            address you want taken off and we will do it by hand.
           </p>
-          <Link className={styles.back} to={STORE_ROUTES.CONTACT}>Get in touch</Link>
+          <Link className={styles.back} to={STORE_ROUTES.CONTACT}>Write to us</Link>
         </>
       )}
     </section>

@@ -322,7 +322,7 @@
 
 .nav {
   position: sticky;
-  top: var(--s-5);
+  top: calc(var(--bar-h) + var(--s-5));
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -355,8 +355,9 @@
 
 /* Cards on the canvas. The hairline between sections read as one document
    rather than as separate things she can finish one at a time. */
+/* Jumps land clear of the portal's pinned top bar, not under it. */
 .section, .anchor .block {
-  scroll-margin-top: var(--s-5);
+  scroll-margin-top: calc(var(--bar-h) + var(--s-5));
   padding: var(--s-5);
   border: 1px solid var(--c-line);
   border-radius: var(--r-lg);
@@ -364,11 +365,11 @@
   box-shadow: var(--e-1);
 }
 
-.anchor { display: flex; flex-direction: column; gap: var(--s-4); scroll-margin-top: var(--s-5); }
+.anchor { display: flex; flex-direction: column; gap: var(--s-4); scroll-margin-top: calc(var(--bar-h) + var(--s-5)); }
 
 /* StoreSettings keeps its two column block, now inside a card. */
 .anchor .block { border-top: 1px solid var(--c-line); gap: var(--s-6); }
-.anchor .aside { top: var(--s-5); }
+.anchor .aside { top: calc(var(--bar-h) + var(--s-5)); }
 
 .sectionHead { margin-bottom: var(--s-4); }
 .sectionTitle { font-size: var(--t-lead); font-weight: 560; letter-spacing: -0.01em; }
@@ -443,9 +444,10 @@
 @media (max-width: 900px) {
   .layout { grid-template-columns: 1fr; }
 
+  /* Pinned under the top bar, not behind it; jumps clear both. */
   .nav {
     position: sticky;
-    top: 0;
+    top: var(--bar-h);
     z-index: var(--z-sticky);
     flex-direction: row;
     overflow-x: auto;
@@ -454,6 +456,7 @@
   }
 
   .navItem { white-space: nowrap; }
+  .section, .anchor, .anchor .block { scroll-margin-top: calc(var(--bar-h) + 52px + var(--s-3)); }
   .rules { grid-template-columns: 1fr; }
   .saveHint { margin-left: 0; flex-basis: 100%; }
 }
@@ -539,13 +542,18 @@
 
 .select:hover { border-color: var(--c-control); }
 .select:focus { outline: none; border-color: var(--c-action-strong); box-shadow: 0 0 0 3px rgba(186, 90, 61, 0.14); }
-.range { display: flex; align-items: center; gap: var(--s-2); font-size: var(--t-label); color: var(--c-ink-soft); }
+.range { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); font-size: var(--t-label); color: var(--c-ink-soft); }
 .range .select { width: 76px; }
 
 @media (max-width: 1200px) {
   .block[data-preview] { grid-template-columns: 1fr; }
   .previewCol { position: static; }
   .block[data-preview] .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Two columns stop at phone width, previews or not: "2 to 3 working days" needs the room. */
+@media (max-width: 560px) {
+  .block[data-preview] .fields { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* --- About page: longer words, and lists of rows ------------------------- */

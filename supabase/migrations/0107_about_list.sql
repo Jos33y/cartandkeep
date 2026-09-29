@@ -14,7 +14,7 @@ set store = jsonb_set(store, '{voice,about}', $new${
       "heading": "How we choose what we stock",
       "text": "Much of the range we already sell elsewhere, so we know it and how it arrives.\n\nIf you cannot find something, tell us what it is and we will look for it."
     }
-  ],
+  ], 
   "refusals": [
     {
       "no": "Ask you to create an account.",

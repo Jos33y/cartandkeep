@@ -4,8 +4,10 @@ import { MarketBand } from './MarketBand';
 import { SellerGauge } from './SellerGauge';
 import { ImageLightbox } from './ImageLightbox';
 import { SourceList } from './SourceList';
+import { ChannelMarks } from './ChannelMarks';
 import { Icon } from '@components/ui/icons';
 import { formatGbp } from '@utils/formatGbp';
+import { shopName } from '@lib/assess';
 import { REJECTION_REASONS } from '@utils/constants';
 import styles from '@styles/ui/portal/candidate-row.module.css';
 
@@ -48,7 +50,17 @@ const searchUrlFor = (name, q) => SHOP_SEARCH[name]?.(q)
 const rate = (n) => (n == null ? null : `at ${n.toLocaleString('en-GB', { maximumFractionDigits: 1 })} sales a month`);
 const fb = (n) => (n == null ? null : `${n.toLocaleString('en-GB')} feedback`);
 
+const NEED_LABEL = { part: 'Part or refill', pest: 'Pest', damp: 'Damp and mould', 'clean-fix': 'Fix', safety: 'Safety', plumbing: 'Plumbing part', care: 'Care aid', winter: 'Winter need' };
+
+function storeEvidence(a) {
+  const g = a.g;
+  if (g.rank == null) return { icon: 'IconInfo', tone: 'muted', text: 'Sells on Google' };
+  const months = g.periods?.length ? `, in ${g.months} of the months checked` : '';
+  return { icon: 'IconCheck', tone: 'positive', text: `Google best seller #${g.rank.toLocaleString('en-GB')}${months}` };
+}
+
 function evidenceOf(a) {
+  if (a.store) return storeEvidence(a);
   const e = a.entry;
   if (!e) return { icon: 'IconInfo', tone: 'muted', text: 'No recent seller in the sample' };
   if (a.entryLoses) {
@@ -126,7 +138,8 @@ export function CandidateRow({
       <div className={styles.top}>
         {c.image_url ? (
           <button type="button" className={styles.thumb} onClick={() => setZoomed(true)}
-            aria-label={`View ${a.title} larger`}>
+            aria-label={`View ${a.title} larger`}
+            title={a.store ? 'Photo from where it was seen, to recognise it. Not for your shop.' : undefined}>
             <img src={thumb(c.image_url)} alt="" loading="lazy" />
           </button>
         ) : (
@@ -134,18 +147,29 @@ export function CandidateRow({
         )}
 
         <button type="button" className={styles.subject} onClick={onToggle} aria-expanded={open}>
-          <span className={styles.name}>{a.title}</span>
+          <span className={styles.nameRow}>
+            <span className={styles.name}>{a.title}</span>
+            <ChannelMarks channels={a.channels} />
+          </span>
           <span className={styles.evidence}>
             <span className={`${styles.ev} ${styles[ev.tone]}`}>
               <Icon name={ev.icon} className={styles.evIcon} />
               {ev.text}
             </span>
+            {a.store && c.cluster && c.cluster !== 'All year' && <span className="pill pill-quiet">{c.cluster}</span>}
+            {a.store && a.m.need && <span className="pill pill-quiet">{NEED_LABEL[a.m.need] ?? a.m.need}</span>}
             {a.packCheck && <span className="pill pill-warning">Check pack size</span>}
             {pill && <span className={`pill pill-${pill.tone}`}>{pill.text}</span>}
             {imported && <span className="pill pill-quiet">Import, from {from}</span>}
             {c.routes === 'branded' && <span className="pill pill-quiet">Branded</span>}
             {c.routes === 'china' && <span className="pill pill-quiet">Open market</span>}
-            {(shelf?.price != null || shelf?.url) && (
+            {a.store && a.shops.length > 0 && (
+              <span className={styles.shelf}>
+                Seen at {a.shops.slice(0, 2).join(', ')}{a.shops.length > 2 && ` and ${a.shops.length - 2} more`}
+                {a.cost != null && <> <span data-num>{formatGbp(a.cost)}</span></>}
+              </span>
+            )}
+            {!a.store && (shelf?.price != null || shelf?.url) && (
               <span className={styles.shelf}>
                 {a.shelfIsCost ? '' : 'Seen at '}{shelf.shop ?? 'Shelf'}{shelf.price != null && <> <span data-num>{formatGbp(shelf.price)}</span></>}
               </span>
@@ -153,57 +177,98 @@ export function CandidateRow({
           </span>
         </button>
 
-        <div className={`${styles.cellFig} ${styles.cellMarket}`}>
-          {c.sold_30d != null ? (
-            <>
-              <span className={styles.market}>{c.sold_30d.toLocaleString('en-GB')}</span>
-              <span className={styles.figFoot}>in the market</span>
-            </>
-          ) : (
-            <span className={styles.none}>Not read</span>
-          )}
-        </div>
-
-        <div className={`${styles.cellFig} ${styles.cellKeep}`}>
-          {a.keep != null ? (
-            <>
-              <span className={`figure ${styles.keep} ${a.lane === 'short' ? styles.short : ''}`}>{formatGbp(a.keep)}</span>
-              <span className={styles.figFoot}>at <span data-num>{formatGbp(a.price)}</span></span>
-            </>
-          ) : (
-            <>
-              <span className={styles.none}>No cost yet</span>
-              {a.maxGoods != null && (
-                <span className={styles.figFoot}>buy under <span data-num>{formatGbp(a.maxGoods)}</span></span>
+        {a.store ? (
+          <>
+            <div className={`${styles.cellFig} ${styles.cellMarket}`}>
+              {a.g.rank != null ? (
+                <>
+                  <span className={styles.market} data-num>#{a.g.rank.toLocaleString('en-GB')}</span>
+                  <span className={styles.figFoot}>{a.g.months != null ? `${a.g.months} ${a.g.months === 1 ? 'month' : 'months'}` : 'on Google'}</span>
+                </>
+              ) : (
+                <span className={styles.none}>Not ranked</span>
               )}
-            </>
-          )}
-        </div>
+            </div>
 
-        <div className={`${styles.cellFig} ${styles.cellMonth}`}>
-          {a.month != null ? (
-            <>
-              <span className={`figure ${styles.month}`}>{formatGbp(a.month)}</span>
-              <span className={styles.figFoot}>{rate(a.perMonth)}</span>
-            </>
-          ) : a.packCheck ? (
-            <span className={styles.none}>Check pack first</span>
-          ) : a.entryLoses ? (
-            <>
-              {a.floor != null
-                ? <span className={styles.none}>Pays from <span data-num>{formatGbp(a.floor)}</span></span>
-                : <span className={`${styles.none} ${styles.loses}`}>Loses money</span>}
-              <span className={styles.figFoot}>loses at <span data-num>{formatGbp(a.entry.price)}</span></span>
-            </>
-          ) : a.entry?.proved && a.goods == null ? (
-            <>
-              <span className={styles.none}>Needs a cost</span>
-              {a.perMonth != null && <span className={styles.figFoot}>{rate(a.perMonth)}</span>}
-            </>
-          ) : (
-            <span className={styles.none}>Not proved</span>
-          )}
-        </div>
+            <div className={`${styles.cellFig} ${styles.cellKeep}`}>
+              {a.price != null ? (
+                <>
+                  <span className={`figure ${styles.keep}`}>{formatGbp(a.price)}</span>
+                  <span className={styles.figFoot}>
+                    {a.floor != null && a.price !== a.floor ? <>floor <span data-num>{formatGbp(a.floor)}</span></> : 'at your floor'}
+                  </span>
+                </>
+              ) : (
+                <span className={styles.none}>Needs a price</span>
+              )}
+            </div>
+
+            <div className={`${styles.cellFig} ${styles.cellMonth}`}>
+              {a.keep != null ? (
+                <>
+                  <span className={`figure ${styles.month} ${a.keep < 0 ? styles.loses : ''}`}>{formatGbp(a.keep)}</span>
+                  <span className={styles.figFoot}>a sale</span>
+                </>
+              ) : (
+                <span className={styles.none}>Needs a price</span>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+          <div className={`${styles.cellFig} ${styles.cellMarket}`}>
+            {c.sold_30d != null ? (
+              <>
+                <span className={styles.market}>{c.sold_30d.toLocaleString('en-GB')}</span>
+                <span className={styles.figFoot}>in the market</span>
+              </>
+            ) : (
+              <span className={styles.none}>Not read</span>
+            )}
+          </div>
+
+          <div className={`${styles.cellFig} ${styles.cellKeep}`}>
+            {a.keep != null ? (
+              <>
+                <span className={`figure ${styles.keep} ${a.lane === 'short' ? styles.short : ''}`}>{formatGbp(a.keep)}</span>
+                <span className={styles.figFoot}>at <span data-num>{formatGbp(a.price)}</span></span>
+              </>
+            ) : (
+              <>
+                <span className={styles.none}>No cost yet</span>
+                {a.maxGoods != null && (
+                  <span className={styles.figFoot}>buy under <span data-num>{formatGbp(a.maxGoods)}</span></span>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className={`${styles.cellFig} ${styles.cellMonth}`}>
+            {a.month != null ? (
+              <>
+                <span className={`figure ${styles.month}`}>{formatGbp(a.month)}</span>
+                <span className={styles.figFoot}>{rate(a.perMonth)}</span>
+              </>
+            ) : a.packCheck ? (
+              <span className={styles.none}>Check pack first</span>
+            ) : a.entryLoses ? (
+              <>
+                {a.floor != null
+                  ? <span className={styles.none}>Pays from <span data-num>{formatGbp(a.floor)}</span></span>
+                  : <span className={`${styles.none} ${styles.loses}`}>Loses money</span>}
+                <span className={styles.figFoot}>loses at <span data-num>{formatGbp(a.entry.price)}</span></span>
+              </>
+            ) : a.entry?.proved && a.goods == null ? (
+              <>
+                <span className={styles.none}>Needs a cost</span>
+                {a.perMonth != null && <span className={styles.figFoot}>{rate(a.perMonth)}</span>}
+              </>
+            ) : (
+              <span className={styles.none}>Not proved</span>
+            )}
+          </div>
+          </>
+        )}
 
         <div className={styles.actions}>
           {decision ? (
@@ -261,6 +326,7 @@ export function CandidateRow({
             </ul>
           )}
 
+          {a.store ? <StoreWork c={c} a={a} onSource={onSource} suppliers={suppliers} /> : (<>
           <Card raised className={styles.wide}>
             <CardHead title="Where it sells, and where it pays"
               aside={<Tip side="end">The top rail is the market: half of listings sit in the shaded band, the tick is the median, the ring is the smallest seller who is converting. The bottom rail is the same prices after fees, postage and the goods, and the dot is where your price lands.</Tip>} />
@@ -320,6 +386,7 @@ export function CandidateRow({
             )}
             <SourceList candidate={c} onAdd={onSource} suppliers={suppliers} compact />
           </Card>
+          </>)}
 
           <Card>
             <CardHead title="Notes" />
@@ -403,5 +470,102 @@ function Split({ a }) {
         ))}
       </dl>
     </div>
+  );
+}
+
+// The opened store card: what Google shows it selling for, how her price is built, and where it was seen.
+function StoreWork({ c, a, onSource, suppliers }) {
+  const g = a.g;
+  const from = a.m.cost_from ?? {};
+  const parts = a.price != null && a.cost != null ? [
+    { key: 'goods', label: 'Cost where seen', value: a.cost },
+    { key: 'post', label: a.postageBand?.basis === 'weight' ? `${a.postageBand.key === 'rm-small' ? 'Royal Mail small parcel' : `Royal Mail medium parcel, ${(a.postageBand.grams / 1000).toFixed(1)}kg`}, packing and returns` : 'Royal Mail, packing and returns', value: a.postage },
+    { key: 'fees', label: 'Card fee', value: a.fees },
+    { key: 'keep', label: a.keep < 0 ? 'You lose' : 'You keep', value: Math.max(0, a.keep), shown: Math.abs(a.keep) },
+  ] : null;
+  const total = parts ? parts.reduce((s, p) => s + p.value, 0) || 1 : 1;
+
+  return (
+    <>
+      <Card raised className={styles.wide}>
+        <CardHead title="Where it sells on Google, and where it pays"
+          aside={<Tip side="end">The top rail is what shops charge for it on Google, lowest to highest. The bottom rail is the same prices after the cost, Royal Mail, packing, returns and the card fee: red loses money, amber keeps less than your profit, green keeps your profit. The dot is your price.</Tip>} />
+        <MarketBand
+          market={g.min != null ? { p25: g.min, p75: g.max ?? g.min, low: g.min, high: g.max } : null}
+          price={a.price} keep={a.keep} breakEven={a.breakEven} floor={a.floor} target={a.target}
+          sellsLabel="On Google" bodyLabel="Google's price range" />
+        <dl className={styles.proofs}>
+          <Proof value={g.rank != null ? `#${g.rank.toLocaleString('en-GB')}` : 'Unknown'} label={`best seller, ${g.category ?? 'this category'}`} />
+          <Proof value={g.months ?? 'Unknown'} label={g.months === 1 ? 'month ranked' : 'months ranked'} />
+          <Proof value={a.shops.length} label={a.shops.length === 1 ? 'UK shop stocks it' : 'UK shops stock it'} />
+          <Proof value={a.floor != null ? formatGbp(a.floor) : 'No cost yet'} label="your floor" />
+        </dl>
+      </Card>
+
+      <Card>
+        <CardHead title="Your price" note={a.price != null ? `Listed at ${formatGbp(a.price)}` : null} />
+        {parts ? (
+          <div className={styles.split}>
+            <div className={styles.splitBar}>
+              {parts.map((p) => (
+                <span key={p.key} className={styles[`seg_${p.key}`]} style={{ flexBasis: `${(p.value / total) * 100}%` }} />
+              ))}
+            </div>
+            <dl className={styles.splitKey}>
+              {parts.map((p) => (
+                <div key={p.key} className={styles.splitItem}>
+                  <dt><i className={styles[p.key === 'keep' && a.keep < 0 ? 'seg_lose' : `seg_${p.key}`]} />{p.label}</dt>
+                  <dd data-num className={p.key === 'keep' ? (a.keep < 0 ? styles.splitLoses : styles.splitKeep) : undefined}>
+                    {formatGbp(p.shown ?? p.value)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ) : (
+          <p className={styles.quietText}>Needs the price it is sold at where it was seen.</p>
+        )}
+      </Card>
+
+      <Card>
+        <CardHead title="Where it was seen" aside={<Tip side="end">Proof it can be bought in the UK. You buy wherever is cheapest once an order comes in.</Tip>} />
+        {from.url && (
+          <a className={styles.seen} href={from.url} target="_blank" rel="noreferrer noopener">
+            <span className={styles.seenShop}>{shopName(from.shop) ?? 'The shop'}</span>
+            <span className={styles.seenProduct}>{from.product ?? c.title}</span>
+            {from.price != null && <span className={`figure ${styles.seenPrice}`}>{formatGbp(from.price)}</span>}
+          </a>
+        )}
+        {a.shops.length > 1 && (
+          <p className={styles.shops}>
+            <span className={styles.shopsLabel}>Also stocked at</span>
+            {a.shops.slice(1).map((name) => (
+              <a key={name} href={searchUrlFor(name, encodeURIComponent(c.title))} target="_blank" rel="noreferrer noopener">{name}</a>
+            ))}
+          </p>
+        )}
+        <SourceList candidate={c} onAdd={onSource} suppliers={suppliers} compact />
+      </Card>
+
+      {a.entry && (
+        <Card>
+          <CardHead title="On eBay" aside={<Tip side="end">The gate found this selling on eBay too. A seller your size converting is proof a new account can get in.</Tip>} />
+          <SellerGauge entry={a.entry} ceiling={a.entry.ceiling ?? 1000} />
+          {a.ebay && (
+            <dl className={styles.proofs}>
+              <Proof value={a.ebay.price != null ? formatGbp(a.ebay.price) : 'Unknown'} label="eBay price" />
+              <Proof value={a.ebay.keep != null ? formatGbp(a.ebay.keep) : 'No cost yet'} label="you keep on eBay" />
+              <Proof value={a.ebay.perMonth != null ? a.ebay.perMonth.toLocaleString('en-GB') : 'Too new'} label="sales a month" />
+              <Proof value={(a.ebay.m?.competition?.competitors ?? 'Unknown').toLocaleString('en-GB')} label="listings competing" />
+            </dl>
+          )}
+          {a.entry.item_id && (
+            <a className={styles.out} href={itmUrl(a.entry.item_id)} target="_blank" rel="noreferrer noopener">
+              Open that listing <Icon name="IconOut" className={styles.outIcon} />
+            </a>
+          )}
+        </Card>
+      )}
+    </>
   );
 }

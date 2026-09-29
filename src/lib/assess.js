@@ -40,7 +40,78 @@ export function packOf(name) {
   return m ? Number(m[1]) : null;
 }
 
+// Shop tags as the shelves name them, shown as the shop's own name.
+const SHOP_NAMES = {
+  bmstores: 'B&M', hb: 'Home Bargains', 'hb-seasonal': 'Home Bargains', 'hb-costed': 'Home Bargains', savers: 'Savers',
+  poundland: 'Poundland', theworks: 'The Works', toolstation: 'Toolstation', wickes: 'Wickes', lakeland: 'Lakeland',
+  completecareshop: 'Complete Care Shop', essentialaids: 'Essential Aids', hannworld: 'Hannworld', maplin: 'Maplin',
+  qdstores: 'QD Stores', cpc: 'CPC', hartsofstur: 'Harts of Stur', studio: 'Studio', johnlewis: 'John Lewis',
+  homediscount: 'Home Discount', monstershop: 'MonsterShop', lights4fun: 'Lights4fun',
+};
+export const shopName = (tag) => SHOP_NAMES[tag] ?? tag;
+
+// Where a card is for. Cards from before channels existed came from the eBay pipeline.
+export function channelsOf(row) {
+  const set = new Set(row?.recommended_channels ?? []);
+  if (row?.margin?.channel === 'store') set.add('store');
+  if (set.size === 0) set.add('ebay');
+  return ['store', 'ebay'].filter((c) => set.has(c));
+}
+
+// A store card: her own price from what it costs where it was seen, not an eBay market read.
+function assessStore(row) {
+  const m = row.margin ?? {};
+  const d = row.draft ?? {};
+  const g = m.google ?? {};
+  const price = d.price ?? m.list_at ?? null;
+  const floor = m.floor ?? null;
+  const returns = Number(m.returns_allowance ?? 0);
+  const fixed = Number(m.cost ?? 0) + Number(m.postage ?? 0) + Number(m.packaging ?? 0) + returns + Number(m.card?.fixed ?? 0);
+  const fees = price != null ? round(price * Number(m.card?.pct ?? 0) + Number(m.card?.fixed ?? 0)) : null;
+  const keep = price != null && m.cost != null ? round(price - price * Number(m.card?.pct ?? 0) - fixed) : null;
+  const shops = (m.shops ?? []).map(shopName);
+  const warnings = [
+    m.cost == null && 'No price read where it was seen yet, so there is no list price.',
+    shops.length === 1 && `Seen at one shop only, ${shops[0]}.`,
+    keep != null && keep < 0 && 'Loses money at this price.',
+    keep != null && keep >= 0 && floor != null && price < floor && `Under your floor of £${floor.toFixed(2)}, so it keeps less than your profit.`,
+    m.above_market && price != null && g.min != null && price > g.min && `Your floor is above Google's lowest price of £${Number(g.min).toFixed(2)}. Your call whether to list it.`,
+    m.postage_band?.basis === 'assumed' && 'No weight on file, so postage is costed as a small parcel (up to 2kg, 45 x 35 x 16cm). Check it fits before listing.',
+  ].filter(Boolean);
+  const from = m.cost_from ?? {};
+  const pct = Number(m.card?.pct ?? 0);
+  const breakEven = m.cost != null ? round((fixed - 0) / (1 - pct)) : null;
+  // The same card read as an eBay listing, once the gate has priced it for eBay. Its own price, never the shop's.
+  const ebay = m.ebay ? assess({ ...row, margin: m.ebay, draft: { ...d, price: d.ebay_price ?? undefined } }) : null;
+  return {
+    store: true, m, d, g, price, keep, fees, shops, warnings,
+    cost: m.cost ?? null,
+    floor,
+    breakEven,
+    target: m.profit_target ?? null,
+    ebay,
+    channels: channelsOf(row),
+    returns,
+    goods: m.cost ?? null,
+    best: m.cost != null ? { supplier: shopName(from.shop) ?? 'Where it was seen', url: from.url ?? null, landed_unit_cost: m.cost } : null,
+    l: null,
+    modelled: true,
+    // An assumed postage is shown, not a block: most shelves carry no weight, and she can see the size.
+    ready: warnings.length === (m.postage_band?.basis === 'assumed' ? 1 : 0) && price != null && (d.images ?? []).length > 0,
+    postage: round(Number(m.postage ?? 0) + Number(m.packaging ?? 0) + returns),
+    postageBand: m.postage_band ?? null,
+    onEbay: (row.recommended_channels ?? []).includes('ebay'),
+    entry: row.entry ?? null,
+    lane: m.above_market ? 'store-above' : 'store',
+    month: null,
+    title: d.title ?? row.title,
+    images: d.images ?? [],
+    edited: Object.keys(d).length > 0,
+  };
+}
+
 export function assess(row) {
+  if (row.margin?.channel === 'store') return assessStore(row);
   const m = row.margin ?? {};
   const l = row.listing ?? null;
   const entry = row.entry ?? null;
@@ -103,6 +174,7 @@ export function assess(row) {
   const short = keep != null && target != null && keep < target;
 
   return {
+    channels: channelsOf(row),
     m, l, entry, d, best, goods, price, keep, fees, postage, modelled, trusted, warnings,
     target, perMonth, entryKeep, entryLoses, entryThin, month, ratio, packCheck, shelfIsCost,
     match: m.match ?? null,

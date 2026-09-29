@@ -18,7 +18,7 @@
 
 export const SCOPE_VERSION = '2.1';
 export const SCOPE_DATE = '2026-07-23';
-export const LAST_REVIEWED = '2026-09-27';
+export const LAST_REVIEWED = '2026-09-29';
 export const MONTH_ONE_DUE = '2026-08-22';
 
 export const DELIVERABLE_GROUPS = [
@@ -73,12 +73,12 @@ export const DELIVERABLE_GROUPS = [
       },
       {
         label: 'Blog module active, format ready for the first posts',
-        detail: 'Markdown files, an index and a post page. First piece written, a buying guide on what a house runs out of.',
+        detail: 'Markdown files, an index and a post page. Five posts are up, each with a drawn cover and leading into the shop, and the index is built to hold thirty.',
         state: 'done', date: '2026-08-18',
       },
       {
         label: 'Legal pages live',
-        detail: 'Six pages: terms of sale, privacy, returns and refunds, delivery, cookies, and how reviews work. Rewritten on 25 September with the law each clause answers to. The decisions that are yours are in the review pack rather than on the live pages, and the pages are final once you have marked it up.',
+        detail: 'Six pages: terms of sale, privacy, returns and refunds, delivery, cookies, and how reviews work. Rewritten on 25 September with the law each clause answers to, and on 29 September cookies and privacy were brought up to date with everything the shop keeps on a device. The decisions that are yours are in the review pack rather than on the live pages, and the pages are final once you have marked it up.',
         state: 'done',
         date: '2026-08-18',
       },
@@ -107,22 +107,22 @@ export const DELIVERABLE_GROUPS = [
       { label: 'Clean SEO-friendly URL structure', detail: '/c/department and /p/product, no query strings.', state: 'done', date: '2026-08-18' },
       {
         label: 'XML sitemap generated and submitted to Google',
-        why: 'Built. Waits on Google Search Console.',
-        detail: 'Generated from the live catalogue, so it lists what a visitor can actually see. Submission waits on the domain.',
-        state: 'active',
+        detail: 'Generated from the live catalogue, so it lists what a visitor can actually see, and submitted in Google Search Console.',
+        state: 'done',
+        date: '2026-09-29',
       },
       { label: 'Robots.txt configured', state: 'done', date: '2026-08-18' },
       {
         label: 'Google Search Console verified and connected',
-        why: 'Domain verification in progress.',
-        detail: 'Domain verification in progress.',
-        state: 'queued',
+        why: 'Verified, with the sitemap in. Waiting on Google to gather its first figures.',
+        detail: 'The domain is verified and the sitemap submitted. Google needs time to crawl the shop before it has any figures to give, and the portal is connected to read them once they exist.',
+        state: 'active',
       },
       { label: 'Bing Webmaster Tools verified and connected',
         why: 'Not started.', state: 'queued' },
       {
         label: 'Schema markup on products, articles and organisation',
-        detail: 'Organisation, website, shop, product, breadcrumb and article. No invented ratings: those wait for real reviews.',
+        detail: 'Organisation, website, shop, product, breadcrumb, article, and the questions and answers on Help. No invented ratings: those wait for real reviews.',
         state: 'done',
       },
       { label: 'LLMS.txt for AI model citations', state: 'done', date: '2026-08-18' },
@@ -134,9 +134,9 @@ export const DELIVERABLE_GROUPS = [
       },
       {
         label: '301 redirects configured where relevant',
-        why: 'Old addresses forward inside the shop. The server-level version is not set up yet.',
-        detail: 'A section that is renamed or removed keeps its old address, and anyone arriving there is taken to where its products went.',
-        state: 'active',
+        detail: 'The shop is new, so there is no earlier site whose addresses need forwarding. Where an address can change, it is covered: a section that is renamed or removed keeps its old address, and anyone arriving there is taken to where its products went.',
+        state: 'done',
+        date: '2026-09-27',
       },
       {
         label: 'Basic keyword targeting on category pages',
@@ -157,9 +157,9 @@ export const DELIVERABLE_GROUPS = [
       },
       {
         label: 'SEO progress report',
-        why: 'Waits on Google Search Console.',
+        why: 'Waiting on Google to gather its first figures.',
         detail:
-          'Monthly, kept under Being found month by month, so you can see the line from nothing to the first clicks rather than a document that lands and is filed. It cannot start until Google Search Console is verified and connected, which is still being set up, so no report has gone out yet. Until then Being found shows what stops Google listing each product.',
+          'Monthly, kept under Being found month by month, so you can see the line from nothing to the first clicks rather than a document that lands and is filed. Search Console is verified and has the sitemap. The first report follows once Google has gathered figures to report on, so none has gone out yet. Until then Being found shows what stops Google listing each product.',
         state: 'active',
       },
     ],
@@ -214,7 +214,7 @@ export const DELIVERABLE_GROUPS = [
       {
         label: 'Returning against new customers',
         detail:
-          'By email address on the order, since the shop stores nothing on anybody\u2019s device. Both counts are on the Customers screen, with everything each person has bought behind their row. The figures stay at zero until the first orders.',
+          'By email address on the order, since the shop does not follow anybody from one visit to the next. Both counts are on the Customers screen, with everything each person has bought behind their row. The figures stay at zero until the first orders.',
         state: 'done',
         date: '2026-08-21',
       },
@@ -424,9 +424,9 @@ export const DELIVERABLE_GROUPS = [
         state: 'client',
       },
       {
-        label: 'Your own name as the legal name',
+        label: 'Who is selling, as it really is',
         detail:
-          'Under Settings, Who is selling. As a sole trader the law requires your own name beside Cart & Keep on every receipt and legal page. The field currently holds a company name with no company number, and the screen now says so.',
+          'Under Settings, Who is selling. As a sole trader, your own name, which the law requires beside Cart & Keep on every receipt and legal page. As a registered company, its number as well. The field currently holds a company name with no number, and the screen says so. Whichever you enter, the terms and every receipt follow it.',
         screen: '/settings', state: 'client',
       },
       {

@@ -80,9 +80,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-.stopSmall { font-size: var(--t-caption); line-height: 1.4; color: var(--c-on-dark-faint); }
+.stopSmall { font-size: var(--t-caption); line-height: 1.4; color: var(--c-on-dark-faint); text-wrap: balance; }
 
-/* --- Browser storage: four tiles, one with its switch ----------------- */
+/* --- Browser storage: six tiles, three with their switch ------------- */
 
 .tiles {
   display: grid;

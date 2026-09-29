@@ -2,9 +2,9 @@
 
 .footer { background: var(--c-ink-deep); color: var(--c-on-dark-soft); }
 
-.inner { max-width: var(--store-max); margin: 0 auto; padding: var(--s-6) var(--s-4) var(--s-4); }
+.inner { max-width: var(--store-max); margin: 0 auto; padding: var(--s-6) var(--edge) var(--s-4); }
 
-@media (min-width: 900px) { .inner { padding: var(--s-7) var(--s-5) var(--s-4); } }
+@media (min-width: 900px) { .inner { padding-top: var(--s-7); } }
 
 .top {
   display: grid;

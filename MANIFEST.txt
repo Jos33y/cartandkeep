@@ -1,4 +1,12 @@
-ck-llms-2026-09-28
+ck-channels-2026-09-29
 
-public/llms.txt                   overwrite: no figures that go stale; correct FAQ address; request page added
-scripts/store/build-sitemap.js    overwrite: FAQ listed at /faq (/legal/faq only redirects there)
+src/components/ui/portal/ChannelMarks.jsx          new: the Shop and eBay marks
+src/styles/ui/portal/channel-marks.module.css     new: their styles, portal tokens only
+src/lib/assess.js                                 overwrite: channelsOf on every card; store break-even and target; the eBay view of a store card
+src/components/ui/portal/CandidateRow.jsx         overwrite: marks beside the name; the price rail on store cards; eBay figures when the gate has priced it
+src/components/ui/portal/MarketBand.jsx           overwrite: the rail takes its lane and key labels, so it reads for Google as well as eBay
+src/styles/ui/portal/candidate-row.module.css     overwrite: name row that gives way to the marks
+src/pages/portal/CandidatesPage.jsx               overwrite: comment only, plus the earlier store columns and lanes
+src/pages/portal/ApprovedPage.jsx                 overwrite: Your shop and eBay switch, each with its own price; the shop button always prices the shop side
+src/styles/pages/portal/approved-page.module.css  overwrite: the switch and the name row
+scripts/import-gate.js                            overwrite: the store cost stands as the goods in the eBay view, so it has a real keep figure

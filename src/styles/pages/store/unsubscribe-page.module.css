@@ -1,28 +1,43 @@
-/* Leaving the list.
-   ------------------------------------------------------------------------
-   A narrow column with one sentence in it. Nothing to click except back to the
-   shop, and no offer to stay. */
+/* Leaving the list: one heading, one sentence, the way back. Nothing to argue with. */
 
 .page {
-  max-width: 32rem;
+  width: 100%;
+  max-width: var(--store-max);
+  min-height: 50vh;
   margin: 0 auto;
-  padding: var(--s-8) var(--s-4);
+  padding: var(--s-8) var(--edge);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--s-3);
 }
 
-.title { font-size: var(--ts-title); font-weight: 500; letter-spacing: -0.02em; }
-.body { font-size: var(--t-body); line-height: var(--lh-body); color: var(--c-ink-soft); }
+/* A short column, hung from the shop's left edge. */
+.page > * { max-width: 36rem; }
+
+.working { font-size: var(--t-lead); color: var(--c-ink-soft); }
+
+.title { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.05; color: var(--c-ink); text-wrap: balance; }
+
+.body { margin-top: var(--s-4); font-size: clamp(1.0625rem, 1.8vw, 1.1875rem); line-height: 1.55; color: var(--c-ink); }
+.body b { font-weight: 600; overflow-wrap: anywhere; }
+
+.note { margin-top: var(--s-3); font-size: var(--t-body); line-height: 1.55; color: var(--c-ink-soft); }
 
 .back {
-  min-height: var(--tap);
   display: inline-flex;
   align-items: center;
-  margin-top: var(--s-2);
-  padding: 0 var(--s-4);
-  border: 1px solid var(--c-line-mid);
-  border-radius: var(--r-control);
-  font-size: var(--t-body);
+  min-height: 52px;
+  margin-top: var(--s-6);
+  padding: 0 var(--s-5);
+  border-radius: var(--r-full);
+  background: var(--c-ink);
+  color: var(--c-on-dark);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--dur) var(--ease);
 }
+
+.back:hover { background: var(--c-ink-deep); }
+
+@media (prefers-reduced-motion: reduce) { .back { transition: none; } }

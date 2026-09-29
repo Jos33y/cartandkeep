@@ -29,7 +29,7 @@ function domainOf(market, points) {
   return { lo: Math.max(0, lo), hi };
 }
 
-export function MarketBand({ market, entry, price, keep, breakEven, floor, target }) {
+export function MarketBand({ market, entry, price, keep, breakEven, floor, target, sellsLabel = 'Where it sells', bodyLabel = 'half of listings' }) {
   const { lo, hi } = domainOf(market, [entry?.price, price, breakEven, floor]);
   const at = (v) => Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100));
 
@@ -43,12 +43,12 @@ export function MarketBand({ market, entry, price, keep, breakEven, floor, targe
   return (
     <figure className={styles.band}>
       <div className={styles.lanes}>
-        <span className={styles.laneLabel}>Where it sells</span>
+        <span className={styles.laneLabel}>{sellsLabel}</span>
         <div className={styles.rail}>
           {market?.p25 != null && market?.p75 != null && (
             <span className={styles.body}
               style={{ left: `${at(market.p25)}%`, width: `${at(market.p75) - at(market.p25)}%` }}
-              title={`Half the listings sit between ${formatGbp(market.p25)} and ${formatGbp(market.p75)}`} />
+              title={`${bodyLabel[0].toUpperCase()}${bodyLabel.slice(1)}: ${formatGbp(market.p25)} to ${formatGbp(market.p75)}`} />
           )}
           {market?.median != null && (
             <span className={styles.median} style={{ left: `${at(market.median)}%` }}
@@ -98,7 +98,7 @@ export function MarketBand({ market, entry, price, keep, breakEven, floor, targe
       </div>
 
       <figcaption className={styles.key}>
-        <span className={styles.keyItem}><i className={styles.keyBody} />half of listings</span>
+        <span className={styles.keyItem}><i className={styles.keyBody} />{bodyLabel}</span>
         {entry?.price != null && (
           <span className={styles.keyItem}>
             <i className={`${styles.keyDot} ${entry.proved ? styles.sellerProved : ''}`} />

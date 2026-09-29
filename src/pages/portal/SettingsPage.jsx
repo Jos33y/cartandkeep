@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@lib/supabase';
 import { loadTenant } from '@lib/tenant';
 import { useAccount } from '@hooks/useAccount';
@@ -32,6 +32,8 @@ export function SettingsPage() {
   const [saved, setSaved] = useState('');
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState('you');
+  // The section just clicked, held until she scrolls herself: a short last section can never reach the top.
+  const picked = useRef(null);
 
   useEffect(() => { loadTenant().then(setTenant); }, []);
 
@@ -43,23 +45,65 @@ export function SettingsPage() {
     });
   }, []);
 
-  // The nav follows the page, so it says where you are rather than where you
-  // last clicked.
+  /*
+   * The nav follows the page, so it says where you are rather than where you
+   * last clicked. Measured on every scroll rather than observed once: the shop
+   * and About sections arrive after their settings load, and About sits inside
+   * Your shop, so an observer set up at load missed it and handed the
+   * highlight back to Your shop. The current section is the last one whose top
+   * has passed a line a third of the way down; at the foot of the page it is
+   * the last one.
+   */
   useEffect(() => {
-    const seen = new IntersectionObserver(
-      (entries) => {
-        const top = entries.filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        if (top) setActive(top.target.id);
-      },
-      { rootMargin: '-20% 0px -65% 0px' },
-    );
-    SECTIONS.forEach((s) => {
-      const el = document.getElementById(s.id);
-      if (el) seen.observe(el);
-    });
-    return () => seen.disconnect();
-  }, [tenant]);
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const line = window.innerHeight / 3;
+      const place = (id) => document.getElementById(id)?.getBoundingClientRect() ?? null;
+      const held = picked.current && place(picked.current);
+      if (held && held.top < window.innerHeight && held.bottom > 0) {
+        setActive(picked.current);
+        return;
+      }
+      picked.current = null;
+      let on = SECTIONS[0].id;
+      for (const s of SECTIONS) {
+        const box = place(s.id);
+        if (box && box.top <= line) on = s.id;
+      }
+      const doc = document.documentElement;
+      if (window.scrollY > 0 && window.innerHeight + window.scrollY >= doc.scrollHeight - 2) on = SECTIONS.at(-1).id;
+      setActive(on);
+    };
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(measure); };
+    const release = () => { picked.current = null; };
+    measure();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    window.addEventListener('wheel', release, { passive: true });
+    window.addEventListener('touchstart', release, { passive: true });
+    window.addEventListener('keydown', release);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      window.removeEventListener('wheel', release);
+      window.removeEventListener('touchstart', release);
+      window.removeEventListener('keydown', release);
+    };
+  }, []);
+
+  // On a phone the menu is a strip that scrolls sideways; keep the lit tab in it.
+  const strip = useRef(null);
+  useEffect(() => {
+    const nav = strip.current;
+    const on = nav?.querySelector('[aria-current="location"]');
+    if (!nav || !on || nav.scrollWidth <= nav.clientWidth) return;
+    const left = on.offsetLeft - nav.offsetLeft;
+    if (left < nav.scrollLeft || left + on.offsetWidth > nav.scrollLeft + nav.clientWidth) {
+      nav.scrollLeft = left - (nav.clientWidth - on.offsetWidth) / 2;
+    }
+  }, [active]);
 
   async function saveName() {
     setBusy(true);
@@ -82,11 +126,12 @@ export function SettingsPage() {
       </header>
 
       <div className={styles.layout}>
-        <nav className={styles.nav} aria-label="Settings sections">
+        <nav ref={strip} className={styles.nav} aria-label="Settings sections">
           {SECTIONS.map((s) => (
             <a key={s.id} href={`#${s.id}`}
               className={`${styles.navItem} ${active === s.id ? styles.navOn : ''}`}
-              onClick={() => setActive(s.id)}>
+              aria-current={active === s.id ? 'location' : undefined}
+              onClick={() => { picked.current = s.id; setActive(s.id); }}>
               <Icon name={s.icon} className={styles.navIcon} />
               {s.label}
             </a>

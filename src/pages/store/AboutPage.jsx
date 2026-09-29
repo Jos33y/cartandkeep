@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
 import { ArrowRightIcon, ChevronRightIcon } from '@components/ui/store/icons';
-import { Prose } from '@components/ui/store/Prose';
 import { SenderLabel } from '@components/ui/store/SenderLabel';
 import { siteUrl, storeConfig } from '@lib/storeConfig';
 import { STORE_ROUTES } from '@utils/constants';
@@ -10,28 +9,67 @@ import styles from '@styles/pages/store/about-page.module.css';
 
 const filled = (s) => typeof s === 'string' && s.trim() !== '';
 
-// Each refusal is struck through as it comes into view: the heading, read literally.
-function Refusals({ items }) {
+// Marks itself seen the first time it is mostly on screen, and never replays.
+function useSeen(threshold = 0.4) {
   const ref = useRef(null);
   const [seen, setSeen] = useState(false);
-
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') { setSeen(true); return undefined; }
-    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setSeen(true); io.disconnect(); } }, { threshold: 0.4 });
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setSeen(true); io.disconnect(); } }, { threshold });
     if (ref.current) io.observe(ref.current);
     return () => io.disconnect();
-  }, []);
+  }, [threshold]);
+  return [ref, seen];
+}
 
+// The house rules, pinned up. Each is struck through as the card comes into view: the heading, read literally.
+function Notice({ items }) {
+  const [ref, seen] = useSeen();
   return (
-    <ul ref={ref} className={styles.refusals} data-seen={seen || undefined}>
-      {items.map((item, i) => (
-        <li key={item.no} className={styles.refusal} style={{ '--i': i }}>
-          <p className={styles.no}><s>{item.no}</s></p>
-          {filled(item.why) && <p className={styles.why}>{item.why}</p>}
-        </li>
-      ))}
-    </ul>
+    <section className={styles.part}>
+      <div ref={ref} className={styles.notice} data-seen={seen || undefined}>
+        <span className={styles.pin} aria-hidden="true" />
+        <h2 className={`${styles.noticeHead} wide`}>What we will not do</h2>
+        <ul className={styles.refusals}>
+          {items.map((item, i) => (
+            <li key={item.no} className={styles.refusal} style={{ '--i': i }}>
+              <p className={styles.no}><s>{item.no}</s></p>
+              {filled(item.why) && <p className={styles.why}>{item.why}</p>}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
   );
+}
+
+// A list she writes with lines starting "- " becomes a page off a notepad, ticked off as it comes into view.
+function Notepad({ items }) {
+  const [ref, seen] = useSeen(0.5);
+  return (
+    <div ref={ref} className={styles.notepad} data-seen={seen || undefined}>
+      <ul className={styles.list}>
+        {items.map((item, i) => (
+          <li key={item} style={{ '--i': i }}>
+            <svg className={styles.tick} viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5" pathLength="1" /></svg>
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+const BULLET = /^\s*[-\u2022*]\s+/;
+
+// Paragraphs as written; a paragraph made only of "- " lines becomes the notepad.
+function Words({ text }) {
+  const paras = String(text).split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  return paras.map((para, i) => {
+    const lines = para.split('\n').map((l) => l.trim()).filter(Boolean);
+    if (lines.every((l) => BULLET.test(l))) return <Notepad key={i} items={lines.map((l) => l.replace(BULLET, ''))} />;
+    return <p key={i} className={styles.para}>{lines.join('\n')}</p>;
+  });
 }
 
 function Part({ heading, text }) {
@@ -39,11 +77,10 @@ function Part({ heading, text }) {
   return (
     <section className={styles.part}>
       {filled(heading) && <h2 className={styles.h2}>{heading}</h2>}
-      {filled(text) && <div className={styles.text}><Prose text={text} /></div>}
+      {filled(text) && <div className={styles.text}><Words text={text} /></div>}
     </section>
   );
 }
-
 
 // The words come from Settings. Anything not written there is left off rather than filled in.
 export function AboutPage() {
@@ -91,12 +128,7 @@ export function AboutPage() {
         <article className={styles.article}>
           {sections.map((s, i) => <Part key={i} heading={s.heading} text={s.text} />)}
 
-          {refusals.length > 0 && (
-            <section className={styles.part}>
-              <h2 className={styles.h2}>What we will not do</h2>
-              <Refusals items={refusals} />
-            </section>
-          )}
+          {refusals.length > 0 && <Notice items={refusals} />}
 
           {filled(about.her_words) && <Part heading="Who runs it" text={about.her_words} />}
 

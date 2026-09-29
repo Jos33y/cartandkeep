@@ -47,6 +47,29 @@ export { listPrice, buildRow, parseCsv, readShelf };
 // Titles carry commas, so position-based splitting corrupts every row after
 // the first quoted field. Same reader as import-shortlist.
 
+// A store card the gate also passes gains eBay: the label, the market read and the eBay figures under
+// margin.ebay, with the store card's cost standing as the goods so the eBay view has a real keep figure.
+// Its store figures, title and batch are left as they are.
+function addEbay(db, card, gated) {
+  return db.from('candidates').update({
+    recommended_channels: [...new Set(['store', ...(card.recommended_channels ?? []), 'ebay'])],
+    entry: gated.entry ?? null,
+    competition: gated.competition ?? null,
+    sold_30d: gated.sold_30d ?? null,
+    avg_sold_price: gated.avg_sold_price ?? null,
+    active_listings: gated.active_listings ?? null,
+    image_url: card.image_url ?? gated.image_url ?? null,
+    margin: {
+      ...card.margin,
+      ebay: {
+        ...gated.margin,
+        shelf: card.margin?.cost_from ? { ...card.margin.cost_from, price: card.margin.cost } : gated.margin.shelf,
+        match: card.margin?.cost != null ? { level: 'same_product_same_pack', via: 'the store card' } : gated.margin.match,
+      },
+    },
+  }).eq('id', card.id);
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const dry = args.includes('--dry');
@@ -347,6 +370,30 @@ async function main() {
       const taken = new Set((same ?? []).filter((c) => c.batch_id !== existing?.id).map((c) => c.entry?.item_id));
       for (const r of rows) if (r.entry?.item_id && taken.has(r.entry.item_id)) elsewhere.add(r.external_ref);
     }
+    // A store card with the same query is the same product: it gains eBay rather than a second card.
+    if (elsewhere.size) {
+      const { data: storeCards, error: sErr } = await db
+        .from('candidates')
+        .select('id, external_ref, image_url, margin, recommended_channels, decisions ( id )')
+        .eq('tenant_id', tenant.id)
+        .eq('margin->>channel', 'store')
+        .in('external_ref', [...elsewhere]);
+      if (sErr) console.error(`  Store cards not checked: ${sErr.message}`);
+      const byRef = new Map(rows.map((r) => [r.external_ref, r]));
+      let labelled = 0;
+      let decidedStore = 0;
+      for (const card of storeCards ?? []) {
+        const gated = byRef.get(card.external_ref);
+        if (!gated) continue;
+        // Her decided cards are left exactly as they are, eBay evidence included.
+        if (Array.isArray(card.decisions) ? card.decisions.length : card.decisions) { decidedStore += 1; continue; }
+        const { error: uErr } = await addEbay(db, card, gated);
+        if (uErr) console.error(`  ${card.external_ref}: eBay not added, ${uErr.message}`);
+        else labelled += 1;
+      }
+      if (labelled) console.log(`  ${labelled} store card${labelled === 1 ? '' : 's'} labelled eBay, the gate passed ${labelled === 1 ? 'it' : 'them'} too`);
+      if (decidedStore) console.log(`  ${decidedStore} store card${decidedStore === 1 ? '' : 's'} passed but already decided by her, left as they are`);
+    }
     if (elsewhere.size) {
       console.log(`  ${elsewhere.size} already in another batch, by query or by listing, not imported again:`);
       for (const ref of elsewhere) console.log(`    ${ref}`);
@@ -398,6 +445,31 @@ async function main() {
     if (held.size) {
       console.log(`  ${held.size} already decided by her, left exactly as they are`);
       rows.splice(0, rows.length, ...rows.filter((r) => !held.has(r.external_ref)));
+    }
+  }
+
+  // An eBay card in this batch that import-store gave the shop to keeps its store figures on a re-import:
+  // only its eBay reading is refreshed, the same way a store card elsewhere gains eBay.
+  if (rows.length) {
+    const { data: mirrored, error: mErr } = await db
+      .from('candidates')
+      .select('id, external_ref, image_url, margin, recommended_channels')
+      .eq('batch_id', batch.id)
+      .eq('margin->>channel', 'store')
+      .in('external_ref', rows.map((r) => r.external_ref));
+    if (mErr) {
+      console.error(`Store card check failed, nothing imported: ${mErr.message}\n`);
+      process.exit(1);
+    }
+    const byRef = new Map(rows.map((r) => [r.external_ref, r]));
+    for (const card of mirrored ?? []) {
+      const { error } = await addEbay(db, card, byRef.get(card.external_ref));
+      if (error) console.error(`  ${card.external_ref}: eBay reading not refreshed, ${error.message}`);
+    }
+    if (mirrored?.length) {
+      console.log(`  ${mirrored.length} also on the shop: eBay reading refreshed, shop price kept`);
+      const done = new Set(mirrored.map((c) => c.external_ref));
+      rows.splice(0, rows.length, ...rows.filter((r) => !done.has(r.external_ref)));
     }
   }
 

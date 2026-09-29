@@ -171,10 +171,10 @@ export function OrderRow({ order, onSave, onResend, onDispatched, example, index
       </div>
       <div className={styles.actions}>
         {example
-          ? <span className={styles.ghost}><Icon name="IconNote" width="14" height="14" />Packing slip</span>
+          ? <span className={styles.ghost}><Icon name="IconNote" width="14" height="14" />Slip and receipt</span>
           : (
             <Link className={styles.ghost} to={portalPath(PORTAL_ROUTES.SLIP.replace(':reference', order.reference))}>
-              <Icon name="IconNote" width="14" height="14" />Packing slip
+              <Icon name="IconNote" width="14" height="14" />Slip and receipt
             </Link>
           )}
         {editing && (
@@ -245,14 +245,15 @@ export function OrderRow({ order, onSave, onResend, onDispatched, example, index
                   <li key={it.id} className={styles.item}>
                     {thumb(it.image_url) ? <img src={thumb(it.image_url)} alt="" loading="lazy" /> : <span className={styles.thumbEmpty} />}
                     <span className={styles.itemTitle}>{it.title}</span>
-                    <span className={styles.qty} data-num>{it.qty > 1 ? `${it.qty} x ` : ''}{formatGbp(it.unit_price)}</span>
+                    {/* The unit price only says something when there is more than one; for one it repeats the line total. */}
+                    <span className={styles.qty} data-num>{it.qty > 1 ? `${it.qty} x ${formatGbp(it.unit_price)}` : ''}</span>
                     <span className={styles.itemTotal} data-num>{formatGbp(it.line_total)}</span>
                   </li>
                 ))}
               </ul>
               <dl className={styles.sums}>
                 <div><dt>Goods</dt><dd data-num>{formatGbp(order.subtotal)}</dd></div>
-                <div><dt>Delivery</dt><dd data-num>{formatGbp(order.delivery)}</dd></div>
+                <div><dt>Delivery</dt><dd data-num>{Number(order.delivery) > 0 ? formatGbp(order.delivery) : 'Free'}</dd></div>
                 <div className={styles.sumTotal}><dt>Taken</dt><dd data-num>{formatGbp(order.total)}</dd></div>
               </dl>
             </section>

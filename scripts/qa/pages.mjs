@@ -19,7 +19,8 @@ export const SIZES = [
 
 const PAGES = [
   '/', '/shop', '/about', '/contact', '/blog', '/blog/what-a-house-runs-out-of',
-  '/request', '/unsubscribe?t=stub', '/faq', '/legal/terms', '/saved', '/cart', '/orders', '/no-such-page',
+  '/request', '/unsubscribe?t=stub', '/faq', '/legal/terms', '/legal/privacy', '/legal/returns',
+  '/legal/delivery', '/legal/cookies', '/legal/reviews', '/saved', '/cart', '/orders', '/no-such-page',
 ];
 
 const args = process.argv.slice(2);
@@ -28,7 +29,7 @@ const shots = args.includes('--shots');
 const skipBuild = args.includes('--no-build');
 const pages = only ?? PAGES;
 
-const tenant = JSON.parse(await readFile(join(here, 'fixture.json'), 'utf8'));
+const { catalogue = {}, ...tenant } = JSON.parse(await readFile(join(here, 'fixture.json'), 'utf8'));
 
 // Enough of Supabase for a shop page to render: the shop row, and empty answers for everything else.
 async function stub(route) {
@@ -36,6 +37,8 @@ async function stub(route) {
   const url = new URL(req.url());
   const json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
   if (url.pathname.endsWith('/rpc/public_store')) return json(tenant);
+  if (url.pathname.endsWith('/rpc/store_groups')) return json(catalogue.groups ?? []);
+  if (url.pathname.endsWith('/rpc/store_browse')) return json(catalogue.products ?? []);
   if (url.pathname.startsWith('/rest/v1/tenants')) return json(tenant);
   if (url.pathname.startsWith('/functions/v1/')) return json({ ok: true });
   if (req.method() !== 'GET') return json({}, 201);
@@ -76,7 +79,21 @@ function measure() {
 
   const h1 = document.querySelector('main h1');
   const h1Top = h1 ? h1.getBoundingClientRect().top : null;
-  return { vw, wide, out, h1: Boolean(h1), h1Visible: h1Top !== null && h1Top < vh - 40 };
+
+  // The shop's one left edge is where the footer's content starts. A page opens on it: its breadcrumb,
+  // or its heading, or the panel the heading sits in.
+  const inner = document.querySelector('footer > *');
+  const line = inner ? inner.getBoundingClientRect().left + parseFloat(getComputedStyle(inner).paddingLeft) : null;
+  const crumbs = document.querySelector('main nav[aria-label="Breadcrumb"]');
+  const tries = crumbs ? [crumbs] : [h1];
+  for (let a = h1?.parentElement; !crumbs && a && a.tagName !== 'MAIN'; a = a.parentElement) {
+    const s = getComputedStyle(a);
+    if (s.backgroundColor !== 'rgba(0, 0, 0, 0)' || parseFloat(s.borderLeftWidth) > 0) tries.push(a);
+  }
+  const offs = tries.filter(Boolean).map((el) => Math.round(el.getBoundingClientRect().left - line));
+  const edge = line === null || !offs.length || offs.some((o) => Math.abs(o) <= 1) ? 0 : offs[0];
+
+  return { vw, wide, out, edge, h1: Boolean(h1), h1Visible: h1Top !== null && h1Top < vh - 40 };
 }
 
 // Built into the temp folder with a stub backend, so this can never leave a test build in dist.
@@ -112,6 +129,7 @@ for (const path of pages) {
     if (m.out.length) problems.push(`sticks out: ${m.out.join(', ')}`);
     if (!m.h1) problems.push('no heading');
     else if (!m.h1Visible) problems.push('heading below the first screen');
+    if (Math.abs(m.edge) > 1) problems.push(`starts ${m.edge}px off the shop's left edge`);
     if (errors.length) problems.push(`script error: ${errors[0]}`);
 
     run += 1;

@@ -12,6 +12,8 @@
  * device shows a list of parcels rather than somebody's details.
  */
 const KEY = 'ck.orders.v1';
+// Keeping the refusal is strictly necessary: without it the next order page would be kept again.
+const OFF_KEY = 'ck.orders.off';
 const MAX = 12;
 const EVENT = 'ck:orders';
 
@@ -40,8 +42,23 @@ export function stageOf(order) {
   return 'pending';
 }
 
+export function myOrdersOff() {
+  if (typeof window === 'undefined') return false;
+  try { return window.localStorage.getItem(OFF_KEY) === '1'; } catch { return false; }
+}
+
+// The cookies page's switch. Off deletes the list as well.
+export function setKeepMyOrders(on) {
+  try {
+    if (on) window.localStorage.removeItem(OFF_KEY);
+    else window.localStorage.setItem(OFF_KEY, '1');
+  } catch { /* private mode */ }
+  if (!on) write([]);
+  else window.dispatchEvent(new Event(EVENT));
+}
+
 export function rememberOrder(order, items, token) {
-  if (!order?.reference || !token) return;
+  if (!order?.reference || !token || myOrdersOff()) return;
   const entry = {
     reference: order.reference,
     token,

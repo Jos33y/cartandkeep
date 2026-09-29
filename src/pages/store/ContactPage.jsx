@@ -11,9 +11,9 @@ import styles from '@styles/pages/store/contact-page.module.css';
 /*
  * A postcard addressed to the shop.
  *
- * The writing side shows what is worth putting in the message for the chosen
- * reason; the address side carries the address to copy and her reply promise
- * as the stamp. No form: nothing sits behind one yet, and a form that loses a
+ * They write on the card; their own email app sends it, with the lines in a
+ * set order so an order reference is always in the same place. Nothing is
+ * posted from here: nothing sits behind a form yet, and a form that loses a
  * message is worse than an address. No street address either: it is an online
  * shop, and the terms carry that.
  */
@@ -22,7 +22,10 @@ const reasonsFor = (prefix) => [
     key: 'order',
     tab: 'About an order',
     subject: 'Order enquiry',
-    lines: [`Order reference (it starts ${prefix})`, 'What has happened'],
+    lines: [
+      { key: 'ref', label: 'Order reference', placeholder: `${prefix}XXXX-XXXX` },
+      { key: 'what', label: 'What has happened', long: true },
+    ],
     note: 'The reference is on your confirmation email. It is the quickest way for us to find your order.',
     link: { to: STORE_ROUTES.ORDER_LOOKUP, label: 'Look up an order' },
   },
@@ -30,7 +33,10 @@ const reasonsFor = (prefix) => [
     key: 'return',
     tab: 'Sending something back',
     subject: 'Return',
-    lines: ['Order reference', 'What you are sending back'],
+    lines: [
+      { key: 'ref', label: 'Order reference', placeholder: `${prefix}XXXX-XXXX` },
+      { key: 'what', label: 'What you are sending back', long: true },
+    ],
     note: 'You do not need a form, and you do not need to give a reason.',
     link: { to: '/legal/returns', label: 'How returns work' },
   },
@@ -38,7 +44,7 @@ const reasonsFor = (prefix) => [
     key: 'other',
     tab: 'Something else',
     subject: 'A question',
-    lines: ['Your question'],
+    lines: [{ key: 'what', label: 'Your question', long: true }],
     note: 'Anything at all, including a question before you buy.',
     link: null,
   },
@@ -50,8 +56,10 @@ function stampFor(promise) {
   return m ? { big: m[1], small: `${m[2]}s`.toUpperCase() } : { big: null, small: promise };
 }
 
-const mailto = (email, subject, lines) =>
-  `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.map((l) => `${l}:\n\n`).join(''))}`;
+// The message as their email app will show it: each line's label, then what they wrote under it.
+const clean = (key, v) => (key === 'ref' ? v.trim().toUpperCase() : v.trim());
+const bodyOf = (lines, values) => lines.map((l) => `${l.label}:\n${clean(l.key, values[l.key] ?? '')}\n`).join('\n');
+const mailto = (email, subject, body) => `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
 export function ContactPage() {
   const tr = legalTrader();
@@ -63,6 +71,22 @@ export function ContactPage() {
   const promise = replyPromise();
   const stamp = stampFor(promise);
   const who = traderIdentity(tr);
+  // Kept per reason, so switching tab and back does not lose what was typed.
+  const [values, setValues] = useState({});
+  const mine = values[r.key] ?? {};
+  const put = (k) => (e) => setValues((v) => ({ ...v, [r.key]: { ...v[r.key], [k]: e.target.value } }));
+  const body = bodyOf(r.lines, mine);
+  // The reference in the subject too, so it can be found in her inbox without opening the message.
+  const subject = mine.ref?.trim() ? `${r.subject} ${clean('ref', mine.ref)}` : r.subject;
+  const [copied, setCopied] = useState(false);
+
+  async function copyMessage() {
+    try {
+      await navigator.clipboard.writeText(`To: ${tr.email}\nSubject: ${subject}\n\n${body}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch { /* the message is on screen to copy by hand */ }
+  }
 
   return (
     <section className={styles.page}>
@@ -93,10 +117,17 @@ export function ContactPage() {
 
       <article className={styles.card} aria-label={`A message about: ${r.tab}`}>
         <div className={styles.write}>
-          <p className={styles.micro}>Worth putting in it</p>
-          <ul className={styles.lines}>
-            {r.lines.map((l) => <li key={l}>{l}</li>)}
-          </ul>
+          <p className={styles.micro}>Your message</p>
+          <div className={styles.lines}>
+            {r.lines.map((l) => (
+              <label key={`${r.key}-${l.key}`} className={styles.line}>
+                <span>{l.label}</span>
+                {l.long
+                  ? <textarea rows={3} value={mine[l.key] ?? ''} onChange={put(l.key)} maxLength={1500} />
+                  : <input value={mine[l.key] ?? ''} onChange={put(l.key)} placeholder={l.placeholder} autoComplete="off" maxLength={40} />}
+              </label>
+            ))}
+          </div>
           <p className={styles.note}>{r.note}</p>
           {r.link && <Link className={styles.more} to={r.link.to}>{r.link.label} <ArrowRightIcon size={14} /></Link>}
         </div>
@@ -110,16 +141,19 @@ export function ContactPage() {
 
           <p className={styles.micro}>To</p>
           <p className={`${styles.to} wide`}>{name}</p>
-          <p className={styles.subject}><span>Subject</span>{r.subject}</p>
+          <p className={styles.subject}><span>Subject</span>{subject}</p>
           <CopyTicket className={styles.ticket} label="Email address" value={tr.email} />
         </div>
       </article>
 
       <div className={styles.actions}>
-        <a className={styles.send} href={mailto(tr.email, r.subject, r.lines)}>
+        <a className={styles.send} href={mailto(tr.email, subject, body)}>
           <MailIcon size={18} /> Open in your email app
         </a>
-        <p className={styles.hint}>No email app on this device? Copy the address above and write from your usual email.</p>
+        <button type="button" className={styles.copyMsg} onClick={copyMessage}>
+          {copied ? 'Copied' : 'Copy the message'}
+        </button>
+        <p className={styles.hint}>Nothing is sent from this page. Your email sends it, so you keep a copy. Use Copy the message if you write from Gmail or Outlook in a browser.</p>
       </div>
 
       <p className={styles.stock}>

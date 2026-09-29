@@ -70,12 +70,28 @@ export const TRADER = new Proxy({}, {
   getOwnPropertyDescriptor: (_, key) => ({ value: legalTrader()[key], enumerable: true, configurable: true }),
 });
 
+// A name ending Ltd or Limited says company, whether or not the number has been entered yet.
+const COMPANY_SUFFIX = /\b(ltd|limited|plc|llp)\.?\s*$/i;
+export const claimsCompany = (tr) => Boolean(tr.company) || COMPANY_SUFFIX.test(String(tr.name ?? '').trim());
+
+// Where a company is registered, read from its number: SC is Scotland, NI is Northern Ireland, the rest England and Wales.
+export function registeredIn(number) {
+  const n = String(number ?? '').trim().toUpperCase();
+  if (n.startsWith('SC') || n.startsWith('SO')) return 'Scotland';
+  if (n.startsWith('NI') || n.startsWith('NC') || n.startsWith('R')) return 'Northern Ireland';
+  return 'England and Wales';
+}
+
 // "Jane Smith, trading as Corner Shop", or the company, or null until the trader sets it.
 export function traderIdentity(tr = legalTrader()) {
   if (!tr.name) return null;
-  if (tr.company) return `${tr.name}, company number ${tr.company}${tr.tradingAs && tr.tradingAs !== tr.name ? `, trading as ${tr.tradingAs}` : ''}`;
-  return tr.tradingAs && tr.tradingAs !== tr.name ? `${tr.name}, trading as ${tr.tradingAs}` : tr.name;
+  const as = tr.tradingAs && tr.tradingAs !== tr.name ? `, trading as ${tr.tradingAs}` : '';
+  if (tr.company) return `${tr.name}, a company registered in ${registeredIn(tr.company)}, number ${tr.company}${as}`;
+  return `${tr.name}${as}`;
 }
+
+// The address, named for what the law calls it: a company's is its registered office.
+const addressOf = (tr) => (tr.company ? `whose registered office is at ${tr.address}` : `of ${tr.address}`);
 
 const ask = (v, show = null, extra = {}) => ({ t: 'confirm', v, show, ...extra });
 
@@ -204,7 +220,7 @@ function returnsPage(T, tr) {
 function termsPage(T, tr) {
   const who = traderIdentity(tr);
   const identity = who && tr.address
-    ? { t: 'p', v: `This shop is run by ${who}, of ${tr.address}. You can contact us at ${tr.email}.${tr.vat ? ` Our VAT number is ${tr.vat}.` : ''}`,
+    ? { t: 'p', v: `This shop is run by ${who}, ${addressOf(tr)}. You can contact us at ${tr.email}.${tr.vat ? ` Our VAT number is ${tr.vat}.` : ''}`,
         basis: `${ECR}, reg. 6; ${CCR}, Sch. 2; Companies Act 2006, s. 1202` }
     : ask('Your legal name and a geographic address. The law requires both before an order is placed, and as a sole trader your own name has to appear beside the trading name. Entered once in Settings.',
         { t: 'p', v: `${tr.tradingAs ? `This shop trades as ${tr.tradingAs}. ` : ''}You can contact us at ${tr.email}.` },
@@ -307,7 +323,7 @@ function reviewsPage(tr) {
 function privacyPage(T, tr) {
   const who = traderIdentity(tr);
   const controller = who && tr.address
-    ? { t: 'p', v: `The shop is run by ${who}, of ${tr.address}, who is responsible for your information. Contact us about it at ${tr.email}.`,
+    ? { t: 'p', v: `The shop is run by ${who}, ${addressOf(tr)}, who is responsible for your information. Contact us about it at ${tr.email}.`,
         basis: 'UK GDPR, art. 13(1)(a)' }
     : ask('Your legal name and address as the person responsible for customer data. The same entry as the terms page; nothing extra to fill in.',
         { t: 'p', v: `${tr.tradingAs ?? 'This shop'} is responsible for your information. Contact us about it at ${tr.email}.` },
@@ -336,6 +352,7 @@ function privacyPage(T, tr) {
       'Reviews: what you write and the name you give, which is published with the review. If you leave the name blank, your first name from the order is shown. We rely on our legitimate interest in showing honest feedback to other shoppers.',
       'The review request: one email after dispatch asking for a review of your order. We rely on our legitimate interest, and you can tell us not to send it.',
       'Our mailing list, only if you join it: your email, and the wording you agreed to and when, as a record of your consent. You can unsubscribe from any email.',
+      'On your device: after you order, your name, email, phone and your own address are remembered in your browser so the next checkout is quicker, and links to orders you open are kept so you can find them again. These stay on your device and are not sent to us. You can switch either off on the cookies page.',
       'How the shop is used: which pages and products are viewed during a visit, and the website that sent you here. This is tied together by a reference held in your browser tab\u2019s memory, which is gone when you close or reload it. If you place an order, the visit that led to it is linked to the order, so we can see which pages lead to sales. We rely on our legitimate interest in running and improving the shop.',
     ], basis: 'UK GDPR, arts. 6(1) and 13(1)(c)' },
     { t: 'p', v: 'You do not have to give us any of this, but we cannot take or deliver an order without your name, email and address.',
@@ -347,11 +364,10 @@ function privacyPage(T, tr) {
     { t: 'p', v: 'Only the companies that help us run the shop, each under contract to use it only for that:' },
     { t: 'list', v: [
       'Stripe, which takes payments. Stripe is also responsible for the data it uses to prevent fraud, under its own privacy notice.',
-      'Stripe, which takes payments.',
       'The companies that host this website and our database, and send our emails.',
       'The delivery company carrying your parcel, which receives your name and address.',
     ], basis: 'UK GDPR, art. 13(1)(e) (recipients or categories of recipients)' },
-    { t: 'p', v: 'Your order records are held in the UK. Some of these companies are based in the United States or Europe; any transfer is protected either by the UK Extension to the EU-US Data Privacy Framework, by UK adequacy regulations, or by the International Data Transfer Agreement approved by Parliament.',
+    { t: 'p', v: 'Some of these companies are based outside the UK, in the United States or Europe. Where your information goes to them, it is protected either by the UK Extension to the EU-US Data Privacy Framework, by UK adequacy regulations, or by the International Data Transfer Agreement approved by Parliament.',
       basis: 'UK GDPR, arts. 13(1)(f), 45 and 46; Data Protection (Adequacy) (United States of America) Regulations 2023' },
 
     { t: 'h', v: 'How long we keep it' },
@@ -384,6 +400,10 @@ function cookiesPage() {
       'Your basket, so it is still there if you refresh or come back later. Strictly necessary for the shop to work.',
       'Products you have saved with the heart button. Strictly necessary, because you asked us to keep them.',
       'Products you have recently viewed, up to twelve, so you can find them again. This makes the shop easier to use, and you can switch it off at the top of this page.',
+      'Your details, once you have ordered: your name, email and phone, and your own address, so the next checkout is filled in for you. A gift\u2019s address is never kept. You can switch this off at the top of this page, or choose \u201cNot you? Forget them\u201d at the checkout.',
+      'Your orders: links to orders you have opened on this device, so Track an order can list them. Switch it off at the top of this page, or choose \u201cForget these orders on this device\u201d on the tracking page.',
+      'A checkout in progress, so a declined card or a trip back to the basket does not lose what you typed. Strictly necessary, and gone when you close the tab.',
+      'How many products you choose to see across a section page, because you asked for it.',
       'A copy of the shop\u2019s own files, so pages load quickly. It holds no information about you.',
     ] },
     { t: 'p', v: 'None of these is sent to us. Clearing your browser\u2019s site data removes them all.',
@@ -433,14 +453,15 @@ function factsFor(slug, T, tr) {
     },
     terms: {
       eyebrow: 'You are buying from',
-      figure: tr.name ?? tr.tradingAs ?? 'This shop',
+      figure: tr.tradingAs ?? tr.name ?? 'This shop',
       kind: 'name',
-      caption: tr.name && tr.tradingAs && tr.tradingAs !== tr.name ? `trading as ${tr.tradingAs}` : 'a UK business.',
+      caption: tr.name && tr.name !== tr.tradingAs ? `run by ${tr.name}` : 'a UK business.',
       shape: { type: 'slip', lines: [who ?? tr.tradingAs, tr.address, tr.email].filter(Boolean) },
       items: [
         { v: tr.email, href: `mailto:${tr.email}` },
         { v: `A reply ${replyPromise()}` },
-        who && { v: tr.company ? `Company number ${tr.company}` : 'Sole trader' },
+        who && tr.company && { v: `Company number ${tr.company}` },
+        who && !claimsCompany(tr) && { v: 'Sole trader' },
       ].filter(Boolean),
     },
     privacy: {
@@ -449,7 +470,7 @@ function factsFor(slug, T, tr) {
       caption: 'We keep only what an order needs.',
       shape: {
         type: 'flow',
-        held: 'Held in London',
+        held: 'Kept by us',
         to: [['Payment', 'by Stripe'], ['Emails', 'about your order'], ['Delivery', 'of your parcel']],
       },
       items: [
@@ -487,7 +508,7 @@ function factsFor(slug, T, tr) {
 // Anchors come from the heading text, not the clause number, so a link sent to a customer survives a clause being added.
 export const anchorFor = (text) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-export const REVIEWED = '2026-09-25';
+export const REVIEWED = '2026-09-29';
 
 export const LEGAL_LINKS = {
   terms: 'Terms of sale',

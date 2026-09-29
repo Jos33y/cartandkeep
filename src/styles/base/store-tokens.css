@@ -46,6 +46,8 @@
   --c-kraft: #e3d3b6;
   --c-kraft-deep: #cdb893;
   --c-paper: #fffdf8;
+  /* Kraft as text: issue numbers and folios. Clears 4.5:1 on the canvas and on paper. */
+  --c-kraft-ink: #806436;
 
   /* Text and icons on the terracotta action. */
   --c-on-action: #ffffff;
@@ -102,6 +104,9 @@
      Wider than the portal's 1180. A ledger loses the eye past that width; a
      four up product grid does not. */
   --store-max: 1240px;
+  /* The one left edge. Logo, breadcrumb, heading and footer all start here on
+     every page; a narrow column hangs from it rather than centring in the window. */
+  --edge: var(--s-4);
   /* The sticky store header. Anything pinned below it, or scrolled to an anchor, clears this. */
   --store-bar-h: 66px;
   /* The checkout's own bar, which the parcel label sticks below. */
@@ -109,6 +114,8 @@
   /* Its legal footer, fixed so the pinned label can be sized to exactly the space between the two. */
   --checkout-foot-h: 56px;
 }
+
+@media (min-width: 900px) { :root { --edge: var(--s-5); } }
 
 /*
  * The shop's interface face.

@@ -1,0 +1,8 @@
+# Shops never probed, from shops-status.md. Domains are from memory; the probe settles each one.
+# Lines starting with # are skipped by the probe loop. Ordered by priority.
+
+# Appliance spares: forced search by model number (Qualtex refused)
+https://www.ransomspares.co.uk        # appliance spares
+https://www.buyspares.co.uk           # appliance spares
+https://www.4ourhouse.co.uk           # appliance spares
+https://www.spares2you.co.uk          # appliance spares

@@ -20,17 +20,18 @@ function Highlight({ text, terms }) {
   return text.split(pattern).map((part, i) => (i % 2 ? <mark key={i} className={styles.mark}>{part}</mark> : part));
 }
 
+// An index card: the question on the top line, its short answer already written beside it, the rest on the ruled lines below.
 function Question({ item, open, onToggle, terms }) {
   return (
     <li id={item.id} className={styles.item} data-open={open || undefined}>
       <h3 className={styles.q}>
         <button type="button" className={styles.qButton} aria-expanded={open} aria-controls={`${item.id}-answer`} onClick={onToggle}>
           <span className={styles.qText}><Highlight text={item.q} terms={terms} /></span>
+          {item.chip && <span className={styles.short}>{item.chip}</span>}
           <span className={styles.qIcon} aria-hidden="true"><PlusIcon size={16} /></span>
         </button>
       </h3>
       <div id={`${item.id}-answer`} className={styles.answer} hidden={!open}>
-        {item.chip && <p className={styles.chip}>{item.chip}</p>}
         {item.a.map((line) => <p key={line} className={styles.a}><Highlight text={line} terms={terms} /></p>)}
         {item.link && (
           <Link className={styles.more} to={item.link.to}>
@@ -112,7 +113,16 @@ export function FaqPage() {
 
   return (
     <section className={styles.page}>
-      <Head title="Frequently asked" description="Quick answers about delivery, returns, ordering and the shop." path={STORE_ROUTES.FAQ} />
+      <Head
+        title="Frequently asked"
+        description="Quick answers about delivery, returns, ordering and the shop."
+        path={STORE_ROUTES.FAQ}
+        schema={{
+          '@context': 'https://schema.org',
+          '@type': 'FAQPage',
+          mainEntity: items.map((i) => ({ '@type': 'Question', name: i.q, acceptedAnswer: { '@type': 'Answer', text: i.a.join(' ') } })),
+        }}
+      />
 
       <div className={styles.frame}>
         <nav className={styles.crumbs} aria-label="Breadcrumb">
@@ -123,7 +133,7 @@ export function FaqPage() {
 
         <header className={styles.header}>
           <h1 className={`${styles.title} wide`}>Frequently asked</h1>
-          <p className={styles.lede}>Quick answers about delivery, returns and ordering.</p>
+          <p className={styles.lede}>The short answer is on every card. Open one for the rest.</p>
         </header>
 
         <div className={styles.body}>
@@ -167,8 +177,7 @@ export function FaqPage() {
             {groups.map((g) => (
               <section key={g.key} className={styles.group} aria-labelledby={`topic-${g.key}`}>
                 <h2 id={`topic-${g.key}`} className={styles.groupHead}>
-                  {g.label}
-                  <span className={styles.groupCount}>{g.items.length}</span>
+                  <span className={styles.tab}>{g.label}<span className={styles.groupCount}>{g.items.length}</span></span>
                 </h2>
                 <ul className={styles.items}>
                   {g.items.map((item) => (

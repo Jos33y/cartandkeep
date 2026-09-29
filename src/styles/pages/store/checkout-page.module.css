@@ -246,3 +246,21 @@
 @media (min-width: 960px) and (max-height: 899px) {
   .payInLabel :global(li):not(:first-child) { display: none; }
 }
+
+/* Details filled from this device, and the way to clear them on one that is not hers. */
+.remembered { clear: both; margin-top: var(--s-3); font-size: var(--t-caption); line-height: 1.5; color: var(--c-faint); }
+
+.forget {
+  min-height: var(--tap);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--c-ink-soft);
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--c-line-mid);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.forget:hover { color: var(--c-ink); text-decoration-color: var(--c-ink); }
