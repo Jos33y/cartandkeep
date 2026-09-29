@@ -72,9 +72,22 @@ const cell = v => {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
+// Festive Lights publishes 2437200 for £2,437.20: prices a thousand times too large. A shop whose median
+// price is in the thousands is read at that scale; --price-scale=1 keeps prices exactly as published.
+function scaleOf(all) {
+  if (args['price-scale']) return Number(args['price-scale']);
+  const prices = all.map(r => Number(r.price)).filter(v => v > 0).sort((a, b) => a - b);
+  const median = prices[Math.floor(prices.length / 2)] ?? 0;
+  return median > 2000 ? 1000 : 1;
+}
+
 async function finish() {
   if (!await exists(outFile)) return { products: 0, variants: 0 };
-  const all = (await readFile(outFile, 'utf8')).split('\n').filter(Boolean).map(l => JSON.parse(l));
+  const raw = (await readFile(outFile, 'utf8')).split('\n').filter(Boolean).map(l => JSON.parse(l));
+  const scale = scaleOf(raw);
+  const fix = v => (v == null || v === '' ? v : Math.round((Number(v) / scale) * 100) / 100);
+  const all = scale === 1 ? raw : raw.map(r => ({ ...r, price: fix(r.price), was: fix(r.was) }));
+  if (scale !== 1) console.log(`\nPrices read at 1/${scale}: this shop publishes them ${scale} times too large. --price-scale=1 to keep them as published.`);
   await writeFile(csvFile, [COLS.join(','), ...all.map(r => COLS.map(c => cell(r[c])).join(','))].join('\n'));
   return { products: new Set(all.map(r => r.product_id)).size, variants: all.length };
 }

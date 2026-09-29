@@ -47,7 +47,6 @@ const SHOP_SEARCH = {
 const searchUrlFor = (name, q) => SHOP_SEARCH[name]?.(q)
   ?? `https://www.google.com/search?q=${q}+${encodeURIComponent(name)}+uk`;
 
-const rate = (n) => (n == null ? null : `at ${n.toLocaleString('en-GB', { maximumFractionDigits: 1 })} sales a month`);
 const fb = (n) => (n == null ? null : `${n.toLocaleString('en-GB')} feedback`);
 
 const NEED_LABEL = { part: 'Part or refill', pest: 'Pest', damp: 'Damp and mould', 'clean-fix': 'Fix', safety: 'Safety', plumbing: 'Plumbing part', care: 'Care aid', winter: 'Winter need' };
@@ -171,7 +170,7 @@ export function CandidateRow({
             )}
             {!a.store && (shelf?.price != null || shelf?.url) && (
               <span className={styles.shelf}>
-                {a.shelfIsCost ? '' : 'Seen at '}{shelf.shop ?? 'Shelf'}{shelf.price != null && <> <span data-num>{formatGbp(shelf.price)}</span></>}
+                {a.shelfIsCost ? '' : 'Seen at '}{shopName(shelf.shop) ?? 'Shelf'}{shelf.price != null && <> <span data-num>{formatGbp(shelf.price)}</span></>}
               </span>
             )}
           </span>
@@ -194,8 +193,8 @@ export function CandidateRow({
               {a.price != null ? (
                 <>
                   <span className={`figure ${styles.keep}`}>{formatGbp(a.price)}</span>
-                  <span className={styles.figFoot}>
-                    {a.floor != null && a.price !== a.floor ? <>floor <span data-num>{formatGbp(a.floor)}</span></> : 'at your floor'}
+                  <span className={`${styles.figFoot} ${a.position ? styles[`foot_${a.position.tone}`] : ''}`}>
+                    {a.position ? a.position.short : a.floor != null && a.price !== a.floor ? <>floor <span data-num>{formatGbp(a.floor)}</span></> : 'at your floor'}
                   </span>
                 </>
               ) : (
@@ -207,7 +206,7 @@ export function CandidateRow({
               {a.keep != null ? (
                 <>
                   <span className={`figure ${styles.month} ${a.keep < 0 ? styles.loses : ''}`}>{formatGbp(a.keep)}</span>
-                  <span className={styles.figFoot}>a sale</span>
+                  <span className={styles.figFoot}>a sale, cost <span data-num>{formatGbp(a.cost)}</span></span>
                 </>
               ) : (
                 <span className={styles.none}>Needs a price</span>
@@ -220,7 +219,7 @@ export function CandidateRow({
             {c.sold_30d != null ? (
               <>
                 <span className={styles.market}>{c.sold_30d.toLocaleString('en-GB')}</span>
-                <span className={styles.figFoot}>in the market</span>
+                <span className={styles.figFoot}>sold a month</span>
               </>
             ) : (
               <span className={styles.none}>Not read</span>
@@ -228,43 +227,32 @@ export function CandidateRow({
           </div>
 
           <div className={`${styles.cellFig} ${styles.cellKeep}`}>
-            {a.keep != null ? (
+            {a.price != null ? (
               <>
-                <span className={`figure ${styles.keep} ${a.lane === 'short' ? styles.short : ''}`}>{formatGbp(a.keep)}</span>
-                <span className={styles.figFoot}>at <span data-num>{formatGbp(a.price)}</span></span>
+                <span className={`figure ${styles.keep}`}>{formatGbp(a.price)}</span>
+                <span className={`${styles.figFoot} ${a.position ? styles[`foot_${a.position.tone}`] : ''}`}>
+                  {a.position ? a.position.short : 'list at'}
+                </span>
               </>
             ) : (
-              <>
-                <span className={styles.none}>No cost yet</span>
-                {a.maxGoods != null && (
-                  <span className={styles.figFoot}>buy under <span data-num>{formatGbp(a.maxGoods)}</span></span>
-                )}
-              </>
+              <span className={styles.none}>No eBay price</span>
             )}
           </div>
 
           <div className={`${styles.cellFig} ${styles.cellMonth}`}>
-            {a.month != null ? (
-              <>
-                <span className={`figure ${styles.month}`}>{formatGbp(a.month)}</span>
-                <span className={styles.figFoot}>{rate(a.perMonth)}</span>
-              </>
-            ) : a.packCheck ? (
+            {a.packCheck ? (
               <span className={styles.none}>Check pack first</span>
-            ) : a.entryLoses ? (
+            ) : a.keep != null ? (
               <>
-                {a.floor != null
-                  ? <span className={styles.none}>Pays from <span data-num>{formatGbp(a.floor)}</span></span>
-                  : <span className={`${styles.none} ${styles.loses}`}>Loses money</span>}
-                <span className={styles.figFoot}>loses at <span data-num>{formatGbp(a.entry.price)}</span></span>
-              </>
-            ) : a.entry?.proved && a.goods == null ? (
-              <>
-                <span className={styles.none}>Needs a cost</span>
-                {a.perMonth != null && <span className={styles.figFoot}>{rate(a.perMonth)}</span>}
+                <span className={`figure ${styles.month} ${a.keep < 0 ? styles.loses : a.lane === 'short' ? styles.short : ''}`}>{formatGbp(a.keep)}</span>
+                <span className={`${styles.figFoot} ${a.costBasis === 'market' ? styles.foot_warning : ''}`}>
+                  {a.costBasis === 'market'
+                    ? <>if it costs <span data-num>{formatGbp(a.assumed)}</span> or less</>
+                    : <>a sale, cost <span data-num>{formatGbp(a.goods)}</span></>}
+                </span>
               </>
             ) : (
-              <span className={styles.none}>Not proved</span>
+              <span className={styles.none}>No eBay price</span>
             )}
           </div>
           </>
@@ -332,6 +320,7 @@ export function CandidateRow({
               aside={<Tip side="end">The top rail is the market: half of listings sit in the shaded band, the tick is the median, the ring is the smallest seller who is converting. The bottom rail is the same prices after fees, postage and the goods, and the dot is where your price lands.</Tip>} />
             <MarketBand market={c.competition} entry={a.entry} price={a.price} keep={a.keep}
               breakEven={a.breakEven} floor={a.floor} target={a.target} />
+            {a.position && <p className={`${styles.position} ${styles[`foot_${a.position.tone}`]}`}>{a.position.text}</p>}
           </Card>
 
           <Card>
@@ -342,7 +331,7 @@ export function CandidateRow({
               <dl className={styles.proofs}>
                 <Proof value={a.entry.seller_feedback.toLocaleString('en-GB')} label="feedback" />
                 <Proof value={a.entry.sold_lifetime ?? 'Unknown'} label={`sold in ${a.entry.age_days} days`} />
-                <Proof value={a.perMonth != null ? a.perMonth.toLocaleString('en-GB') : 'Too new'} label="a month" />
+                <Proof value={a.perMonth != null ? a.perMonth.toLocaleString('en-GB') : 'Too new'} label="they sell a month" />
                 <Proof value={(c.active_listings ?? c.competition?.competitors ?? 'Unknown').toLocaleString('en-GB')} label="listings competing" />
               </dl>
             ) : (
@@ -356,7 +345,8 @@ export function CandidateRow({
           </Card>
 
           <Card>
-            <CardHead title="Where the money goes" note={a.price != null ? `On a ${formatGbp(a.price)} sale` : null} />
+            <CardHead title="Where the money goes"
+              note={a.price != null ? `On a ${formatGbp(a.price)} sale${a.month != null ? `, about ${formatGbp(a.month)} a month at the proving seller's rate` : ''}` : null} />
             <Split a={a} />
           </Card>
 
@@ -369,11 +359,40 @@ export function CandidateRow({
                 {shelf.price != null && <span className={`figure ${styles.seenPrice}`}>{formatGbp(shelf.price)}</span>}
               </a>
             )}
-            {/* A lead, not an instruction: say plainly when the price seen cannot work here. */}
-            {shelf?.price != null && a.maxGoods != null && shelf.price > a.maxGoods && (
+            {/* Which figure the price is built on, said plainly. */}
+            {a.costBasis === 'market' && (
               <p className={styles.quietText}>
-                <span data-num>{formatGbp(shelf.price - a.maxGoods)}</span> over what the goods can cost at{' '}
-                <span data-num>{formatGbp(a.price)}</span>. Only works found cheaper, or listed higher.
+                No price from a shop yet, so it is priced as if it costs{' '}
+                <span data-num>{formatGbp(a.assumed)}</span>, the most the eBay price allows.
+                A real price found here, or a supplier you add, brings the list price down.
+              </p>
+            )}
+            {/* A price seen but not matched to the seller's pack: she confirms it is the same item, and it becomes her cost. */}
+            {shelf?.price != null && !a.shelfIsCost && a.costFrom?.basis !== 'supplier' && (
+              <div className={styles.useCost}>
+                <p className={styles.quietText}>
+                  Seen at <span data-num>{formatGbp(shelf.price)}</span>{shelf.vat_added ? ' with VAT' : ''}. Not matched to the eBay seller&apos;s pack yet, so it is not your cost.
+                </p>
+                <button type="button" className={styles.quiet} disabled={busy}
+                  onClick={() => run(() => onSource({
+                    supplier: shopName(shelf.shop) ?? 'Where it was seen',
+                    fulfilment: 'dropship',
+                    supplier_kind: 'unknown',
+                    unit_cost: shelf.price,
+                    price_at_moq: shelf.price,
+                    url: shelf.url ?? null,
+                    note: 'Same item as the eBay seller, checked by eye',
+                    status: 'quoted',
+                    quoted_on: new Date().toISOString().slice(0, 10),
+                  }))}>
+                  Same item, use <span data-num>{formatGbp(shelf.price)}</span> as my cost
+                </button>
+              </div>
+            )}
+            {a.costFrom?.basis === 'supplier' && (
+              <p className={styles.quietText}>
+                Priced from {a.costFrom.from} at <span data-num>{formatGbp(a.costFrom.cost)}</span>
+                {a.costFrom.beaten != null && <>, cheaper than the shop&apos;s <span data-num>{formatGbp(a.costFrom.beaten)}</span></>}.
               </p>
             )}
             {a.m.shops?.length > 0 && (
@@ -432,21 +451,18 @@ function Proof({ value, label }) {
 }
 
 function Split({ a }) {
-  if (a.price == null || a.fees == null) {
-    return <p className={styles.quietText}>Needs a price.</p>;
+  if (a.price == null || a.fees == null || a.keep == null) {
+    return <p className={styles.quietText}>Needs an eBay price.</p>;
   }
-  // With no cost yet, the split is drawn at the most the goods can cost.
-  const costed = a.goods != null && a.keep != null;
-  if (!costed && a.maxGoods == null) {
-    return <p className={styles.quietText}>Needs a goods cost.</p>;
-  }
-  const goods = costed ? a.goods : Math.max(0, a.maxGoods);
-  const keep = costed ? a.keep : Math.round((a.price - a.fees - a.postage - goods) * 100) / 100;
+  // With no real cost yet, the goods are the most the eBay price allows, and the label says so.
+  const market = a.costBasis === 'market';
+  const goods = market ? a.assumed : a.goods;
+  const keep = a.keep;
 
   const parts = [
     { key: 'fees', label: 'eBay fees', value: a.fees },
     { key: 'post', label: 'Postage, packing, returns', value: a.postage },
-    { key: 'goods', label: costed ? 'Goods' : 'Goods, at most', value: goods },
+    { key: 'goods', label: market ? 'Goods, at most' : `Goods, ${a.costFrom?.from ?? 'cost'}`, value: goods ?? 0 },
     // The bar cannot draw a loss, but the figure must say it: this read £0.00 on a £12.63 loss.
     { key: 'keep', label: keep < 0 ? 'You lose' : 'You keep', value: Math.max(0, keep), shown: Math.abs(keep) },
   ];
@@ -478,7 +494,7 @@ function StoreWork({ c, a, onSource, suppliers }) {
   const g = a.g;
   const from = a.m.cost_from ?? {};
   const parts = a.price != null && a.cost != null ? [
-    { key: 'goods', label: 'Cost where seen', value: a.cost },
+    { key: 'goods', label: a.costFrom?.basis === 'supplier' ? `Cost, ${a.costFrom.from}` : 'Cost where seen', value: a.cost },
     { key: 'post', label: a.postageBand?.basis === 'weight' ? `${a.postageBand.key === 'rm-small' ? 'Royal Mail small parcel' : `Royal Mail medium parcel, ${(a.postageBand.grams / 1000).toFixed(1)}kg`}, packing and returns` : 'Royal Mail, packing and returns', value: a.postage },
     { key: 'fees', label: 'Card fee', value: a.fees },
     { key: 'keep', label: a.keep < 0 ? 'You lose' : 'You keep', value: Math.max(0, a.keep), shown: Math.abs(a.keep) },
@@ -503,7 +519,8 @@ function StoreWork({ c, a, onSource, suppliers }) {
       </Card>
 
       <Card>
-        <CardHead title="Your price" note={a.price != null ? `Listed at ${formatGbp(a.price)}` : null} />
+        <CardHead title="Your price" note={a.price != null ? `Listed at ${formatGbp(a.price)}${a.floor != null ? `, floor ${formatGbp(a.floor)}` : ''}` : null} />
+        {a.position && <p className={`${styles.position} ${styles[`foot_${a.position.tone}`]}`}>{a.position.text}</p>}
         {parts ? (
           <div className={styles.split}>
             <div className={styles.splitBar}>
@@ -544,6 +561,12 @@ function StoreWork({ c, a, onSource, suppliers }) {
             ))}
           </p>
         )}
+        {a.costFrom?.basis === 'supplier' && (
+          <p className={styles.quietText}>
+            Priced from {a.costFrom.from} at <span data-num>{formatGbp(a.costFrom.cost)}</span>
+            {a.costFrom.beaten != null && <>, cheaper than <span data-num>{formatGbp(a.costFrom.beaten)}</span> where it was seen</>}.
+          </p>
+        )}
         <SourceList candidate={c} onAdd={onSource} suppliers={suppliers} compact />
       </Card>
 
@@ -554,7 +577,7 @@ function StoreWork({ c, a, onSource, suppliers }) {
           {a.ebay && (
             <dl className={styles.proofs}>
               <Proof value={a.ebay.price != null ? formatGbp(a.ebay.price) : 'Unknown'} label="eBay price" />
-              <Proof value={a.ebay.keep != null ? formatGbp(a.ebay.keep) : 'No cost yet'} label="you keep on eBay" />
+              <Proof value={a.ebay.keep != null ? formatGbp(a.ebay.keep) : 'Unknown'} label={a.ebay.position ? `you keep on eBay, ${a.ebay.position.short}` : 'you keep on eBay'} />
               <Proof value={a.ebay.perMonth != null ? a.ebay.perMonth.toLocaleString('en-GB') : 'Too new'} label="sales a month" />
               <Proof value={(a.ebay.m?.competition?.competitors ?? 'Unknown').toLocaleString('en-GB')} label="listings competing" />
             </dl>

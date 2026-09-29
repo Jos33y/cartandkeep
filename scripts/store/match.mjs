@@ -65,6 +65,22 @@ export function sameProduct(title, brand, name, { df, brands }) {
   // A name that opens with another brand (Charles Bentley against Charles Tyrwhitt) is another product.
   const opener = [...brands].find((x) => x !== b && x.length >= 4 && (n === x || n.startsWith(`${x} `)) && !b.startsWith(x) && !` ${squash(title)} `.includes(` ${x} `));
   if (opener && !n.includes(b)) return 'wrong, different brand';
+  // Plain numbers name the product as much as words do: PG 10 against PG 20, 5000 Series against 7000, a set of 2 against 3.
+  // Whole numbers standing alone: 1.7L, 1/2 pint, 18/250 and "2 in 1" are sizes or specs, not names.
+  const numsIn = (t) => String(t).toLowerCase().replace(/\d+\s?-?in-?\s?\d+/g, ' ')
+    .split(/[\s,()|+&:;!?"']+/).filter((w) => /^\d+$/.test(w) && !/^(19|20)\d\d$/.test(w));
+  const tn = numsIn(title);
+  const nn = new Set(numsIn(name));
+  // Present when the page shows it anywhere not inside a longer number: iCON15, 23cm and 10-Year all count.
+  const pageText = String(name).toLowerCase();
+  const lostNum = tn.find((x) => !nn.has(x) && !new RegExp(`(^|[^0-9.])${x}(?![0-9.])`).test(pageText));
+  if (lostNum && nn.size) return `wrong, different number (${lostNum})`;
+  if (lostNum) return `unsure, no ${lostNum} on the page`;
+  // Short capital codes (CP, PG, TFP) are model names too: NOPE! CP is not NOPE! CT.
+  const CODE_SKIP = new Set(['UK', 'LED', 'USB', 'XL', 'XXL', 'DIY', 'TV', 'PC', 'AC', 'DC', 'UV', 'EU', 'US', 'GB', 'THE', 'AND', 'FOR', 'NEW', 'SET', 'OF']);
+  const codes = [...new Set(String(title).match(/\b[A-Z]{2,3}\b/g) ?? [])].filter((x) => !CODE_SKIP.has(x) && !b.split(' ').includes(x.toLowerCase()));
+  const lostCode = codes.find((x) => !nw.has(x.toLowerCase()));
+  if (lostCode) return `unsure, no ${lostCode} on the page`;
   // A model number Google names but the page does not show can't be confirmed from the name alone.
   if (want.length) return 'unsure, no model on the page';
   const line = lineWords(title, brand, df);

@@ -24,7 +24,7 @@ const LANES = [
   {
     key: 'ready',
     title: 'Worth approving',
-    tip: 'A small seller is converting on this, at the price shown. With a cost, the month figure is what you would keep at that seller\'s own price and rate. Without one, buy under the figure shown.',
+    tip: 'A small seller is converting on this. With a real cost it lists at their price when that pays your profit, otherwise at your floor. Without one, it is priced from the most their price allows the goods to cost, so it sits a little above them until you find it cheaper.',
   },
   {
     key: 'call',
@@ -34,17 +34,12 @@ const LANES = [
   {
     key: 'store',
     title: 'To list on the shop',
-    tip: 'Sells on Google in the UK and is stocked by a UK shop, so it can be sourced once an order comes in. Priced at Google\'s lowest price, which clears your floor: what it costs where seen, Royal Mail, packing, the card fee, a returns allowance and your profit.',
-  },
-  {
-    key: 'store-above',
-    title: 'Above the market',
-    tip: 'Your floor is above Google\'s lowest price, so it is priced at your floor and may sell slower. List it, find it cheaper, or leave it.',
+    tip: 'Sells on Google in the UK and is stocked by a UK shop, so it can be sourced once an order comes in. Listed at Google\'s lowest price when that clears your floor, otherwise at your floor, and the card says where that sits against Google. Your floor is the cheapest cost, Royal Mail for its weight, packing, the card fee, a returns allowance and your profit.',
   },
   {
     key: 'short',
     title: 'Keeps under the target',
-    tip: 'The known cost, from the same pack on a shelf or a supplier you added, keeps under the £2 target at this price. Find it cheaper or list higher.',
+    tip: 'The known cost, from the same pack on a shelf or a supplier you added, keeps under your profit at this price: £3 under £15, £4 to £30, £5 above. Find it cheaper or list higher.',
   },
 ];
 
@@ -337,7 +332,7 @@ export function CandidatesPage() {
                 </span>
                 <span className={`${styles.colTip} ${styles.right}`}>
                   List at
-                  <Tip side="end">What it costs where it was seen, plus Royal Mail, the card fee and your profit, rounded up to .49 or .99.</Tip>
+                  <Tip side="end">Google&apos;s lowest price when it clears your floor, otherwise your floor: the cheapest cost, Royal Mail for its weight, the card fee and your profit, rounded up to .49 or .99.</Tip>
                 </span>
                 <span className={`${styles.colTip} ${styles.right}`}>
                   You keep
@@ -351,12 +346,12 @@ export function CandidatesPage() {
                   <Tip>Units a month across the ten listings the check sampled, so it is the size of the market rather than what one seller takes.</Tip>
                 </span>
                 <span className={`${styles.colTip} ${styles.right}`}>
-                  You keep
-                  <Tip side="end">Per sale, after eBay fees, postage, packaging, a returns allowance and the shelf price of the goods.</Tip>
+                  List at
+                  <Tip side="end">From the cheapest real cost: eBay fees, postage for its weight, packing, returns and your profit, rounded up to .49 or .99. With no cost yet, from the most the eBay price allows the goods to cost. Underneath, where it sits against the eBay median.</Tip>
                 </span>
                 <span className={`${styles.colTip} ${styles.right}`}>
-                  Keeps a month
-                  <Tip side="end">What you would keep a month at the proving seller&apos;s price and rate. Only shown where a small seller is proved to be selling.</Tip>
+                  You keep
+                  <Tip side="end">Per sale at that price. Amber means no shop price yet: it keeps this only if the goods cost what is shown or less.</Tip>
                 </span>
               </>
             )}

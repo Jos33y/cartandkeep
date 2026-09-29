@@ -396,3 +396,9 @@ ul.warnings {
 @media (prefers-reduced-motion: reduce) {
   .reasons, .work, .splitBar span { animation: none; }
 }
+
+/* Where a price sits against the market: green in it, amber over it. Amber is "look at this", never a block. */
+.foot_positive { color: var(--c-positive); }
+.foot_warning { color: var(--c-warning); }
+.position { margin: var(--s-3) 0 0; font-size: var(--t-caption); line-height: 1.45; }
+.useCost { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); margin-top: var(--s-2); }

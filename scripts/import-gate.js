@@ -41,6 +41,7 @@ import { envKey, proposeShops } from './lib/shops.js';
 import { entryKeepOf, listingsOf, refusalsOf } from './lib/refusals.js';
 import { BAND_LABEL, entryRank, buildRow, listPrice, titleOf } from './lib/row.js';
 import { MARKET, refreshMarket, writeCoverage } from './lib/persist.js';
+import { ebayAtWeight } from '../src/lib/pricing.js';
 
 export { listPrice, buildRow, parseCsv, readShelf };
 
@@ -61,8 +62,9 @@ function addEbay(db, card, gated) {
     image_url: card.image_url ?? gated.image_url ?? null,
     margin: {
       ...card.margin,
+      // Re-costed for the product's weight where the store card knows it, not the gate's run band.
       ebay: {
-        ...gated.margin,
+        ...ebayAtWeight(gated.margin, card.margin?.postage_band?.grams),
         shelf: card.margin?.cost_from ? { ...card.margin.cost_from, price: card.margin.cost } : gated.margin.shelf,
         match: card.margin?.cost != null ? { level: 'same_product_same_pack', via: 'the store card' } : gated.margin.match,
       },
@@ -208,7 +210,8 @@ async function main() {
       return ba - bb || rb - ra || (b.monthly_headroom ?? 0) - (a.monthly_headroom ?? 0);
     });
 
-  // The shelf is a lead, not a cost, so nothing is held back on its price.
+  // Nothing is held back on the shelf price. It is her cost when the match is the same product and pack
+  // (the card works forward from it); otherwise it is a lead and the card prices from the market.
   const rows = built;
 
   const sent = new Set(rows.map((r) => r.external_ref));

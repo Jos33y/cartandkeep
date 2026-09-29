@@ -6,22 +6,24 @@
  *   node scripts/store/store-picks.mjs --google=research/google --skip-shops=lakeland
  *
  * One export, or a folder of them: a product in several months is one row, with every month it ranked in.
- * Writes research/picks/<export name>.csv, or research/picks/all.csv for a folder. buy_under is the most she
- * can pay for it and still make her target profit selling at Google's lowest price.
+ * Writes research/picks/<export name>.csv, or research/picks/all.csv for a folder. cost_seen is the price where
+ * it was seen and store_floor the lowest store price that pays her profit on it, from src/lib/pricing.js, the
+ * same figures the import and her card use.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseCsv } from '../lib/sources.js';
 import { digits, modelsIn, needOf, queryOf, sameProduct, seasonOf, squash, wordCounts } from './match.mjs';
+import { PROFIT, floorFor, storeBandFor, storeCosts } from '../../src/lib/pricing.js';
 
 const arg = (k, d = null) => process.argv.slice(2).find((a) => a.startsWith(`--${k}=`))?.split('=').slice(1).join('=') ?? d;
 const googlePath = arg('google');
-const skipShops = new Set(String(arg('skip-shops', '')).toLowerCase().split(',').filter(Boolean));
+// Shop names compared without case, spaces or hyphens, so festive-lights, festivelights and "Festive Lights" all match.
+const norm = (v) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const skipShops = new Set(String(arg('skip-shops', '')).split(',').map(norm).filter(Boolean));
 const shelfDir = arg('shelves', 'research/shelf');
 const minPrice = Number(arg('min', 8));
 const maxPrice = Number(arg('max', 60));
-// Her costs per order on her own store. Card fee is Stripe's UK card rate; the rest are her own figures to set.
-const COST = { cardPct: Number(arg('card-pct', 1.5)) / 100, cardFixed: Number(arg('card-fixed', 0.2)), packaging: Number(arg('packaging', 0.5)), postage: Number(arg('postage', 0)), target: Number(arg('target', 2)) };
 if (!googlePath) { console.error('\n  Pass --google= a Merchant Center best sellers export.\n'); process.exit(1); }
 
 // Shops that sell their own label: she cannot buy it for less than the owner sells it.
@@ -93,6 +95,12 @@ const shelfFiles = fs.readdirSync(shelfDir).filter((f) => /^shelf-.*\.csv$/.test
 const byGtin = new Map();
 const byBrand = new Map();
 let shelfRows = 0;
+let shelfKept = 0;
+// Only shelf products that could match a wanted best seller are kept: its barcode, or its brand's key.
+// Holding all 730,000 rows, and copying a brand's list on every add, ran Node out of memory.
+const wantGtins = new Set(wanted.flatMap((g) => g.gtins));
+const wantKeys = new Set(wanted.flatMap((g) => [g.brand, g.brand.split(' ')[0]]).filter(Boolean));
+const add = (map, key, s) => { const list = map.get(key); if (list) list.push(s); else map.set(key, [s]); };
 const OWN_SHOP_BRAND = /^(b and m|home bargains|savers|poundland|the works|home discount|monstershop)$/;
 for (const f of shelfFiles) {
   const tag = f.replace(/^shelf-|(-names)?\.csv$/g, '');
@@ -100,16 +108,20 @@ for (const f of shelfFiles) {
     const name = String(r.name ?? r.product ?? r.title ?? '').trim();
     if (!name) continue;
     const shop = r.shop || tag;
-    if (skipShops.has(String(shop).toLowerCase())) continue;
+    if (skipShops.has(norm(shop)) || skipShops.has(norm(tag))) continue;
     shelfRows += 1;
     const price = Number(r.price);
     const grams = gramsOf(r);
     if (grams) { const w = weighed.get(shop) ?? []; w.push(grams); weighed.set(shop, w); }
     const s = { shop, name, brand: squash(r.brand), price: price > 0 ? price : null, url: r.url ?? '', image: String(r.image ?? r.image_url ?? '').split(/[|\s]/)[0], grams };
     const g = digits(r.gtin);
-    if (g) byGtin.set(g, [...(byGtin.get(g) ?? []), s]);
     const key = s.brand && !OWN_SHOP_BRAND.test(s.brand) ? s.brand : squash(name).split(' ')[0];
-    if (key) byBrand.set(key, [...(byBrand.get(key) ?? []), s]);
+    const byCode = g && wantGtins.has(g);
+    const byName = key && wantKeys.has(key);
+    if (!byCode && !byName) continue;
+    shelfKept += 1;
+    if (byCode) add(byGtin, g, s);
+    if (byName) add(byBrand, key, s);
   }
 }
 
@@ -136,24 +148,27 @@ for (const g of wanted) {
   if (!real.length) { tally.only_a_part_seen += 1; continue; }
   const shops = [...new Set(real.map((h) => h.s.shop))];
   const first = real.sort((a, b) => (RANK[a.via] ?? RANK[a.via.split(' ')[0]]) - (RANK[b.via] ?? RANK[b.via.split(' ')[0]]))[0];
-  const buyUnder = g.min - g.min * COST.cardPct - COST.cardFixed - COST.packaging - COST.postage - COST.target;
+  const weight = (() => {
+    const shelfG = Math.max(0, ...real.map((h) => h.s.grams ?? 0));
+    if (shelfG) return { grams: shelfG, weight_from: 'shop' };
+    const t = titleGrams(g.Title);
+    return t ? { grams: t, weight_from: 'title' } : { grams: '', weight_from: '' };
+  })();
+  const seenPrice = first.s.price ?? null;
+  const band = storeBandFor(weight.grams);
+  const storeFloor = seenPrice != null && band ? floorFor(seenPrice, storeCosts(band), PROFIT.store)?.floor ?? '' : '';
   picks.push({
     // The one key: the store card's reference and the eBay query are the same short string (match.mjs).
     query: queryOf(g.Title, g.Brand),
     rank: Number(g['Popularity rank']), months: g.periods.length, periods: g.periods.join(' '), category: g.category,
     title: g.Title, brand: g.Brand, gtin: g.gtins[0] ?? '', google_min: g.min, google_max: g.max,
-    buy_under: Math.round(buyUnder * 100) / 100, season: seasonOf(g.Title, g.periods), need: needOf(g.Title), big_brand: (brandCount.get(g.brand) ?? 0) >= bigAt ? 'yes' : '',
+    cost_seen: seenPrice ?? '', store_floor: storeFloor, season: seasonOf(g.Title, g.periods), need: needOf(g.Title), big_brand: (brandCount.get(g.brand) ?? 0) >= bigAt ? 'yes' : '',
     brand_best_sellers: brandCount.get(g.brand) ?? 0, seen_at: shops.join(' '), shops: shops.length,
     matched_by: first.via, seen_as: first.s.name, seen_link: first.s.url, seen_price: first.s.price ?? '',
     // For recognising it on her review card only; never published on the shop.
     seen_image: real.find((h) => h.s.image)?.s.image ?? '',
     // The heaviest weight any matching shop gives, so postage is never under-costed; else the title's.
-    ...(() => {
-      const shelfG = Math.max(0, ...real.map((h) => h.s.grams ?? 0));
-      if (shelfG) return { grams: shelfG, weight_from: 'shop' };
-      const t = titleGrams(g.Title);
-      return t ? { grams: t, weight_from: 'title' } : { grams: '', weight_from: '' };
-    })(),
+    ...weight,
   });
 }
 // Where she can win first: searched for by need, then brands the big shops do not all carry, then steadiest, then rank.
@@ -187,7 +202,7 @@ const shared = picks.length - seenQ.size;
 const by = (k) => picks.filter((p) => p.matched_by.startsWith(k)).length;
 console.log(`\n  ${googlePath}`);
 for (const [k, v] of Object.entries(tally)) console.log(`  ${k.replace(/_/g, ' ').padEnd(20)}${v}`);
-console.log(`  shelf products read  ${shelfRows} from ${shelfFiles.length} files, ${byGtin.size} with a barcode`);
+console.log(`  shelf products read  ${shelfRows} from ${shelfFiles.length} files; ${shelfKept} could match a best seller, ${byGtin.size} barcodes among them`);
 const needs = picks.reduce((o, p) => { if (p.need) o[p.need] = (o[p.need] ?? 0) + 1; return o; }, {});
 console.log(`\n  searched by need     ${picks.filter((p) => p.need).length}  (${Object.entries(needs).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ')})`);
 const seasons = picks.reduce((o, p) => { o[p.season] = (o[p.season] ?? 0) + 1; return o; }, {});
@@ -196,7 +211,7 @@ console.log(`  big brands           ${picks.filter((p) => p.big_brand).length}  
 const checkIt = picks.filter((p) => p.matched_by === 'name, check it').length;
 console.log(`\n  seen in a UK shop    ${picks.length}  (barcode ${by('barcode')}, model ${by('model')}, name ${by('name') - checkIt}, name to check ${checkIt})\n`);
 for (const p of picks.slice(0, 30)) {
-  console.log(`  ${(p.need || (p.big_brand ? 'big' : '')).padEnd(9)} ${String(p.months).padStart(2)} mo  #${String(p.rank).padEnd(6)} £${p.google_min.toFixed(2).padStart(6)}  buy under £${p.buy_under.toFixed(2).padStart(6)}  ${p.title.slice(0, 44).padEnd(44)}  ${p.seen_at.slice(0, 30)}  (${p.matched_by})`);
+  console.log(`  ${(p.need || (p.big_brand ? 'big' : '')).padEnd(9)} ${String(p.months).padStart(2)} mo  #${String(p.rank).padEnd(6)} Google £${p.google_min.toFixed(2).padStart(6)}  seen ${p.cost_seen !== '' ? `£${Number(p.cost_seen).toFixed(2)}`.padStart(7) : '     - '}  floor ${p.store_floor !== '' ? `£${Number(p.store_floor).toFixed(2)}`.padStart(7) : '     - '}  ${p.title.slice(0, 44).padEnd(44)}  ${p.seen_at.slice(0, 30)}  (${p.matched_by})`);
 }
 // The gap by brand: brands with the most best sellers no shop on file was seen selling.
 const gap = new Map();

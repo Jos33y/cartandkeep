@@ -18,6 +18,7 @@
 import fs from 'node:fs';
 import { parseCsv } from '../lib/sources.js';
 import { queryOf, squash } from './match.mjs';
+import { PROFIT, STORE, ebayAtWeight, listFor, storeBandFor, storeCosts } from '../../src/lib/pricing.js';
 
 const args = process.argv.slice(2);
 const arg = (k, d = null) => args.find((a) => a.startsWith(`--${k}=`))?.split('=').slice(1).join('=') ?? d;
@@ -33,63 +34,22 @@ const withoutPrice = args.includes('--without-price');
 const withUnsure = args.includes('--with-unsure');
 const bigBrands = args.includes('--big-brands');
 
-// Royal Mail Tracked 48, online prices from royalmail.com (checked 29 Sept 2026), picked by the product's weight.
-// Small parcel: 45x35x16cm to 2kg. Medium: 61x46x46cm to 20kg. Over 20kg Royal Mail does not take it.
+// Prices, postage bands and profit steps live in src/lib/pricing.js, which her portal reads too.
 // No weight on file is costed as a small parcel and says so on her card. Size is not on file, so a light but
 // long product (a curtain pole, a long-reach tool) can still need a medium parcel: the card tells her to check.
-export const BANDS = [
-  { key: 'rm-small', upTo: 2000, postage: Number(arg('postage', 3.65)), packaging: Number(arg('packaging', 0.3)), label: 'Royal Mail Tracked 48, small parcel to 2kg' },
-  { key: 'rm-medium-10', upTo: 10000, postage: 7.35, packaging: 0.5, label: 'Royal Mail Tracked 48, medium parcel to 10kg' },
-  { key: 'rm-medium-20', upTo: 20000, postage: 11.85, packaging: 0.6, label: 'Royal Mail Tracked 48, medium parcel to 20kg' },
-];
-export function bandFor(grams) {
-  const g = Number(grams);
-  if (!(g > 0)) return { ...BANDS[0], grams: null, basis: 'assumed' };
-  const b = BANDS.find((x) => g <= x.upTo);
-  return b ? { ...b, grams: g, basis: 'weight' } : null;
-}
-
-// Card fee is Stripe's UK card rate. Returns: one order in twenty back at about £8 (postage both ways and repacking).
-export const PRICE = {
-  postage: BANDS[0].postage,
-  packaging: BANDS[0].packaging,
-  cardPct: Number(arg('card-pct', 1.5)) / 100,
-  cardFixed: Number(arg('card-fixed', 0.2)),
-  returns: Number(arg('returns', 0.4)),
-  profitLow: Number(arg('profit-low', 2)),
-  profitHigh: Number(arg('profit-high', 3)),
-  profitStep: Number(arg('profit-step', 15)),
-};
-
 if (!label) {
   console.error('\n  Pass --label= the Google category the picks came from, e.g. --label="Home & Garden".\n');
   process.exit(1);
 }
 
-const round2 = (v) => Math.round(v * 100) / 100;
-// Up to the next .49 or .99, the way shop prices read.
-const upToShop = (v) => { const w = Math.floor(v); return v <= w + 0.49 ? w + 0.49 : w + 0.99; };
-
-// What she keeps on a sale at this price, after everything but her profit.
-// p carries the postage and packing of the product's band; PRICE alone is a small parcel.
-export const keepAt = (price, cost, p = PRICE) => round2(price - price * p.cardPct - p.cardFixed - cost - p.postage - p.packaging - p.returns);
-const profitFor = (price, p = PRICE) => (price >= p.profitStep ? p.profitHigh : p.profitLow);
-
-// The lowest price that still pays her profit, stepping the profit up once the price crosses the step.
-export function floorFor(cost, p = PRICE) {
-  if (!(cost > 0)) return null;
-  const at = (profit) => upToShop((cost + p.postage + p.packaging + p.returns + p.cardFixed + profit) / (1 - p.cardPct));
-  const low = at(p.profitLow);
-  return low >= p.profitStep ? at(p.profitHigh) : low;
-}
-
-export function priceFor(cost, googleMin, p = PRICE) {
-  const floor = floorFor(cost, p);
-  if (floor == null) return null;
+// The store figures for one product: band from its weight, floor from its cost, list at Google's lowest when that clears it.
+export function priceStore(cost, googleMin, grams) {
+  const band = storeBandFor(grams);
+  if (!band) return { band: null };
+  const c = storeCosts({ postage: band.postage, packaging: band.packaging });
   const market = googleMin > 0 ? googleMin : null;
-  const aboveMarket = market != null && floor > market;
-  const list = aboveMarket || market == null ? floor : market;
-  return { floor, list, aboveMarket, keep: keepAt(list, cost, p), profitTarget: profitFor(list, p) };
+  const l = cost != null ? listFor(cost, market, c, PROFIT.store) : null;
+  return { band, costs: c, list: l, aboveMarket: Boolean(l && market != null && !l.onMarket) };
 }
 
 const rows = parseCsv(fs.readFileSync(picksPath, 'utf8'));
@@ -109,14 +69,14 @@ for (const r of rows) {
   // The same key store-picks wrote and the eBay query file carries; drafted here only for a picks file that predates it.
   const ref = String(r.query ?? '').trim() || queryOf(r.title, r.brand);
   if (seenRefs.has(ref)) continue;
-  const band = bandFor(r.grams);
+  const priced = priceStore(cost, Number(r.google_min), r.grams);
+  const band = priced.band;
   if (!band) { tally.over_20kg += 1; continue; }
   seenRefs.add(ref);
   tally.kept += 1;
   const bandKey = band.basis === 'assumed' ? 'no weight, small parcel assumed' : band.label;
   bandCount[bandKey] = (bandCount[bandKey] ?? 0) + 1;
 
-  const priced = priceFor(cost, Number(r.google_min), { ...PRICE, postage: band.postage, packaging: band.packaging });
   const shops = String(r.seen_at ?? '').split(/\s+/).filter(Boolean);
   cards.push({
     external_ref: ref,
@@ -136,19 +96,19 @@ for (const r of rows) {
     recommended_channels: ['store'],
     margin: {
       channel: 'store',
-      list_at: priced?.list ?? null,
-      floor: priced?.floor ?? null,
-      above_market: priced?.aboveMarket ?? false,
-      keep: priced?.keep ?? null,
-      profit_target: priced?.profitTarget ?? null,
+      list_at: priced.list?.price ?? null,
+      floor: priced.list?.floor ?? null,
+      above_market: priced.aboveMarket,
+      keep: priced.list?.keep ?? null,
+      profit_target: priced.list?.profit ?? null,
       cost,
       cost_from: { shop: shops[0] ?? null, url: r.seen_link || null, product: r.page_name || r.seen_as || null, price: cost },
       postage: band.postage,
       packaging: band.packaging,
       postage_band: { key: band.key, label: band.label, grams: band.grams, basis: band.basis, from: r.weight_from || null },
-      card: { pct: PRICE.cardPct, fixed: PRICE.cardFixed },
-      returns_allowance: PRICE.returns,
-      profit_rule: { low: PRICE.profitLow, high: PRICE.profitHigh, step: PRICE.profitStep },
+      card: { pct: STORE.cardPct, fixed: STORE.cardFixed },
+      returns_allowance: STORE.returns,
+      profit_rule: PROFIT.store,
       google: {
         rank: Number(r.rank) || null,
         months: Number(r.months) || null,
@@ -171,8 +131,8 @@ console.log(`\n  ${picksPath}`);
 for (const [k, v] of Object.entries(tally)) console.log(`  ${k.replace(/_/g, ' ').padEnd(14)}${v}`);
 const above = cards.filter((c) => c.margin.above_market).length;
 console.log(`\n  Postage: ${Object.entries(bandCount).map(([k, v]) => `${k} ${v}`).join(', ')}`);
-console.log(`  Floor: cost + Royal Mail and packing for its weight + card fee + £${PRICE.returns.toFixed(2)} returns + £${PRICE.profitLow} profit (£${PRICE.profitHigh} from £${PRICE.profitStep})`);
-console.log(`  Listed at Google's lowest price where that clears the floor; ${cards.length - above} do, ${above} go to "Above the market"\n`);
+console.log(`  Floor: cost + Royal Mail and packing for its weight + card fee + £${STORE.returns.toFixed(2)} returns + profit (${PROFIT.store.map((x) => `£${x.profit}${x.below ? ` under £${x.below}` : ' above'}`).join(', ')})`);
+console.log(`  Listed at Google's lowest price where that clears the floor; ${cards.length - above} do, ${above} sit above Google's lowest (her card says by how much)\n`);
 const money = (v, w = 6) => (v != null ? `£${Number(v).toFixed(2)}`.padStart(w + 1) : '-'.padStart(w + 1));
 for (const c of cards.slice(0, 20)) {
   const m = c.margin;
@@ -206,8 +166,9 @@ const isStore = (c) => c.margin?.channel === 'store';
 const byRef = new Map(cards.map((c) => [c.external_ref, c]));
 // The store figures on top, the card's eBay reading kept whole under margin.ebay: the same shape a store card has after the gate.
 const withStore = (card, storeCard) => {
-  const ebay = card.margin?.channel === 'store' ? card.margin.ebay ?? null : card.margin ?? null;
   const m = storeCard.margin;
+  // The eBay reading re-costed for the product's weight, when the store side knows it.
+  const ebay = ebayAtWeight(card.margin?.channel === 'store' ? card.margin.ebay ?? null : card.margin ?? null, m.postage_band?.grams);
   return {
     ...m,
     ...(ebay ? {

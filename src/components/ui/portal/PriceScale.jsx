@@ -46,7 +46,7 @@ function domainOf({ market, entry, price }) {
   return { lo: Math.max(0, lo), hi };
 }
 
-export function PriceScale({ market, entry, price, goods, margin, onChange }) {
+export function PriceScale({ market, entry, price, goods, goodsAssumed = false, margin, onChange }) {
   const track = useRef(null);
   const [dragging, setDragging] = useState(false);
 
@@ -98,7 +98,11 @@ export function PriceScale({ market, entry, price, goods, margin, onChange }) {
           <span className={`figure ${styles.keep} ${keep != null && keep < 0 ? styles.loss : ''}`}>
             {gbp(keep)}
           </span>
-          {goods != null && <span className={styles.keepFoot}>after {gbp(goods)} of goods</span>}
+          {goods != null && (
+            <span className={styles.keepFoot}>
+              {goodsAssumed ? `if the goods cost ${gbp(goods)} or less` : `after ${gbp(goods)} of goods`}
+            </span>
+          )}
         </div>
       </div>
 

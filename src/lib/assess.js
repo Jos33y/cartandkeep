@@ -1,3 +1,7 @@
+import {
+  PROFIT, breakEvenFor, cheapestCost, ebayCosts, floorFor, keepAt as keepFor, listFor, marketAllows, positionOf, profitAt, storeCosts,
+} from './pricing.js';
+
 // Above this many variations the price is a blend.
 export const BLENDED = 10;
 
@@ -58,42 +62,46 @@ export function channelsOf(row) {
   return ['store', 'ebay'].filter((c) => set.has(c));
 }
 
-// A store card: her own price from what it costs where it was seen, not an eBay market read.
+// A store card: her own price from the cheapest real cost (where it was seen, or a supplier she added).
 function assessStore(row) {
   const m = row.margin ?? {};
   const d = row.draft ?? {};
   const g = m.google ?? {};
-  const price = d.price ?? m.list_at ?? null;
-  const floor = m.floor ?? null;
+  const from = m.cost_from ?? {};
   const returns = Number(m.returns_allowance ?? 0);
-  const fixed = Number(m.cost ?? 0) + Number(m.postage ?? 0) + Number(m.packaging ?? 0) + returns + Number(m.card?.fixed ?? 0);
-  const fees = price != null ? round(price * Number(m.card?.pct ?? 0) + Number(m.card?.fixed ?? 0)) : null;
-  const keep = price != null && m.cost != null ? round(price - price * Number(m.card?.pct ?? 0) - fixed) : null;
+  const steps = Array.isArray(m.profit_rule) ? m.profit_rule : PROFIT.store;
+  const c = storeCosts({ postage: m.postage, packaging: m.packaging, returns, cardPct: m.card?.pct, cardFixed: m.card?.fixed });
+  const best = cheapestCost({ seen: m.cost, seenFrom: shopName(from.shop) ?? 'Where it was seen', sources: row.sources ?? [] });
+  const cost = best?.cost ?? null;
+  const l = cost != null ? listFor(cost, g.min > 0 ? Number(g.min) : null, c, steps) : null;
+  const price = d.price ?? l?.price ?? m.list_at ?? null;
+  const floor = l?.floor ?? m.floor ?? null;
+  const target = profitAt(price, steps);
+  const keep = keepFor(price, cost, c);
+  const fees = price != null ? round(price * c.pct + Number(m.card?.fixed ?? 0)) : null;
   const shops = (m.shops ?? []).map(shopName);
+  const position = positionOf(price, { lowest: g.min > 0 ? Number(g.min) : null });
   const warnings = [
-    m.cost == null && 'No price read where it was seen yet, so there is no list price.',
+    cost == null && 'No price read where it was seen yet, so there is no list price.',
     shops.length === 1 && `Seen at one shop only, ${shops[0]}.`,
     keep != null && keep < 0 && 'Loses money at this price.',
     keep != null && keep >= 0 && floor != null && price < floor && `Under your floor of £${floor.toFixed(2)}, so it keeps less than your profit.`,
-    m.above_market && price != null && g.min != null && price > g.min && `Your floor is above Google's lowest price of £${Number(g.min).toFixed(2)}. Your call whether to list it.`,
     m.postage_band?.basis === 'assumed' && 'No weight on file, so postage is costed as a small parcel (up to 2kg, 45 x 35 x 16cm). Check it fits before listing.',
   ].filter(Boolean);
-  const from = m.cost_from ?? {};
-  const pct = Number(m.card?.pct ?? 0);
-  const breakEven = m.cost != null ? round((fixed - 0) / (1 - pct)) : null;
   // The same card read as an eBay listing, once the gate has priced it for eBay. Its own price, never the shop's.
   const ebay = m.ebay ? assess({ ...row, margin: m.ebay, draft: { ...d, price: d.ebay_price ?? undefined } }) : null;
   return {
-    store: true, m, d, g, price, keep, fees, shops, warnings,
-    cost: m.cost ?? null,
+    store: true, m, d, g, price, keep, fees, shops, warnings, position,
+    cost,
+    costFrom: best,
     floor,
-    breakEven,
-    target: m.profit_target ?? null,
+    breakEven: breakEvenFor(cost, c),
+    target,
     ebay,
     channels: channelsOf(row),
     returns,
-    goods: m.cost ?? null,
-    best: m.cost != null ? { supplier: shopName(from.shop) ?? 'Where it was seen', url: from.url ?? null, landed_unit_cost: m.cost } : null,
+    goods: cost,
+    best: best ? { supplier: best.from, url: best.url ?? from.url ?? null, landed_unit_cost: best.cost } : null,
     l: null,
     modelled: true,
     // An assumed postage is shown, not a block: most shelves carry no weight, and she can see the size.
@@ -102,7 +110,7 @@ function assessStore(row) {
     postageBand: m.postage_band ?? null,
     onEbay: (row.recommended_channels ?? []).includes('ebay'),
     entry: row.entry ?? null,
-    lane: m.above_market ? 'store-above' : 'store',
+    lane: 'store',
     month: null,
     title: d.title ?? row.title,
     images: d.images ?? [],
@@ -117,20 +125,31 @@ export function assess(row) {
   const entry = row.entry ?? null;
   const d = row.draft ?? {};
 
-  const quoted = (row.sources ?? []).find((s) => s.landed_unit_cost != null) ?? null;
   const shelf = m.shelf ?? null;
   // The shelf is a cost only when it is the proving seller's product and pack; otherwise it is a lead.
   const shelfIsCost = m.match?.level === 'same_product_same_pack';
-  const best = quoted ?? (shelfIsCost && shelf?.price != null
-    ? { supplier: shelf.shop ?? 'the shelf', landed_unit_cost: shelf.price, url: shelf.url }
-    : null);
+  // Cheapest real cost: the shelf when it counts, or a supplier she added.
+  const cheapest = cheapestCost({ seen: shelfIsCost ? shelf?.price ?? null : null, seenFrom: shopName(shelf?.shop) ?? 'the shelf', sources: row.sources ?? [] });
+  const quoted = cheapest?.basis === 'supplier' ? (row.sources ?? []).find((s) => Number(s.landed_unit_cost) === cheapest.cost) ?? null : null;
+  const best = quoted ?? (cheapest ? { supplier: cheapest.from, landed_unit_cost: cheapest.cost, url: shelf?.url ?? null } : null);
 
-  const goods = best?.landed_unit_cost ?? null;
-  const price = d.price ?? m.sale_price ?? row.avg_sold_price ?? null;
+  const goods = cheapest?.cost ?? null;
   const modelled = Boolean(m.rates);
-  // keepAt treats a missing cost as zero.
+  const c = ebayCosts(m);
+  const steps = PROFIT.ebay;
+  // The market price she is measured against: the small seller converting when trusted, else the median.
+  const market = m.sale_price ?? row.avg_sold_price ?? null;
+  // Forward from a real cost; with none, from the most the market price allows the goods to cost.
+  const assumed = goods == null && modelled ? marketAllows(market, c) : null;
+  const priced = !modelled ? null
+    : goods != null ? listFor(goods, market, c, steps)
+      : assumed != null ? (() => { const f = floorFor(assumed, c, steps); return f ? { ...f, price: f.floor } : null; })()
+        : null;
+  const price = d.price ?? priced?.price ?? market;
+  const costBasis = goods != null ? cheapest.basis : assumed != null ? 'market' : null;
+  // keepAt treats a missing cost as zero, so the cost is always passed.
   const keep = modelled
-    ? (goods != null ? keepAt(price, m, goods) : null)
+    ? keepFor(price, goods ?? assumed, c)
     : (d.price == null ? m.net ?? null : null);
 
   const fees = modelled && price != null
@@ -139,13 +158,13 @@ export function assess(row) {
   const postage = round((m.postage ?? 0) + (m.packaging ?? 0) + (m.returns_allowance ?? 0));
 
   const trusted = m.list_trusted === true;
-  const target = m.target_profit ?? null;
+  const target = modelled ? profitAt(price, steps) : m.target_profit ?? null;
   const shelfPack = packOf(l?.title);
   const marketPack = packOf(entry?.title);
 
   // Rate and price off the same listing, or no month at all.
   const perMonth = entry?.per_day != null ? Math.round(entry.per_day * 300) / 10 : null;
-  const entryKeep = modelled && goods != null ? keepAt(entry?.price, m, goods) : null;
+  const entryKeep = modelled && goods != null ? keepFor(entry?.price ?? null, goods, c) : null;
   const ref = entry?.price ?? price;
   const ratio = goods > 0 && ref != null ? Math.round((ref / goods) * 10) / 10 : null;
   // A shelf matched on brand and pack has already had its pack checked.
@@ -169,19 +188,23 @@ export function assess(row) {
     row.bulky && 'Costed as a small parcel and this one is bulky.',
     packCheck && `Converting at ${ratio} times the shelf price. Check it is the same pack.`,
     keep != null && keep < 0 && 'Loses money at this price.',
+    costBasis === 'market' && `Priced as if it costs £${assumed.toFixed(2)}, the most the eBay price allows. Price it at ${shelf?.shop ? shopName(shelf.shop) : 'a UK shop'} to bring this down.`,
+    modelled && goods == null && assumed == null && market != null && 'The eBay price does not cover fees and postage, so no cost can pay here.',
   ].filter(Boolean);
 
-  const short = keep != null && target != null && keep < target;
+  // Short of the profit is a fact about a real cost; a price built on the market's allowance keeps it by construction.
+  const short = goods != null && keep != null && target != null && keep < target;
+  const position = positionOf(price, { median: row.competition?.median ?? m.market_median ?? null, entry: entry?.proved ? entry.price : null });
 
   return {
     channels: channelsOf(row),
-    m, l, entry, d, best, goods, price, keep, fees, postage, modelled, trusted, warnings,
+    m, l, entry, d, best, goods, price, keep, fees, postage, modelled, trusted, warnings, position,
+    costBasis, assumed, costFrom: cheapest, market,
     target, perMonth, entryKeep, entryLoses, entryThin, month, ratio, packCheck, shelfIsCost,
     match: m.match ?? null,
-    maxGoods: m.max_goods_cost ?? null,
     ceiling,
-    breakEven: priceFor(0, m, goods),
-    floor: target != null ? priceFor(target, m, goods) : null,
+    breakEven: breakEvenFor(goods ?? assumed, c),
+    floor: priced?.floor ?? null,
     lane: short ? 'short' : entry?.proved && trusted && !packCheck && !entryLoses ? 'ready' : 'call',
     ready: warnings.length === 0 && entry?.proved === true && keep != null && keep > 0,
     title: d.title ?? l?.title ?? row.title,

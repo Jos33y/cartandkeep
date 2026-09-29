@@ -305,6 +305,7 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
         <div className={styles.figures}>
           <span className={styles.figLabel}>List at</span>
           <span className={styles.figPrice} data-num>{formatGbp(a.price)}</span>
+          {a.position && <span className={`${styles.figLabel} ${styles[`pos_${a.position.tone}`] ?? ''}`}>{a.position.short}</span>}
         </div>
 
         <div className={styles.figures}>
@@ -349,12 +350,13 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
 
           {a.store ? (
             <Card raised>
-              <CardHead title="Price" note="Cost where it was seen, plus Royal Mail, the card fee and your profit" />
+              <CardHead title="Price" note={`Cheapest cost${a.costFrom ? `, ${a.costFrom.from} ${formatGbp(a.costFrom.cost)}` : ''}, plus Royal Mail for its weight, the card fee and your profit${a.floor != null ? `. Floor ${formatGbp(a.floor)}` : ''}`} />
               <label className={styles.storePrice}>
                 <span>List at</span>
                 <input type="number" min="0" step="0.01" inputMode="decimal" data-num
                   value={a.price ?? ''} onChange={(e) => setPrice(e.target.value === '' ? null : Number(e.target.value))} />
               </label>
+              {a.position && <p className={`${styles.position} ${styles[`pos_${a.position.tone}`] ?? ''}`}>{a.position.text}</p>}
             </Card>
           ) : (
           <div className={styles.deck}>
@@ -364,7 +366,8 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
                 market={row.competition}
                 entry={a.entry}
                 price={a.price}
-                goods={a.goods}
+                goods={a.goods ?? a.assumed ?? null}
+                goodsAssumed={a.costBasis === 'market'}
                 margin={a.m}
                 onChange={setPrice}
               />
@@ -429,7 +432,8 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
                 price={a.price}
                 fees={a.fees}
                 postage={a.postage}
-                goods={a.goods}
+                goods={a.goods ?? a.assumed ?? null}
+                goodsLabel={a.costBasis === 'market' ? 'Goods, at most' : 'Goods'}
                 keep={a.keep}
               />
 

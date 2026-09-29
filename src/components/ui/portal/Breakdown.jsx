@@ -10,13 +10,13 @@ const gbp = (v) => (v == null ? '--'
  * share she keeps against the share eBay and the shop take is visible before
  * any number is read.
  */
-export function Breakdown({ price, fees, postage, goods, keep, feeLabel = 'eBay fees' }) {
+export function Breakdown({ price, fees, postage, goods, keep, feeLabel = 'eBay fees', goodsLabel = 'Goods' }) {
   if (!(price > 0)) return null;
 
   const parts = [
     { key: 'fees', label: feeLabel, value: fees },
     { key: 'post', label: 'Postage & packing', value: postage },
-    { key: 'goods', label: 'Goods', value: goods },
+    { key: 'goods', label: goodsLabel, value: goods },
     { key: 'keep', label: 'You keep', value: keep },
   ].filter((p) => p.value != null && p.value > 0);
 

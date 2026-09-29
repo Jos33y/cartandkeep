@@ -614,3 +614,8 @@ a.shop:hover .shopOut { color: var(--c-positive); }
 .channelPrice { font-family: var(--font-data); font-size: var(--t-caption); color: var(--c-ink-faint); }
 .channelOn .channelPrice { color: var(--c-ink); }
 .channelOption:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+/* Where the price sits against the market. */
+.pos_positive { color: var(--c-positive); }
+.pos_warning { color: var(--c-warning); }
+.position { margin: var(--s-3) 0 0; font-size: var(--t-caption); line-height: 1.45; }
