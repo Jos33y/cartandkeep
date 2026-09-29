@@ -42,6 +42,11 @@
   --c-shelf-back: #ebe2d1;
   --c-shelf-back-lit: #f3ecdf;
 
+  /* The parcel: kraft board, its darker fold, and the paper label stuck on it. */
+  --c-kraft: #e3d3b6;
+  --c-kraft-deep: #cdb893;
+  --c-paper: #fffdf8;
+
   /* Text and icons on the terracotta action. */
   --c-on-action: #ffffff;
 

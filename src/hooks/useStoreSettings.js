@@ -27,6 +27,9 @@ const EMPTY = {
   },
   voice: { tagline: '', hero_title: '', hero_em: '' },
   socials: { instagram: '', tiktok: '' },
+  about: {
+    title: '', lede: '', sections: [], refusals: [], her_words: '', closing_heading: '', closing_text: '',
+  },
 };
 
 // Null and undefined both become an empty field. A form that renders "null" in
@@ -62,6 +65,21 @@ function shape(store) {
     returns: { days: text(r.days), postage_paid_by: text(r.postage_paid_by) },
     voice: { tagline: text(v.tagline), hero_title: text(v.hero_title), hero_em: text(v.hero_em) },
     socials: { instagram: text(o.instagram), tiktok: text(o.tiktok) },
+    about: aboutShape(v.about),
+  };
+}
+
+// The About page's words, kept under voice so the existing write and read whitelists already carry them.
+function aboutShape(a) {
+  const x = a ?? {};
+  return {
+    title: text(x.title),
+    lede: text(x.lede),
+    sections: (x.sections ?? []).map((p) => ({ heading: text(p?.heading), text: text(p?.text) })),
+    refusals: (x.refusals ?? []).map((r) => ({ no: text(r?.no), why: text(r?.why) })),
+    her_words: text(x.her_words),
+    closing_heading: text(x.closing?.heading),
+    closing_text: text(x.closing?.text),
   };
 }
 
@@ -186,7 +204,39 @@ export function useStoreSettings(tenantId) {
     socials: { instagram: orNull(v.instagram), tiktok: orNull(v.tiktok) },
   }), [save]);
 
-  return { ...state, reload: load, saveTrader, saveDelivery, saveZones, saveReturns, saveVoice };
+  /*
+   * Sent whole, as zones are: `voice` merges one level, so `about` is replaced
+   * and the tagline beside it is left alone. Empty rows are dropped so a blank
+   * box never reaches the page as an empty heading.
+   */
+  const saveAbout = useCallback((a) => {
+    const sections = a.sections
+      .map((p) => ({ heading: orNull(p.heading), text: orNull(p.text) }))
+      .filter((p) => p.heading || p.text);
+    const refusals = a.refusals
+      .map((r) => ({ no: orNull(r.no), why: orNull(r.why) }))
+      .filter((r) => r.no);
+    if (a.refusals.some((r) => !orNull(r.no) && orNull(r.why))) {
+      return Promise.reject(new Error('Each thing you will not do needs its line before its reason.'));
+    }
+    const closing = orNull(a.closing_heading) || orNull(a.closing_text)
+      ? { heading: orNull(a.closing_heading), text: orNull(a.closing_text) }
+      : null;
+    return save({
+      voice: {
+        about: {
+          title: orNull(a.title),
+          lede: orNull(a.lede),
+          sections,
+          refusals,
+          her_words: orNull(a.her_words),
+          closing,
+        },
+      },
+    });
+  }, [save]);
+
+  return { ...state, reload: load, saveTrader, saveDelivery, saveZones, saveReturns, saveVoice, saveAbout };
 }
 
 /*

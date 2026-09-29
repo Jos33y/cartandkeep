@@ -118,7 +118,7 @@ function VoicePreview({ v }) {
  */
 export function StoreSettings({ tenantId }) {
   const {
-    status, values, saveTrader, saveDelivery, saveZones, saveReturns, saveVoice,
+    status, values, saveTrader, saveDelivery, saveZones, saveReturns, saveVoice, saveAbout,
   } = useStoreSettings(tenantId);
 
   if (status === 'loading') return null;
@@ -138,6 +138,7 @@ export function StoreSettings({ tenantId }) {
       <Zones initial={values.delivery.zones} onSave={saveZones} />
       <Returns initial={values.returns} onSave={saveReturns} />
       <Voice initial={{ ...values.voice, ...values.socials }} onSave={saveVoice} />
+      <About initial={values.about} onSave={saveAbout} />
     </>
   );
 }
@@ -150,9 +151,9 @@ export function StoreSettings({ tenantId }) {
  * the same idea as the shelf panel on the shop, and it is the reason this reads
  * as a considered screen rather than a stack of boxes.
  */
-function Section({ title, note, state, stateTone, preview, children }) {
+function Section({ id, title, note, state, stateTone, preview, children }) {
   return (
-    <section className={styles.block} data-preview={preview ? '' : undefined}>
+    <section id={id} className={styles.block} data-preview={preview ? '' : undefined}>
       <div className={styles.aside}>
         <h2 className={styles.blockLabel}>{title}</h2>
         {note ? <p className={styles.blockNote}>{note}</p> : null}
@@ -181,6 +182,12 @@ function useSection(initial) {
     setNote('');
   };
 
+  // For fields that are lists of rows, which a single input event cannot describe.
+  const patch = (next) => {
+    setDraft((d) => ({ ...d, ...next }));
+    setNote('');
+  };
+
   const changed = JSON.stringify(draft) !== JSON.stringify(initial);
 
   async function commit(fn) {
@@ -196,7 +203,7 @@ function useSection(initial) {
     }
   }
 
-  return { draft, set, changed, busy, note, failed, commit };
+  return { draft, set, patch, changed, busy, note, failed, commit };
 }
 
 /*
@@ -623,6 +630,117 @@ function Voice({ initial, onSave }) {
       </div>
 
       <Save section={s} onSave={onSave} label="Save wording" />
+    </Section>
+  );
+}
+
+const MAX_PARTS = 5;
+const MAX_REFUSALS = 6;
+
+function TextArea({ label, hint, rows = 4, ...rest }) {
+  const id = useId();
+  return (
+    <div className={`${styles.field} ${styles.wide}`}>
+      <label className={styles.label} htmlFor={id}>{label}</label>
+      <span className={`${styles.control} ${styles.areaControl}`}>
+        <textarea id={id} className={`${styles.input} ${styles.area}`} rows={rows} {...rest} />
+      </span>
+      {hint ? <p className={styles.hint}>{hint}</p> : null}
+    </div>
+  );
+}
+
+// What a stranger reads first on About, and what the rest of the page holds.
+function AboutPreview({ a }) {
+  const parts = a.sections.filter((p) => p.heading.trim() || p.text.trim()).length;
+  const refusals = a.refusals.filter((r) => r.no.trim()).length;
+  return (
+    <figure className={styles.preview}>
+      <figcaption className={styles.previewLabel}>The top of the About page</figcaption>
+      <div className={styles.heroPreview}>
+        {a.title.trim()
+          ? <p className={styles.heroTitle}>{a.title}</p>
+          : <p className={styles.heroEmpty}>Without a heading the page reads About and the shop name.</p>}
+        {a.lede.trim() && <p className={styles.aboutLede}>{a.lede}</p>}
+      </div>
+      <ul className={styles.aboutCount}>
+        <li>{parts === 1 ? '1 section' : `${parts} sections`}</li>
+        <li>{refusals === 1 ? '1 thing you will not do' : `${refusals} things you will not do`}</li>
+        <li data-missing={!a.her_words.trim() || undefined}>{a.her_words.trim() ? 'Who runs it, in your words' : 'Who runs it: not written, so not shown'}</li>
+      </ul>
+    </figure>
+  );
+}
+
+/*
+ * About, in her words.
+ *
+ * Every line on that page comes from here. A section left empty is left off
+ * the page rather than filled with something she did not write, and Who runs
+ * it stays hidden until she writes it.
+ */
+function About({ initial, onSave }) {
+  const s = useSection(initial);
+  const { draft } = s;
+  const edit = (list, i, key) => (e) => {
+    const next = draft[list].map((row, n) => (n === i ? { ...row, [key]: e.target.value } : row));
+    s.patch({ [list]: next });
+  };
+  const add = (list, blank) => s.patch({ [list]: [...draft[list], blank] });
+  const drop = (list, i) => s.patch({ [list]: draft[list].filter((_, n) => n !== i) });
+
+  return (
+    <Section
+      id="about"
+      title="About page"
+      note="The page a stranger reads before trusting the shop. It never shows your address; the legal pages carry that."
+      state={!draft.her_words.trim() ? 'Who runs it not written' : null}
+      stateTone="stateNeutral"
+      preview={<AboutPreview a={draft} />}
+    >
+      <div className={styles.fields}>
+        <Field label="Heading" wide value={draft.title} onChange={s.set('title')} placeholder="A general store, not a niche." />
+        <TextArea label="Opening line" rows={3} value={draft.lede} onChange={s.set('lede')} hint="One or two sentences under the heading. The largest text on the page after it." />
+      </div>
+
+      <div className={styles.group}>
+        <p className={styles.groupLabel}>Sections</p>
+        {draft.sections.map((p, i) => (
+          <div key={i} className={styles.groupRow}>
+            <Field label={`Section ${i + 1} heading`} wide value={p.heading} onChange={edit('sections', i, 'heading')} />
+            <TextArea label={`Section ${i + 1} text`} rows={5} value={p.text} onChange={edit('sections', i, 'text')} hint="A blank line starts a new paragraph." />
+            <button type="button" className={styles.quiet} onClick={() => drop('sections', i)}>Remove section {i + 1}</button>
+          </div>
+        ))}
+        {draft.sections.length < MAX_PARTS && (
+          <button type="button" className={styles.quiet} onClick={() => add('sections', { heading: '', text: '' })}>Add a section</button>
+        )}
+      </div>
+
+      <div className={styles.group}>
+        <p className={styles.groupLabel}>What you will not do</p>
+        <p className={styles.hint}>Each one is crossed out on the page as it scrolls into view.</p>
+        {draft.refusals.map((r, i) => (
+          <div key={i} className={styles.groupRow}>
+            <div className={styles.fields}>
+              <Field label="You will not" value={r.no} onChange={edit('refusals', i, 'no')} placeholder="Make you create an account." />
+              <TextArea label="Because" rows={2} value={r.why} onChange={edit('refusals', i, 'why')} />
+            </div>
+            <button type="button" className={styles.quiet} onClick={() => drop('refusals', i)}>Remove this one</button>
+          </div>
+        ))}
+        {draft.refusals.length < MAX_REFUSALS && (
+          <button type="button" className={styles.quiet} onClick={() => add('refusals', { no: '', why: '' })}>Add another</button>
+        )}
+      </div>
+
+      <div className={styles.fields}>
+        <TextArea label="Who runs it" rows={4} value={draft.her_words} onChange={s.set('her_words')} hint="Two or three sentences in your own words: who you are and why you started this. Stays off the page until written." />
+        <Field label="Last section heading" wide value={draft.closing_heading} onChange={s.set('closing_heading')} placeholder="If something goes wrong" />
+        <TextArea label="Last section text" rows={4} value={draft.closing_text} onChange={s.set('closing_text')} />
+      </div>
+
+      <Save section={s} onSave={onSave} label="Save About page" />
     </Section>
   );
 }

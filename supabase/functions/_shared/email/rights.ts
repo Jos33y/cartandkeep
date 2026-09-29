@@ -8,7 +8,7 @@
  * else. Every clause is conditional on the shop having the fact, and matches
  * src/data/legal.js.
  */
-import { C, TEXT, esc } from './kit.ts';
+import { C, TEXT, esc, plain } from './kit.ts';
 import { identityLine } from './context.ts';
 
 export function rights(items: any[], trader: Record<string, any>, cfg: Record<string, any>) {
@@ -22,8 +22,8 @@ export function rights(items: any[], trader: Record<string, any>, cfg: Record<st
 
   const para = (t: string) => `<p style="margin:0 0 12px;font:400 14px/22px ${TEXT};color:${C.soft};">${t}</p>`;
   const parts = [
-    para(`You have 14 days from the day your order arrives to cancel it, for any reason. That is your statutory right${extended ? `, and we extend it to ${days} days on the same terms` : ''}. Tell us by ${esc(how)}.`),
-    para(`Send the goods back${sendTo ? ` to ${esc(sendTo)}` : ''} within 14 days of telling us. ${customerPays ? 'The cost of sending them back is yours, unless they are faulty or not as described.' : 'We pay the return postage.'} You can handle what you receive as you would in a shop; if it has been handled more than that, we may reduce the refund by the value lost.`),
+    para(`You have 14 days from the day your order arrives to cancel it, for any reason. That is your statutory right${extended ? `, and we extend it to ${days} days on the same terms` : ''}. Tell us by ${plain(how)}.`),
+    para(`Send the goods back${sendTo ? ` to ${plain(sendTo)}` : ''} within 14 days of telling us. ${customerPays ? 'The cost of sending them back is yours, unless they are faulty or not as described.' : 'We pay the return postage.'} You can handle what you receive as you would in a shop; if it has been handled more than that, we may reduce the refund by the value lost.`),
     para('We refund the price you paid, and the delivery charge if the whole order comes back, within 14 days of the goods reaching us or of you showing us proof of postage, whichever is sooner.'),
   ];
   if (sealed.length) {
@@ -46,7 +46,7 @@ export function rights(items: any[], trader: Record<string, any>, cfg: Record<st
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:6px;"><tr><td style="padding:14px 16px;border:1.5px dashed ${C.lineMid};border-radius:10px;background:#fff;font:400 12px/20px ${TEXT};color:${C.soft};">
     <p style="margin:0 0 6px;font:600 13px/18px ${TEXT};color:${C.ink};">Cancellation form</p>
     <p style="margin:0 0 6px;">Complete and return this only if you want to cancel. You can also just reply to this email.</p>
-    ${to ? `<p style="margin:0 0 6px;">To: ${esc(to)}</p>` : ''}
+    ${to ? `<p style="margin:0 0 6px;">To: ${plain(to)}</p>` : ''}
     ${form.map((l) => `<p style="margin:0;">${esc(l)}</p>`).join('')}
     <p style="margin:6px 0 0;font-size:11px;">* Delete as appropriate.</p>
   </td></tr></table>

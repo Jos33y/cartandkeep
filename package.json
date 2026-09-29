@@ -13,6 +13,7 @@
     "seed": "node pipeline/seed.js",
     "seed:clear": "node pipeline/seed.js --clear",
     "zik:tidy": "node pipeline/tidy-zik.js",
+    "check:pages": "node scripts/qa/pages.mjs",
     "email:preview": "npx -y deno run --allow-read --allow-write scripts/email/preview.ts"
   },
   "dependencies": {

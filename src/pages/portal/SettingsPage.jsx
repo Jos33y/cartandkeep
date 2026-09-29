@@ -10,6 +10,7 @@ import styles from '@styles/pages/portal/settings-page.module.css';
 const SECTIONS = [
   { id: 'you', label: 'You', icon: 'IconPeople' },
   { id: 'shop', label: 'Your shop', icon: 'IconShop' },
+  { id: 'about', label: 'About page', icon: 'IconInfo' },
   { id: 'channels', label: 'Channels', icon: 'IconTag' },
   { id: 'rules', label: 'How we choose', icon: 'IconLayers' },
 ];

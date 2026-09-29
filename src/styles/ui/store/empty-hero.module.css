@@ -1,6 +1,6 @@
 /* The same card as a full Saved, so an empty page reads as the same place waiting to be filled. */
 .hero {
-  --kraft: #e3d3b6;
+  --kraft: var(--c-kraft);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--s-5);

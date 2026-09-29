@@ -2,15 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
 import { ArrowRightIcon, ChevronRightIcon } from '@components/ui/store/icons';
-import { ABOUT } from '@data/about';
-import { gbp, legalTerms, legalTrader, traderIdentity } from '@data/legal';
-import { siteUrl } from '@lib/storeConfig';
+import { Prose } from '@components/ui/store/Prose';
+import { SenderLabel } from '@components/ui/store/SenderLabel';
+import { siteUrl, storeConfig } from '@lib/storeConfig';
 import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/pages/store/about-page.module.css';
 
-const SHOW_NOTES = import.meta.env.DEV;
+const filled = (s) => typeof s === 'string' && s.trim() !== '';
 
-// Each refusal is struck through as it comes into view: the page's one idea, and a literal reading of the heading.
+// Each refusal is struck through as it comes into view: the heading, read literally.
 function Refusals({ items }) {
   const ref = useRef(null);
   const [seen, setSeen] = useState(false);
@@ -27,79 +27,46 @@ function Refusals({ items }) {
       {items.map((item, i) => (
         <li key={item.no} className={styles.refusal} style={{ '--i': i }}>
           <p className={styles.no}><s>{item.no}</s></p>
-          <p className={styles.why}>{item.why}</p>
+          {filled(item.why) && <p className={styles.why}>{item.why}</p>}
         </li>
       ))}
     </ul>
   );
 }
 
-function Block({ block }) {
-  if (block.t === 'lede') return <p className={styles.lede}>{block.v}</p>;
-  if (block.t === 'h') return <h2 className={styles.h2}>{block.v}</h2>;
-  if (block.t === 'p') return <p className={styles.p}>{block.v}</p>;
-  if (block.t === 'refusals') return <Refusals items={block.v} />;
-  if (block.t === 'her') {
-    if (ABOUT.herWords) {
-      return (
-        <>
-          <h2 className={styles.h2}>Who runs it</h2>
-          <p className={styles.p}>{ABOUT.herWords}</p>
-        </>
-      );
-    }
-    return SHOW_NOTES ? (
-      <p className={styles.confirm}>
-        <span className={styles.confirmTag}>Needs her words</span>
-        Two or three sentences: who she is, where she is, and why she started this. This section stays off the live page until they exist.
-      </p>
-    ) : null;
-  }
-  return null;
-}
-
-function Facts() {
-  const T = legalTerms();
-  const tr = legalTrader();
-  const who = traderIdentity(tr) ?? tr.tradingAs;
-  const rows = [
-    who && ['Run by', who],
-    tr.address && ['Based at', tr.address],
-    ['Delivery', `${gbp(T.postage)}, free from ${gbp(T.freeDeliveryOver)}`],
-    ['Returns', `${T.returnDays} days${T.postagePaidBy === 'customer' ? '' : ', return postage paid'}`],
-    ['Paying', 'By card through Stripe, no account'],
-  ].filter(Boolean);
-
+function Part({ heading, text }) {
+  if (!filled(heading) && !filled(text)) return null;
   return (
-    <aside className={styles.facts} aria-label="The shop at a glance">
-      <p className={styles.factsHead}>At a glance</p>
-      <dl className={styles.factsList}>
-        {rows.map(([k, v]) => (
-          <div key={k} className={styles.factRow}>
-            <dt>{k}</dt>
-            <dd>{v}</dd>
-          </div>
-        ))}
-      </dl>
-      <a className={styles.factsMail} href={`mailto:${tr.email}`}>{tr.email}</a>
-      <Link className={styles.factsLink} to="/legal/terms">Terms of sale <ArrowRightIcon size={14} /></Link>
-    </aside>
+    <section className={styles.part}>
+      {filled(heading) && <h2 className={styles.h2}>{heading}</h2>}
+      {filled(text) && <div className={styles.text}><Prose text={text} /></div>}
+    </section>
   );
 }
 
+
+// The words come from Settings. Anything not written there is left off rather than filled in.
 export function AboutPage() {
   const site = siteUrl();
+  const { voice = {}, shopName } = storeConfig();
+  const about = voice.about ?? {};
+  const name = shopName || 'the shop';
+  const title = filled(about.title) ? about.title : `About ${name}`;
+  const sections = (about.sections ?? []).filter((s) => filled(s?.heading) || filled(s?.text));
+  const refusals = (about.refusals ?? []).filter((r) => filled(r?.no));
+  const description = filled(about.lede) ? about.lede : `Who ${name} is, and how it works.`;
+
   return (
     <section className={styles.page}>
       <Head
-        title={ABOUT.title}
-        description={ABOUT.description}
+        title={`About ${name}`}
+        description={description}
         path="/about"
         schema={{
           '@context': 'https://schema.org',
           '@type': 'AboutPage',
-          name: ABOUT.title,
-          description: ABOUT.description,
+          name: `About ${name}`,
+          description,
           url: `${site}/about`,
           mainEntity: { '@id': `${site}/#organization` },
         }}
@@ -112,9 +79,28 @@ export function AboutPage() {
       </nav>
 
       <div className={styles.layout}>
+        <header className={styles.head}>
+          <h1 className={`${styles.title} wide`}>{title}</h1>
+          {filled(about.lede) && <p className={styles.lede}>{about.lede}</p>}
+        </header>
+
+        <div className={styles.label}>
+          <SenderLabel />
+        </div>
+
         <article className={styles.article}>
-          <h1 className={`${styles.title} wide`}>A general store, not a niche.</h1>
-          {ABOUT.blocks.map((block, i) => <Block key={i} block={block} />)}
+          {sections.map((s, i) => <Part key={i} heading={s.heading} text={s.text} />)}
+
+          {refusals.length > 0 && (
+            <section className={styles.part}>
+              <h2 className={styles.h2}>What we will not do</h2>
+              <Refusals items={refusals} />
+            </section>
+          )}
+
+          {filled(about.her_words) && <Part heading="Who runs it" text={about.her_words} />}
+
+          {about.closing && <Part heading={about.closing.heading} text={about.closing.text} />}
 
           <div className={styles.after}>
             <Link className={styles.cta} to={STORE_ROUTES.SHOP}>
@@ -126,8 +112,6 @@ export function AboutPage() {
             </p>
           </div>
         </article>
-
-        <Facts />
       </div>
     </section>
   );

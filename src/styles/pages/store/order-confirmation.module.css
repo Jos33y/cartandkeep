@@ -17,7 +17,7 @@
 
 /* The warm card of the rest of the shop, carrying where the order has got to. */
 .hero {
-  --kraft: #e3d3b6;
+  --kraft: var(--c-kraft);
   padding: var(--s-5) var(--s-4);
   border-radius: var(--r-card);
   background:

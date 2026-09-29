@@ -1,0 +1,27 @@
+/* The order reference's ticket stub, shared: dashed edge, a label over the value, tap to copy. */
+.ticket {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'label icon' 'value icon';
+  column-gap: var(--s-3);
+  align-items: center;
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--s-2) var(--s-3) var(--s-2) var(--s-4);
+  border-radius: 12px;
+  border: 1.5px dashed var(--c-line-mid);
+  background: var(--c-surface);
+  text-align: left;
+  color: var(--c-ink);
+  cursor: pointer;
+  transition: border-color 160ms var(--ease);
+}
+
+.ticket:hover { border-color: var(--c-ink); }
+
+.label { grid-area: label; font-size: var(--t-micro); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--c-faint); }
+.value { grid-area: value; font-size: var(--t-body); font-weight: 600; overflow-wrap: break-word; min-width: 0; }
+.icon { grid-area: icon; display: inline-flex; color: var(--c-faint); }
+.ticket:hover .icon { color: var(--c-ink); }
+
+@media (prefers-reduced-motion: reduce) { .ticket { transition: none; } }

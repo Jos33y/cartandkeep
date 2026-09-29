@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { BasketTotals } from '@components/ui/store/BasketTotals';
 import { ChevronDownIcon } from '@components/ui/store/icons';
+import { Postmark } from '@components/ui/store/Postmark';
 import { imageAt } from '@utils/categories';
 import { formatDeliveryDay } from '@utils/delivery';
 import { formatGbp } from '@utils/formatGbp';
@@ -107,11 +108,7 @@ export function ParcelLabel({
           <span className={styles.micro}>Deliver to</span>
           {/* Franked once it is paid: a round postmark with the day, as a post office would. */}
           {postmark && (
-            <span className={styles.postmark} aria-label={`${postmark.word}, ${postmark.date}`} role="img">
-              <span className={styles.postmarkWord}>{postmark.word}</span>
-              <span className={styles.postmarkDate}>{postmark.date}</span>
-              <span className={styles.postmarkShop}>Cart &amp; Keep</span>
-            </span>
+            <Postmark className={styles.postmark} word={postmark.word} date={postmark.date} shop="Cart & Keep" label={`${postmark.word}, ${postmark.date}`} />
           )}
           <p className={styles.name} data-empty={!deliverTo || undefined}>{deliverTo || (gift ? 'Their name' : 'Your name')}</p>
           <p data-empty={!address.line1 || undefined}>{address.line1 || 'Street and number'}</p>

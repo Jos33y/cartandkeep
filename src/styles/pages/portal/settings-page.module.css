@@ -547,3 +547,37 @@
   .previewCol { position: static; }
   .block[data-preview] .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* --- About page: longer words, and lists of rows ------------------------- */
+
+.areaControl { align-items: stretch; padding: var(--s-2) var(--s-3); }
+.area { min-height: 0; resize: vertical; line-height: var(--lh-body); }
+
+.group { display: flex; flex-direction: column; gap: var(--s-3); padding-top: var(--s-4); border-top: 1px solid var(--c-line); }
+.groupLabel { font-size: var(--t-label); font-weight: 600; color: var(--c-ink); }
+.groupRow { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); padding: var(--s-4); border-radius: var(--r-lg); background: var(--c-sunk); }
+.groupRow > .field, .groupRow > .fields { align-self: stretch; }
+.group > .quiet { align-self: flex-start; }
+
+/* A text button: adding and removing rows is housekeeping, not the save. */
+.quiet {
+  min-height: 36px;
+  padding: 0 var(--s-2);
+  margin-left: calc(var(--s-2) * -1);
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--c-ink-soft);
+  font-size: var(--t-label);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--c-line-mid);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.quiet:hover { color: var(--c-ink); text-decoration-color: var(--c-ink); }
+
+.aboutLede { margin-top: var(--s-3); font-size: var(--t-label); line-height: var(--lh-snug); color: var(--c-ink-soft); }
+.aboutCount { list-style: none; display: flex; flex-direction: column; gap: 4px; margin: var(--s-3) 0 0; padding: 0; font-size: var(--t-caption); color: var(--c-ink-soft); }
+.aboutCount li[data-missing] { color: var(--c-warning); }

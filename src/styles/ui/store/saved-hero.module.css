@@ -1,6 +1,6 @@
 /* A warm card with the saved things pinned up on it, the same kraft warmth as the parcel label. */
 .hero {
-  --kraft: #e3d3b6;
+  --kraft: var(--c-kraft);
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);

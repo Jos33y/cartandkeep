@@ -1,83 +1,74 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { Head } from '@components/layout/shared/Head';
-import { ChevronRightIcon, MailIcon, ReturnIcon, VanIcon } from '@components/ui/store/icons';
-import { TRADER } from '@data/legal';
+import { ArrowRightIcon, ChevronRightIcon, MailIcon } from '@components/ui/store/icons';
+import { CopyTicket } from '@components/ui/store/CopyTicket';
+import { legalTrader, traderIdentity } from '@data/legal';
+import { replyPromise, storeConfig } from '@lib/storeConfig';
 import { STORE_ROUTES } from '@utils/constants';
 import styles from '@styles/pages/store/contact-page.module.css';
 
 /*
- * Contact.
+ * A postcard addressed to the shop.
  *
- * Every route to us was a mailto, which opens nothing on a machine with no
- * mail client configured, and that is a lot of laptops. This gives the address
- * as text somebody can copy, a set of prefilled subjects for the three things
- * people actually write about, and the trader identity that distance selling
- * requires and that had nowhere to live.
- *
- * No form. A form needs somewhere to post and there is nothing behind it yet,
- * and a form that silently loses a message is worse than an address.
+ * The writing side shows what is worth putting in the message for the chosen
+ * reason; the address side carries the address to copy and her reply promise
+ * as the stamp. No form: nothing sits behind one yet, and a form that loses a
+ * message is worse than an address. No street address either: it is an online
+ * shop, and the terms carry that.
  */
-const REASONS = [
+const reasonsFor = (prefix) => [
   {
     key: 'order',
-    Icon: VanIcon,
-    title: 'About an order',
-    body: 'Have the reference to hand, the one starting CK. It is on your confirmation email and it is the fastest way for us to find you.',
+    tab: 'About an order',
     subject: 'Order enquiry',
-    template: 'Order reference:\n\nWhat has happened:\n\n',
-    link: { to: '/orders', label: 'Look up an order' },
+    lines: [`Order reference (it starts ${prefix})`, 'What has happened'],
+    note: 'The reference is on your confirmation email. It is the quickest way for us to find your order.',
+    link: { to: STORE_ROUTES.ORDER_LOOKUP, label: 'Look up an order' },
   },
   {
     key: 'return',
-    Icon: ReturnIcon,
-    title: 'Sending something back',
-    body: 'Tell us the reference and what is coming back. You do not need a form and you do not need to give a reason.',
+    tab: 'Sending something back',
     subject: 'Return',
-    template: 'Order reference:\n\nWhat I am returning:\n\n',
-    link: { to: '/legal/returns', label: 'Read the returns policy' },
+    lines: ['Order reference', 'What you are sending back'],
+    note: 'You do not need a form, and you do not need to give a reason.',
+    link: { to: '/legal/returns', label: 'How returns work' },
   },
   {
-    /*
-     * The one reason on this page that is not an email.
-     *
-     * Its own copy calls this the most useful message the shop gets, and it
-     * was routed through a mail client with a three line template she then had
-     * to read out of unstructured prose. There is a page for it now, so the
-     * card sends people there and the mailto is gone.
-     */
-    key: 'stock',
-    Icon: MailIcon,
-    title: 'Asking us to stock something',
-    body: 'The most useful thing you can tell us. Say what it is and what you pay for it now.',
-    to: STORE_ROUTES.REQUEST,
+    key: 'other',
+    tab: 'Something else',
+    subject: 'A question',
+    lines: ['Your question'],
+    note: 'Anything at all, including a question before you buy.',
     link: null,
   },
 ];
 
-const mailto = (subject, template) =>
-  `mailto:${TRADER.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(template)}`;
+// "within 24 hours" becomes a stamp reading 24 HOURS; anything else is printed as she wrote it.
+function stampFor(promise) {
+  const m = /(\d+)\s*(hour|day|working day)s?/i.exec(promise);
+  return m ? { big: m[1], small: `${m[2]}s`.toUpperCase() } : { big: null, small: promise };
+}
+
+const mailto = (email, subject, lines) =>
+  `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.map((l) => `${l}:\n\n`).join(''))}`;
 
 export function ContactPage() {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(TRADER.email);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // No clipboard permission, or an insecure origin. The address is right
-      // there as text, so this failing costs nothing.
-      setCopied(false);
-    }
-  }
+  const tr = legalTrader();
+  const { referencePrefix = 'CK', shopName } = storeConfig();
+  const name = tr.tradingAs || shopName;
+  const reasons = reasonsFor(`${referencePrefix}-`);
+  const [key, setKey] = useState(reasons[0].key);
+  const r = reasons.find((x) => x.key === key) ?? reasons[0];
+  const promise = replyPromise();
+  const stamp = stampFor(promise);
+  const who = traderIdentity(tr);
 
   return (
     <section className={styles.page}>
       <Head
         title="Contact us"
-        description="How to reach Cart & Keep about an order, a return, or something you would like us to stock."
+        description={`How to reach ${name} about an order, a return or a question. A person replies ${promise}.`}
         path="/contact"
       />
 
@@ -89,65 +80,62 @@ export function ContactPage() {
 
       <header className={styles.head}>
         <h1 className={`${styles.title} wide`}>Talk to us</h1>
-        <p className={styles.lede}>
-          One address, read by a person. We answer most things the same working
-          day, and everything within two.
-        </p>
-        <p className={styles.confirm}>
-          <span className={styles.confirmTag}>Needs confirming</span>
-          That response time is a promise made on her behalf and she has not
-          agreed to it. Change it or cut it before the shop goes live.
-        </p>
+        <p className={styles.lede}>One address, read by a person. A reply comes {promise}.</p>
       </header>
 
-      <div className={styles.address}>
-        {/* Text, not just a link. A mailto opens nothing on a machine with no
-            mail client and the address still has to be usable there. */}
-        <a className={styles.email} href={`mailto:${TRADER.email}`}>{TRADER.email}</a>
-        <button type="button" className={styles.copy} onClick={copy}>
-          {copied ? 'Copied' : 'Copy address'}
-        </button>
-      </div>
-
-      <ul className={styles.reasons}>
-        {REASONS.map(({ key, Icon, title, body, subject, template, to, link }) => (
-          <li key={key} className={styles.reason}>
-            <span className={styles.badge} aria-hidden="true"><Icon size={19} /></span>
-            <div className={styles.reasonBody}>
-              <h2 className={styles.reasonTitle}>{title}</h2>
-              <p className={styles.reasonText}>{body}</p>
-              <div className={styles.reasonActions}>
-                {/* A page where the reason names one, an email where it does
-                    not. Order and returns questions genuinely belong in her
-                    inbox, because they are a conversation about one parcel.
-                    A stock request is not a conversation, it is a record. */}
-                {to
-                  ? (
-                    <Link className={styles.write} to={`${to}?from=${encodeURIComponent('contact')}`}>
-                      Ask us for it
-                    </Link>
-                  )
-                  : <a className={styles.write} href={mailto(subject, template)}>Write about this</a>}
-                {link && <Link className={styles.secondary} to={link.to}>{link.label}</Link>}
-              </div>
-            </div>
-          </li>
+      <div className={styles.tabs} role="group" aria-label="What it is about">
+        {reasons.map((x) => (
+          <button key={x.key} type="button" className={styles.tab} aria-pressed={x.key === key} onClick={() => setKey(x.key)}>
+            {x.tab}
+          </button>
         ))}
-      </ul>
-
-      <div className={styles.trader}>
-        <h2 className={styles.traderHead}>Who you are buying from</h2>
-        <address>
-          <span>{TRADER.name}</span>
-          <span>{TRADER.address}</span>
-          <span>{TRADER.company}</span>
-        </address>
-        <p className={styles.traderNote}>
-          We are not VAT registered, so no VAT is charged and none is shown
-          separately. The <Link to="/legal/terms">terms of sale</Link> set out
-          the rest.
-        </p>
       </div>
+
+      <article className={styles.card} aria-label={`A message about: ${r.tab}`}>
+        <div className={styles.write}>
+          <p className={styles.micro}>Worth putting in it</p>
+          <ul className={styles.lines}>
+            {r.lines.map((l) => <li key={l}>{l}</li>)}
+          </ul>
+          <p className={styles.note}>{r.note}</p>
+          {r.link && <Link className={styles.more} to={r.link.to}>{r.link.label} <ArrowRightIcon size={14} /></Link>}
+        </div>
+
+        <div className={styles.addr}>
+          <span className={styles.stamp} role="img" aria-label={`A person replies ${promise}`}>
+            <span className={styles.stampTop}>Reply</span>
+            {stamp.big && <span className={styles.stampBig}>{stamp.big}</span>}
+            <span className={styles.stampSmall}>{stamp.small}</span>
+          </span>
+
+          <p className={styles.micro}>To</p>
+          <p className={`${styles.to} wide`}>{name}</p>
+          <p className={styles.subject}><span>Subject</span>{r.subject}</p>
+          <CopyTicket className={styles.ticket} label="Email address" value={tr.email} />
+        </div>
+      </article>
+
+      <div className={styles.actions}>
+        <a className={styles.send} href={mailto(tr.email, r.subject, r.lines)}>
+          <MailIcon size={18} /> Open in your email app
+        </a>
+        <p className={styles.hint}>No email app on this device? Copy the address above and write from your usual email.</p>
+      </div>
+
+      <p className={styles.stock}>
+        Looking for something we do not sell yet? <Link to={`${STORE_ROUTES.REQUEST}?from=contact`}>Send a request</Link> and we will look for it.
+      </p>
+
+      {(who || tr.company || tr.vat) && (
+        <footer className={styles.trader}>
+          <h2 className={styles.traderHead}>Who you are buying from</h2>
+          <p>
+            {who ?? name}
+            {tr.vat ? `. VAT number ${tr.vat}` : '. Not VAT registered, so no VAT is charged'}.
+          </p>
+          <p>The <Link to="/legal/terms">terms of sale</Link> set out the rest.</p>
+        </footer>
+      )}
     </section>
   );
 }

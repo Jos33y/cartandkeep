@@ -37,6 +37,14 @@ export const money = (n: unknown) => `£${Number(n ?? 0).toFixed(2)}`;
 // Somebody's own words: escaped, and their line breaks kept, or three short paragraphs arrive as one run-on line.
 export const lines = (s: unknown) => esc(s).replace(/\r?\n/g, '<br>');
 
+/*
+ * An address as plain text. Gmail and Apple Mail turn anything shaped like an
+ * address into a blue underlined map link, which breaks the parcel label and
+ * the legal lines. An invisible joiner after each digit stops them spotting a
+ * house number or postcode; nobody reading it can see the difference.
+ */
+export const plain = (v: unknown) => esc(v).replace(/(\d)/g, '$1&zwnj;');
+
 export const strong = (html: string) => `<b style="color:${C.ink};font-weight:600;">${html}</b>`;
 
 export type Brand = {
@@ -249,8 +257,8 @@ export function parcel({ shop, name, address, postcode, gift = false, from = '',
       <td valign="top">
         <p style="margin:0;font:700 11px/14px ${TEXT};letter-spacing:0.12em;text-transform:uppercase;color:${C.faint};">${esc(heading)}</p>
         <p style="margin:6px 0 0;font:600 19px/24px ${TEXT};color:${C.ink};">${esc(name)}</p>
-        ${address.length ? `<p style="margin:3px 0 0;font:400 15px/22px ${TEXT};color:${C.ink};">${address.map(esc).join('<br>')}</p>` : ''}
-        ${postcode ? `<p style="margin:4px 0 0;font:700 17px/22px ${TEXT};letter-spacing:0.08em;color:${C.ink};">${esc(String(postcode).toUpperCase())}</p>` : ''}
+        ${address.length ? `<p style="margin:3px 0 0;font:400 15px/22px ${TEXT};color:${C.ink};">${address.map(plain).join('<br>')}</p>` : ''}
+        ${postcode ? `<p style="margin:4px 0 0;font:700 17px/22px ${TEXT};letter-spacing:0.08em;color:${C.ink};">${plain(String(postcode).toUpperCase())}</p>` : ''}
         ${from ? `<p style="margin:10px 0 0;font:400 13px/18px ${TEXT};color:${C.soft};">From ${esc(from)}</p>` : ''}
       </td>
       ${gift ? `<td valign="bottom" align="right" class="hide-sm"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="transform:rotate(-7deg);"><tr><td style="padding:6px 10px 5px;border:2px solid ${C.terra};border-radius:4px;text-align:center;color:${C.terra};font:700 14px/16px ${DISPLAY};letter-spacing:0.06em;text-transform:uppercase;">A gift<br><span style="font:600 9px/12px ${TEXT};letter-spacing:0.1em;">No prices inside</span></td></tr></table></td>` : ''}
@@ -335,7 +343,7 @@ export function footer({ brand, identity = '', links = [], note = '' }: {
   <img src="${esc(brand.mark)}" width="28" height="28" alt="" style="display:block;border:0;width:28px;height:28px;margin:0 auto;">
   <p style="margin:12px 0 0;font:400 13px/20px ${TEXT};color:${C.soft};">${note || 'Reply to this email and a person at the shop answers it.'}</p>
   ${links.length ? `<p style="margin:10px 0 0;font:500 13px/20px ${TEXT};color:${C.soft};">${links.map(([href, text]) => `<a href="${esc(href)}" style="color:${C.soft};text-decoration:underline;text-underline-offset:3px;">${esc(text)}</a>`).join('&nbsp;&nbsp;&middot;&nbsp;&nbsp;')}</p>` : ''}
-  ${identity ? `<p style="margin:14px 0 0;font:400 12px/18px ${TEXT};color:${C.faint};">${esc(identity)}</p>` : ''}
+  ${identity ? `<p style="margin:14px 0 0;font:400 12px/18px ${TEXT};color:${C.faint};">${plain(identity)}</p>` : ''}
 </td></tr>`;
 }
 

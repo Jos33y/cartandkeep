@@ -1,6 +1,6 @@
 .page {
   width: 100%;
-  max-width: calc(640px + var(--s-7) + 320px);
+  max-width: var(--store-max);
   margin: 0 auto;
   padding: var(--s-5) var(--s-4) var(--s-8);
 }
@@ -20,31 +20,57 @@
 .crumbs a:hover { color: var(--c-ink); }
 .crumbs svg { color: var(--c-line-mid); }
 
-/* The story on the left, the facts beside it where a doubtful reader can check them without leaving the page. */
-.layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-7); }
-
-@media (min-width: 1024px) {
-  .layout { grid-template-columns: minmax(0, 640px) 320px; align-items: start; }
+/*
+ * Phones: heading, then the label, then the story, so who sends the parcel is on the first screen and not after the button.
+ * Laptops up: the label holds still beside the story while it is read.
+ */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'head' 'label' 'article';
+  column-gap: var(--s-8);
+  row-gap: var(--s-6);
 }
 
-.article { min-width: 0; }
+@media (min-width: 960px) {
+  .layout {
+    grid-template-columns: minmax(0, 660px) minmax(0, 400px);
+    grid-template-areas: 'head label' 'article label';
+    justify-content: space-between;
+    row-gap: 0;
+  }
+}
 
-.title { font-size: clamp(2.25rem, 5vw, 3.5rem); color: var(--c-ink); max-width: 14ch; }
+.head { grid-area: head; min-width: 0; }
+.article { grid-area: article; min-width: 0; }
 
-.lede { margin-top: var(--s-5); font-size: 1.1875rem; line-height: 1.6; color: var(--c-ink); text-wrap: pretty; }
+.label { grid-area: label; min-width: 0; }
+
+@media (min-width: 960px) {
+  .label { align-self: start; position: sticky; top: calc(var(--store-bar-h) + var(--s-5)); }
+}
+
+.title { font-size: clamp(2.25rem, 5vw, 3.75rem); color: var(--c-ink); max-width: 17ch; text-wrap: balance; }
+
+.lede { margin-top: var(--s-5); max-width: 36ch; font-size: clamp(1.125rem, 2vw, 1.3125rem); line-height: 1.55; color: var(--c-ink); text-wrap: pretty; }
+
+/* Sections sit far apart and read as chapters; the lines inside them sit close. */
+.part { margin-top: var(--s-8); }
+
+@media (max-width: 959px) { .part:first-child { margin-top: var(--s-6); } }
 
 .h2 {
-  margin-top: var(--s-7);
   font-family: var(--font-display);
   font-stretch: var(--wide-tight);
   font-weight: 620;
-  font-size: 1.5rem;
+  font-size: var(--ts-section);
   letter-spacing: -0.015em;
-  line-height: 1.2;
+  line-height: 1.15;
   color: var(--c-ink);
 }
 
-.p { margin-top: var(--s-3); font-size: 1.0625rem; line-height: 1.72; color: var(--c-ink-soft); }
+.text { margin-top: var(--s-4); max-width: 62ch; }
+.part .text p { font-size: 1.0625rem; line-height: 1.72; color: var(--c-ink-soft); }
 
 /* --- What we will not do: each one crossed out, in ink, as it comes into view --- */
 
@@ -62,43 +88,21 @@ ul.refusals { margin-top: var(--s-4); padding: 0; list-style: none; border-top: 
   color: var(--c-ink);
 }
 
-/* The strike is a drawn line rather than text-decoration, so it can draw itself left to right. */
+/* A drawn line rather than text-decoration, so it can draw itself left to right. Lighter than the words, so they stay readable. */
 .no s {
   text-decoration: none;
-  background-image: linear-gradient(var(--c-ink), var(--c-ink));
+  background-image: linear-gradient(var(--c-ink-faint), var(--c-ink-faint));
   background-repeat: no-repeat;
   background-position: 0 58%;
   background-size: 0% 2px;
-  transition: background-size 520ms var(--ease-out) calc(var(--i) * 140ms), color 520ms var(--ease) calc(var(--i) * 140ms);
+  transition: background-size 520ms var(--ease-out) calc(var(--i) * 140ms);
 }
 
-.refusals[data-seen] .no s { background-size: 100% 2px; color: var(--c-ink-faint); }
+.refusals[data-seen] .no s { background-size: 100% 2px; }
 
 .why { margin-top: var(--s-1); font-size: 1rem; line-height: 1.6; color: var(--c-ink-soft); }
 
-/* Development only: never rendered in a production build. */
-.confirm {
-  margin-top: var(--s-6);
-  padding: var(--s-4);
-  background: var(--c-gold-wash);
-  border: 1px solid var(--c-gold-line);
-  border-radius: var(--r-control);
-  font-size: 0.9375rem;
-  line-height: 1.6;
-  color: #5c430f;
-}
-
-.confirmTag {
-  display: block;
-  margin-bottom: 3px;
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #8a6412;
-}
-
-.after { margin-top: var(--s-7); padding-top: var(--s-5); border-top: 1px solid var(--c-line); }
+.after { margin-top: var(--s-8); padding-top: var(--s-5); border-top: 1px solid var(--c-line); }
 
 .cta {
   display: inline-flex;
@@ -108,7 +112,7 @@ ul.refusals { margin-top: var(--s-4); padding: 0; list-style: none; border-top: 
   padding: 0 var(--s-5);
   border-radius: var(--r-control);
   background: var(--c-action-strong);
-  color: #fff;
+  color: var(--c-on-action);
   font-size: 1rem;
   font-weight: 600;
   text-decoration: none;
@@ -120,64 +124,6 @@ ul.refusals { margin-top: var(--s-4); padding: 0; list-style: none; border-top: 
 .afterNote { margin-top: var(--s-4); font-size: var(--t-body); color: var(--c-ink-soft); }
 .afterNote a { color: var(--c-ink); text-decoration: underline; text-decoration-color: var(--c-line-mid); text-underline-offset: 3px; }
 .afterNote a:hover { text-decoration-color: var(--c-ink); }
-
-/* --- At a glance --------------------------------------------------------- */
-
-.facts {
-  padding: var(--s-5);
-  background: var(--c-surface);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-card);
-  box-shadow: var(--e-1);
-}
-
-@media (min-width: 1024px) {
-  .facts { position: sticky; top: calc(var(--store-bar-h) + var(--s-5)); margin-top: calc(var(--s-2) + 0.5rem); }
-}
-
-.factsHead {
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--c-faint);
-}
-
-.factsList { margin-top: var(--s-3); }
-
-.factRow { padding: var(--s-3) 0; border-top: 1px solid var(--c-line); }
-.factRow:first-child { border-top: 0; padding-top: 0; }
-
-.factRow dt { font-size: var(--t-caption); color: var(--c-faint); }
-.factRow dd { margin-top: 2px; font-size: var(--t-label); line-height: 1.5; color: var(--c-ink); overflow-wrap: anywhere; }
-
-.factsMail {
-  display: block;
-  margin-top: var(--s-4);
-  padding: var(--s-3) var(--s-4);
-  border-radius: var(--r-control);
-  background: var(--c-warm);
-  color: var(--c-ink);
-  font-size: var(--t-label);
-  font-weight: 500;
-  text-align: center;
-  text-decoration: none;
-  overflow-wrap: anywhere;
-}
-
-.factsMail:hover { background: var(--c-sunk); }
-
-.factsLink {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-1);
-  margin-top: var(--s-3);
-  font-size: var(--t-caption);
-  color: var(--c-ink-soft);
-  text-decoration: none;
-}
-
-.factsLink:hover { color: var(--c-ink); }
 
 @media (prefers-reduced-motion: reduce) {
   .no s { transition: none; }

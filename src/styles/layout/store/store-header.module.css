@@ -229,3 +229,7 @@ ul.shelves > li { display: flex; }
   .mark [class*='word'] { font-size: 1.0625rem; }
   .mark { gap: 6px; }
 }
+/* Under 350px the five controls and the wordmark cannot share a line; the mark stays, and the link keeps its name. */
+@media (max-width: 349px) {
+  .mark [class*='word'] { display: none; }
+}

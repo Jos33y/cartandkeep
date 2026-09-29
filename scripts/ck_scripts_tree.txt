@@ -1,0 +1,188 @@
+Folder PATH listing
+Volume serial number is 5037-8652
+C:.
+|   audit.js
+|   backup.js
+|   ck_scripts_tree.txt
+|   decide.js
+|   dedupe-candidates.js
+|   ebay-auth.js
+|   gate.js
+|   import-coverage.js
+|   import-gate.js
+|   ledger.mjs
+|   limits.js
+|   markdowns.mjs
+|   mine-terms.js
+|   read-listings.mjs
+|   README.md
+|   refresh-queries.js
+|   remove-candidates.js
+|   scan.js
+|   shelf-cpc.mjs
+|   shelf-from-sitemap.mjs
+|   shelf-hb.js
+|   shelf-queries.js
+|   shelf-range.mjs
+|   shelf-shopify.mjs
+|   sweep.js
+|   
++---archive
+|   +---cj
+|   |       cj-categories.js
+|   |       cj-freight-test.js
+|   |       cj-sourcing-test.js
+|   |       cost.js
+|   |       explore-cj.js
+|   |       request-cj-sourcing.js
+|   |       source-cj.js
+|   |       
+|   +---maybe
+|   |       add-source.js
+|   |       check-competition.js
+|   |       sources-at-risk.js
+|   |       
+|   +---shelf
+|   |       cost-shelf.js
+|   |       shelf-product.js
+|   |       shelf.js
+|   |       
+|   +---terapeak
+|   |       analyse-competitor.py
+|   |       analyse-terapeak.py
+|   |       band-listings.py
+|   |       check-identity.py
+|   |       enrich-candidates.js
+|   |       import-shortlist.js
+|   |       mine-terms.py
+|   |       run-tests.py
+|   |       terapeak-url.py
+|   |       
+|   \---terapeak-package
+|       |   analyse.py
+|       |   console.py
+|       |   costs.py
+|       |   parse.py
+|       |   report.py
+|       |   rules.py
+|       |   run.py
+|       |   screens.py
+|       |   shortlist.py
+|       |   terms.py
+|       |   __init__.py
+|       |   
+|       +---tests
+|       |   |   corpus.py
+|       |   |   db-double.js
+|       |   |   test_costs.py
+|       |   |   test_grammar.py
+|       |   |   test_parse.py
+|       |   |   test_rules.py
+|       |   |   test_screens.py
+|       |   |   __init__.py
+|       |   |   
+|       |   +---corpus
+|       |   |       products.csv
+|       |   |       titles.csv
+|       |   |       
+|       |   \---__pycache__
+|       |           corpus.cpython-310.pyc
+|       |           test_costs.cpython-310.pyc
+|       |           test_grammar.cpython-310.pyc
+|       |           test_parse.cpython-310.pyc
+|       |           test_rules.cpython-310.pyc
+|       |           test_screens.cpython-310.pyc
+|       |           __init__.cpython-310.pyc
+|       |           
+|       \---__pycache__
+|               analyse.cpython-310.pyc
+|               console.cpython-310.pyc
+|               costs.cpython-310.pyc
+|               parse.cpython-310.pyc
+|               report.cpython-310.pyc
+|               rules.cpython-310.pyc
+|               run.cpython-310.pyc
+|               screens.cpython-310.pyc
+|               shortlist.cpython-310.pyc
+|               terms.cpython-310.pyc
+|               __init__.cpython-310.pyc
+|               
++---email
+|   |   preview.html
+|   |   preview.ts
+|   |   
+|   +---out
+|   |       01-confirmation.html
+|   |       01-confirmation.txt
+|   |       02-confirmation-gift.html
+|   |       02-confirmation-gift.txt
+|   |       03-dispatch.html
+|   |       03-dispatch.txt
+|   |       04-recipient.html
+|   |       04-recipient.txt
+|   |       05-review.html
+|   |       05-review.txt
+|   |       06-asked.html
+|   |       06-asked.txt
+|   |       07-reply.html
+|   |       07-reply.txt
+|   |       08-reply-basket.html
+|   |       08-reply-basket.txt
+|   |       09-sale.html
+|   |       09-sale.txt
+|   |       10-sale-warn.html
+|   |       10-sale-warn.txt
+|   |       11-to-shop.html
+|   |       11-to-shop.txt
+|   |       12-to-shop-basket.html
+|   |       12-to-shop-basket.txt
+|   |       13-stock.html
+|   |       13-stock.txt
+|   |       14-wants.html
+|   |       14-wants.txt
+|   |       15-pull.html
+|   |       15-pull.txt
+|   |       16-pull-ok.html
+|   |       16-pull-ok.txt
+|   |       index.html
+|   |       
+|   \---samples
+|           magnesium.jpg
+|           massager.jpg
+|           mirror.jpg
+|           
++---lib
+|       cost.js
+|       ebay.js
+|       env.js
+|       listing.js
+|       market.js
+|       persist.js
+|       refusals.js
+|       risk.js
+|       row.js
+|       scan.js
+|       shops.js
+|       snapshot.js
+|       sources.js
+|       verdict.js
+|       
++---probes
+|       hb-find-api.js
+|       hb-net-probe.js
+|       hb-page-probe.js
+|       hb-paging-probe.js
+|       hb-probe.js
+|       probe-apis.js
+|       shelf-probe.js
+|       shop-probe.mjs
+|       
++---sql
+|       buy-now.sql
+|       
+\---store
+        build-sitemap.js
+        enrich-store.js
+        replace-loading.mjs
+        seed-store.js
+        
