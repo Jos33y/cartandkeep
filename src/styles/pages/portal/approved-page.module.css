@@ -760,3 +760,9 @@
 .readyNote > span { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
 .readyNote > svg { flex-shrink: 0; margin-top: 2px; }
 .readyShort { color: var(--c-ink-soft); }
+
+/* Each channel mark starts with the same tag as Candidates (SHOP in terracotta, EBAY plain), then where it stands. */
+.channel { padding: 0; gap: 0; overflow: hidden; }
+.channelTag { padding: 0 5px; border-right: 1px solid var(--c-line-mid); font-size: 9px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-ink-faint); background: var(--c-surface); }
+.channel[data-channel='shop'] .channelTag { color: var(--c-action-text); background: var(--c-action-wash); }
+.channelState { display: inline-flex; align-items: center; gap: 4px; padding: 0 7px 0 5px; }

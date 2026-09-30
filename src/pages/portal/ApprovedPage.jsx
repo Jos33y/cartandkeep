@@ -522,8 +522,9 @@ function ChannelStates({ gl, working, queued }) {
         const st = working === c ? 'working' : c === 'ebay' && queued && gl.state.ebay === 'todo' ? 'queued' : gl.state[c];
         const word = st === 'working' ? (c === 'ebay' ? 'Publishing' : 'Adding') : st === 'queued' ? 'Queued' : STATE_WORD[c][st];
         return (
-          <span key={c} className={styles.channel} data-state={st}>
-            <i aria-hidden="true" />{c === 'ebay' ? 'eBay' : 'Shop'} <b>{word}</b>
+          <span key={c} className={styles.channel} data-state={st} data-channel={c} title={`${c === 'ebay' ? 'eBay' : 'Your shop'}: ${word}`}>
+            <span className={styles.channelTag}>{c === 'ebay' ? 'eBay' : 'Shop'}</span>
+            <span className={styles.channelState}><i aria-hidden="true" /><b>{word}</b></span>
           </span>
         );
       })}
