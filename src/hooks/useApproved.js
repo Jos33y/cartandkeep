@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@lib/supabase';
 import { readPages } from '@lib/readPages';
 import { channelStates } from '@lib/golive';
@@ -17,14 +17,57 @@ function byListOrder(a, b) {
   return trust(a) - trust(b) || worth(b) - worth(a);
 }
 
+// A function's own error message, which supabase-js hides behind a generic one when the status is not 2xx.
+async function invoke(name, body) {
+  const { data, error } = await supabase.functions.invoke(name, { body });
+  if (error) {
+    const said = await error.context?.json?.().catch(() => null);
+    throw new Error(said?.error ?? error.message);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+// The first of this month, UK time, for counting what went up on eBay this month.
+function monthStart(now = new Date()) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit' })
+    .formatToParts(now).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month}-01`;
+}
+
 // Approved is not batch scoped. What she committed to three weeks ago is still
 // waiting to be listed, so this reads across every batch.
 export function useApproved(tenantId) {
   const [state, setState] = useState({ status: 'loading', rows: [], error: null });
+  // Listed on eBay from here this month, against her monthly limit.
+  const [month, setMonth] = useState(null);
+
+  // The latest listing job per card: queued, working, done or failed, with eBay's words when it failed.
+  const [jobs, setJobs] = useState({});
+  const loadJobs = useCallback(async () => {
+    if (!tenantId) return {};
+    const { data } = await supabase.from('listing_jobs')
+      .select('id, candidate_id, state, error, attempts, request, created_at, finished_at')
+      .eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(1000);
+    const latest = {};
+    for (const j of data ?? []) if (!latest[j.candidate_id]) latest[j.candidate_id] = j;
+    setJobs(latest);
+    return latest;
+  }, [tenantId]);
+  useEffect(() => { loadJobs(); }, [loadJobs]);
+
+  const countMonth = useCallback(async () => {
+    if (!tenantId) return;
+    const { count } = await supabase.from('candidates').select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId).gte('ebay->>published_at', monthStart());
+    setMonth(count ?? 0);
+  }, [tenantId]);
+  useEffect(() => { countMonth(); }, [countMonth]);
 
   const load = useCallback(async () => {
     if (!tenantId) return;
-    setState((s) => ({ ...s, status: 'loading' }));
+    // The skeleton only on the first read: a reload after a queued card goes live must not close the card she is in.
+    setState((s) => (s.status === 'ready' ? s : { ...s, status: 'loading' }));
 
     // In pages: past 1,000 approved cards a single read would stop short without saying so.
     const { data, error } = await readPages(() => supabase
@@ -102,23 +145,85 @@ export function useApproved(tenantId) {
     [],
   );
 
+  // Her saved draft, back into the page's copy of the card.
+  const noteDraft = useCallback((candidateId, draft) => {
+    setState((s) => ({ ...s, rows: s.rows.map((r) => (r.id === candidateId ? { ...r, draft } : r)) }));
+  }, []);
+
+  // The shop page a function read for the first time, onto the page's copy of the card.
+  const noteListing = useCallback((candidateId, listing) => {
+    setState((s) => ({ ...s, rows: s.rows.map((r) => (r.id === candidateId && !r.listing ? { ...r, listing } : r)) }));
+  }, []);
+
+  // Item details filled in from the check sheet, written onto her draft as the card itself would write them.
+  const saveAspects = useCallback(async (candidateId, aspects) => {
+    const row = state.rows.find((r) => r.id === candidateId);
+    const draft = { ...(row?.draft ?? {}), aspects };
+    const { error } = await supabase.from('candidates').update({ draft }).eq('id', candidateId).eq('tenant_id', tenantId);
+    if (error) throw new Error(error.message);
+    noteDraft(candidateId, draft);
+  }, [state.rows, tenantId, noteDraft]);
+
   // dry returns what eBay would receive, including the category it suggests
   // from the title, which is the one field nobody can check in advance.
   const list = useCallback(
     async ({ candidateId, dry = false, ...fields }) => {
-      const { data, error } = await supabase.functions.invoke('ebay-list', {
-        body: { tenant_id: tenantId, candidate_id: candidateId, dry, ...fields },
-      });
-      if (error || data?.error) throw new Error(data?.error ?? error.message);
+      const data = await invoke('ebay-list', { tenant_id: tenantId, candidate_id: candidateId, dry, ...fields });
       // Live on eBay: the card keeps its place while another channel is left, and goes once none is.
       if (!dry) {
         setState((s) => ({
           ...s,
           rows: s.rows.map((r) => (r.id === candidateId ? { ...r, ebay: data } : r)).filter((r) => channelStates(r).left.length > 0),
         }));
+        setMonth((m) => (m ?? 0) + 1);
       }
       return data;
     },
+    [tenantId],
+  );
+
+  // Cards to list in the background. Each carries what she chose at the time (price, quantity, category, the
+  // catalogue), then the queue is kicked so it starts now rather than on the next minute.
+  const queue = useCallback(async (items) => {
+    const { error } = await supabase.from('listing_jobs').insert(
+      items.map(({ candidateId, request }) => ({ tenant_id: tenantId, candidate_id: candidateId, channel: 'ebay', request })),
+    );
+    if (error) throw new Error(error.code === '23505' ? 'One of these is already in the queue.' : error.message);
+    supabase.functions.invoke('ebay-queue', { body: { tenant_id: tenantId } }).catch(() => {});
+    await loadJobs();
+  }, [tenantId, loadJobs]);
+
+  // Taken back while still waiting. Once the queue has it, it runs.
+  const cancel = useCallback(async (jobId) => {
+    const { error } = await supabase.from('listing_jobs').update({ state: 'cancelled' }).eq('id', jobId).eq('state', 'queued');
+    if (error) throw new Error(error.message);
+    await loadJobs();
+  }, [loadJobs]);
+
+  // A refused card, sent again as it was chosen, once she has fixed what eBay said.
+  const retry = useCallback((job, request = job.request) => queue([{ candidateId: job.candidate_id, request }]), [queue]);
+
+  // While anything is queued or working, look again every twelve seconds. A card that went live is re-read, so it
+  // moves on the page the way a card published by hand does.
+  const waiting = Object.values(jobs).some((j) => j.state === 'queued' || j.state === 'working');
+  const doneSeen = useRef(new Set());
+  useEffect(() => {
+    if (!waiting) return undefined;
+    const t = setInterval(async () => {
+      const latest = await loadJobs();
+      const fresh = Object.values(latest).filter((j) => j.state === 'done' && !doneSeen.current.has(j.id));
+      if (fresh.length) {
+        fresh.forEach((j) => doneSeen.current.add(j.id));
+        load();
+        countMonth();
+      }
+    }, 12000);
+    return () => clearInterval(t);
+  }, [waiting, loadJobs, load, countMonth]);
+
+  // eBay's catalogue entry for the card's barcode: its photos can stand in for hers on eBay only.
+  const lookupCatalogue = useCallback(
+    (candidateId) => invoke('ebay-list', { tenant_id: tenantId, candidate_id: candidateId, lookup: true }),
     [tenantId],
   );
 
@@ -147,5 +252,5 @@ export function useApproved(tenantId) {
     [tenantId],
   );
 
-  return { ...state, reload: load, addSource, list, addToShop };
+  return { ...state, month, jobs, reload: load, addSource, list, addToShop, lookupCatalogue, queue, cancel, retry, noteDraft, noteListing, saveAspects };
 }

@@ -63,8 +63,11 @@ for (const r of rows) {
   if (!/^confirmed/.test(verdict) && !/^unsure/.test(verdict) && !withUnsure) { tally.not_checked += 1; continue; }
   if (r.big_brand === 'yes' && !r.need && !bigBrands) { tally.big_brand += 1; continue; }
   // The shelf price is the shop's own figure: a VAT-relief or trade shop's gains VAT here. The page price already has it.
-  const shelfCost = withVat(r.seen_price, r.seen_link)?.price ?? null;
+  const shelfVat = withVat(r.seen_price, r.seen_link);
+  const shelfCost = shelfVat?.price ?? null;
   const cost = shelfCost ?? (Number(r.page_price) > 0 ? Number(r.page_price) : null);
+  // Marked when VAT was added here, so fix-vat-costs never adds it a second time to a card this import refreshes.
+  const vatAdded = shelfCost != null ? shelfVat.vatAdded : r.page_vat === 'added';
   if (cost == null && !withoutPrice) { tally.no_price += 1; continue; }
   // A cost over twice Google's highest price is a bigger pack or another model: the page check read the wrong thing.
   if (cost != null && Number(r.google_max) > 0 && cost > Number(r.google_max) * 2) { tally.bigger_pack += 1; continue; }
@@ -123,6 +126,7 @@ for (const r of rows) {
       gtin: r.gtin || null,
       need: r.need || null,
       post: r.post || postCheckOf(r.title) || null,
+      ...(vatAdded ? { vat_added: { on: date, why: 'added at import: the shop shows prices without VAT' } } : {}),
       big_brand: r.big_brand === 'yes',
       shops,
       match: { by: r.matched_by || null, verdict: r.verdict || null },

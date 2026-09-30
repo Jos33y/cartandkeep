@@ -12,6 +12,8 @@ import { ShelfLabel, confirmSource } from '@components/ui/portal/CandidateRow';
 import { assess, shopName } from '@lib/assess';
 import { STATE_WORD, goLive, parcelFor, viewsOf } from '@lib/golive';
 import { ListingComposer } from '@components/ui/portal/ListingComposer';
+import { BulkBar, ListSheet } from '@components/ui/portal/BulkListing';
+import { ebayRequest, eligibility, jobOpen, readyFor, shopProduct, startQuantity } from '@lib/bulk';
 import { SearchTile } from '@components/ui/portal/SearchTile';
 import { Icon } from '@components/ui/icons';
 import { useApproved } from '@hooks/useApproved';
@@ -21,6 +23,9 @@ import { loadTenant } from '@lib/tenant';
 import { formatGbp } from '@utils/formatGbp';
 import { breadcrumb } from '@utils/category';
 import { portalPath } from '@utils/constants';
+
+// Her eBay selling limit, 30 September 2026: items a month, no money limit. The eBay function enforces it.
+const EBAY_MONTHLY_LIMIT = 300;
 import styles from '@styles/pages/portal/approved-page.module.css';
 
 const COLUMNS = [
@@ -43,12 +48,9 @@ const ROWS = [
 
 const band = (b) => (b ?? '').replace(/_/g, ' ');
 
-const slugify = (s) => String(s ?? '')
-  .toLowerCase()
-  .replace(/&/g, ' and ')
-  .replace(/[^a-z0-9]+/g, '-')
-  .replace(/^-+|-+$/g, '')
-  .slice(0, 60);
+// Somewhere she is typing, where Escape belongs to the field. A tick box is not.
+const typing = (el) => Boolean(el?.closest?.('textarea, select, [contenteditable="true"]'))
+  || (el?.tagName === 'INPUT' && !['checkbox', 'radio', 'button'].includes(el.type));
 
 // Stripe rather than eBay. Same shape as store_product_margin, tenant rates
 // first and the defaults it falls back to otherwise.
@@ -71,17 +73,27 @@ export function ApprovedPage() {
   const [tenant, setTenant] = useState(undefined);
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
-  const { status, rows, addSource, list, addToShop } = useApproved(tenant?.id);
+  const {
+    status, rows, month, jobs, addSource, list, addToShop, lookupCatalogue, queue, cancel, retry, noteDraft, noteListing, saveAspects,
+  } = useApproved(tenant?.id);
   const { suppliers, remember } = useSuppliers(tenant?.id);
   const [find, setFind] = useState('');
   const [only, setOnly] = useState(null);
   const [listed, setListed] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const [selected, setSelected] = useState(() => new Set());
+  const anchor = useRef(null);
+  // The cards eBay is checking before they are queued; the cards it held back, to look at next.
+  const [sheetFor, setSheetFor] = useState(null);
+  const [held, setHeld] = useState(null);
+  const [adding, setAdding] = useState(null);
+  const stopAdding = useRef(false);
 
   useEffect(() => {
-    if (!listed) return undefined;
-    const t = setTimeout(() => setListed(null), 12000);
+    if (!listed && !notice) return undefined;
+    const t = setTimeout(() => { setListed(null); setNotice(null); }, 12000);
     return () => clearTimeout(t);
-  }, [listed]);
+  }, [listed, notice]);
 
   // Each card read once, with where it stands on each channel, from her saved draft.
   const assessed = useMemo(() => rows.map((r) => {
@@ -89,12 +101,105 @@ export function ApprovedPage() {
     return { row: r, a, gl: goLive(viewsOf(a), r, r.draft ?? {}) };
   }), [rows]);
 
+  // Where the eBay queue has each card: waiting, publishing, or refused with eBay's words.
+  const jobOf = useCallback((id) => jobs[id] ?? null, [jobs]);
+  const refused = ({ row, gl }) => jobOf(row.id)?.state === 'failed' && gl.state.ebay === 'todo';
+
   const counts = useMemo(() => ({
     ready: assessed.filter(({ gl }) => gl.ready).length,
     check: assessed.filter(({ gl }) => !gl.ready).length,
     half: assessed.filter(({ gl }) => gl.started.length > 0).length,
     edited: assessed.filter(({ a }) => a.edited).length,
-  }), [assessed]);
+    queued: assessed.filter(({ row }) => jobOpen(jobOf(row.id))).length,
+    refused: assessed.filter((x) => refused(x)).length,
+    readyEbay: assessed.filter(({ row, gl }) => readyFor(gl, 'ebay') && !jobOpen(jobOf(row.id))).length,
+    readyShop: assessed.filter(({ row, gl, a }) => readyFor(gl, 'shop') && a.goods != null && !jobOpen(jobOf(row.id))).length,
+  }), [assessed, jobOf]);
+
+  // What the ticked cards can do on each channel, and why the rest cannot.
+  const picked = useMemo(() => assessed.filter(({ row }) => selected.has(row.id)), [assessed, selected]);
+  const split = useCallback((channel) => {
+    const out = { in: [], out: [] };
+    for (const x of picked) {
+      const e = eligibility(x, channel, jobOf(x.row.id));
+      if (e.ok) out.in.push(x); else out.out.push({ id: x.row.id, why: e.why });
+    }
+    return out;
+  }, [picked, jobOf]);
+  const forEbay = useMemo(() => split('ebay'), [split]);
+  const forShop = useMemo(() => split('shop'), [split]);
+
+  const waiting = Object.values(jobs).filter((j) => j.state === 'queued').length;
+  const publishing = Object.values(jobs).filter((j) => j.state === 'working').length;
+
+  // A card that went live, or left the page, is no longer selected.
+  useEffect(() => {
+    setSelected((cur) => {
+      const ids = new Set(rows.map((r) => r.id));
+      const next = new Set([...cur].filter((id) => ids.has(id)));
+      return next.size === cur.size ? cur : next;
+    });
+  }, [rows]);
+
+  useEffect(() => {
+    if (!selected.size || sheetFor) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape' && !adding && !typing(e.target)) setSelected(new Set()); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selected.size, sheetFor, adding]);
+
+  // One by one, so each lands as her own draft, and she can stop part way.
+  async function addAllToShop() {
+    const items = forShop.in;
+    stopAdding.current = false;
+    setAdding({ done: 0, total: items.length });
+    const failed = [];
+    let done = 0;
+    for (const { row, a } of items) {
+      if (stopAdding.current) break;
+      try {
+        await addToShop({ candidateId: row.id, product: shopProduct(row, a, row.draft ?? {}) });
+      } catch (e) {
+        failed.push(`${row.draft?.title || a.title}: ${e.message}`);
+      }
+      done += 1;
+      setAdding({ done, total: items.length });
+    }
+    setAdding(null);
+    setSelected(new Set());
+    const added = done - failed.length;
+    setNotice({
+      title: added ? `${added} added to your shop as ${added === 1 ? 'a draft' : 'drafts'}` : 'Nothing added to your shop',
+      body: failed.length ? `${failed.length} did not save. ${failed[0]}` : 'Drafts go on sale from Products once returns and hazard details are confirmed.',
+      to: added ? portalPath('/products') : null,
+      toLabel: 'Products',
+      tone: failed.length ? 'warning' : 'positive',
+    });
+  }
+
+  async function queueAll(items) {
+    await queue(items);
+    setSheetFor(null);
+    setSelected(new Set());
+    setNotice({
+      title: `${items.length} queued for eBay`,
+      body: 'They go up at your daily pace, strongest first. Each leaves this page as it goes live.',
+      tone: 'positive',
+    });
+  }
+
+  const select = useCallback((id, range, ids) => {
+    setSelected((cur) => {
+      const next = new Set(cur);
+      if (range && anchor.current && ids.includes(anchor.current)) {
+        const [from, to] = [ids.indexOf(anchor.current), ids.indexOf(id)].sort((p, q) => p - q);
+        ids.slice(from, to + 1).forEach((x) => next.add(x));
+      } else if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    anchor.current = id;
+  }, []);
 
   // After goods, at the proving seller's own price and rate. monthly_headroom is
   // before goods, which is how this header overstated what a month keeps.
@@ -117,19 +222,43 @@ export function ApprovedPage() {
     );
   }
 
-  const match = ({ gl, a }) => !only || (only === 'ready' ? gl.ready : only === 'check' ? !gl.ready : only === 'half' ? gl.started.length > 0 : a.edited);
+  const match = (x) => {
+    const { gl, a, row } = x;
+    switch (only) {
+      case null: return true;
+      case 'ready': return gl.ready;
+      case 'check': return !gl.ready;
+      case 'half': return gl.started.length > 0;
+      case 'edited': return a.edited;
+      case 'queued': return jobOpen(jobOf(row.id));
+      case 'refused': return refused(x);
+      case 'held': return held?.has(row.id);
+      default: return true;
+    }
+  };
   const shown = assessed
     .filter(match)
-    .filter(({ a }) => !find.trim() || a.title.toLowerCase().includes(find.trim().toLowerCase()));
+    .filter(({ a, row }) => !find.trim() || `${row.draft?.title ?? ''} ${a.title}`.toLowerCase().includes(find.trim().toLowerCase()));
+  const shownIds = shown.map(({ row }) => row.id);
+  const allShown = shown.length > 0 && shown.every(({ row }) => selected.has(row.id));
+  const selectWhere = (test) => setSelected(new Set(assessed.filter(test).map(({ row }) => row.id)));
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-bulk={selected.size > 0 || undefined}>
       <header className={styles.head}>
         <div className={styles.headText}>
           <p className="micro">Approved</p>
           <h1 className={styles.title}>Going live</h1>
         </div>
 
+        <div className={styles.headSide}>
+          {month != null && (
+            <div className={styles.limit} data-tone={month >= EBAY_MONTHLY_LIMIT ? 'negative' : month >= EBAY_MONTHLY_LIMIT * 0.8 ? 'warning' : undefined}
+              title="eBay lets this account list 300 items a month. The count starts again on the 1st.">
+              <span className={styles.limitBar} aria-hidden="true"><i style={{ width: `${Math.min(100, (month / EBAY_MONTHLY_LIMIT) * 100)}%` }} /></span>
+              <span className={styles.limitText}><b data-num>{month}</b> of <span data-num>{EBAY_MONTHLY_LIMIT}</span> listed on eBay this month</span>
+            </div>
+          )}
         {monthly > 0 && (
           <div className={styles.worth}>
             <span className={styles.worthLabel}>At proven rates</span>
@@ -137,6 +266,7 @@ export function ApprovedPage() {
             <span className={styles.worthFoot}>a month, where a seller is converting</span>
           </div>
         )}
+        </div>
       </header>
 
       {/* The state of the queue, and the way into it. At four rows it is a
@@ -156,12 +286,55 @@ export function ApprovedPage() {
           <StateTab id="edited" only={only} setOnly={setOnly} icon="IconNote"
             label="Edited" count={counts.edited} />
         )}
+        {counts.queued > 0 && (
+          <StateTab id="queued" only={only} setOnly={setOnly} icon="IconClock"
+            label="In the eBay queue" count={counts.queued} />
+        )}
+        {counts.refused > 0 && (
+          <StateTab id="refused" only={only} setOnly={setOnly} icon="IconFlag"
+            label="Refused by eBay" count={counts.refused} tone="negative" />
+        )}
+        {held?.size > 0 && (
+          <StateTab id="held" only={only} setOnly={setOnly} icon="IconInfo"
+            label="Held back" count={assessed.filter(({ row }) => held.has(row.id)).length} tone="warning" />
+        )}
 
         <span className={styles.findWrap}>
           <Icon name="IconSearch" className={styles.findIcon} />
           <input className={styles.find} value={find} placeholder="Find"
             onChange={(e) => setFind(e.target.value)} aria-label="Find a product" />
         </span>
+      </div>
+
+      <div className={styles.picker}>
+        <label className={styles.pickAll}>
+          <input type="checkbox" checked={allShown}
+            ref={(el) => { if (el) el.indeterminate = !allShown && shown.some(({ row }) => selected.has(row.id)); }}
+            onChange={() => setSelected((cur) => {
+              const next = new Set(cur);
+              shownIds.forEach((id) => (allShown ? next.delete(id) : next.add(id)));
+              return next;
+            })} />
+          <span>{allShown ? 'Clear these' : `Select ${only || find.trim() ? 'these' : 'all'}`} <span className={styles.pickCount} data-num>{shown.length}</span></span>
+        </label>
+        {counts.readyEbay > 0 && (
+          <button type="button" className={styles.pickQuick}
+            onClick={() => selectWhere(({ row, gl }) => readyFor(gl, 'ebay') && !jobOpen(jobOf(row.id)))}>
+            <Icon name="IconTag" className={styles.pickIcon} />Ready for eBay <span data-num>{counts.readyEbay}</span>
+          </button>
+        )}
+        {counts.readyShop > 0 && (
+          <button type="button" className={styles.pickQuick}
+            onClick={() => selectWhere(({ row, gl, a }) => readyFor(gl, 'shop') && a.goods != null && !jobOpen(jobOf(row.id)))}>
+            <Icon name="IconShop" className={styles.pickIcon} />Ready for your shop <span data-num>{counts.readyShop}</span>
+          </button>
+        )}
+        {(waiting > 0 || publishing > 0) && (
+          <span className={styles.queueNote} role="status">
+            <i aria-hidden="true" />
+            <span>eBay queue: {waiting > 0 && <><b data-num>{waiting}</b> waiting</>}{waiting > 0 && publishing > 0 && ', '}{publishing > 0 && <><b data-num>{publishing}</b> publishing</>}. It carries on with the portal closed.</span>
+          </span>
+        )}
       </div>
 
       <div className={styles.list}>
@@ -171,6 +344,13 @@ export function ApprovedPage() {
             row={row}
             base={a}
             baseGl={gl}
+            job={jobOf(row.id)}
+            selected={selected.has(row.id)}
+            onSelect={(range) => select(row.id, range, shownIds)}
+            onCancelJob={cancel}
+            onRetryJob={retry}
+            onSaved={(d) => noteDraft(row.id, d)}
+            onRead={(l) => noteListing(row.id, l)}
             tenantId={tenant.id}
             fees={tenant.fees}
             suppliers={suppliers}
@@ -180,6 +360,7 @@ export function ApprovedPage() {
               return out;
             }}
             onShop={(product) => addToShop({ candidateId: row.id, product })}
+            onCatalogue={() => lookupCatalogue(row.id)}
             onSource={async (fields) => {
               await addSource({ candidateId: row.id, tenantId: tenant.id, ...fields });
               await remember({ tenantId: tenant.id, name: fields.supplier, country: fields.ships_from });
@@ -189,6 +370,37 @@ export function ApprovedPage() {
 
         {shown.length === 0 && <p className={styles.quiet}>Nothing here.</p>}
       </div>
+
+      {selected.size > 0 && !sheetFor && (
+        <BulkBar count={selected.size} ebay={forEbay} shop={forShop} adding={adding}
+          onEbay={() => setSheetFor(forEbay.in)}
+          onShop={addAllToShop}
+          onStop={() => { stopAdding.current = true; }}
+          onClear={() => setSelected(new Set())} />
+      )}
+
+      {sheetFor && (
+        <ListSheet items={sheetFor} ahead={waiting + publishing}
+          check={(candidateId, request) => list({ candidateId, ...request, dry: true })}
+          onAspects={saveAspects}
+          onQueue={queueAll}
+          onHeld={(ids) => { setHeld(new Set(ids)); setOnly('held'); setSheetFor(null); }}
+          onClose={() => setSheetFor(null)} />
+      )}
+
+      {notice && !listed && selected.size === 0 && (
+        <div className={styles.toast} role="status" aria-live="polite">
+          <span className={styles.toastIcon} data-tone={notice.tone}><Icon name={notice.tone === 'warning' ? 'IconInfo' : 'IconCheck'} className={styles.btnIcon} /></span>
+          <div className={styles.toastText}>
+            <strong>{notice.title}</strong>
+            <span className={styles.toastBody}>{notice.body}</span>
+          </div>
+          {notice.to && <a className={styles.toastLink} href={notice.to}>{notice.toLabel}</a>}
+          <button type="button" className={styles.toastClose} aria-label="Dismiss" onClick={() => setNotice(null)}>
+            <Icon name="IconX" className={styles.toastOut} />
+          </button>
+        </div>
+      )}
 
       {listed && (
         <div className={styles.toast} role="status" aria-live="polite">
@@ -227,15 +439,17 @@ function StateTab({ id, only, setOnly, icon, label, count, tone }) {
 
 const CHANNEL = { ebay: { label: 'eBay', icon: 'IconTag' }, shop: { label: 'Your shop', icon: 'IconShop' } };
 
-// One mark per channel the card is meant for, saying where it stands: to do, working, live, draft or on sale.
-function ChannelStates({ gl, working }) {
+// One mark per channel the card is meant for, saying where it stands: to do, queued, working, live, draft or on
+// sale. `queued` is a card waiting its turn in the eBay queue.
+function ChannelStates({ gl, working, queued }) {
   return (
     <span className={styles.channels}>
       {gl.wants.map((c) => {
-        const st = working === c ? 'working' : gl.state[c];
+        const st = working === c ? 'working' : c === 'ebay' && queued && gl.state.ebay === 'todo' ? 'queued' : gl.state[c];
+        const word = st === 'working' ? (c === 'ebay' ? 'Publishing' : 'Adding') : st === 'queued' ? 'Queued' : STATE_WORD[c][st];
         return (
           <span key={c} className={styles.channel} data-state={st}>
-            <i aria-hidden="true" />{c === 'ebay' ? 'eBay' : 'Shop'} <b>{st === 'working' ? (c === 'ebay' ? 'Publishing' : 'Adding') : STATE_WORD[c][st]}</b>
+            <i aria-hidden="true" />{c === 'ebay' ? 'eBay' : 'Shop'} <b>{word}</b>
           </span>
         );
       })}
@@ -249,7 +463,10 @@ const joinFixes = (xs) => {
   return words.length > 1 ? `${words.slice(0, -1).join(', ')} and ${words.at(-1)}` : words[0] ?? '';
 };
 
-function Pack({ row, base, baseGl, tenantId, fees, suppliers, onSource, onList, onShop }) {
+function Pack({
+  row, base, baseGl, job, selected, onSelect, onCancelJob, onRetryJob, onSaved, onRead,
+  tenantId, fees, suppliers, onSource, onList, onShop, onCatalogue,
+}) {
   const [open, setOpen] = useState(false);
   const [zoomed, setZoomed] = useState(false);
   const [confirm, setConfirm] = useState(null);
@@ -258,14 +475,17 @@ function Pack({ row, base, baseGl, tenantId, fees, suppliers, onSource, onList, 
   const [shopping, setShopping] = useState(false);
   const [writing, setWriting] = useState(false);
   const [cheaper, setCheaper] = useState(false);
+  const [looking, setLooking] = useState(false);
+  // A category she picked over the card's, once eBay's suggestion disagreed with it.
+  const [categoryChoice, setCategoryChoice] = useState(null);
   const [trial, setTrial] = useState(null);
   const onTry = useCallback((cost, posted) => setTrial(cost == null ? null : { cost, posted }), []);
   const confirmRef = useRef(null);
   const cardRef = useRef(null);
-  // She buys after each sale, and the shop caps how many one order can take.
-  const [qty, setQty] = useState(Math.min(5, row.listing?.max_qty ?? 5));
+  const [qty, setQty] = useState(() => startQuantity(row));
+  const [jobBusy, setJobBusy] = useState(false);
 
-  const { draft, change, revert, generate, upload, saving, edited } = useDraft(row, tenantId);
+  const { draft, change, revert, generate, upload, saving, edited } = useDraft(row, tenantId, { onSaved, onRead });
 
   // Live while editing, from the same function the closed line uses. A cost she is trying holds her price and moves
   // what she keeps.
@@ -280,7 +500,10 @@ function Pack({ row, base, baseGl, tenantId, fees, suppliers, onSource, onList, 
   // The closed row reads the saved draft; the open card reads the one she is typing.
   const gl = useMemo(() => (open ? goLive(viewsOf(whole), row, draft) : baseGl), [open, whole, row, draft, baseGl]);
   const status = gl.ready ? 'ready' : 'check';
-  const working = busy ? 'ebay' : shopping ? 'shop' : null;
+  // In the eBay queue counts as working on eBay: one channel at a time, whichever way it was sent.
+  const queued = jobOpen(job);
+  const working = busy || job?.state === 'working' ? 'ebay' : shopping ? 'shop' : null;
+  const refusedJob = job?.state === 'failed' && gl.state.ebay === 'todo' ? job : null;
 
   const inShop = (row.store_products ?? [])[0] ?? null;
   // Always the shop's own figures, whichever view is open: a store card already keeps them, an eBay card is re-costed here.
@@ -300,23 +523,7 @@ function Pack({ row, base, baseGl, tenantId, fees, suppliers, onSource, onList, 
     setShopping(true);
     setProblem(null);
     try {
-      // Her copy and her photos only; the checklist has already refused the shop's.
-      await onShop({
-        slug: `${slugify(whole.title)}-${String(row.id).slice(0, 6)}`,
-        title: draft.title ?? whole.title,
-        description: draft.description ?? null,
-        price: whole.price,
-        image_url: (draft.images ?? [])[0] ?? null,
-        images: draft.images ?? [],
-        brand: whole.l?.brand ?? row.listing?.brand ?? null,
-        category: whole.l?.shop_category ?? null,
-        postage_band: whole.store ? whole.m.postage_band?.key ?? null : whole.m.headroom_band ?? null,
-        landed_cost: whole.goods,
-        postage_cost: whole.postage,
-        cost_note: whole.best ? `${whole.store ? 'Price' : 'Shelf price'} at ${whole.best.supplier}` : null,
-        cost_updated_at: new Date().toISOString(),
-        source_ref: row.id,
-      });
+      await onShop(shopProduct(row, whole, draft));
     } catch (e) {
       setProblem(e.message);
     } finally {
@@ -324,24 +531,51 @@ function Pack({ row, base, baseGl, tenantId, fees, suppliers, onSource, onList, 
     }
   }
 
-  // eBay checks the listing first and says which category it chose from the title; nothing goes up until Publish.
-  async function review() {
+  // What goes to eBay, from her draft: the same fields for the check and for Publish.
+  const listing = (extra = {}) => ({ ...ebayRequest(whole, draft, { quantity: qty, categoryId: categoryChoice }), ...extra });
+
+  // A queued card taken back, or a refused one sent again with her fixes and the category she chose before.
+  async function jobAct(fn) {
+    setJobBusy(true);
+    setProblem(null);
+    try { await fn(); } catch (e) { setProblem(e.message); } finally { setJobBusy(false); }
+  }
+  const requeue = () => jobAct(() => onRetryJob(refusedJob, listing({
+    ...(refusedJob.request?.category_id ? { category_id: refusedJob.request.category_id } : {}),
+    ...(refusedJob.request?.quantity ? { quantity: refusedJob.request.quantity } : {}),
+  })));
+
+  // eBay checks the listing first: the category, the item details it needs, and anything that stops it.
+  // Nothing goes up until Publish.
+  async function review(extra = {}) {
     setBusy(true);
     setProblem(null);
     try {
-      setConfirm(await onList({
-        price: eView.price,
-        quantity: qty,
-        package: draft.package,
-        title: draft.title,
-        description: draft.description,
-        images: draft.images,
-        dry: true,
-      }));
+      setConfirm(await onList(listing({ ...extra, dry: true })));
     } catch (e) {
       setProblem(e.message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  // eBay's catalogue for the card's barcode. Its photos stand in for hers on eBay only; her shop still needs her own.
+  async function tryCatalogue() {
+    setLooking(true);
+    setProblem(null);
+    try {
+      const out = await onCatalogue();
+      if (out?.catalogue?.epid) {
+        change({ catalogue: { epid: out.catalogue.epid, title: out.catalogue.title, images: out.catalogue.images ?? [] } });
+      } else {
+        setProblem(out?.catalogueError
+          ? `eBay's catalogue could not be read: ${out.catalogueError}`
+          : `eBay's catalogue has no entry for barcode ${out?.gtin ?? ''}. Add your own photos.`);
+      }
+    } catch (e) {
+      setProblem(e.message);
+    } finally {
+      setLooking(false);
     }
   }
 
@@ -361,15 +595,16 @@ function Pack({ row, base, baseGl, tenantId, fees, suppliers, onSource, onList, 
   const parcel = parcelFor(eView);
   const firstBlock = (c) => gl.checks[c]?.find((x) => x.hard && !x.ok) ?? null;
   const lockNote = working === 'ebay' ? 'eBay is publishing. Your shop waits until it is done.'
-    : working === 'shop' ? 'Adding to your shop. eBay waits until it is done.' : null;
+    : queued ? 'In the eBay queue. Your shop waits until it is live, or until you take it out.'
+      : working === 'shop' ? 'Adding to your shop. eBay waits until it is done.' : null;
 
   const ebayLeft = gl.left.includes('ebay');
   const shopLeft = gl.left.includes('shop');
   const shopFirst = shopLeft && !ebayLeft;
   const shopButton = shopLeft && !(both && view === 'ebay') ? (
     <button type="button" className={shopFirst ? styles.primary : styles.ghost}
-      disabled={shopping || busy || whole.goods == null || !gl.can.shop}
-      title={busy ? lockNote : !gl.can.shop ? `Before your shop: ${firstBlock('shop')?.text ?? 'a check fails'}` : undefined}
+      disabled={shopping || busy || queued || whole.goods == null || !gl.can.shop}
+      title={busy || queued ? lockNote : !gl.can.shop ? `Before your shop: ${firstBlock('shop')?.text ?? 'a check fails'}` : undefined}
       onClick={sendToShop}>
       <Icon name="IconShop" className={styles.btnIcon} />
       {shopping ? 'Adding' : shopKeep != null ? `Add to your shop, keep ${formatGbp(shopKeep)}` : 'Add to your shop'}
@@ -377,9 +612,9 @@ function Pack({ row, base, baseGl, tenantId, fees, suppliers, onSource, onList, 
   ) : null;
   const ebayButton = ebayLeft && (!both || view === 'ebay') ? (
     <button type="button" className={styles.primary}
-      disabled={busy || shopping || eView.keep == null || eView.keep < 0 || !gl.can.ebay}
+      disabled={busy || shopping || queued || eView.keep == null || eView.keep < 0 || !gl.can.ebay}
       title={shopping ? lockNote : !gl.can.ebay ? `Before eBay: ${firstBlock('ebay')?.text ?? 'a check fails'}` : undefined}
-      onClick={review}>
+      onClick={() => review()}>
       <Icon name="IconTag" className={styles.btnIcon} />
       {busy ? 'Checking with eBay' : `List on eBay at ${formatGbp(eView.price)}`}
     </button>
@@ -411,7 +646,8 @@ function Pack({ row, base, baseGl, tenantId, fees, suppliers, onSource, onList, 
   const notMine = [...new Set([...(row.listing?.images ?? []), row.image_url].filter(Boolean))];
 
   return (
-    <article ref={cardRef} className={`${styles.pack} ${open ? styles.packOpen : ''}`} data-status={status}>
+    <article ref={cardRef} className={`${styles.pack} ${open ? styles.packOpen : ''}`} data-status={status}
+      data-selected={selected || undefined} data-candidate={row.id}>
       {zoomed && <ImageLightbox src={hero} alt={a.title} onClose={() => setZoomed(false)} />}
 
       <div className={styles.top} role="button" tabIndex={0} aria-expanded={open}
@@ -420,6 +656,13 @@ function Pack({ row, base, baseGl, tenantId, fees, suppliers, onSource, onList, 
           if (e.target !== e.currentTarget) return;
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((v) => !v); }
         }}>
+        <label className={styles.check} onClick={(e) => e.stopPropagation()}>
+          <input type="checkbox" checked={selected} readOnly
+            onClick={(e) => { e.stopPropagation(); onSelect(e.shiftKey); }}
+            onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); onSelect(e.shiftKey); } }}
+            aria-label={`Select ${draft.title || base.title}`} />
+        </label>
+
         {hero
           ? (
             <button type="button" className={styles.thumb} aria-label={`View ${base.title} larger`}
@@ -439,8 +682,12 @@ function Pack({ row, base, baseGl, tenantId, fees, suppliers, onSource, onList, 
                 : <><Icon name="IconInfo" className={styles.evIconWarn} />No small seller converting</>}
           </p>
           <span className={styles.flags}>
-            <ChannelStates gl={gl} working={working} />
-            {gl.first && (
+            <ChannelStates gl={gl} working={working} queued={queued} />
+            {refusedJob ? (
+              <span className={styles.flag} data-tone="block" title={`eBay: ${refusedJob.error ?? 'refused'}`}>
+                <Icon name="IconFlag" className={styles.flagIcon} />eBay refused it: {refusedJob.error ?? 'no reason given'}
+              </span>
+            ) : !queued && gl.first && (
               <span className={styles.flag} data-tone={gl.first.hard ? 'block' : 'warning'} title={`${CHANNEL[gl.first.channel].label}: ${gl.first.text}`}>
                 <Icon name="IconFlag" className={styles.flagIcon} />{gl.first.text}
                 {gl.open.length > 1 && <span className={styles.flagMore}>+{gl.open.length - 1}</span>}
@@ -511,8 +758,32 @@ function Pack({ row, base, baseGl, tenantId, fees, suppliers, onSource, onList, 
             {row.reference_url && <> <a className={styles.reference} href={row.reference_url} target="_blank" rel="noreferrer noopener">See the listing this came from</a></>}
           </BriefStrip>
 
+          {(queued || refusedJob) && (
+            <div className={styles.jobNote} data-tone={refusedJob ? 'negative' : undefined}>
+              <Icon name={refusedJob ? 'IconFlag' : 'IconClock'} className={styles.jobIcon} />
+              <span className={styles.jobText}>
+                {refusedJob ? (
+                  <><b>eBay refused it{refusedJob.finished_at ? ` on ${when(refusedJob.finished_at)}` : ''}.</b> {refusedJob.error ?? 'No reason given.'} Fix it here, then list it on its own or put it back in the queue.</>
+                ) : job.state === 'working' ? (
+                  <><b>Publishing on eBay now.</b> It leaves this page once it is live{gl.left.includes('shop') ? ', or stays with your shop still to do' : ''}.</>
+                ) : (
+                  <><b>In the eBay queue{job.created_at ? ` since ${when(job.created_at)}` : ''}.</b> It goes up at your daily pace, with the portal open or closed.{job.error ? ` Last try: ${job.error}` : ''}</>
+                )}
+              </span>
+              {refusedJob ? (
+                <button type="button" className={styles.goFix} disabled={jobBusy || !gl.can.ebay}
+                  title={!gl.can.ebay ? `Before eBay: ${firstBlock('ebay')?.text ?? 'a check fails'}` : undefined}
+                  onClick={requeue}>{jobBusy ? 'Queueing' : 'Back in the queue'}</button>
+              ) : job.state === 'queued' && (
+                <button type="button" className={styles.goFix} disabled={jobBusy}
+                  onClick={() => jobAct(() => onCancelJob(job.id))}>{jobBusy ? 'Taking it out' : 'Take it out of the queue'}</button>
+              )}
+            </div>
+          )}
+
           <GoLiveList gl={gl} row={row} onGo={goTo} parcel={parcel} onParcel={(box) => change({ package: box })}
-            onWrite={writeWords} writing={writing} onPrice={setPrice} eView={eView} />
+            onWrite={writeWords} writing={writing} onPrice={setPrice} eView={eView}
+            onCatalogue={tryCatalogue} looking={looking} />
 
           {problem && <p className={styles.problem} role="alert">{problem}</p>}
           {!a.modelled && (
@@ -526,10 +797,11 @@ function Pack({ row, base, baseGl, tenantId, fees, suppliers, onSource, onList, 
             <div ref={confirmRef}>
               <Card raised className={styles.confirm}>
                 <CardHead title="Publish to eBay"
-                  note="eBay chose the category from the title. It is the one field nobody can check in advance." />
+                  note="Checked with eBay: the category, the details it needs, and anything that stops it. Nothing is live until Publish." />
 
                 <div className={styles.confirmGrid}>
-                  <ConfirmItem label="Category" value={confirm.category.name} sub={`#${confirm.category.id}`} />
+                  <ConfirmItem label="Category" words value={confirm.category?.name ?? `#${confirm.category?.id ?? '?'}`}
+                    sub={confirm.category ? `#${confirm.category.id}, ${{ card: 'where the proving listing sits', ebay: 'eBay\'s suggestion', chosen: 'your choice' }[confirm.category.source]}` : null} />
                   <ConfirmItem label="Price" value={formatGbp(confirm.price)} />
                   <div className={styles.confirmItem}>
                     <span className={styles.confirmLabel}>Quantity</span>
@@ -544,29 +816,76 @@ function Pack({ row, base, baseGl, tenantId, fees, suppliers, onSource, onList, 
                       <span className={styles.confirmWarn}>Shop limit is {a.l.max_qty} per order</span>
                     )}
                   </div>
-                  <ConfirmItem label="Photographs" value={confirm.images} />
+                  <ConfirmItem label="Photographs" value={confirm.images} sub={confirm.image_source === 'catalogue' ? 'from eBay\'s catalogue' : 'yours'} />
                   <ConfirmItem label="You keep" value={formatGbp(eView.keep)} tone="positive" />
                   <ConfirmItem label="Parcel" value={draft.package?.weight_kg ? `${draft.package.weight_kg}kg` : '--'}
                     sub={draft.package?.length_cm ? `${draft.package.length_cm} x ${draft.package.width_cm} x ${draft.package.height_cm}cm` : null} />
+                  {confirm.gtin && <ConfirmItem label="Barcode" value={confirm.gtin} sub={confirm.catalogue ? `in eBay's catalogue, ePID ${confirm.catalogue.epid}` : 'sent with the listing'} />}
                 </div>
+
+                {confirm.category_differs && confirm.suggested && (
+                  <div className={styles.confirmNote} data-tone="warning">
+                    <Icon name="IconInfo" className={styles.btnIcon} />
+                    <span>eBay would file it under <b>{confirm.suggested.name}</b> (#{confirm.suggested.id}) from the title. The one above is where the listing that proves the market sits.</span>
+                    {confirm.category?.id !== confirm.suggested.id && (
+                      <button type="button" className={styles.goFix} disabled={busy}
+                        onClick={() => { setCategoryChoice(confirm.suggested.id); review({ category_id: confirm.suggested.id }); }}>
+                        Use eBay's
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {confirm.missing?.length > 0 && (
+                  <div className={styles.details}>
+                    <span className={styles.confirmLabel}>eBay needs these for this category</span>
+                    <div className={styles.detailFields}>
+                      {confirm.missing.map((m) => (
+                        <label key={m.name} className={styles.parcelField}>
+                          <span>{m.name}</span>
+                          {m.mode === 'SELECTION_ONLY' && m.values?.length ? (
+                            <select className={styles.detailInput} value={draft.aspects?.[m.name] ?? ''}
+                              onChange={(e) => change({ aspects: { ...(draft.aspects ?? {}), [m.name]: e.target.value } })}>
+                              <option value="">Choose</option>
+                              {m.values.map((v) => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                          ) : (
+                            <input className={styles.detailInput} list={`${row.id}-${m.name}`} value={draft.aspects?.[m.name] ?? ''}
+                              onChange={(e) => change({ aspects: { ...(draft.aspects ?? {}), [m.name]: e.target.value } })} />
+                          )}
+                          {m.mode !== 'SELECTION_ONLY' && m.values?.length > 0 && (
+                            <datalist id={`${row.id}-${m.name}`}>{m.values.map((v) => <option key={v} value={v} />)}</datalist>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                    <button type="button" className={styles.ghost} disabled={busy} onClick={() => review()}>Check again</button>
+                  </div>
+                )}
+
+                {confirm.problems?.length > 0 && (
+                  <ul className={styles.confirmProblems}>
+                    {confirm.problems.map((x) => <li key={x}><Icon name="IconX" className={styles.btnIcon} />{x}</li>)}
+                  </ul>
+                )}
+
+                {confirm.limits && (
+                  <p className={styles.confirmLimit}>
+                    This month: <b data-num>{confirm.limits.monthUsed}</b> of <span data-num>{confirm.limits.monthly}</span> listed on eBay.
+                  </p>
+                )}
 
                 <p className={styles.confirmTitle}>{confirm.title ?? draft.title}</p>
 
                 <div className={styles.confirmActions}>
                   <button type="button" className={styles.ghost} onClick={() => setConfirm(null)}>Back</button>
-                  <button type="button" className={styles.primary} disabled={busy}
+                  <button type="button" className={styles.primary} disabled={busy || confirm.problems?.length > 0}
+                    title={confirm.problems?.length ? confirm.problems[0] : undefined}
                     onClick={async () => {
                       setBusy(true);
                       setProblem(null);
                       try {
-                        await onList({
-                          price: confirm.price,
-                          quantity: qty,
-                          package: draft.package,
-                          title: draft.title,
-                          description: draft.description,
-                          images: draft.images,
-                        });
+                        await onList(listing({ price: confirm.price }));
                         setConfirm(null);
                       } catch (e) {
                         setProblem(e.message);
@@ -625,6 +944,16 @@ function Pack({ row, base, baseGl, tenantId, fees, suppliers, onSource, onList, 
                 </header>
                 <ListingComposer listing={a.l ?? row.listing} draft={draft} onChange={change}
                   onGenerate={generate} onUpload={upload} notMine={notMine} />
+                {draft.catalogue?.epid && (
+                  <div className={styles.catalogue}>
+                    {draft.catalogue.images?.[0] && <img src={draft.catalogue.images[0]} alt="" loading="lazy" />}
+                    <span className={styles.catalogueText}>
+                      <b>eBay's catalogue</b>, ePID {draft.catalogue.epid}{draft.catalogue.title ? `: ${draft.catalogue.title}` : ''}.{' '}
+                      {(draft.images ?? []).length ? 'Your own photos go up instead.' : `Its ${draft.catalogue.images?.length ?? ''} photos go up on eBay. Your shop still needs yours.`}
+                    </span>
+                    <button type="button" className={styles.revert} onClick={() => change({ catalogue: null })}>Remove</button>
+                  </div>
+                )}
                 <Parcel box={draft.package} suggest={parcel} onChange={(box) => change({ package: box })} />
               </section>
             </div>
@@ -721,7 +1050,7 @@ function Pack({ row, base, baseGl, tenantId, fees, suppliers, onSource, onList, 
 // The go-live checklist: one column per channel the card is meant for. A channel already started says so; one
 // still to do lists its checks, green when met, amber when it is hers to weigh, red when it holds the button, each
 // with the one thing that fixes it.
-function GoLiveList({ gl, row, onGo, parcel, onParcel, onWrite, writing, onPrice, eView }) {
+function GoLiveList({ gl, row, onGo, parcel, onParcel, onWrite, writing, onPrice, eView, onCatalogue, looking }) {
   return (
     <section className={styles.golive} aria-label="Going live">
       {gl.wants.map((c) => (
@@ -757,6 +1086,11 @@ function GoLiveList({ gl, row, onGo, parcel, onParcel, onWrite, writing, onPrice
                       <button type="button" className={styles.goFix} onClick={() => onParcel({ weight_kg: parcel.weight_kg, length_cm: parcel.length_cm, width_cm: parcel.width_cm, height_cm: parcel.height_cm })}>
                         Use {parcel.weight_kg}kg, {parcel.label}
                       </button>
+                    ) : x.catalogue ? (
+                      <span className={styles.goFixes}>
+                        <button type="button" className={styles.goFix} disabled={looking} onClick={onCatalogue}>{looking ? 'Looking' : 'Try eBay\'s catalogue'}</button>
+                        <button type="button" className={styles.goFix} onClick={() => onGo(x.to)}>Add photos</button>
+                      </span>
                     ) : x.write ? (
                       <button type="button" className={styles.goFix} disabled={writing} onClick={onWrite}>{writing ? 'Writing' : 'Write it'}</button>
                     ) : x.key === 'price' && c === 'ebay' && eView.position && !eView.position.inMarket ? (
@@ -818,11 +1152,11 @@ function Proof({ icon, value, label, tone }) {
   );
 }
 
-function ConfirmItem({ label, value, sub, tone }) {
+function ConfirmItem({ label, value, sub, tone, words = false }) {
   return (
     <div className={styles.confirmItem}>
       <span className={styles.confirmLabel}>{label}</span>
-      <span className={`${styles.confirmValue} ${tone ? styles[tone] : ''}`} data-num>{value}</span>
+      <span className={`${styles.confirmValue} ${tone ? styles[tone] : ''}`} data-num={words ? undefined : true}>{value}</span>
       {sub && <span className={styles.confirmSub}>{sub}</span>}
     </div>
   );

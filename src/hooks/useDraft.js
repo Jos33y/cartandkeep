@@ -8,16 +8,27 @@ import { supabase } from '@lib/supabase';
  * lose a rewritten title, and saved on a delay so typing is not a write per
  * keystroke.
  */
-export function useDraft(candidate, tenantId) {
+//
+// onSaved hands each saved draft back to the page, so the closed row, its checks and anything sent in bulk read
+// what she wrote rather than what the page loaded.
+export function useDraft(candidate, tenantId, { onSaved, onRead } = {}) {
   const [draft, setDraft] = useState(candidate?.draft ?? {});
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(null);
   const timer = useRef(null);
   const latest = useRef(draft);
+  // Drafts this hook saved and handed back. When one returns as the candidate's draft it is already here, and
+  // taking it again would drop whatever she typed while it was saving.
+  const ours = useRef(new WeakSet());
+  const told = useRef(onSaved);
+  told.current = onSaved;
+  const toldRead = useRef(onRead);
+  toldRead.current = onRead;
 
   // A row opened after another was edited would otherwise show the first one's
   // draft.
   useEffect(() => {
+    if (candidate?.draft && ours.current.has(candidate.draft)) return;
     setDraft(candidate?.draft ?? {});
     latest.current = candidate?.draft ?? {};
   }, [candidate?.id, candidate?.draft]);
@@ -31,7 +42,9 @@ export function useDraft(candidate, tenantId) {
       .eq('id', candidate.id)
       .eq('tenant_id', tenantId);
     setSaving(false);
-    if (error) setFailed(error.message);
+    if (error) { setFailed(error.message); return; }
+    if (value) ours.current.add(value);
+    told.current?.(value);
   }, [candidate?.id, tenantId]);
 
   const change = useCallback((patch) => {
@@ -62,7 +75,10 @@ export function useDraft(candidate, tenantId) {
     const { data, error } = await supabase.functions.invoke('ebay-compose', {
       body: { tenant_id: tenantId, candidate_id: candidate.id, kind },
     });
-    if (error || data?.error) throw new Error(data?.error ?? error.message);
+    // The shop page it read the first time, back to the page: its facts, and a barcode for eBay's catalogue.
+    const said = data ?? await error?.context?.json?.().catch(() => null);
+    if (said?.read) toldRead.current?.(said.read);
+    if (error || data?.error) throw new Error(said?.error ?? data?.error ?? error.message);
     if (data?.conflict) throw new Error(`The sources disagree: ${data.conflict}. Check the product before listing.`);
     return kind === 'title' ? data.titles : data.description;
   }, [candidate?.id, tenantId]);

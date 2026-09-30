@@ -76,6 +76,26 @@ export function parcelFor(a) {
   return out;
 }
 
+// A barcode worth matching in eBay's catalogue: 8, 12, 13 or 14 digits with a correct check digit. The same test
+// the eBay function runs, so the button only shows where the function can use it.
+export function validGtin(v) {
+  const s = String(v ?? '').replace(/\s/g, '');
+  if (!/^(\d{8}|\d{12}|\d{13}|\d{14})$/.test(s)) return null;
+  const digits = s.split('').map(Number);
+  const check = digits.pop();
+  const sum = digits.reverse().reduce((acc, d, i) => acc + d * (i % 2 === 0 ? 3 : 1), 0);
+  return (10 - (sum % 10)) % 10 === check ? s : null;
+}
+export function gtinOf(row) {
+  const m = row.margin ?? {};
+  const l = row.listing ?? {};
+  for (const v of [m.shelf?.gtin, m.cost_from?.gtin, m.gtin, l.gtin, l.ean]) {
+    const g = validGtin(v);
+    if (g) return g;
+  }
+  return null;
+}
+
 const shopImagesOf = (row) => new Set([...(row.listing?.images ?? []), row.image_url].filter(Boolean));
 
 /*
@@ -129,7 +149,11 @@ export function checksFor(channel, a, row, draft) {
       : title.length > 80
         ? { key: 'title', hard: true, ok: false, text: `Title is ${title.length} characters, over 80`, fix: 'Shorten it', to: 'listing' }
         : { key: 'title', hard: true, ok: true, text: `Title, ${title.length} of 80`, to: 'listing' });
-    out.push({ key: 'photos', hard: true, ...photos, to: 'listing' });
+    // eBay's own catalogue photos stand in for hers on eBay, never on her shop.
+    const cat = draft.catalogue?.epid && !images.length;
+    out.push(cat
+      ? { key: 'photos', hard: true, ok: true, text: 'eBay\'s catalogue photos', to: 'listing' }
+      : { key: 'photos', hard: true, ...photos, ...(!photos.ok && !theirs.length && gtinOf(row) ? { fix: 'Try eBay\'s catalogue', catalogue: true } : {}), to: 'listing' });
     out.push({ key: 'words', hard: true, ...words, to: 'listing' });
     const box = draft.package ?? {};
     out.push(Number(box.weight_kg) > 0

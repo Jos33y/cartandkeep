@@ -136,7 +136,8 @@ for (const [i, { card, g }] of want.entries()) {
 }
 
 fs.mkdirSync('research/review', { recursive: true });
-const out = `research/review/resource-${date}.csv`;
+// Named after the review it came from, so two searches on one day never overwrite each other.
+const out = `research/review/resource-${path.basename(reviewPath, '.csv').replace(/^store-/, '').replace(/-review/, '')}.csv`;
 const cols = Object.keys(results[0]);
 const cell = (v) => (/[",\n]/.test(String(v ?? '')) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ''));
 fs.writeFileSync(out, [cols.join(','), ...results.map((r) => cols.map((c) => cell(r[c])).join(','))].join('\n') + '\n');

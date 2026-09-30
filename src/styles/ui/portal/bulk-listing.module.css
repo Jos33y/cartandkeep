@@ -1,0 +1,217 @@
+/* The bar along the bottom once cards are ticked: the same dark bar as Candidates, with what each channel leaves out. */
+.bar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--s-5) + env(safe-area-inset-bottom, 0px));
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  width: max-content;
+  max-width: min(820px, calc(100vw - 2 * var(--s-4)));
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--c-ink);
+  color: var(--c-base);
+  box-shadow: var(--e-3);
+  transform: translateX(-50%);
+  animation: barIn var(--dur-settle) var(--ease-out) both;
+}
+
+@keyframes barIn { from { opacity: 0; transform: translate(-50%, 8px); } }
+
+.barCount { margin-right: var(--s-2); font-size: var(--t-label); font-weight: 600; white-space: nowrap; }
+.barCount [data-num] { font-family: var(--font-data); }
+.barIcon { width: 14px; height: 14px; flex-shrink: 0; }
+
+.barQuiet, .barMain {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-md);
+  font-size: var(--t-caption);
+  white-space: nowrap;
+  color: var(--c-base);
+  transition: background var(--dur) var(--ease);
+}
+
+.barQuiet:hover:not(:disabled) { background: rgba(250, 246, 239, 0.1); }
+.barMain { padding: 0 var(--s-4); background: var(--c-action); font-weight: 600; color: var(--c-surface); }
+.barMain:hover:not(:disabled) { background: var(--c-action-strong); }
+.barQuiet:disabled, .barMain:disabled { opacity: 0.45; cursor: not-allowed; }
+.bar button:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+/* Why the rest are left out, in the page's own words. */
+.barWhy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--s-3);
+  flex-basis: 100%;
+  padding: 2px 0 2px;
+  font-size: var(--t-micro);
+  line-height: var(--lh-snug);
+  color: var(--c-on-dark-soft, rgba(250, 246, 239, 0.7));
+}
+
+.barTrack { flex: 1; min-width: 120px; height: 4px; border-radius: var(--r-full); background: rgba(250, 246, 239, 0.16); overflow: hidden; }
+.barTrack i { display: block; height: 100%; background: var(--c-action); transition: width 240ms var(--ease-out); }
+
+/* The check sheet. */
+.top { padding-bottom: var(--s-4); }
+.top > :global(.micro) { margin-bottom: var(--s-1); }
+.title { font-size: 1.25rem; font-weight: 560; letter-spacing: -0.02em; }
+.lead { max-width: 60ch; margin-top: var(--s-2); font-size: var(--t-label); line-height: var(--lh-snug); color: var(--c-ink-soft); }
+
+.progress { height: 4px; margin-top: var(--s-4); border-radius: var(--r-full); background: var(--c-sunk); overflow: hidden; }
+.progress i { display: block; height: 100%; border-radius: var(--r-full); background: var(--c-action); transition: width 240ms var(--ease-out); }
+.progress i[data-done] { background: var(--c-positive); }
+
+.limits { margin-top: var(--s-2); font-size: var(--t-micro); color: var(--c-ink-faint); }
+.limits b { font-family: var(--font-data); font-weight: 600; color: var(--c-ink); }
+
+.body { gap: var(--s-3); }
+
+.differ {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-warning-wash);
+  font-size: var(--t-caption);
+  line-height: var(--lh-snug);
+  color: var(--c-warning);
+}
+
+.differ > span { flex: 1; min-width: 220px; }
+.differIcon { flex-shrink: 0; width: 15px; height: 15px; }
+
+.pill {
+  min-height: 30px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  color: var(--c-ink);
+  white-space: nowrap;
+}
+
+.pill:hover { border-color: var(--c-control); }
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  overflow: hidden;
+}
+
+.row {
+  --tone: var(--c-line-strong);
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto 132px;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-top: 1px solid var(--c-line);
+}
+
+.row:first-child { border-top: none; }
+.row[data-status='ok'] { --tone: var(--c-positive); }
+.row[data-status='held'], .row[data-status='error'] { --tone: var(--c-negative); }
+.row[data-status='checking'] { --tone: var(--c-action); }
+.row[data-status='wait'] { --tone: var(--c-warning); }
+
+.thumb { width: 40px; height: 40px; border: 1px solid var(--c-line); border-radius: var(--r-sm); background: var(--c-sunk); object-fit: contain; }
+img.thumb { background: #fff; }
+
+.what { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.name { overflow: hidden; font-size: var(--t-caption); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; color: var(--c-ink); }
+.cat { overflow: hidden; font-size: var(--t-micro); text-overflow: ellipsis; white-space: nowrap; color: var(--c-ink-faint); }
+.why { font-size: var(--t-micro); line-height: var(--lh-snug); color: var(--c-negative); }
+
+/* Where the card and eBay disagree: both categories, hers to choose. */
+.choice { display: flex; flex-wrap: wrap; gap: 4px; }
+.option {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  max-width: 100%;
+  min-height: 26px;
+  padding: 2px var(--s-2);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-sm);
+  font-size: var(--t-micro);
+  text-align: left;
+  color: var(--c-ink-soft);
+}
+
+.option[aria-checked='true'] { border-color: var(--c-ink); background: var(--c-raised); color: var(--c-ink); box-shadow: inset 0 0 0 1px var(--c-ink); }
+.optionLabel { flex-shrink: 0; font-weight: 600; color: var(--c-ink-faint); }
+.option[aria-checked='true'] .optionLabel { color: var(--c-ink); }
+.option:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 1px; }
+
+/* Details eBay needs, filled in on the row: saved to her draft, then eBay is asked again. */
+.details { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-2); margin-top: var(--s-1); padding: var(--s-2); border: 1px dashed color-mix(in srgb, var(--c-negative) 45%, transparent); border-radius: var(--r-md); }
+.detailsHead { flex-basis: 100%; font-size: var(--t-micro); font-weight: 600; color: var(--c-negative); }
+.detail { display: flex; flex-direction: column; gap: 3px; min-width: 140px; flex: 1 1 140px; font-size: var(--t-micro); color: var(--c-ink-soft); }
+.detail select, .detail input { min-height: 32px; padding: 0 var(--s-2); border: 1px solid var(--c-line-mid); border-radius: var(--r-sm); background: var(--c-surface); font-size: var(--t-caption); color: var(--c-ink); }
+.detail select:focus, .detail input:focus { outline: none; border-color: var(--c-control); }
+.pill:disabled, .option:disabled { opacity: 0.5; cursor: not-allowed; }
+.row { align-items: start; }
+.row > .thumb, .row > .price, .row > .state { margin-top: 2px; }
+
+.price { font-family: var(--font-data); font-size: var(--t-caption); color: var(--c-ink); }
+
+.state { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-micro); font-weight: 600; color: var(--c-ink-soft); }
+.state i { flex-shrink: 0; width: 7px; height: 7px; border-radius: var(--r-full); background: var(--tone); }
+.row[data-status='checking'] .state i { animation: pulse 0.9s var(--ease) infinite alternate; }
+.row[data-status='ok'] .state { color: var(--c-positive); }
+.row[data-status='held'] .state, .row[data-status='error'] .state { color: var(--c-negative); }
+@keyframes pulse { from { opacity: 0.3; } to { opacity: 1; } }
+
+.foot { flex-wrap: wrap; }
+
+.primary, .ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0 var(--s-5);
+  border-radius: var(--r-md);
+  font-size: var(--t-label);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.primary { background: var(--c-action-strong); color: #fff; box-shadow: var(--e-1); }
+.primary:hover:not(:disabled) { filter: brightness(0.93); }
+.primary:disabled, .ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+.ghost { padding: 0 var(--s-4); border: 1px solid var(--c-control); color: var(--c-ink-soft); }
+.ghost:hover { background: var(--c-sunk); }
+
+@media (max-width: 640px) {
+  .bar { left: var(--s-3); right: var(--s-3); width: auto; max-width: none; padding: var(--s-2) var(--s-2) var(--s-3) var(--s-3); transform: none; animation: none; }
+  /* The count and Clear on one line, the two actions side by side under them, the reasons last. */
+  .barCount { flex: 1; order: 0; }
+  .barClear { order: 1; }
+  .barGo { order: 2; flex: 1 1 140px; justify-content: center; white-space: normal; text-align: center; min-height: 40px; }
+  .barQuiet.barGo { border: 1px solid rgba(250, 246, 239, 0.22); }
+  .barWhy { order: 3; }
+  .row { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  .state { grid-column: 2 / 4; }
+  .foot > button { flex: 1; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar { animation: none; }
+  .row[data-status='checking'] .state i { animation: none; }
+}

@@ -1,6 +1,7 @@
 // Writes eBay titles and descriptions from facts already on the candidate.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { pageUrlOf, parseTitles, readShopPage } from '../_shared/shop-page.ts';
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -60,8 +61,9 @@ async function claude(system: string, user: string, maxTokens = 1000, images: st
 }
 
 // The only facts the model may use.
-function facts(c: Record<string, never>) {
-  const l = (c.listing ?? {}) as Record<string, never>;
+// deno-lint-ignore no-explicit-any
+function facts(c: Record<string, any>) {
+  const l = c.listing ?? {};
   return [
     ['Shop title', l.title],
     ['Brand', l.brand],
@@ -71,88 +73,13 @@ function facts(c: Record<string, never>) {
     ['Features', Array.isArray(l.features) ? (l.features as string[]).join('; ') : null],
     ['Pack size on the shelf', l.unit_price],
     ['Search this was found by', c.external_ref],
-    ['A competing listing that is selling', (c.entry as Record<string, never>)?.title],
+    ['A competing listing that is selling', c.entry?.title],
   ]
     .filter(([, v]) => v)
     .map(([k, v]) => `${k}: ${v}`)
     .join('\n');
 }
 
-
-// Reading the shop page here, the first time she asks, so a newly approved card never waits on a script.
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
-
-const plain = (html: unknown) => String(html ?? '')
-  .replace(/<(br|\/p|\/li|\/h\d)\s*\/?>/gi, '\n')
-  .replace(/<li[^>]*>/gi, '- ')
-  .replace(/<[^>]+>/g, ' ')
-  .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#39;|&rsquo;/g, "'").replace(/&quot;/g, '"')
-  .replace(/[ \t]+/g, ' ').replace(/\n\s+/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-
-const bullets = (d: string) => d.split('\n').filter((l) => l.startsWith('- ')).map((l) => l.slice(2).trim()).filter(Boolean);
-
-// A shop's own name in the brand field would put another retailer's name in her title.
-const squash = (v: unknown) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
-function brandOf(brand: unknown, url: string) {
-  const host = squash(new URL(url).hostname.replace(/^www\./, '').split('.')[0]);
-  const b = squash(brand);
-  return b && host && (b === host || host.includes(b) || b.includes(host)) ? null : (brand as string) || null;
-}
-
-async function fetchText(url: string, accept: string) {
-  const res = await fetch(url, {
-    headers: { 'user-agent': UA, 'accept-language': 'en-GB,en;q=0.9', accept },
-    redirect: 'follow',
-    signal: AbortSignal.timeout(15000),
-  });
-  return res.ok ? await res.text() : null;
-}
-
-async function readShopPage(url: string): Promise<Record<string, unknown> | null> {
-  const clean = url.split('?')[0].replace(/\/$/, '');
-  let read: Record<string, unknown> | null = null;
-
-  if (/\/products\//.test(clean)) {
-    const body = await fetchText(`${clean}.json`, 'application/json').catch(() => null);
-    const p = body ? JSON.parse(body)?.product : null;
-    if (p) {
-      const description = plain(p.body_html);
-      read = {
-        title: p.title,
-        brand: p.vendor || null,
-        images: (p.images ?? []).map((i: { src?: string }) => i.src).filter(Boolean),
-        description,
-        features: bullets(description),
-        shop_category: p.product_type || null,
-        product_code: p.variants?.[0]?.sku ?? null,
-        in_stock: p.variants?.[0]?.available ?? null,
-      };
-    }
-  }
-
-  if (!read) {
-    const html = await fetchText(url, 'text/html').catch(() => null);
-    if (!html) return null;
-    const blocks = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)]
-      .flatMap((m) => { try { const j = JSON.parse(m[1]); return Array.isArray(j) ? j : j['@graph'] ?? [j]; } catch { return []; } });
-    const p = blocks.find((b) => [].concat(b['@type']).includes('Product'));
-    if (!p) return null;
-    const crumbs = blocks.find((b) => [].concat(b['@type']).includes('BreadcrumbList'));
-    const description = plain(p.description);
-    read = {
-      title: p.name,
-      brand: typeof p.brand === 'string' ? p.brand : p.brand?.name ?? null,
-      images: [].concat(p.image ?? []).map((i: unknown) => (typeof i === 'string' ? i : (i as { url?: string })?.url)).filter(Boolean),
-      description,
-      features: bullets(description),
-      shop_category: crumbs?.itemListElement?.map((e: { name?: string; item?: { name?: string } }) => e.name ?? e.item?.name)
-        .filter(Boolean).slice(-2, -1)[0] ?? null,
-      product_code: p.sku ?? p.mpn ?? null,
-    };
-  }
-
-  return { ...read, brand: brandOf(read.brand, url), summary: null, unit_price: null, source_url: url, read_at: new Date().toISOString() };
-}
 
 const TITLE_SYSTEM = `You write eBay UK listing titles.
 
@@ -230,49 +157,64 @@ Deno.serve(async (req) => {
     if (error) return json({ error: error.message }, 500);
     if (!c) return json({ error: 'Candidate not found' }, 404);
 
-    // No read yet: take it from the shop page the card links to, keep it on the card, and carry on.
-    if (!c.listing) {
-      const url = (c.margin as { shelf?: { url?: string } } | null)?.shelf?.url;
-      const read = url ? await readShopPage(url).catch(() => null) : null;
+    // No read yet: take it from the shop page the card was costed from, keep it on the card, and carry on. Read
+    // the first time she asks, so a newly approved card never waits on a script.
+    const url = pageUrlOf(c);
+    let unread = false;
+    let fresh: Record<string, unknown> | null = null;
+    if (!c.listing && url) {
+      const read = await readShopPage(url).catch(() => null);
       if (read) {
+        fresh = read;
         (c as Record<string, unknown>).listing = read;
         await db().from('candidates').update({ listing: read }).eq('id', c.id).is('listing', null);
+      } else {
+        unread = true;
       }
     }
+    const shop = url ? new URL(url).hostname.replace(/^www\./, '') : null;
 
     // With no page at all, a title can still come from the search and the listing that sells; a
     // description cannot, because every line of it would be a guess.
     if (!c.listing && kind === 'description') {
-      return json({ error: 'There is no shop page to write this from, so the description needs writing by hand.' }, 400);
+      return json({
+        error: unread
+          ? `The page at ${shop} could not be read just now. Try again in a minute, or write the description by hand.`
+          : 'There is no shop page on this card to write from, so the description needs writing by hand.',
+      }, 400);
+    }
+    if (!c.listing && !(c.entry as Record<string, unknown> | null)?.title) {
+      return json({
+        error: unread
+          ? `The page at ${shop} could not be read just now, and there is no selling listing to go on. Try again in a minute, or write the title by hand.`
+          : 'Nothing on this card to write a title from. Write it by hand.',
+      }, 400);
     }
 
     const known = facts(c);
     // First four photos: enough to reach the back panel without paying for every angle.
-    const shots = ((c.listing as Record<string, never>)?.images as string[] ?? []).slice(0, 4);
+    const shots = ((c.listing as { images?: string[] } | null)?.images ?? []).slice(0, 4);
 
     if (kind === 'title') {
       const text = await claude(TITLE_SYSTEM, known, 600, shots);
       if (/^CONFLICT:/i.test(text.trim())) {
-        return json({ conflict: text.trim().replace(/^CONFLICT:\s*/i, '') });
+        return json({ conflict: text.trim().replace(/^CONFLICT:\s*/i, ''), read: fresh });
       }
-      let titles: string[];
-      try {
-        titles = JSON.parse(text.replace(/```json|```/g, '').trim());
-      } catch {
-        return json({ error: 'The suggestion came back malformed. Try again.' }, 502);
-      }
+      const titles = parseTitles(text);
+      if (!titles?.length) return json({ error: 'The suggestion came back without titles. Try again.', read: fresh }, 502);
       // Over 80 is rejected by eBay, so a long one is a wasted option.
-      return json({ titles: titles.filter((t) => typeof t === 'string' && t.length <= 80).slice(0, 4) });
+      return json({ titles: titles.filter((t) => t.length <= 80).slice(0, 4), read: fresh });
     }
 
     const out = await claude(DESC_SYSTEM, known, 1400, shots);
 
     // Writing through a conflict means picking whichever side makes the facts agree.
     if (/^CONFLICT:/i.test(out)) {
-      return json({ conflict: out.replace(/^CONFLICT:\s*/i, '').trim() });
+      return json({ conflict: out.replace(/^CONFLICT:\s*/i, '').trim(), read: fresh });
     }
 
-    return json({ description: out });
+    // The page it read goes back too, so the open card gets the shop's facts and barcode without a reload.
+    return json({ description: out, read: fresh });
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }

@@ -2,7 +2,9 @@ import { PriceTag } from './PriceTag';
 import { formatGbp } from '@utils/formatGbp';
 import styles from '@styles/ui/portal/market-band.module.css';
 
-// Quartiles, not low and high: one outlier would squash the scale.
+// Quartiles, not low and high: one outlier would squash the scale. Drawn from the market, the seller, her price and
+// the ghost only: where it pays is laid over that scale, never allowed to stretch it, or a loss line far under the
+// market squashes the market into a corner and starts the scale at £0.00.
 function domainOf(market, points) {
   const { p25, p75, median } = market ?? {};
   let lo;
@@ -10,7 +12,9 @@ function domainOf(market, points) {
 
   if (p25 > 0 && p75 > 0) {
     const spread = Math.max(p75 - p25, p25 * 0.25, 1);
-    lo = p25 - spread * 0.8;
+    // A wide range (Google's lowest to highest on a shop card) would pad the low end past zero; the scale starts no
+    // lower than 60% of the low edge unless a point on it sits lower.
+    lo = Math.max(p25 - spread * 0.8, p25 * 0.6);
     hi = p75 + spread * 0.8;
   } else if (median > 0) {
     lo = median * 0.5;
@@ -39,7 +43,7 @@ export function MarketBand({
   market, entry, price, keep, breakEven, floor, target, ghost = null, scale = null, listings = [], medianListed = null,
   sellsLabel = 'Where it sells', bodyLabel = 'half of all listed', medianLabel = 'median of those selling',
 }) {
-  const { lo, hi } = domainOf(market, [...(scale ?? [entry?.price, breakEven, floor]), price, ghost?.price]);
+  const { lo, hi } = domainOf(market, [...(scale ?? [entry?.price]), price, ghost?.price]);
   const at = (v) => Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100));
 
   const loss = breakEven != null ? at(breakEven) : null;
@@ -111,8 +115,16 @@ export function MarketBand({
 
       {/* The ends of the scale, with anything the scale leaves off said at the end it falls past. */}
       <div className={styles.axis}>
-        <span><span data-num>{formatGbp(lo)}</span>{market?.low != null && market.low < lo && <span className={styles.clipped}>, lowest <span data-num>{formatGbp(market.low)}</span> off the scale</span>}</span>
-        <span><span data-num>{formatGbp(hi)}</span>{market?.high != null && market.high > hi && <span className={styles.clipped}>, highest <span data-num>{formatGbp(market.high)}</span> off the scale</span>}</span>
+        <span>
+          <span data-num>{formatGbp(lo)}</span>
+          {breakEven != null && breakEven < lo && <span className={styles.clipped}>, loses under <span data-num>{formatGbp(breakEven)}</span></span>}
+          {market?.low != null && market.low < lo && <span className={styles.clipped}>, lowest <span data-num>{formatGbp(market.low)}</span> off the scale</span>}
+        </span>
+        <span>
+          <span data-num>{formatGbp(hi)}</span>
+          {floor != null && floor > hi && <span className={styles.clipped}>, your profit from <span data-num>{formatGbp(floor)}</span></span>}
+          {market?.high != null && market.high > hi && <span className={styles.clipped}>, highest <span data-num>{formatGbp(market.high)}</span> off the scale</span>}
+        </span>
       </div>
 
       {/*

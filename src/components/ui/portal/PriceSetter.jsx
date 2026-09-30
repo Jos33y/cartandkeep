@@ -19,7 +19,7 @@ export function PriceSetter({ a, market, listings = [], medianLabel, onChange })
     : market;
   // Opened once: the scale, so it does not follow the price.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const scale = useMemo(() => [entry?.price, a.price, a.breakEven, a.floor, a.position?.ref], []);
+  const scale = useMemo(() => [entry?.price, a.price, a.position?.ref], []);
   const step = (n) => onChange(Math.max(0, r2((a.price ?? 0) + n)));
 
   const chips = [

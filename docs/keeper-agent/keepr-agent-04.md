@@ -1,10 +1,10 @@
 # Keepr Agent-04: the portal, part two. Approved and listing
 
-Version 1, 30 September 2026. Cart & Keep, Brick Dev Commerce. Read after keepr-agent-03.md, which holds the money model and the terms this file uses.
+Version 2, 30 September 2026 (after going live part 3). Cart & Keep, Brick Dev Commerce. Read after keepr-agent-03.md, which holds the money model and the terms this file uses.
 
 ## What this file is for
 
-What happens to a card after she approves it: the Approved page, how a product goes live on eBay and on her shop, what is planned for listing hundreds at once, the limits that pace it, and the rules about photos and wording that nothing may break. Then the other pages Keepr should read, the known problems, and the decisions still open.
+What happens to a card after she approves it: the Approved page, how a product goes live on eBay and on her shop, how hundreds go at once, the limits that pace it, and the rules about photos and wording that nothing may break. Then the other pages Keepr should read, the known problems, and the decisions still open.
 
 Each part says whether it is **built** (in the portal on 30 September) or **planned** (agreed, not built). Keepr treats planned behaviour as not yet true.
 
@@ -17,20 +17,22 @@ Route `/approved`, titled "Going live". Every approved card that still has a cha
 ### The header
 
 - **At proven rates:** a month kept across the approved cards, at each small seller's price and rate.
-- **Tabs:** All, Ready to go live, Needs a look, One channel left, Edited, and Find.
+- **Tabs:** All, Ready to go live, Needs a look, One channel left, Edited, In the eBay queue, Refused by eBay, Held back (after a check sheet), and Find.
+- **Above the list:** Select all (or "these" when a tab or Find is on), Ready for eBay (n), Ready for your shop (n), and the eBay queue's state: "eBay queue: 8 waiting, 1 publishing. It carries on with the portal closed."
 
 ### A row
 
-72px. A green rail for Ready to go live, amber for Needs a look; the photo; her title (or the card title); the evidence line; **one mark per channel** (Shop: To add, Draft, On sale; eBay: To list, Publishing, Live); the first thing still to do, red when it holds the button and amber when it is hers to weigh, with "+n" for the rest; List at with its market status; You keep, amber when under the profit target.
+72px. A tick box (on a phone, on the photo's corner); a green rail for Ready to go live, amber for Needs a look; the photo; her title (or the card title); the evidence line; **one mark per channel** (Shop: To add, Adding, Draft, On sale; eBay: To list, Queued, Publishing, Live); the first thing still to do, red when it holds the button and amber when it is hers to weigh, with "+n" for the rest (a card eBay refused shows "eBay refused it:" and eBay's words instead); List at with its market status; You keep, amber when under the profit target.
 
 ### An opened card
 
-1. **The strip:** Ready to go live or Needs a look, the date approved, and one sentence of what is left per channel ("Before eBay: write a title, add photos, write the description and set the parcel."). The buttons: "Add to your shop, keep £X" and "List on eBay at £Y". Only one channel works at a time; while one is working, the other is locked and says why.
-2. **Going live:** a column per channel. A started channel says where it stands (live at £X with a link; a shop draft that goes on sale from Products). A channel still to do lists its checks, each marked met (green), hers to weigh (amber) or holding the button (red), with the one thing that fixes it: Write it, Add photos, Write a title, Set the parcel (or "Use 0.25kg, large letter to 250g" from the card's postage band), Match £X, Compare.
-3. **Same item and pack?** On an eBay card whose pack is not confirmed: the compare panel from Candidates, with "Same item and pack, confirm £X" and "Different pack, find the right one".
-4. **Price:** her price with 50p steps, what she keeps, one-press prices, and the Market chart.
-5. **The listing:** title, photos, description, then the parcel. The shop's name for the product, and the shop's photos, show for reference only and never go up. A photo in the draft that is the shop's or another seller's is marked "Not yours".
-6. **Right column:** the receipt; Where to buy it (her supplier or the shelf as a label, other shops, "Found it cheaper?" behind a button, her other suppliers when she has more than one); Why this one; In search results.
+1. **The queue note**, when the card is in the eBay queue: waiting since a date ("Take it out of the queue"), publishing now, or refused with eBay's words ("Back in the queue", which sends her current draft with the category she chose before).
+2. **The strip:** Ready to go live or Needs a look, the date approved, and one sentence of what is left per channel ("Before eBay: write a title, add photos, write the description and set the parcel."). The buttons: "Add to your shop, keep £X" and "List on eBay at £Y". Only one channel works at a time; while one is working, or the card is in the eBay queue, the other is locked and says why.
+3. **Going live:** a column per channel. A started channel says where it stands (live at £X with a link; a shop draft that goes on sale from Products). A channel still to do lists its checks, each marked met (green), hers to weigh (amber) or holding the button (red), with the one thing that fixes it: Write it, Add photos, Write a title, Set the parcel (or "Use 0.25kg, large letter to 250g" from the card's postage band), Match £X, Compare.
+4. **Same item and pack?** On an eBay card whose pack is not confirmed: the compare panel from Candidates, with "Same item and pack, confirm £X" and "Different pack, find the right one".
+5. **Price:** her price with 50p steps, what she keeps, one-press prices, and the Market chart. The chart's scale is drawn from the market and her price only; a loss line or floor off the scale is named on the axis ("loses under £11.43") rather than stretching it to £0.00.
+6. **The listing:** title, photos, description, then the parcel. The shop's name for the product, and the shop's photos, show for reference only and never go up. A photo in the draft that is the shop's or another seller's is marked "Not yours".
+7. **Right column:** the receipt; Where to buy it (her supplier or the shelf as a label, other shops, "Found it cheaper?" behind a button, her other suppliers when she has more than one); Why this one; In search results.
 
 ### The checks, as built (`src/lib/golive.js`)
 
@@ -58,8 +60,8 @@ Route `/approved`, titled "Going live". Every approved card that still has a cha
 
 ### eBay
 
-1. **List on eBay** sends the card to the `ebay-list` function as a dry run. It asks eBay's category suggestions for the title and returns the first one, with the price and photo count. Nothing is sent to eBay as a listing, so the dry run does not catch a listing eBay would refuse; that only shows at Publish.
-2. The confirmation shows the category (the one field nobody can check in advance), price, quantity (5 by default, capped by the shop's per-order limit), photographs, what she keeps and the parcel.
+1. **List on eBay** sends the card to the `ebay-list` function as a check (a dry run). It returns the category (the card's, where the proving listing sits), eBay's own suggestion for her title when it differs, the item details the category requires and any still missing, where the photos come from, the barcode and catalogue match, her month's count, and every problem that would stop it. Nothing is listed.
+2. The publish step shows all of that: category with "Use eBay's" when they differ, price, quantity (5 by default, capped by the shop's per-order limit), photographs, what she keeps, the parcel, the barcode, and fields for any missing detail with "Check again". Publish stays off while any problem remains.
 3. **Publish** lists it through eBay's Inventory API: an inventory item (title, description, photos, brand, MPN, condition New, parcel), an offer (price, quantity, category, her postage, payment and returns policies, dispatch location), then publish. The result is saved on the card's `ebay` column. The card stays on Approved if the shop is still to do.
 4. From Listings she can revise the price, quantity and parcel of a live listing, read eBay's own copy, and add it to her shop.
 
@@ -68,20 +70,42 @@ Route `/approved`, titled "Going live". Every approved card that still has a cha
 1. **Add to your shop** creates a shop product as a **draft**, with her title, description and photos only. The price is the card's price.
 2. A draft goes on sale only from **Products**, once its returns and hazard fields are confirmed.
 
-### Still true in the eBay function (fixed in part 2 of the build)
+### What the eBay function sends (part 2, `_shared/ebay/listing.ts`)
 
-The function itself still falls back to the shop's title, photos and description when it is sent none. The portal never sends it a card without her own, because the checks hold the button. Only Brand and MPN go as item specifics, no barcode, and the category is eBay's first suggestion for the title.
+- Her title, description and photos only. With none, it refuses; it never falls back to the shop's. The one other source of photos is eBay's catalogue, matched by the card's barcode, and only when she chooses it on the card.
+- The category the proving listing sits in, from the research. When eBay's suggestion for her title disagrees, the publish step says so and she can take eBay's.
+- The barcode (EAN), when the card carries a valid one, and the catalogue's ePID when its photos are used.
+- Brand, MPN and every item detail the category requires. A missing required detail is asked for at the publish step and holds Publish.
+- Her monthly limit: 300 a month. The function refuses once the month's count is used; the queue also paces at 20 a day.
+- A listing already live from before this rule is still revised with what it went up with, so a price change is not held back.
 
----
+## Part 3. Going live in bulk (built)
 
-## Part 3. Going live (planned)
+Built 30 September (part 3). One rule under all of it: a card listed with forty others is sent the same fields and held by the same checks as a card listed on its own (`src/lib/bulk.js`).
 
-Agreed with Joseey on 30 September.
+### Ticking cards
 
-- **The eBay function:** no fallback to the shop's copy; the category from the card, with eBay's suggestion only as a fallback and any difference flagged; the barcode, and a link to eBay's catalogue where eBay has the product (its photos and item specifics); the item specifics each category requires. The catalogue is tested with one listing first.
-- **Bulk listing:** tick cards, then "List 40 on eBay" or "Add 40 to your shop". Only cards that pass the channel's hard checks can be ticked.
-- **Category check before publishing:** title against the category eBay would choose, flagging any that disagree with the card's own.
-- **A publishing queue** built like keeper_jobs: server-side, in batches of 25, with a monthly counter against her 300, progress on Listings, and any refusal sent back to Approved with eBay's message in full.
+- Tick any card, shift-click for a range, "Select all" for what is shown, or the quick picks "Ready for eBay" and "Ready for your shop" (every check met on that channel, and not already in the queue). Escape clears.
+- The bar along the bottom counts, per channel, how many of the ticked cards can go, and says why the rest cannot: "Left out of eBay: no parcel weight yet (12), already in the queue (2)." Only hard checks leave a card out; a soft one (over the market, under the profit target) is hers to weigh, and she ticked it.
+- One channel at a time holds in bulk too: a card in the eBay queue is left out of a shop add ("eBay is listing it first").
+
+### eBay: the check sheet, then the queue
+
+1. **Check and list N on eBay** opens a sheet. eBay checks each card, three at a time, exactly as the single publish step does. Progress shows as it goes; she can stop it and check the rest later.
+2. Each card shows its category. Where eBay would file it elsewhere from the title, both are shown and she picks, per card or "Use eBay's for all". A card she moves is checked again, because another category can need other details.
+3. A card held only for an item detail eBay requires (Type, Colour) gets the fields on its row: "Save and check again" writes them to her draft, as the card would, and asks eBay again. Anything else that holds a card (no photos of hers, the shop's wording) is named; she fixes it on the card. "Show the N held" filters the page to them.
+4. Room is her month's limit less what is listed and what is already waiting. Cards past it are marked "Next month" and not queued. The sheet says when the last should go up at her daily pace.
+5. **Queue N for eBay** adds one `listing_jobs` row per card, carrying what she checked: her title, description, photos, item details, parcel, the eBay price, quantity and the category she chose. The queue lists them strongest first, up to 20 a day and 300 a month, with the portal closed.
+6. A card eBay refuses in the queue fails at once with eBay's words, shown on the row and under "Refused by eBay". A hiccup (eBay down, a timeout) is tried again, three times at most.
+
+### Her shop in bulk
+
+**Add N to your shop** adds each as a draft, one by one, with a progress bar and Stop. Her copy and photos only. Drafts go on sale from Products once returns and hazard details are confirmed.
+
+### What Keepr can read from this
+
+- `listing_jobs`: every card's latest job, its state, attempts, eBay's words when it failed, and the request as queued.
+- A card with a failed job and eBay still to do is a card eBay said no to. The words are eBay's; Keepr reports them to her in plain terms and suggests the fix, and never requeues.
 
 ## Part 4. Limits
 
@@ -101,7 +125,7 @@ Keepr's order of keeps matters most here: with 300 listings to spend, the strong
 **The shop's photo and wording are never used on her listings.** The Candidates page tells her so. The import reads a card's `listing` (title, images, description) straight off the shop's product page, so that copy is where a draft starts.
 
 - On 30 September the Flexitol draft's description read "...at Home Bargains", and its one photo was set to go up.
-- Confirmed in code: `ebay-list` falls back to the shop's photos and description when the draft has none, and "Add to your shop" does the same for her shop. Rewrite for eBay (`ebay-compose`) writes new wording from the facts and refuses when the text and the pack disagree; nothing yet makes her use it.
+- Fixed 30 September (part 2): `ebay-list` and the queue refuse a card with no title, description or photos of hers, refuse the shop's own wording and any photo that is the shop's or another seller's, and never fall back to the shop's. "Add to your shop" sends her copy only. Rewrite for eBay (`ebay-compose`) writes new wording from the facts and refuses when the text and the pack disagree.
 - Keepr flags any title or description that names a shop, and any photo it cannot show is hers, a supplier's she may use, or eBay's catalogue image for that barcode.
 - Built: both buttons are held while a title or description names a shop, while the description is the shop's own wording, and while any photo is the shop's or another seller's.
 - Open: where her photos come from at volume. Her own shots, a supplier's with permission, or eBay's catalogue by barcode. This decides how fast 300 listings can really go live.
@@ -138,12 +162,13 @@ The Overview counts every card in the live batches, read in pages. Before 30 Sep
 
 | Decision | Who | Status |
 |---|---|---|
-| Where listing photos come from | Joseey | eBay's catalogue to be tested with one listing; her own photos for anything it lacks |
+| Where listing photos come from | Joseey | eBay's catalogue to be tested with one listing; her own photos for anything it lacks. This now decides how fast the bulk queue can really fill |
 | Channel states, lock, checklists | Joseey | built 30 September |
-| eBay function changes, bulk, category check, queue | Joseey | agreed; next |
+| eBay function changes and the queue | Joseey | built 30 September (part 2) |
+| Bulk selection, category check sheet, queue states | Joseey | built 30 September (part 3) |
 | Returns and hazard defaults for shop drafts ("30-day returns, no hazard" set once) | Joseey | suggested |
 | A weekly check of cost and stock on live listings | Joseey | suggested |
-| Market chart scale starting at £0.00 | Joseey | agreed; next build |
+| Market chart scale starting at £0.00 | Joseey | fixed 30 September (part 3) |
 
 ---
 
@@ -159,7 +184,7 @@ The Overview counts every card in the live batches, read in pages. Before 30 Sep
 **May not:**
 - approve, reject, confirm a pack, publish to eBay, add to the shop, or take a draft live;
 - change a price, a title, a photo or a description;
-- treat a planned behaviour in Part 3 as built;
+- requeue a refused card, take a card out of the queue, or tick cards for a bulk action;
 - count the "Kept" figure on Overview as her profit.
 
 Plain British English, no em dashes, no emojis, no filler. Notes are for her, not for an engineer.

@@ -48,6 +48,9 @@ export async function buildCoverage({ db, tenantId, batchId, rows, checked }) {
   const cards = await loadCards(db, tenantId);
   const byRef = new Map();
   for (const c of cards) { const l = byRef.get(c.external_ref) ?? []; l.push(c); byRef.set(c.external_ref, l); }
+  // A card kept on an older key (import-store matches by title when the key rule changes) is found by its title too.
+  const byTitle = new Map();
+  for (const c of cards) { const l = byTitle.get(c.title) ?? []; l.push(c); byTitle.set(c.title, l); }
   const batchCards = cards.filter((c) => c.batch_id === batchId);
   const now = new Date().toISOString();
   const claimed = new Set();
@@ -66,7 +69,7 @@ export async function buildCoverage({ db, tenantId, batchId, rows, checked }) {
     };
     const p = checked.get(r.key);
     const page = p ? { shop: String(p.seen_at ?? '').split(/\s+/)[0] || null, shop_url: p.seen_link || null, page_verdict: p.verdict || null, cost: num(p.seen_price) ?? num(p.page_price) } : {};
-    const same = byRef.get(r.query) ?? [];
+    const same = byRef.get(r.query) ?? byTitle.get(r.title) ?? [];
     const mine = same.find((c) => c.batch_id === batchId && !claimed.has(c.id));
     if (mine) {
       claimed.add(mine.id);

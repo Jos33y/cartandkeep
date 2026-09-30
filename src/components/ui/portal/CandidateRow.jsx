@@ -493,7 +493,7 @@ export function CandidateRow({
                           medianListed: base.marketRead?.basis === 'selling' ? base.marketRead.medianListed : null,
                         })}
                       price={a.price} keep={a.keep} breakEven={a.breakEven} floor={a.floor} target={a.target}
-                      scale={[base.entry?.price, base.price, base.breakEven, base.floor, base.position?.ref]}
+                      scale={[base.entry?.price, base.price, base.position?.ref]}
                       ghost={!a.trying && base.position && !base.position.inMarket && base.landsUnder != null
                         ? { price: base.position.ref, note: base.postedBy === 'you' && goodsUnder(base) > 0 ? `goods under ${formatGbp(goodsUnder(base))}` : `under ${formatGbp(base.landsUnder)} posted` }
                         : null} />
