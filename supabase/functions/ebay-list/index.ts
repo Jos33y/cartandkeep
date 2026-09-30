@@ -10,7 +10,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
-  CANDIDATE_FIELDS, EbayError, allowance, appToken, catalogueFor, env, gtinOf, policiesMissing, prepare, publish, userToken,
+  CANDIDATE_FIELDS, EbayError, allowance, appToken, catalogueFor, duplicateOf, env, gtinOf, policiesMissing, prepare, publish, userToken,
 } from '../_shared/ebay/listing.ts';
 
 const CORS = {
@@ -97,7 +97,11 @@ Deno.serve(async (req) => {
     if (c.ebay?.listing_id && !update) return json({ error: 'This is already on eBay.', ebay: c.ebay }, 409);
     if (update && !c.ebay?.offer_id) return json({ error: 'Only listings published from here can be updated from here.' }, 400);
 
-    const preview = await prepare(c, body, { user: access, app: appOnce }, { revising: Boolean(update) });
+    const preview = await prepare(c, body, { user: access, app: appOnce }, { revising: Boolean(update), settings: s });
+    if (!update) {
+      const dup = await duplicateOf(client, tenantId, c).catch(() => null);
+      if (dup) preview.problems.push(`Already on eBay as "${dup.title}". Two identical listings break eBay's rules.`);
+    }
     const limits = await allowance(client, tenantId, s);
 
     if (dry) {

@@ -16,7 +16,7 @@ const AT_ONCE = 3;
  * The bar along the bottom once she ticks cards. It says, per channel, how many of them can go and why the rest
  * cannot, so a bulk action never leaves a card behind without a reason.
  */
-export function BulkBar({ count, ebay, shop, adding, onEbay, onShop, onStop, onClear }) {
+export function BulkBar({ count, ebay, shop, ready, busy, onEbay, onShop, onReady, onStop, onClear }) {
   const outEbay = reasons(ebay.out);
   const outShop = reasons(shop.out);
   // Three reasons at most, then the rest as a count of cards, so the bar stays one line on a laptop.
@@ -29,15 +29,24 @@ export function BulkBar({ count, ebay, shop, adding, onEbay, onShop, onStop, onC
 
   return (
     <div className={styles.bar} role="region" aria-label="Selected cards">
-      {adding ? (
+      {busy ? (
         <>
-          <span className={styles.barCount}>Adding <span data-num>{adding.done}</span> of <span data-num>{adding.total}</span> to your shop</span>
-          <span className={styles.barTrack} aria-hidden="true"><i style={{ width: `${(adding.done / adding.total) * 100}%` }} /></span>
+          <span className={styles.barCount}>
+            {busy.kind === 'ready' ? 'Getting ready' : 'Adding to your shop'}, <span data-num>{busy.done}</span> of <span data-num>{busy.total}</span>
+          </span>
+          <span className={styles.barTrack} aria-hidden="true"><i style={{ width: `${(busy.done / busy.total) * 100}%` }} /></span>
           <button type="button" className={styles.barQuiet} onClick={onStop}>Stop</button>
         </>
       ) : (
         <>
           <span className={styles.barCount}><span data-num>{count}</span> selected</span>
+          {ready.length > 0 && (
+            <button type="button" className={`${styles.barQuiet} ${styles.barGo}`} onClick={onReady}
+              title="Writes a title and description, and finds photos, where a card has none">
+              <Icon name="IconSpark" className={styles.barIcon} />
+              Get {ready.length} ready
+            </button>
+          )}
           <button type="button" className={`${styles.barQuiet} ${styles.barGo}`} disabled={!shop.in.length} onClick={onShop}>
             <Icon name="IconShop" className={styles.barIcon} />
             {shop.in.length ? `Add ${shop.in.length} to your shop` : 'None for your shop'}

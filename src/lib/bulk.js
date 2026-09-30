@@ -1,4 +1,4 @@
-import { viewsOf } from './golive.js';
+import { parcelOf, viewsOf } from './golive.js';
 
 /*
  * What goes to eBay and to her shop, and which cards may go. One place, so a card listed on its own and a card
@@ -22,7 +22,7 @@ export function ebayRequest(whole, draft, { quantity, categoryId } = {}) {
   return {
     price: e.price,
     quantity,
-    package: draft.package,
+    package: parcelOf(e, draft),
     title: draft.title,
     description: draft.description,
     images: draft.images,

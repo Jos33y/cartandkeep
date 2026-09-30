@@ -7,7 +7,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
-  CANDIDATE_FIELDS, EbayError, allowance, appToken, env, policiesMissing, prepare, publish, userToken,
+  CANDIDATE_FIELDS, EbayError, allowance, appToken, duplicateOf, env, policiesMissing, prepare, publish, userToken,
 } from '../_shared/ebay/listing.ts';
 
 const CORS = {
@@ -92,7 +92,9 @@ async function runTenant(client: any, tenantId: string, started: number) {
       // Listed some other way since it was queued: nothing to do, and not a failure.
       if (c.ebay?.listing_id) { await finish(client, job, { state: 'done', result: c.ebay }); continue; }
 
-      const preview = await prepare(c, job.request ?? {}, { user: access, app: appOnce });
+      const preview = await prepare(c, job.request ?? {}, { user: access, app: appOnce }, { settings: s });
+      const dup = await duplicateOf(client, tenantId, c).catch(() => null);
+      if (dup) preview.problems.push(`Already on eBay as "${dup.title}". Two identical listings break eBay's rules.`);
       if (preview.problems.length) {
         await finish(client, job, { state: 'failed', error: preview.problems.join(' ') });
         done.failed++;

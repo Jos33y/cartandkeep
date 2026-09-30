@@ -520,7 +520,7 @@ export function CandidateRow({
                     ) : (
                       <p className={styles.quietText}>Not seen in a UK shop yet. The price is built on the most the eBay price allows the goods to cost.</p>
                     )}
-                    <p className={styles.quietText}>Proof it can be bought in the UK. The photo and wording are the shop&apos;s, so never used on your listings.</p>
+                    <p className={styles.quietText}>Proof it can be bought in the UK. The wording is the shop&apos;s, so never used; its photos can be, once Keepr has checked them.</p>
                     <AlsoLook names={base.store ? base.shops.slice(1) : (base.m.shops ?? [])} seen={base.store ? shopName(base.m.cost_from?.shop) : shopName(shelf?.shop)}
                       label={base.store ? 'Also stocked at' : 'Also look at'} q={encodeURIComponent(c.title)} />
                     <SourceList candidate={c} onAdd={onSource} suppliers={suppliers} compact canAdd={false} keepOf={keepOf} />

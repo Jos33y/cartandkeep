@@ -1,8 +1,10 @@
 // What goes to eBay for one card, and putting it there. Shared by ebay-list (one card, from the portal) and
 // ebay-queue (many, on a schedule), so a card cannot be listed one way by hand and another in bulk.
 //
-// The rule it enforces: her title, her description and her photos, never the shop's. The one other source of
-// photos is eBay's own catalogue, matched by barcode, which eBay provides for sellers to list with.
+// The rule it enforces: her title and her description, never the shop's. Photos are hers, eBay's own catalogue
+// for the barcode, or the shop's once Keepr has passed them (_shared/photos.ts); never another eBay seller's.
+
+import { photoSource, sourceOf } from '../photos.ts';
 
 export const EBAY = 'https://api.ebay.com';
 export const MARKETPLACE = 'EBAY_GB';
@@ -214,7 +216,7 @@ export type Request = {
 };
 
 export type Preview = {
-  sku: string; title: string; price: number; quantity: number; images: string[]; imageSource: 'hers' | 'catalogue' | 'none';
+  sku: string; title: string; price: number; quantity: number; images: string[]; imageSource: 'hers' | 'shop' | 'catalogue' | 'mixed' | 'none';
   description: string; category: { id: string; name: string | null; source: 'chosen' | 'card' | 'ebay' } | null;
   suggested: { id: string; name: string | null } | null; categoryDiffers: boolean;
   gtin: string | null; catalogue: Catalogue | null; catalogueError: string | null;
@@ -226,12 +228,46 @@ export type Preview = {
 // Stable across relists, so a second publish replaces rather than duplicates.
 export const skuOf = (id: string) => `CK-${String(id).replace(/-/g, '').slice(0, 16).toUpperCase()}`;
 
+// Whether her postage policy prices by weight: true for calculated, false for flat or free, null when unknown.
+export async function needsWeight(policyId: unknown, access: string): Promise<boolean | null> {
+  if (!policyId || !access) return null;
+  try {
+    const p = await call(`/sell/account/v1/fulfillment_policy/${policyId}`, access);
+    return ((p.shippingOptions ?? []) as Json[]).some((o) => o.costType === 'CALCULATED');
+  } catch {
+    return null;
+  }
+}
+
+// The condition IDs a category takes. 1000 is New.
+export async function conditionsFor(categoryId: string, app: string): Promise<string[] | null> {
+  const r = await call(`/sell/metadata/v1/marketplace/${MARKETPLACE}/get_item_condition_policies?filter=categoryIds:%7B${encodeURIComponent(categoryId)}%7D`, app);
+  const policy = (r.itemConditionPolicies ?? [])[0];
+  return policy ? ((policy.itemConditions ?? []) as Json[]).map((x) => String(x.conditionId)) : null;
+}
+
+// Another of her cards already live on eBay as the same product: the same barcode, or the same title. Two identical
+// listings break eBay's duplicate listing rule.
+export async function duplicateOf(client: any, tenantId: string, c: Json): Promise<Json | null> {
+  const live = () => client.from('candidates').select('id, title, ebay').eq('tenant_id', tenantId)
+    .neq('id', c.id).not('ebay->>listing_id', 'is', null).limit(1);
+  const gtin = gtinOf(c);
+  if (gtin) {
+    const { data } = await live().eq('ebay->>gtin', gtin);
+    if (data?.[0]) return data[0];
+  }
+  const { data } = await live().eq('title', c.title);
+  return data?.[0] ?? null;
+}
+
 /*
  * Everything that would go to eBay, and anything that stops it. Nothing is written. The draft is hers; the request
- * can override it; the shop's `listing` is read only for facts (brand, MPN), never for the title, words or photos.
+ * can override it; the shop's `listing` is read for facts (brand, MPN), never for the title or words. Its photos go
+ * up only once Keepr has passed them.
  */
 export async function prepare(
-  c: Json, req: Request, tokens: { user: string; app: () => Promise<string> }, { revising = false } = {},
+  c: Json, req: Request, tokens: { user: string; app: () => Promise<string> },
+  { revising = false, settings = null as Json | null } = {},
 ): Promise<Preview> {
   const d = c.draft ?? {};
   const l = c.listing ?? {};
@@ -254,12 +290,20 @@ export async function prepare(
     problems.push('The description is the shop\'s own wording.');
   }
   if (!(sell > 0)) problems.push('No price to list at.');
-  if (!revising && !(Number(box?.weight_kg) > 0)) problems.push('No parcel weight.');
+  // eBay needs the weight only when her postage policy works the cost out from it. Flat and free postage do not.
+  if (!revising && !(Number(box?.weight_kg) > 0) && await needsWeight(settings?.fulfillment, tokens.user) === true) {
+    problems.push('No parcel weight: your eBay postage policy works the cost out by weight.');
+  }
 
-  // Another shop's photos, or the proving seller's, are not hers to use.
-  const theirs = new Set(legacy ? [] : [...(l.images ?? []), c.image_url].filter(Boolean));
-  const borrowed = mine.filter((u) => theirs.has(u));
-  if (borrowed.length) problems.push(`${borrowed.length} of the photos are the shop's or another seller's.`);
+  // Only photos that may go up: hers, the shop's that Keepr passed, or eBay's catalogue. The eBay seller's photo the
+  // research found never does. A listing live from before this rule keeps what it went up with.
+  const judged = mine.map((u) => sourceOf(u, c, 'ebay'));
+  const refused = legacy ? [] : judged.filter((j) => !j.ok);
+  if (refused.length) {
+    const why = [...new Set(refused.map((r) => ('why' in r ? r.why : '')))].filter(Boolean).join('; ');
+    problems.push(refused.length === 1 ? `A photo cannot go up: ${why}.` : `${refused.length} photos cannot go up: ${why}.`);
+  }
+  const hers = judged.filter((j) => j.source === 'hers');
 
   const gtin = gtinOf(c);
   let catalogue: Catalogue | null = null;
@@ -272,10 +316,14 @@ export async function prepare(
       catalogueError = e instanceof Error ? e.message : String(e);
     }
   }
-  const useCatalogue = Boolean(wantsCatalogue && catalogue);
-  const images = (useCatalogue && !mine.length ? catalogue!.images : mine).slice(0, 12);
-  const imageSource: Preview['imageSource'] = !images.length ? 'none' : useCatalogue && !mine.length ? 'catalogue' : 'hers';
-  if (!images.length) problems.push(catalogue ? 'No photos of hers. eBay\'s catalogue has this product; choose it to use its photos.' : 'No photos of hers.');
+  // Her own photos first; then eBay's catalogue, which eBay itself supplies; then the shop's that passed.
+  const useCatalogue = Boolean(wantsCatalogue && catalogue && !hers.length);
+  const images = (useCatalogue ? catalogue!.images : mine).slice(0, 12);
+  const imageSource: Preview['imageSource'] = !images.length ? 'none'
+    : useCatalogue ? 'catalogue'
+      : legacy ? 'shop'
+        : photoSource(judged) as Preview['imageSource'];
+  if (!images.length) problems.push(catalogue ? 'No photos yet. eBay\'s catalogue has this product; Find photos on the card uses it.' : 'No photos yet: her own, or the shop\'s once Keepr has checked them.');
 
   // The category: one she chose, else the one the proving listing sat in, else eBay's first guess from her title.
   const app = await tokens.app();
@@ -286,6 +334,14 @@ export async function prepare(
     : card ? { ...card, source: 'card' as const }
       : suggested ? { ...suggested, source: 'ebay' as const } : null;
   if (!category) problems.push('No category: the card has none and eBay could not suggest one from the title.');
+
+  // Everything goes up as New. A category that does not take New is caught here, not at publish.
+  if (category && !revising) {
+    const allowed = await conditionsFor(category.id, app).catch(() => null);
+    if (allowed?.length && !allowed.includes('1000')) {
+      problems.push(`eBay does not take New in ${category.name ?? `category #${category.id}`}. Choose another category.`);
+    }
+  }
 
   const brand = catalogue?.brand ?? l.brand ?? null;
   const mpn = catalogue?.mpn ?? l.mpn ?? null;
@@ -314,12 +370,13 @@ export async function prepare(
   };
 }
 
-// The parcel in eBay's shape. Weight is required by the checks before this; size goes when all three are there.
+// The parcel in eBay's shape: the weight when there is one, the size when all three sides are there.
 function packageOf(box: Json | null) {
-  if (!box?.weight_kg) return null;
+  const sized = box?.length_cm && box?.width_cm && box?.height_cm;
+  if (!(Number(box?.weight_kg) > 0) && !sized) return null;
   return {
     packageType: 'MAILING_BOX',
-    weight: { value: Number(box.weight_kg), unit: 'KILOGRAM' },
+    ...(Number(box.weight_kg) > 0 ? { weight: { value: Number(box.weight_kg), unit: 'KILOGRAM' } } : {}),
     ...(box.length_cm && box.width_cm && box.height_cm
       ? { dimensions: { length: Number(box.length_cm), width: Number(box.width_cm), height: Number(box.height_cm), unit: 'CENTIMETER' } }
       : {}),
@@ -424,7 +481,7 @@ export async function allowance(client: any, tenantId: string, s: Json) {
   return { monthly, daily, monthUsed, dayUsed, left: Math.max(0, Math.min(monthly - monthUsed, daily - dayUsed)), monthLeft: Math.max(0, monthly - monthUsed) };
 }
 
-export const CANDIDATE_FIELDS = 'id, title, image_url, margin, listing, draft, ebay, external_ref, ebay_category_id, ebay_category_path';
+export const CANDIDATE_FIELDS = 'id, title, image_url, margin, listing, draft, ebay, external_ref, ebay_category_id, ebay_category_path, photo_checks';
 
 // Her policies, as chosen on the settings screen. Named when any is missing, because eBay refuses without them.
 export function policiesMissing(s: Json) {

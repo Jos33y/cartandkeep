@@ -11,6 +11,7 @@ import { BriefStrip, ComparePanel } from '@components/ui/portal/CandidateBrief';
 import { ShelfLabel, confirmSource } from '@components/ui/portal/CandidateRow';
 import { assess, shopName } from '@lib/assess';
 import { STATE_WORD, goLive, parcelFor, viewsOf } from '@lib/golive';
+import { isHers, noShopPhotos, photosToAdd, sourceOf } from '@lib/photos';
 import { ListingComposer } from '@components/ui/portal/ListingComposer';
 import { BulkBar, ListSheet } from '@components/ui/portal/BulkListing';
 import { ebayRequest, eligibility, jobOpen, readyFor, shopProduct, startQuantity } from '@lib/bulk';
@@ -74,7 +75,7 @@ export function ApprovedPage() {
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
   const {
-    status, rows, month, jobs, addSource, list, addToShop, lookupCatalogue, queue, cancel, retry, noteDraft, noteListing, saveAspects,
+    status, rows, month, jobs, addSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose,
   } = useApproved(tenant?.id);
   const { suppliers, remember } = useSuppliers(tenant?.id);
   const [find, setFind] = useState('');
@@ -86,8 +87,9 @@ export function ApprovedPage() {
   // The cards eBay is checking before they are queued; the cards it held back, to look at next.
   const [sheetFor, setSheetFor] = useState(null);
   const [held, setHeld] = useState(null);
-  const [adding, setAdding] = useState(null);
-  const stopAdding = useRef(false);
+  // A bulk action running from the bar: adding to the shop, or finding photos. One at a time.
+  const [busy, setBusy] = useState(null);
+  const stopBusy = useRef(false);
 
   useEffect(() => {
     if (!listed && !notice) return undefined;
@@ -128,7 +130,11 @@ export function ApprovedPage() {
   }, [picked, jobOf]);
   const forEbay = useMemo(() => split('ebay'), [split]);
   const forShop = useMemo(() => split('shop'), [split]);
-
+  // Ticked cards missing something Get it ready can write or find: a title, the description, or photos.
+  const photosFindable = (gl) => gl.left.some((c) => { const p = gl.checks[c]?.find((x) => x.key === 'photos'); return p && !p.ok && p.find; });
+  const needReady = useMemo(() => picked.filter(({ row, gl }) => !jobOpen(jobOf(row.id)) && !row.duplicate_of && (
+    !(row.draft?.title ?? '').trim() || !(row.draft?.description ?? '').trim() || photosFindable(gl)
+  )), [picked, jobOf]);
   const waiting = Object.values(jobs).filter((j) => j.state === 'queued').length;
   const publishing = Object.values(jobs).filter((j) => j.state === 'working').length;
 
@@ -143,29 +149,29 @@ export function ApprovedPage() {
 
   useEffect(() => {
     if (!selected.size || sheetFor) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape' && !adding && !typing(e.target)) setSelected(new Set()); };
+    const onKey = (e) => { if (e.key === 'Escape' && !busy && !typing(e.target)) setSelected(new Set()); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selected.size, sheetFor, adding]);
+  }, [selected.size, sheetFor, busy]);
 
   // One by one, so each lands as her own draft, and she can stop part way.
   async function addAllToShop() {
     const items = forShop.in;
-    stopAdding.current = false;
-    setAdding({ done: 0, total: items.length });
+    stopBusy.current = false;
+    setBusy({ kind: 'shop', done: 0, total: items.length });
     const failed = [];
     let done = 0;
     for (const { row, a } of items) {
-      if (stopAdding.current) break;
+      if (stopBusy.current) break;
       try {
         await addToShop({ candidateId: row.id, product: shopProduct(row, a, row.draft ?? {}) });
       } catch (e) {
         failed.push(`${row.draft?.title || a.title}: ${e.message}`);
       }
       done += 1;
-      setAdding({ done, total: items.length });
+      setBusy({ kind: 'shop', done, total: items.length });
     }
-    setAdding(null);
+    setBusy(null);
     setSelected(new Set());
     const added = done - failed.length;
     setNotice({
@@ -174,6 +180,71 @@ export function ApprovedPage() {
       to: added ? portalPath('/products') : null,
       toLabel: 'Products',
       tone: failed.length ? 'warning' : 'positive',
+    });
+  }
+
+
+  /*
+   * Get it ready for every ticked card that needs it, three at a time: a title (the first suggestion), the
+   * description, and photos, only where the card has none. What the sources disagree about, or a card with no
+   * usable photos, is left for her, and the cards are listed after.
+   */
+  async function readyAll() {
+    const items = needReady;
+    stopBusy.current = false;
+    setBusy({ kind: 'ready', done: 0, total: items.length });
+    const needYou = new Map();
+    let full = 0;
+    let done = 0;
+    let next = 0;
+    const why = (r) => (r.reason instanceof Error ? r.reason.message : String(r.reason ?? 'did not finish'));
+    const worker = async () => {
+      while (!stopBusy.current && next < items.length) {
+        const { row, gl } = items[next++];
+        const d = row.draft ?? {};
+        const want = { title: !(d.title ?? '').trim(), words: !(d.description ?? '').trim(), photos: photosFindable(gl) };
+        const [t, w, ph] = await Promise.allSettled([
+          want.title ? compose(row.id, 'title') : null,
+          want.words ? compose(row.id, 'description') : null,
+          want.photos ? (row.photo_checks ?? checkPhotos(row.id)) : null,
+        ]);
+        const patch = {};
+        const short = [];
+        if (want.title) {
+          if (t.status === 'fulfilled' && t.value?.titles?.[0]) patch.title = t.value.titles[0];
+          else short.push(t.status === 'fulfilled' && t.value?.conflict ? `the sources disagree: ${t.value.conflict}` : `no title: ${t.status === 'rejected' ? why(t) : 'none came back'}`);
+        }
+        if (want.words) {
+          if (w.status === 'fulfilled' && w.value?.description) patch.description = w.value.description;
+          else short.push(w.status === 'fulfilled' && w.value?.conflict ? `the sources disagree: ${w.value.conflict}` : `no description: ${w.status === 'rejected' ? why(w) : 'none came back'}`);
+        }
+        if (want.photos) {
+          const seen = ph.status === 'fulfilled' && ph.value ? { ...row, photo_checks: ph.value } : null;
+          const add = seen ? photosToAdd(seen, d) : null;
+          if (add) Object.assign(patch, add);
+          else short.push(seen ? (noShopPhotos(seen) ?? 'no photos to add') : `photos: ${why(ph)}`);
+        }
+        try {
+          if (Object.keys(patch).length) await patchDraft(row.id, patch);
+        } catch (e) {
+          short.push(`not saved: ${e.message}`);
+        }
+        if (short.length) needYou.set(row.id, short); else full += 1;
+        done += 1;
+        setBusy({ kind: 'ready', done, total: items.length });
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(3, items.length) }, worker));
+    setBusy(null);
+    setSelected(new Set());
+    const ids = [...needYou.keys()];
+    setNotice({
+      title: `${full} of ${done} ready to check`,
+      body: ids.length
+        ? `${ids.length} still ${ids.length === 1 ? 'needs' : 'need'} you. ${[...new Set([...needYou.values()].map((x) => x[0]))].slice(0, 2).map((x) => `${x.charAt(0).toUpperCase()}${x.slice(1)}.`).join(' ')}`
+        : 'Titles, descriptions and photos are in. Read them over, then list.',
+      tone: ids.length ? 'warning' : 'positive',
+      ...(ids.length ? { actionLabel: `Show the ${ids.length}`, onAction: () => { setHeld({ ids: new Set(ids), label: 'Need you' }); setOnly('held'); setNotice(null); } } : {}),
     });
   }
 
@@ -232,7 +303,7 @@ export function ApprovedPage() {
       case 'edited': return a.edited;
       case 'queued': return jobOpen(jobOf(row.id));
       case 'refused': return refused(x);
-      case 'held': return held?.has(row.id);
+      case 'held': return held?.ids.has(row.id);
       default: return true;
     }
   };
@@ -294,9 +365,9 @@ export function ApprovedPage() {
           <StateTab id="refused" only={only} setOnly={setOnly} icon="IconFlag"
             label="Refused by eBay" count={counts.refused} tone="negative" />
         )}
-        {held?.size > 0 && (
+        {held?.ids.size > 0 && (
           <StateTab id="held" only={only} setOnly={setOnly} icon="IconInfo"
-            label="Held back" count={assessed.filter(({ row }) => held.has(row.id)).length} tone="warning" />
+            label={held.label} count={assessed.filter(({ row }) => held.ids.has(row.id)).length} tone="warning" />
         )}
 
         <span className={styles.findWrap}>
@@ -306,38 +377,38 @@ export function ApprovedPage() {
         </span>
       </div>
 
-      <div className={styles.picker}>
-        <label className={styles.pickAll}>
-          <input type="checkbox" checked={allShown}
-            ref={(el) => { if (el) el.indeterminate = !allShown && shown.some(({ row }) => selected.has(row.id)); }}
-            onChange={() => setSelected((cur) => {
-              const next = new Set(cur);
-              shownIds.forEach((id) => (allShown ? next.delete(id) : next.add(id)));
-              return next;
-            })} />
-          <span>{allShown ? 'Clear these' : `Select ${only || find.trim() ? 'these' : 'all'}`} <span className={styles.pickCount} data-num>{shown.length}</span></span>
-        </label>
-        {counts.readyEbay > 0 && (
-          <button type="button" className={styles.pickQuick}
-            onClick={() => selectWhere(({ row, gl }) => readyFor(gl, 'ebay') && !jobOpen(jobOf(row.id)))}>
-            <Icon name="IconTag" className={styles.pickIcon} />Ready for eBay <span data-num>{counts.readyEbay}</span>
-          </button>
-        )}
-        {counts.readyShop > 0 && (
-          <button type="button" className={styles.pickQuick}
-            onClick={() => selectWhere(({ row, gl, a }) => readyFor(gl, 'shop') && a.goods != null && !jobOpen(jobOf(row.id)))}>
-            <Icon name="IconShop" className={styles.pickIcon} />Ready for your shop <span data-num>{counts.readyShop}</span>
-          </button>
-        )}
-        {(waiting > 0 || publishing > 0) && (
-          <span className={styles.queueNote} role="status">
-            <i aria-hidden="true" />
-            <span>eBay queue: {waiting > 0 && <><b data-num>{waiting}</b> waiting</>}{waiting > 0 && publishing > 0 && ', '}{publishing > 0 && <><b data-num>{publishing}</b> publishing</>}. It carries on with the portal closed.</span>
-          </span>
-        )}
-      </div>
-
       <div className={styles.list}>
+        <div className={styles.picker}>
+          <label className={styles.pickAll}>
+            <input type="checkbox" checked={allShown}
+              ref={(el) => { if (el) el.indeterminate = !allShown && shown.some(({ row }) => selected.has(row.id)); }}
+              onChange={() => setSelected((cur) => {
+                const next = new Set(cur);
+                shownIds.forEach((id) => (allShown ? next.delete(id) : next.add(id)));
+                return next;
+              })} />
+            <span>{allShown ? 'Clear these' : `Select ${only || find.trim() ? 'these' : 'all'}`} <span className={styles.pickCount} data-num>{shown.length}</span></span>
+          </label>
+          {counts.readyEbay > 0 && (
+            <button type="button" className={styles.pickQuick}
+              onClick={() => selectWhere(({ row, gl }) => readyFor(gl, 'ebay') && !jobOpen(jobOf(row.id)))}>
+              <Icon name="IconTag" className={styles.pickIcon} />Ready for eBay <span data-num>{counts.readyEbay}</span>
+            </button>
+          )}
+          {counts.readyShop > 0 && (
+            <button type="button" className={styles.pickQuick}
+              onClick={() => selectWhere(({ row, gl, a }) => readyFor(gl, 'shop') && a.goods != null && !jobOpen(jobOf(row.id)))}>
+              <Icon name="IconShop" className={styles.pickIcon} />Ready for your shop <span data-num>{counts.readyShop}</span>
+            </button>
+          )}
+          {(waiting > 0 || publishing > 0) && (
+            <span className={styles.queueNote} role="status">
+              <i aria-hidden="true" />
+              <span>eBay queue: {waiting > 0 && <><b data-num>{waiting}</b> waiting</>}{waiting > 0 && publishing > 0 && ', '}{publishing > 0 && <><b data-num>{publishing}</b> publishing</>}. It carries on with the portal closed.</span>
+            </span>
+          )}
+        </div>
+
         {shown.map(({ row, a, gl }) => (
           <Pack
             key={row.id}
@@ -360,7 +431,8 @@ export function ApprovedPage() {
               return out;
             }}
             onShop={(product) => addToShop({ candidateId: row.id, product })}
-            onCatalogue={() => lookupCatalogue(row.id)}
+            onCheckPhotos={() => checkPhotos(row.id)}
+            onShowIds={(ids, label) => { setHeld({ ids: new Set(ids), label }); setOnly('held'); }}
             onSource={async (fields) => {
               await addSource({ candidateId: row.id, tenantId: tenant.id, ...fields });
               await remember({ tenantId: tenant.id, name: fields.supplier, country: fields.ships_from });
@@ -372,10 +444,11 @@ export function ApprovedPage() {
       </div>
 
       {selected.size > 0 && !sheetFor && (
-        <BulkBar count={selected.size} ebay={forEbay} shop={forShop} adding={adding}
+        <BulkBar count={selected.size} ebay={forEbay} shop={forShop} ready={needReady} busy={busy}
+          onReady={readyAll}
           onEbay={() => setSheetFor(forEbay.in)}
           onShop={addAllToShop}
-          onStop={() => { stopAdding.current = true; }}
+          onStop={() => { stopBusy.current = true; }}
           onClear={() => setSelected(new Set())} />
       )}
 
@@ -384,7 +457,7 @@ export function ApprovedPage() {
           check={(candidateId, request) => list({ candidateId, ...request, dry: true })}
           onAspects={saveAspects}
           onQueue={queueAll}
-          onHeld={(ids) => { setHeld(new Set(ids)); setOnly('held'); setSheetFor(null); }}
+          onHeld={(ids) => { setHeld({ ids: new Set(ids), label: 'Held back' }); setOnly('held'); setSheetFor(null); }}
           onClose={() => setSheetFor(null)} />
       )}
 
@@ -396,6 +469,7 @@ export function ApprovedPage() {
             <span className={styles.toastBody}>{notice.body}</span>
           </div>
           {notice.to && <a className={styles.toastLink} href={notice.to}>{notice.toLabel}</a>}
+          {notice.onAction && <button type="button" className={styles.toastLink} onClick={notice.onAction}>{notice.actionLabel}</button>}
           <button type="button" className={styles.toastClose} aria-label="Dismiss" onClick={() => setNotice(null)}>
             <Icon name="IconX" className={styles.toastOut} />
           </button>
@@ -465,7 +539,7 @@ const joinFixes = (xs) => {
 
 function Pack({
   row, base, baseGl, job, selected, onSelect, onCancelJob, onRetryJob, onSaved, onRead,
-  tenantId, fees, suppliers, onSource, onList, onShop, onCatalogue,
+  tenantId, fees, suppliers, onSource, onList, onShop, onCheckPhotos, onShowIds,
 }) {
   const [open, setOpen] = useState(false);
   const [zoomed, setZoomed] = useState(false);
@@ -475,7 +549,10 @@ function Pack({
   const [shopping, setShopping] = useState(false);
   const [writing, setWriting] = useState(false);
   const [cheaper, setCheaper] = useState(false);
-  const [looking, setLooking] = useState(false);
+  const [finding, setFinding] = useState(false);
+  // Get it ready: running, and what it did and could not do, said once it finishes.
+  const [readying, setReadying] = useState(false);
+  const [readyNote, setReadyNote] = useState(null);
   // A category she picked over the card's, once eBay's suggestion disagreed with it.
   const [categoryChoice, setCategoryChoice] = useState(null);
   const [trial, setTrial] = useState(null);
@@ -559,23 +636,66 @@ function Pack({
     }
   }
 
-  // eBay's catalogue for the card's barcode. Its photos stand in for hers on eBay only; her shop still needs her own.
-  async function tryCatalogue() {
-    setLooking(true);
+  // Keepr's photo check, then what passed into her draft, never over photos she already has: the shop's checked
+  // photos, and eBay's catalogue entry for eBay. `again` looks afresh; otherwise an earlier check is used.
+  // One press for what a listing needs that the card can write itself: a title, the description, and photos (the
+  // shop's once checked, and eBay's catalogue). Only what is missing, never over what she has. It stops short on
+  // anything the sources disagree about, and says so.
+  const missing = {
+    title: !(draft.title ?? '').trim(),
+    words: !(draft.description ?? '').trim(),
+    photos: gl.left.some((c) => { const p = gl.checks[c]?.find((x) => x.key === 'photos'); return p && !p.ok && p.find; }),
+  };
+  const canReady = missing.title || missing.words || missing.photos;
+  async function getReady() {
+    setReadying(true);
+    setProblem(null);
+    setReadyNote(null);
+    const why = (r) => (r.reason instanceof Error ? r.reason.message : String(r.reason ?? 'did not finish'));
+    const [t, d, ph] = await Promise.allSettled([
+      missing.title ? generate('title') : null,
+      missing.words ? generate('description') : null,
+      missing.photos ? (row.photo_checks ? row.photo_checks : onCheckPhotos()) : null,
+    ]);
+    const patch = {};
+    const done = [];
+    const short = [];
+    if (missing.title) {
+      if (t.status === 'fulfilled' && t.value?.[0]) { patch.title = t.value[0]; done.push('a title'); } else short.push(`Title: ${t.status === 'rejected' ? why(t) : 'no suggestion came back'}`);
+    }
+    if (missing.words) {
+      if (d.status === 'fulfilled' && d.value) { patch.description = d.value; done.push('the description'); } else short.push(`Description: ${d.status === 'rejected' ? why(d) : 'nothing came back'}`);
+    }
+    if (missing.photos) {
+      if (ph.status === 'fulfilled' && ph.value) {
+        const seen = { ...row, photo_checks: ph.value };
+        const add = photosToAdd(seen, draft);
+        if (add) {
+          Object.assign(patch, add);
+          if (add.images) done.push(`${add.images.length} ${add.images.length === 1 ? 'photo' : 'photos'}`);
+          if (add.catalogue) done.push('eBay\'s catalogue');
+        } else short.push(`Photos: ${noShopPhotos(seen) ?? 'none to add'}. Add your own.`);
+      } else short.push(`Photos: ${why(ph)}`);
+    }
+    if (Object.keys(patch).length) change(patch);
+    setReadyNote({ done, short });
+    setReadying(false);
+  }
+
+  async function findPhotos({ again = false, apply = true } = {}) {
+    setFinding(true);
     setProblem(null);
     try {
-      const out = await onCatalogue();
-      if (out?.catalogue?.epid) {
-        change({ catalogue: { epid: out.catalogue.epid, title: out.catalogue.title, images: out.catalogue.images ?? [] } });
-      } else {
-        setProblem(out?.catalogueError
-          ? `eBay's catalogue could not be read: ${out.catalogueError}`
-          : `eBay's catalogue has no entry for barcode ${out?.gtin ?? ''}. Add your own photos.`);
-      }
+      const checks = !again && row.photo_checks ? row.photo_checks : await onCheckPhotos();
+      if (!apply) return;
+      const seen = { ...row, photo_checks: checks };
+      const patch = photosToAdd(seen, draft);
+      if (patch) change(patch);
+      else if (!(draft.images ?? []).length) setProblem(noShopPhotos(seen) ?? 'Nothing new to add. Add your own photos.');
     } catch (e) {
       setProblem(e.message);
     } finally {
-      setLooking(false);
+      setFinding(false);
     }
   }
 
@@ -643,7 +763,6 @@ function Pack({
   const alts = [...new Set((a.shops ?? a.m.shops ?? []).map(shopName))]
     .filter((n) => n && n !== 'eBay' && n !== shopName(a.best?.supplier));
   const others = (row.sources ?? []).filter((src) => src.matched_on !== 'shelf');
-  const notMine = [...new Set([...(row.listing?.images ?? []), row.image_url].filter(Boolean))];
 
   return (
     <article ref={cardRef} className={`${styles.pack} ${open ? styles.packOpen : ''}`} data-status={status}
@@ -749,6 +868,11 @@ function Pack({
             checks={a.warnings.map((w) => ({ tone: /^Loses money/.test(w) ? 'negative' : 'info', text: w }))}
             action={!confirm && (
               <span className={styles.actions}>
+                {canReady && (
+                  <button type="button" className={styles.ghost} disabled={readying || busy || shopping} onClick={getReady}>
+                    <Icon name="IconSpark" className={styles.btnIcon} />{readying ? 'Getting it ready' : 'Get it ready'}
+                  </button>
+                )}
                 {shopButton}
                 {ebayButton}
                 {lockNote && <span className={styles.lockNote}>{lockNote}</span>}
@@ -783,7 +907,19 @@ function Pack({
 
           <GoLiveList gl={gl} row={row} onGo={goTo} parcel={parcel} onParcel={(box) => change({ package: box })}
             onWrite={writeWords} writing={writing} onPrice={setPrice} eView={eView}
-            onCatalogue={tryCatalogue} looking={looking} />
+            onFind={() => findPhotos()} finding={finding}
+            onShowBoth={() => onShowIds([row.id, row.duplicate_of.id], 'Approved twice')} />
+
+          {readyNote && (readyNote.done.length > 0 || readyNote.short.length > 0) && (
+            <div className={styles.readyNote} role="status" data-tone={readyNote.short.length ? 'warning' : 'positive'}>
+              <Icon name={readyNote.short.length ? 'IconInfo' : 'IconCheck'} className={styles.btnIcon} />
+              <span>
+                {readyNote.done.length > 0 && <>Written and found: {readyNote.done.join(', ')}. Read them over before it goes live.</>}
+                {readyNote.short.map((x) => <span key={x} className={styles.readyShort}>{x}</span>)}
+              </span>
+              <button type="button" className={styles.revert} onClick={() => setReadyNote(null)}>Dismiss</button>
+            </div>
+          )}
 
           {problem && <p className={styles.problem} role="alert">{problem}</p>}
           {!a.modelled && (
@@ -943,13 +1079,17 @@ function Pack({
                   </span>
                 </header>
                 <ListingComposer listing={a.l ?? row.listing} draft={draft} onChange={change}
-                  onGenerate={generate} onUpload={upload} notMine={notMine} />
+                  onGenerate={generate} onUpload={upload}
+                  judge={(src) => sourceOf(src, row, draft, gl.left.includes('ebay') ? 'ebay' : 'shop')}
+                  checks={row.photo_checks ?? null} onCheck={() => findPhotos({ again: true, apply: false })} checking={finding} />
                 {draft.catalogue?.epid && (
                   <div className={styles.catalogue}>
                     {draft.catalogue.images?.[0] && <img src={draft.catalogue.images[0]} alt="" loading="lazy" />}
                     <span className={styles.catalogueText}>
                       <b>eBay's catalogue</b>, ePID {draft.catalogue.epid}{draft.catalogue.title ? `: ${draft.catalogue.title}` : ''}.{' '}
-                      {(draft.images ?? []).length ? 'Your own photos go up instead.' : `Its ${draft.catalogue.images?.length ?? ''} photos go up on eBay. Your shop still needs yours.`}
+                      {(draft.images ?? []).some((u) => isHers(u, draft))
+                        ? 'Your own photos go up on eBay instead.'
+                        : `${(draft.catalogue.images?.length ?? 0) === 1 ? 'Its photo goes' : `Its ${draft.catalogue.images?.length ?? ''} photos go`} up on eBay. ${(draft.images ?? []).length ? 'The photos above go on your shop.' : 'Your shop still needs photos.'}`}
                     </span>
                     <button type="button" className={styles.revert} onClick={() => change({ catalogue: null })}>Remove</button>
                   </div>
@@ -1050,7 +1190,7 @@ function Pack({
 // The go-live checklist: one column per channel the card is meant for. A channel already started says so; one
 // still to do lists its checks, green when met, amber when it is hers to weigh, red when it holds the button, each
 // with the one thing that fixes it.
-function GoLiveList({ gl, row, onGo, parcel, onParcel, onWrite, writing, onPrice, eView, onCatalogue, looking }) {
+function GoLiveList({ gl, row, onGo, parcel, onParcel, onWrite, writing, onPrice, eView, onFind, finding, onShowBoth }) {
   return (
     <section className={styles.golive} aria-label="Going live">
       {gl.wants.map((c) => (
@@ -1084,13 +1224,12 @@ function GoLiveList({ gl, row, onGo, parcel, onParcel, onWrite, writing, onPrice
                   {!x.ok && x.fix && (
                     x.key === 'parcel' && parcel?.weight_kg ? (
                       <button type="button" className={styles.goFix} onClick={() => onParcel({ weight_kg: parcel.weight_kg, length_cm: parcel.length_cm, width_cm: parcel.width_cm, height_cm: parcel.height_cm })}>
-                        Use {parcel.weight_kg}kg, {parcel.label}
+                        Use {parcel.weight_kg}kg{parcel.label ? `, ${parcel.label}` : ''}
                       </button>
-                    ) : x.catalogue ? (
-                      <span className={styles.goFixes}>
-                        <button type="button" className={styles.goFix} disabled={looking} onClick={onCatalogue}>{looking ? 'Looking' : 'Try eBay\'s catalogue'}</button>
-                        <button type="button" className={styles.goFix} onClick={() => onGo(x.to)}>Add photos</button>
-                      </span>
+                    ) : x.dupe ? (
+                      <button type="button" className={styles.goFix} onClick={onShowBoth}>{x.fix}</button>
+                    ) : x.find ? (
+                      <button type="button" className={styles.goFix} disabled={finding} onClick={onFind}>{finding ? 'Checking photos' : x.fix}</button>
                     ) : x.write ? (
                       <button type="button" className={styles.goFix} disabled={writing} onClick={onWrite}>{writing ? 'Writing' : 'Write it'}</button>
                     ) : x.key === 'price' && c === 'ebay' && eView.position && !eView.position.inMarket ? (
@@ -1110,32 +1249,38 @@ function GoLiveList({ gl, row, onGo, parcel, onParcel, onWrite, writing, onPrice
 }
 
 // The parcel as packed, which eBay's tracked services price by. Filled from the card's postage band when she agrees.
-function Parcel({ box = {}, suggest, onChange }) {
-  const v = box ?? {};
+// The parcel as packed, which eBay's calculated postage prices by. Until she changes it, it is the card's postage
+// band: shown as real values, and what goes up.
+function Parcel({ box = null, suggest, onChange }) {
+  const { label, ...band } = suggest ?? {};
+  const v = { ...band, ...(box ?? {}) };
   const set = (k) => (e) => onChange({ ...v, [k]: e.target.value === '' ? '' : Number(e.target.value) });
   return (
     <div className={styles.parcel} data-part="parcel">
       <span className={styles.parcelHead}>
         <span className={styles.parcelTitle}>Parcel, as packed</span>
-        {suggest && (
-          <button type="button" className={styles.goFix}
-            onClick={() => onChange({ ...v, ...Object.fromEntries(Object.entries(suggest).filter(([k]) => k !== 'label')) })}>
-            Use the {suggest.label}{suggest.weight_kg ? `, ${suggest.weight_kg}kg` : ''}
+        {suggest && (box ? (
+          <button type="button" className={styles.goFix} onClick={() => onChange(null)}>
+            Back to the {label ?? 'postage band'}
           </button>
-        )}
+        ) : (
+          <span className={styles.parcelFrom}>From the {label ?? 'postage band'}. Change it if it packs differently.</span>
+        ))}
       </span>
       <div className={styles.parcelFields}>
-        {[['weight_kg', 'Weight', 'kg'], ['length_cm', 'Length', 'cm'], ['width_cm', 'Width', 'cm'], ['height_cm', 'Height', 'cm']].map(([k, label, unit]) => (
+        {[['weight_kg', 'Weight', 'kg'], ['length_cm', 'Length', 'cm'], ['width_cm', 'Width', 'cm'], ['height_cm', 'Height', 'cm']].map(([k, name, unit]) => (
           <label key={k} className={styles.parcelField}>
-            <span>{label}</span>
+            <span>{name}</span>
             <span className={styles.parcelControl}>
-              <input inputMode="decimal" data-num value={v[k] ?? ''} onChange={set(k)}
-                placeholder={suggest?.[k] != null ? String(suggest[k]) : ''} />
+              <input inputMode="decimal" data-num value={v[k] ?? ''} onChange={set(k)} placeholder={k === 'weight_kg' ? 'Optional' : ''} />
               <span className={styles.parcelUnit}>{unit}</span>
             </span>
           </label>
         ))}
       </div>
+      {!(Number(v.weight_kg) > 0) && (
+        <p className={styles.parcelNote}>No weight needed for flat or free postage. If your eBay postage works the cost out by weight, eBay's check will ask for it.</p>
+      )}
     </div>
   );
 }

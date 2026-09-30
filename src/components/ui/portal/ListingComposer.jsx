@@ -8,18 +8,30 @@ const TITLE_MAX = 80;
 /*
  * The listing, before it goes up.
  *
- * Everything here is hers. The shop's photos and wording are shown for reference and never go up: the draft starts
- * empty, Suggest and Rewrite for eBay write new copy from the facts, and photos are ones she adds. A photo in the
- * draft that is the shop's or another seller's is marked, and the card will not go live with it.
+ * The words are hers: the draft starts empty, and Suggest and Write for eBay write new copy from the facts. Photos
+ * are hers, or the shop's once Keepr has checked them: no shop name or logo, no watermark, nothing laid over, a
+ * plain product shot of the same pack. Each photo in the draft says where it came from, and one that cannot go up
+ * says why; the card will not go live with it.
+ *
+ * `judge(src)` answers for one photo ({ ok, source, why }). `checks` is Keepr's answer for the shop's photos, or
+ * null before anyone has looked.
  */
-export function ListingComposer({ listing, draft, onChange, onGenerate, onUpload, notMine = [] }) {
+export function ListingComposer({
+  listing, draft, onChange, onGenerate, onUpload, judge = () => ({ ok: true, source: 'hers' }),
+  checks = null, onCheck, checking = false,
+}) {
   const title = draft.title ?? '';
   const description = draft.description ?? '';
   const images = draft.images ?? [];
-  const theirs = new Set(notMine);
-  // Her own uploads she has taken out can be put back; the shop's cannot.
+  // Her own uploads she has taken out can be put back.
   const excluded = (draft.uploads ?? []).filter((src) => !images.includes(src));
-  const reference = [...new Set(listing?.images ?? [])].filter((src) => !images.includes(src)).slice(0, 6);
+  // The shop's photos: with Keepr's verdict once checked, as they are on the page before.
+  const shopShots = checks
+    ? (checks.images ?? []).map((i) => ({ url: i.url, use: i.copy ?? i.url, ok: i.ok && !checks.brand_rule, why: checks.brand_rule ? null : i.reasons?.[0] ?? null, checked: true }))
+    : [...new Set(listing?.images ?? [])].slice(0, 6).map((url) => ({ url, use: url, ok: false, why: null, checked: false }));
+  // What goes in the draft is our copy of a passed photo, so "in use" is judged by it.
+  const inUse = (x) => images.includes(x.use) || images.includes(x.url);
+  const usable = shopShots.filter((x) => x.ok && !inUse(x));
   const [uploading, setUploading] = useState(false);
 
   const [busy, setBusy] = useState(null);
@@ -68,10 +80,15 @@ export function ListingComposer({ listing, draft, onChange, onGenerate, onUpload
     onChange({ images: next });
   }
 
-  // eBay needs one, but a photo that is not hers can always come out.
+  // eBay needs one, but a photo that cannot go up can always come out.
   function drop(src) {
-    if (images.length <= 1 && !theirs.has(src)) return;
+    if (images.length <= 1 && judge(src).ok) return;
     onChange({ images: images.filter((s) => s !== src) });
+  }
+
+  // Checked shop photos, added after hers, up to the gallery's twelve.
+  function use(urls) {
+    onChange({ images: [...images, ...urls.filter((u) => !images.includes(u))].slice(0, 12) });
   }
 
   function restore(src) {
@@ -153,7 +170,7 @@ export function ListingComposer({ listing, draft, onChange, onGenerate, onUpload
 
       <Field
         label="Photographs"
-        hint="Yours only. The first is the search tile; drag to reorder."
+        hint="Yours, or the shop's once checked. The first is the search tile; drag to reorder."
         aside={
           <span className={styles.count} data-num>
             {images.length} going up
@@ -161,7 +178,9 @@ export function ListingComposer({ listing, draft, onChange, onGenerate, onUpload
         }
       >
         <ol className={styles.gallery}>
-          {images.map((src, i) => (
+          {images.map((src, i) => {
+            const j = judge(src);
+            return (
             <li
               key={src}
               className={`${styles.shot} ${i === 0 ? styles.shotLead : ''} ${dragFrom === i ? styles.shotDrag : ''}`}
@@ -172,9 +191,11 @@ export function ListingComposer({ listing, draft, onChange, onGenerate, onUpload
               onDragEnd={() => setDragFrom(null)}
             >
               <img src={src} alt="" loading="lazy" />
-              {theirs.has(src) && <span className={styles.notMine}>Not yours</span>}
+              {!j.ok
+                ? <span className={styles.notMine} title={j.why}>{j.why ? `${j.why.charAt(0).toUpperCase()}${j.why.slice(1)}` : 'Cannot go up'}</span>
+                : j.source === 'shop' && <span className={styles.fromShop}>Shop's, checked</span>}
 
-              {(images.length > 1 || theirs.has(src)) && (
+              {(images.length > 1 || !j.ok) && (
                 <button type="button" className={styles.remove} onClick={() => drop(src)}
                   aria-label="Leave this photograph out">
                   <Icon name="IconX" className={styles.removeIcon} />
@@ -189,7 +210,8 @@ export function ListingComposer({ listing, draft, onChange, onGenerate, onUpload
                   </button>
                 )}
             </li>
-          ))}
+            );
+          })}
 
           {excluded.map((src) => (
             <li key={src} className={`${styles.shot} ${styles.shotOut}`}>
@@ -214,14 +236,50 @@ export function ListingComposer({ listing, draft, onChange, onGenerate, onUpload
           )}
         </ol>
         {!images.length && (
-          <p className={styles.reference}>No photos yet. Add your own; the shop's are for reference and never go up.</p>
+          <p className={styles.reference}>
+            {usable.length ? `No photos yet. ${usable.length === 1 ? 'One of the shop\'s passed' : `${usable.length} of the shop's passed`} the check.`
+              : checks ? 'No photos yet. Add your own.'
+                : 'No photos yet. Check the shop\'s, or add your own.'}
+          </p>
         )}
-        {reference.length > 0 && (
-          <div className={styles.refShots}>
-            <span className={styles.refLabel}>The shop's, for reference only</span>
-            <span className={styles.refRow}>
-              {reference.map((src) => <img key={src} src={src} alt="" loading="lazy" />)}
+        {(shopShots.length > 0 || (onCheck && !checks)) && (
+          <div className={styles.refShots} data-part="shop-photos">
+            <span className={styles.refHead}>
+              <span className={styles.refLabel}>
+                {checks ? `The shop's photos, checked${checks.shop ? ` from ${checks.shop}` : ''}` : 'The shop\'s photos, not checked yet'}
+              </span>
+              {onCheck && (
+                <button type="button" className={styles.referenceUse} disabled={checking} onClick={onCheck}>
+                  {checking ? 'Checking' : checks ? 'Check again' : 'Check them'}
+                </button>
+              )}
+              {usable.length > 1 && (
+                <button type="button" className={styles.referenceUse} onClick={() => use(usable.map((x) => x.use))}>
+                  Use all {usable.length}
+                </button>
+              )}
             </span>
+            {checks?.brand_rule && (
+              <p className={styles.reference}>{checks.brand} is a brand that reports listings on eBay, so its shop photos are not used. eBay's catalogue or your own.</p>
+            )}
+            {shopShots.length > 0 ? (
+              <ul className={styles.refGrid}>
+                {shopShots.map((x) => {
+                  const inDraft = inUse(x);
+                  return (
+                    <li key={x.url} className={styles.refShot} data-state={!x.checked ? 'unchecked' : x.ok ? 'passed' : 'failed'}>
+                      <img src={x.url} alt="" loading="lazy" />
+                      <span className={styles.refVerdict} title={x.why ?? undefined}>
+                        {!x.checked ? 'Not checked' : x.ok ? (inDraft ? 'In use' : 'Passed') : x.why ?? 'Not used'}
+                      </span>
+                      {x.ok && !inDraft && images.length < 12 && (
+                        <button type="button" className={styles.refUse} onClick={() => use([x.use])}>Use</button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : checks && !checks.brand_rule && <p className={styles.reference}>The shop page had no photos to check.</p>}
           </div>
         )}
       </Field>

@@ -2,6 +2,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { pageUrlOf, parseTitles, readShopPage } from '../_shared/shop-page.ts';
+import { MODEL } from '../_shared/model.ts';
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -37,7 +38,7 @@ async function claude(system: string, user: string, maxTokens = 1000, images: st
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
+      model: MODEL,
       max_tokens: maxTokens,
       system,
       messages: [{

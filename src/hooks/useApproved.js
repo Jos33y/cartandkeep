@@ -1,12 +1,30 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@lib/supabase';
 import { readPages } from '@lib/readPages';
-import { channelStates } from '@lib/golive';
+import { channelStates, gtinOf } from '@lib/golive';
 
 // Same to-one embed as the candidates read.
 function one(decisions) {
   if (Array.isArray(decisions)) return decisions[0] ?? null;
   return decisions ?? null;
+}
+
+// The same product approved more than once: the same barcode, or the same title. The card already started on a
+// channel keeps its place, else the strongest; the rest point at it. Research titles, not hers, so two drafts
+// written differently are still caught.
+const words = (t) => String(t ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+function markDuplicates(rows) {
+  const keeper = new Map();
+  const keys = (r) => [gtinOf(r) && `g:${gtinOf(r)}`, words(r.title) && `t:${words(r.title)}`].filter(Boolean);
+  // Started cards claim their keys first.
+  const order = [...rows].sort((a, b) => Number(channelStates(b).started.length > 0) - Number(channelStates(a).started.length > 0));
+  const marked = new Map();
+  for (const r of order) {
+    const hit = keys(r).map((k) => keeper.get(k)).find(Boolean);
+    if (hit && hit.id !== r.id) marked.set(r.id, { id: hit.id, title: hit.title });
+    else keys(r).forEach((k) => keeper.set(k, r));
+  }
+  return rows.map((r) => ({ ...r, duplicate_of: marked.get(r.id) ?? null }));
 }
 
 // Evidence first, then value. A median-priced row carries the bigger figure
@@ -77,7 +95,7 @@ export function useApproved(tenantId) {
         image_url, ebay_category_id, ebay_category_path, variation_count,
         score, breakdown, margin, headroom, hold, same_sku_sellers, bulky,
         entry, monthly_headroom, active_listings,
-        listing, draft, ebay, competition,
+        listing, draft, ebay, competition, photo_checks,
         store_products ( id, status, slug ),
         sold_30d, avg_sold_price, window_start, window_series,
         recommended_channels,
@@ -99,14 +117,14 @@ export function useApproved(tenantId) {
       status: 'ready',
       // A card stays until every channel it is meant for has started: live on eBay, and on her shop as a draft
       // or on sale. A card on eBay still waiting for the shop stays, with only the shop left to do.
-      rows: data.filter((c) => channelStates(c).left.length > 0).map(({ decisions, batches, candidate_sources: sources, ...c }) => ({
+      rows: markDuplicates(data.filter((c) => channelStates(c).left.length > 0).map(({ decisions, batches, candidate_sources: sources, ...c }) => ({
         ...c,
         decision: one(decisions),
         delivered_for: batches?.delivered_for ?? null,
         sources: [...(sources ?? [])].sort(
           (a, b) => Number(a.landed_unit_cost ?? 1e9) - Number(b.landed_unit_cost ?? 1e9),
         ),
-      })).sort(byListOrder),
+      })).sort(byListOrder)),
       error: null,
     });
   }, [tenantId]);
@@ -155,14 +173,43 @@ export function useApproved(tenantId) {
     setState((s) => ({ ...s, rows: s.rows.map((r) => (r.id === candidateId && !r.listing ? { ...r, listing } : r)) }));
   }, []);
 
-  // Item details filled in from the check sheet, written onto her draft as the card itself would write them.
-  const saveAspects = useCallback(async (candidateId, aspects) => {
-    const row = state.rows.find((r) => r.id === candidateId);
-    const draft = { ...(row?.draft ?? {}), aspects };
+  // A change to her draft made from the page rather than the open card (item details from the check sheet, photos
+  // found in bulk), merged over what is saved, as the card itself would write it.
+  const rowsNow = useRef(state.rows);
+  rowsNow.current = state.rows;
+  const patchDraft = useCallback(async (candidateId, patch) => {
+    const row = rowsNow.current.find((r) => r.id === candidateId);
+    const draft = { ...(row?.draft ?? {}), ...patch };
     const { error } = await supabase.from('candidates').update({ draft }).eq('id', candidateId).eq('tenant_id', tenantId);
     if (error) throw new Error(error.message);
     noteDraft(candidateId, draft);
-  }, [state.rows, tenantId, noteDraft]);
+    return draft;
+  }, [tenantId, noteDraft]);
+
+  const saveAspects = useCallback((candidateId, aspects) => patchDraft(candidateId, { aspects }), [patchDraft]);
+
+  // Title options or a description written from the shop page's facts, for a card that is not open. A conflict
+  // (the text and the pack disagree) comes back as { conflict }, never as copy.
+  const compose = useCallback(async (candidateId, kind) => {
+    const data = await invoke('ebay-compose', { tenant_id: tenantId, candidate_id: candidateId, kind });
+    if (data?.read) {
+      setState((s) => ({ ...s, rows: s.rows.map((r) => (r.id === candidateId && !r.listing ? { ...r, listing: data.read } : r)) }));
+    }
+    return data;
+  }, [tenantId]);
+
+  // Keepr's photo check: eBay's catalogue for the barcode, and each of the shop's photos looked at. The answer is
+  // kept on the card; nothing of hers changes until she, or a bulk action she starts, uses what passed.
+  const checkPhotos = useCallback(async (candidateId) => {
+    const data = await invoke('photo-check', { tenant_id: tenantId, candidate_id: candidateId });
+    setState((s) => ({
+      ...s,
+      rows: s.rows.map((r) => (r.id === candidateId
+        ? { ...r, photo_checks: data.photo_checks, ...(data.read && !r.listing ? { listing: data.read } : {}) }
+        : r)),
+    }));
+    return data.photo_checks;
+  }, [tenantId]);
 
   // dry returns what eBay would receive, including the category it suggests
   // from the title, which is the one field nobody can check in advance.
@@ -221,12 +268,6 @@ export function useApproved(tenantId) {
     return () => clearInterval(t);
   }, [waiting, loadJobs, load, countMonth]);
 
-  // eBay's catalogue entry for the card's barcode: its photos can stand in for hers on eBay only.
-  const lookupCatalogue = useCallback(
-    (candidateId) => invoke('ebay-list', { tenant_id: tenantId, candidate_id: candidateId, lookup: true }),
-    [tenantId],
-  );
-
   // A draft product, never live. The shop is not public yet, and 0036 keeps
   // anything with unconfirmed returns or hazard fields off sale anyway.
   const addToShop = useCallback(
@@ -252,5 +293,5 @@ export function useApproved(tenantId) {
     [tenantId],
   );
 
-  return { ...state, month, jobs, reload: load, addSource, list, addToShop, lookupCatalogue, queue, cancel, retry, noteDraft, noteListing, saveAspects };
+  return { ...state, month, jobs, reload: load, addSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose };
 }

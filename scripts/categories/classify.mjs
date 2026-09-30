@@ -87,11 +87,16 @@ export async function classify(items, { tax, taxonomyFile, apiKey, model, cacheF
     for (let i = 0; i < group.length; i += batch) {
       const part = group.slice(i, i + batch);
       const titles = part.map((it, n) => `${n + 1}. ${it.title}`).join('\n');
+      // The rules and the category list are the same for every batch in a group: cached, so each batch after the
+      // first pays a tenth for the list, which is most of the prompt.
       const body = {
         model,
         max_tokens: 2000,
-        system: 'You file products into Google\'s product taxonomy. Use only the categories in the list given. Choose the most specific category that describes what the product is (not where it is used or who buys it). Reply with one line per product and nothing else: the product number, a tab, the category ID. If no category in the list fits, give 0.',
-        messages: [{ role: 'user', content: `${note}Categories:\n${list}\n\nProducts:\n${titles}` }],
+        system: [
+          { type: 'text', text: 'You file products into Google\'s product taxonomy. Use only the categories in the list given. Choose the most specific category that describes what the product is (not where it is used or who buys it). Reply with one line per product and nothing else: the product number, a tab, the category ID. If no category in the list fits, give 0.' },
+          { type: 'text', text: `${note}Categories:\n${list}`, cache_control: { type: 'ephemeral' } },
+        ],
+        messages: [{ role: 'user', content: `Products:\n${titles}` }],
       };
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',

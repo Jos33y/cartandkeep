@@ -1,6 +1,6 @@
 # Keepr Agent-04: the portal, part two. Approved and listing
 
-Version 2, 30 September 2026 (after going live part 3). Cart & Keep, Brick Dev Commerce. Read after keepr-agent-03.md, which holds the money model and the terms this file uses.
+Version 4, 30 September 2026 (after Get it ready, parcel, duplicate and condition checks). Cart & Keep, Brick Dev Commerce. Read after keepr-agent-03.md, which holds the money model and the terms this file uses.
 
 ## What this file is for
 
@@ -31,7 +31,7 @@ Route `/approved`, titled "Going live". Every approved card that still has a cha
 3. **Going live:** a column per channel. A started channel says where it stands (live at £X with a link; a shop draft that goes on sale from Products). A channel still to do lists its checks, each marked met (green), hers to weigh (amber) or holding the button (red), with the one thing that fixes it: Write it, Add photos, Write a title, Set the parcel (or "Use 0.25kg, large letter to 250g" from the card's postage band), Match £X, Compare.
 4. **Same item and pack?** On an eBay card whose pack is not confirmed: the compare panel from Candidates, with "Same item and pack, confirm £X" and "Different pack, find the right one".
 5. **Price:** her price with 50p steps, what she keeps, one-press prices, and the Market chart. The chart's scale is drawn from the market and her price only; a loss line or floor off the scale is named on the axis ("loses under £11.43") rather than stretching it to £0.00.
-6. **The listing:** title, photos, description, then the parcel. The shop's name for the product, and the shop's photos, show for reference only and never go up. A photo in the draft that is the shop's or another seller's is marked "Not yours".
+6. **The listing:** title, photos, description, then the parcel. The shop's name for the product shows for reference. Each photo in the draft says where it came from; one that cannot go up says why in red. Under the gallery, the shop's photos with Keepr's verdict on each (Part 5).
 7. **Right column:** the receipt; Where to buy it (her supplier or the shelf as a label, other shops, "Found it cheaper?" behind a button, her other suppliers when she has more than one); Why this one; In search results.
 
 ### The checks, as built (`src/lib/golive.js`)
@@ -44,7 +44,8 @@ Route `/approved`, titled "Going live". Every approved card that still has a cha
 | title | present, 80 characters or fewer | |
 | photos | at least one, none the shop's or another seller's | |
 | description | present, not the shop's wording, names no shop | |
-| parcel | a weight | |
+| duplicate | not the same product as another approved card (barcode or title) | |
+| parcel | | a size or a weight; the postage band's until she changes it. eBay's function asks for a weight only when her postage policy is calculated by weight |
 
 | Your shop | Hard | Soft |
 |---|---|---|
@@ -52,7 +53,11 @@ Route `/approved`, titled "Going live". Every approved card that still has a cha
 | description | as eBay | |
 | price | a price, not at a loss | at or above her floor |
 
-**Ready to go live** means every check, hard and soft, passes on every channel left. A card can go up with soft checks unmet; it cannot with a hard one.
+**Ready to go live** means every check, hard and soft, passes on every channel left. A duplicate holds both channels, and "Show both" filters the page to the pair so she rejects one.
+
+**Get it ready** (on a card, and "Get N ready" in the bulk bar) writes what the card can write itself, only where it is missing: a title (the first suggestion), the description, and photos (Part 5). It stops on anything the sources disagree about and says what still needs her. About $0.05 of Claude per card, on Sonnet 5.
+
+**Also checked before eBay:** a category that does not take New, and a card already live on eBay under the same barcode or title. A card can go up with soft checks unmet; it cannot with a hard one.
 
 ---
 
@@ -72,7 +77,7 @@ Route `/approved`, titled "Going live". Every approved card that still has a cha
 
 ### What the eBay function sends (part 2, `_shared/ebay/listing.ts`)
 
-- Her title, description and photos only. With none, it refuses; it never falls back to the shop's. The one other source of photos is eBay's catalogue, matched by the card's barcode, and only when she chooses it on the card.
+- Her title and description only; with none, it refuses, and never falls back to the shop's wording. Photos by the rule in Part 5: hers, then eBay's catalogue for the barcode, then the shop's that Keepr passed. Anything else is refused with the reason.
 - The category the proving listing sits in, from the research. When eBay's suggestion for her title disagrees, the publish step says so and she can take eBay's.
 - The barcode (EAN), when the card carries a valid one, and the catalogue's ePID when its photos are used.
 - Brand, MPN and every item detail the category requires. A missing required detail is asked for at the publish step and holds Publish.
@@ -120,15 +125,31 @@ Keepr's order of keeps matters most here: with 300 listings to spend, the strong
 
 ---
 
-## Part 5. Photos and wording (a hard rule)
+## Part 5. Photos and wording (the rule, changed 30 September)
 
-**The shop's photo and wording are never used on her listings.** The Candidates page tells her so. The import reads a card's `listing` (title, images, description) straight off the shop's product page, so that copy is where a draft starts.
+**Wording is always hers.** The shop's wording never goes up. Write for eBay (`ebay-compose`) writes new copy from the facts on the shop page, and refuses when the text and the pack disagree.
 
-- On 30 September the Flexitol draft's description read "...at Home Bargains", and its one photo was set to go up.
-- Fixed 30 September (part 2): `ebay-list` and the queue refuse a card with no title, description or photos of hers, refuse the shop's own wording and any photo that is the shop's or another seller's, and never fall back to the shop's. "Add to your shop" sends her copy only. Rewrite for eBay (`ebay-compose`) writes new wording from the facts and refuses when the text and the pack disagree.
-- Keepr flags any title or description that names a shop, and any photo it cannot show is hers, a supplier's she may use, or eBay's catalogue image for that barcode.
-- Built: both buttons are held while a title or description names a shop, while the description is the shop's own wording, and while any photo is the shop's or another seller's.
-- Open: where her photos come from at volume. Her own shots, a supplier's with permission, or eBay's catalogue by barcode. This decides how fast 300 listings can really go live.
+**Photos, as agreed with Joseey on 30 September:** a photo goes up on eBay or her shop when it is one of these, in this order:
+
+1. **Hers.** Anything she uploads goes first, everywhere.
+2. **eBay's catalogue photo** for the card's barcode, on eBay only. eBay supplies it for sellers to list with. Not allowed on her shop.
+3. **The shop's photo, once Keepr has passed it.** Keepr's photo check (`photo-check`) looks at each of the shop's photos and fails any with:
+   - the shop's name or logo, or any retailer's branding;
+   - a watermark;
+   - text or stickers laid over the photo (prices, "offer", badges);
+   - a styled scene rather than a plain product shot;
+   - a different pack, size, colour or product from the card;
+   - fewer than 500 pixels on the longest side (eBay's minimum).
+
+**Never:** another eBay seller's photo, including the proving listing's photo from the research.
+
+**Brands on the list** (`photo_brand_rules`, starting with Lego, Dyson, Apple, Nike, Adidas, Pandora): their shop photos are not used, only eBay's catalogue or her own. The list is a starting guess to measure against, not a verdict. Each listing records where its photos came from (`ebay.images_from`: hers, catalogue, shop, mixed), so takedowns can be counted by brand and the list grown or shrunk from the numbers.
+
+**On the page:** "Find photos" on a card's checklist, or Get it ready, runs the check and fills an empty draft with what passed, plus eBay's catalogue match. It never replaces photos already there. Each of the shop's photos shows its verdict, with Use for the ones that passed. A passed photo is copied into her listing-images folder, so eBay and her shop read it from there, not from the shop.
+
+**What Keepr does here:** reports cards whose photos all failed, and why, in her words ("None of the shop's 4 photos passed: shop's name or logo on it"); suggests her own photos for the products that sell. It never passes a photo itself outside the check, and never changes a photo.
+
+**Not built yet:** preferring a photo more than one shop uses, and recording a takedown against the listing. Both are next once real listings show how often it happens.
 
 Brand risk (agent-02, check 9) applies here too: brands that enforce their listings on eBay, and counterfeit-prone products, which she should source only from authorised shops.
 
@@ -162,7 +183,7 @@ The Overview counts every card in the live batches, read in pages. Before 30 Sep
 
 | Decision | Who | Status |
 |---|---|---|
-| Where listing photos come from | Joseey | eBay's catalogue to be tested with one listing; her own photos for anything it lacks. This now decides how fast the bulk queue can really fill |
+| Where listing photos come from | Joseey | decided 30 September: hers, then eBay's catalogue (eBay only), then the shop's once Keepr passes them; brand list for the rest (Part 5) |
 | Channel states, lock, checklists | Joseey | built 30 September |
 | eBay function changes and the queue | Joseey | built 30 September (part 2) |
 | Bulk selection, category check sheet, queue states | Joseey | built 30 September (part 3) |

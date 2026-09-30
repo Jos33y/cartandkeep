@@ -1,13 +1,14 @@
 import { SHOP_NAME_LIST, channelsOf, shopName } from './assess.js';
+import { isHers, noShopPhotos, passedPhotos, sourceOf } from './photos.js';
 
 /*
  * What stands between an approved card and going live, per channel. One place, so the row, the checklist, the
  * buttons and the bulk queue later all read the same answer.
  *
- * Two kinds of check. A hard one blocks the button: the listing would break a rule (the shop's photos or wording)
- * or cannot go up (no title, no parcel, a loss). A soft one does not block, but the card is not Ready until it
- * passes: over the market, under the profit target, pack not confirmed. She can list over the market on purpose;
- * she cannot list with another shop's photos.
+ * Two kinds of check. A hard one blocks the button: the listing would break a rule (a photo Keepr has not passed,
+ * another eBay seller's photo, the shop's wording) or cannot go up (no title, no parcel, a loss). A soft one does
+ * not block, but the card is not Ready until it passes: over the market, under the profit target, pack not
+ * confirmed. She can list over the market on purpose; she cannot list with a photo that failed the check.
  */
 
 // Retailers a listing must never name, beyond the shops on file. A shop that is also the product's own brand
@@ -63,7 +64,15 @@ const PARCELS = {
   'rm-medium-10': { length_cm: 61, width_cm: 46, height_cm: 46, label: 'medium parcel to 10kg' },
   'rm-medium-20': { length_cm: 61, width_cm: 46, height_cm: 46, label: 'medium parcel to 20kg' },
   evri5: { length_cm: 45, width_cm: 35, height_cm: 16, label: 'Evri to 5kg' },
+  evri10: { length_cm: 60, width_cm: 45, height_cm: 30, label: 'Evri to 10kg' },
+  evri15: { length_cm: 60, width_cm: 45, height_cm: 30, label: 'Evri to 15kg' },
 };
+
+// The parcel that goes up: what she set, over the band's suggestion. Without the band's label.
+export function parcelOf(a, draft = {}) {
+  const { label, ...band } = parcelFor(a) ?? {};
+  return { ...band, ...(draft.package ?? {}) };
+}
 
 // A parcel to start from, from the band the card was costed on. A weight read off the shop page beats the band's cap.
 export function parcelFor(a) {
@@ -96,8 +105,6 @@ export function gtinOf(row) {
   return null;
 }
 
-const shopImagesOf = (row) => new Set([...(row.listing?.images ?? []), row.image_url].filter(Boolean));
-
 /*
  * The checks for one channel. `draft` is her saved edits; `a` is assess() on the card with those edits.
  * Each item: key, ok, hard, text (what is true now), fix (what to do), and `to` (the part of the card that fixes it).
@@ -106,9 +113,7 @@ export function checksFor(channel, a, row, draft) {
   const l = row.listing ?? {};
   const brand = l.brand ?? null;
   const shelfShop = shopName(a.m?.shelf?.shop ?? a.m?.cost_from?.shop) ?? null;
-  const shopSet = shopImagesOf(row);
   const images = draft.images ?? [];
-  const theirs = images.filter((u) => shopSet.has(u));
   const title = (draft.title ?? '').trim();
   const description = (draft.description ?? '').trim();
   const copied = description && l.description && description.replace(/\s+/g, ' ') === String(l.description).trim().replace(/\s+/g, ' ');
@@ -116,11 +121,32 @@ export function checksFor(channel, a, row, draft) {
   const p = a.position;
   const out = [];
 
-  const photos = !images.length
-    ? { ok: false, text: 'No photos of yours yet', fix: 'Add photos' }
-    : theirs.length
-      ? { ok: false, text: `${theirs.length === images.length ? 'Photos are' : `${theirs.length} ${theirs.length === 1 ? 'photo is' : 'photos are'}`} the shop's or another seller's`, fix: 'Swap for your own' }
-      : { ok: true, text: `${images.length} ${images.length === 1 ? 'photo' : 'photos'}, yours` };
+  // Photos she may use on this channel: hers, the shop's that Keepr passed, eBay's catalogue on eBay only.
+  const photosFor = (channel) => {
+    const judged = images.map((u) => sourceOf(u, row, draft, channel));
+    const bad = judged.filter((j) => !j.ok);
+    if (bad.length) {
+      const why = [...new Set(bad.map((b) => b.why))].join('; ');
+      return { ok: false, text: `${bad.length === 1 ? 'A photo' : `${bad.length} photos`} cannot go up: ${why}`, fix: 'Take it out' };
+    }
+    if (channel === 'ebay' && draft.catalogue?.epid && !images.some((u) => isHers(u, draft))) {
+      return { ok: true, text: 'eBay\'s catalogue photos' };
+    }
+    if (images.length) {
+      const shop = judged.filter((j) => j.source === 'shop').length;
+      const hers = judged.length - shop;
+      const parts = [hers && `${hers} yours`, shop && `${shop} from the shop, checked`].filter(Boolean).join(', ');
+      return { ok: true, text: `${images.length} ${images.length === 1 ? 'photo' : 'photos'}: ${parts}` };
+    }
+    // None yet: find them if nobody has looked, use what passed, or say why the shop's cannot help.
+    const usable = passedPhotos(row);
+    if (!row.photo_checks && ((row.listing?.images ?? []).length || row.margin?.shelf?.url || row.margin?.cost_from?.url || gtinOf(row))) {
+      return { ok: false, text: 'No photos yet', fix: 'Find photos', find: true };
+    }
+    if (usable.length) return { ok: false, text: `${usable.length} checked ${usable.length === 1 ? 'photo' : 'photos'} from the shop to use`, fix: `Use ${usable.length === 1 ? 'it' : 'them'}`, find: true };
+    if (channel === 'ebay' && row.photo_checks?.catalogue?.epid) return { ok: false, text: 'eBay\'s catalogue has photos', fix: 'Use them', find: true };
+    return { ok: false, text: noShopPhotos(row) ?? 'No photos yet', fix: 'Add photos' };
+  };
   const words = !description
     ? { ok: false, text: 'No description yet', fix: 'Write the description', write: true }
     : copied
@@ -149,18 +175,20 @@ export function checksFor(channel, a, row, draft) {
       : title.length > 80
         ? { key: 'title', hard: true, ok: false, text: `Title is ${title.length} characters, over 80`, fix: 'Shorten it', to: 'listing' }
         : { key: 'title', hard: true, ok: true, text: `Title, ${title.length} of 80`, to: 'listing' });
-    // eBay's own catalogue photos stand in for hers on eBay, never on her shop.
-    const cat = draft.catalogue?.epid && !images.length;
-    out.push(cat
-      ? { key: 'photos', hard: true, ok: true, text: 'eBay\'s catalogue photos', to: 'listing' }
-      : { key: 'photos', hard: true, ...photos, ...(!photos.ok && !theirs.length && gtinOf(row) ? { fix: 'Try eBay\'s catalogue', catalogue: true } : {}), to: 'listing' });
+    out.push({ key: 'photos', hard: true, ...photosFor('ebay'), to: 'listing' });
     out.push({ key: 'words', hard: true, ...words, to: 'listing' });
-    const box = draft.package ?? {};
+    // The parcel as she set it, else from the card's postage band. A weight is only needed when her eBay postage is
+    // calculated by weight, which the eBay function checks against her policy; flat and free postage go without.
+    const box = parcelOf(a, draft);
+    const size = box.length_cm && box.width_cm && box.height_cm ? `${box.length_cm} x ${box.width_cm} x ${box.height_cm}cm` : null;
+    const from = draft.package ? '' : ', from the postage band';
     out.push(Number(box.weight_kg) > 0
-      ? { key: 'parcel', hard: true, ok: true, text: `Parcel ${box.weight_kg}kg${box.length_cm ? `, ${box.length_cm} x ${box.width_cm} x ${box.height_cm}cm` : ''}`, to: 'parcel' }
-      : { key: 'parcel', hard: true, ok: false, text: 'No parcel weight yet', fix: 'Set the parcel', to: 'parcel' });
+      ? { key: 'parcel', hard: false, ok: true, text: `Parcel ${box.weight_kg}kg${size ? `, ${size}` : ''}${from}`, to: 'parcel' }
+      : size
+        ? { key: 'parcel', hard: false, ok: true, text: `Parcel ${size}${from}, no weight: fine for flat or free postage`, to: 'parcel' }
+        : { key: 'parcel', hard: false, ok: false, text: 'No parcel size or weight', fix: 'Set the parcel', to: 'parcel' });
   } else {
-    out.push({ key: 'photos', hard: true, ...photos, to: 'listing' });
+    out.push({ key: 'photos', hard: true, ...photosFor('shop'), to: 'listing' });
     out.push({ key: 'words', hard: true, ...words, to: 'listing' });
     const price = a.price;
     out.push(price == null
@@ -181,7 +209,12 @@ export const viewsOf = (a) => ({ shop: a, ebay: a.store ? a.ebay ?? a : a });
 // Where a card stands overall: what can be pressed, and whether it is Ready. `views` from viewsOf().
 export function goLive(views, row, draft) {
   const ch = channelStates(row);
-  const checks = Object.fromEntries(ch.left.map((c) => [c, checksFor(c, views[c], row, draft)]));
+  // The same product approved twice holds both channels: two identical listings break eBay's rules, and two drafts
+  // of one product on her shop is one too many.
+  const dupe = row.duplicate_of
+    ? [{ key: 'dupe', hard: true, ok: false, text: `Approved twice: also "${row.duplicate_of.title}"`, fix: 'Show both', dupe: true }]
+    : [];
+  const checks = Object.fromEntries(ch.left.map((c) => [c, [...dupe, ...checksFor(c, views[c], row, draft)]]));
   const can = Object.fromEntries(ch.left.map((c) => [c, checks[c].every((x) => !x.hard || x.ok)]));
   const ready = ch.left.length > 0 && ch.left.every((c) => checks[c].every((x) => x.ok));
   // The first thing to do, blocking ones first, for the row.

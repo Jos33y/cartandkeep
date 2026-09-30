@@ -567,7 +567,8 @@
 .channel[data-state='queued'] b { color: var(--c-action-text); }
 
 /* Above the list: tick what is shown, or what is ready for a channel, and how the eBay queue stands. */
-.picker { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); padding: 0 var(--s-2) 0 var(--s-5); min-height: 32px; }
+/* The list's own header row: its tick box sits in line with the rows' tick boxes. */
+.picker { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); padding: 0 var(--s-2) var(--s-1) calc(var(--s-5) + 1px); min-height: 32px; }
 .pickAll { display: inline-flex; align-items: center; gap: var(--s-2); font-size: var(--t-caption); color: var(--c-ink-soft); cursor: pointer; }
 .pickAll input { width: 15px; height: 15px; margin: 0; accent-color: var(--c-ink); cursor: pointer; }
 .pickCount { font-family: var(--font-data); color: var(--c-ink-faint); }
@@ -709,8 +710,9 @@
 }
 
 /* The header's right side: the month's eBay count over the money at proven rates. */
-.headSide { display: flex; flex-direction: column; align-items: flex-end; gap: var(--s-3); }
-.limit { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; min-width: 220px; }
+/* The month's count and the money side by side, so the header is only as tall as the title. */
+.headSide { display: flex; align-items: flex-end; gap: var(--s-7); }
+.limit { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; min-width: 200px; padding-bottom: 4px; }
 .limitBar { display: block; width: 100%; height: 6px; border-radius: var(--r-full); background: var(--c-sunk); box-shadow: inset 0 0 0 1px var(--c-line); overflow: hidden; }
 .limitBar i { display: block; height: 100%; border-radius: var(--r-full); background: var(--c-action); transition: width 280ms var(--ease-out); }
 .limit[data-tone='warning'] .limitBar i { background: var(--c-warning); }
@@ -743,6 +745,18 @@
 @media (max-width: 640px) {
   .picker { padding-left: var(--s-4); }
   .queueNote { flex-basis: 100%; margin-left: 0; }
-  .headSide { align-items: flex-start; }
+  .headSide { flex-direction: column; align-items: flex-start; gap: var(--s-3); }
   .limit { align-items: flex-start; min-width: 0; width: 100%; }
 }
+
+/* The parcel: from the postage band until she changes it, and why a missing weight is fine. */
+.parcelFrom { font-size: var(--t-micro); color: var(--c-ink-faint); }
+.parcelNote { margin-top: var(--s-2); font-size: var(--t-micro); line-height: var(--lh-snug); color: var(--c-ink-faint); }
+
+/* After Get it ready: what it wrote and found, and anything it could not. */
+.readyNote { display: flex; align-items: flex-start; gap: var(--s-2) var(--s-3); padding: var(--s-2) var(--s-3); border-radius: var(--r-md); font-size: var(--t-caption); line-height: var(--lh-snug); }
+.readyNote[data-tone='positive'] { background: var(--c-positive-wash); color: var(--c-positive); }
+.readyNote[data-tone='warning'] { background: var(--c-warning-wash); color: var(--c-warning); }
+.readyNote > span { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
+.readyNote > svg { flex-shrink: 0; margin-top: 2px; }
+.readyShort { color: var(--c-ink-soft); }

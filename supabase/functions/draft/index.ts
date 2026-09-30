@@ -362,15 +362,17 @@ async function draftFor(product: Record<string, any>, sections: Section[]) {
     in_the_box: product.in_the_box ?? null,
     current_returns_class: product.returns_class ?? 'standard',
     supplier_text: source,
-    sections: sections.map((s) => ({ path: s.path, name: s.label })),
   };
+  // Her sections go in the cached part of the prompt: the same for every product in a run, so after the first
+  // product they cost a tenth.
+  const sectionList = JSON.stringify(sections.map((s) => ({ path: s.path, name: s.label })));
 
   const content: Array<Record<string, unknown>> = [];
   // Image first: shown the fields first, the model reads the photograph as confirmation rather than as a check.
   if (image) content.push({ type: 'image', source: { type: 'url', url: image } });
   content.push({
     type: 'text',
-    text: `${image ? 'The photograph above is the product.\n\n' : 'There is no photograph.\n\n'}${JSON.stringify(facts, null, 2)}`,
+    text: `${image ? 'The photograph above is the product.\n\n' : 'There is no photograph.\n\n'}${JSON.stringify(facts)}`,
   });
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -383,7 +385,12 @@ async function draftFor(product: Record<string, any>, sections: Section[]) {
     body: JSON.stringify({
       model: MODEL,
       max_tokens: 3000,
-      system: SYSTEM,
+      // The rules and the tool are the same on every call, and her sections the same through a run: both are
+      // cached, so each product after the first pays a tenth for them.
+      system: [
+        { type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } },
+        { type: 'text', text: `The sections to choose from, as path and name:\n${sectionList}`, cache_control: { type: 'ephemeral' } },
+      ],
       tools: [DRAFT_TOOL],
       tool_choice: { type: 'tool', name: 'draft' },
       messages: [{ role: 'user', content }],
