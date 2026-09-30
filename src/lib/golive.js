@@ -1,5 +1,5 @@
 import { SHOP_NAME_LIST, channelsOf, shopName } from './assess.js';
-import { isHers, noShopPhotos, passedPhotos, sourceOf } from './photos.js';
+import { freshChecks, isHers, noShopPhotos, passedPhotos, sourceOf } from './photos.js';
 
 /*
  * What stands between an approved card and going live, per channel. One place, so the row, the checklist, the
@@ -68,6 +68,15 @@ const PARCELS = {
   evri15: { length_cm: 60, width_cm: 45, height_cm: 30, label: 'Evri to 15kg' },
 };
 
+// Where a price sits in the shelf product's own eBay market, once she chose to list it as it is. In the market up to
+// the upper quartile of what the same product asks; over that, by how much. Null without that market.
+export function ownMarket(price, draft = {}) {
+  const m = draft.as_shelf ? draft.market : null;
+  if (!m?.median || price == null) return null;
+  const ref = Math.max(m.p75 ?? m.median, m.median);
+  return { median: m.median, ref, n: m.n, inMarket: price <= ref + 0.005, over: Math.round((price - ref) * 100) / 100 };
+}
+
 // The parcel that goes up: what she set, over the band's suggestion. Without the band's label.
 export function parcelOf(a, draft = {}) {
   const { label, ...band } = parcelFor(a) ?? {};
@@ -98,7 +107,10 @@ export function validGtin(v) {
 export function gtinOf(row) {
   const m = row.margin ?? {};
   const l = row.listing ?? {};
-  for (const v of [m.shelf?.gtin, m.cost_from?.gtin, m.gtin, l.gtin, l.ean]) {
+  // Once the listing is written from her supplier's page, only that page's barcode is this product's.
+  const moved = Boolean(row.draft?.page);
+  const from = moved ? (l.source_url === row.draft.page ? [l.gtin, l.ean] : []) : [m.shelf?.gtin, m.cost_from?.gtin, m.gtin, l.gtin, l.ean];
+  for (const v of from) {
     const g = validGtin(v);
     if (g) return g;
   }
@@ -139,13 +151,13 @@ export function checksFor(channel, a, row, draft) {
       return { ok: true, text: `${images.length} ${images.length === 1 ? 'photo' : 'photos'}: ${parts}` };
     }
     // None yet: find them if nobody has looked, use what passed, or say why the shop's cannot help.
-    const usable = passedPhotos(row);
-    if (!row.photo_checks && ((row.listing?.images ?? []).length || row.margin?.shelf?.url || row.margin?.cost_from?.url || gtinOf(row))) {
+    const usable = passedPhotos(row, draft);
+    if (!freshChecks(row, draft) && ((row.listing?.images ?? []).length || draft.page || row.margin?.shelf?.url || row.margin?.cost_from?.url || gtinOf(row))) {
       return { ok: false, text: 'No photos yet', fix: 'Find photos', find: true };
     }
     if (usable.length) return { ok: false, text: `${usable.length} checked ${usable.length === 1 ? 'photo' : 'photos'} from the shop to use`, fix: `Use ${usable.length === 1 ? 'it' : 'them'}`, find: true };
-    if (channel === 'ebay' && row.photo_checks?.catalogue?.epid) return { ok: false, text: 'eBay\'s catalogue has photos', fix: 'Use them', find: true };
-    return { ok: false, text: noShopPhotos(row) ?? 'No photos yet', fix: 'Add photos' };
+    if (channel === 'ebay' && freshChecks(row, draft)?.catalogue?.epid) return { ok: false, text: 'eBay\'s catalogue has photos', fix: 'Use them', find: true };
+    return { ok: false, text: noShopPhotos(row, draft) ?? 'No photos yet', fix: 'Add photos' };
   };
   const words = !description
     ? { ok: false, text: 'No description yet', fix: 'Write the description', write: true }
@@ -156,9 +168,15 @@ export function checksFor(channel, a, row, draft) {
         : { ok: true, text: 'Your description' };
 
   if (channel === 'ebay') {
-    out.push(p && !p.inMarket
-      ? { key: 'price', hard: false, ok: false, text: `£${p.over.toFixed(2)} over the market at £${p.ref.toFixed(2)}`, fix: 'Match the market', to: 'price' }
-      : { key: 'price', hard: false, ok: Boolean(p), text: p ? 'In the market' : 'No market price', to: 'price' });
+    // Listed as the shelf product itself: judged against its own market, not the one that proved the card.
+    const own = ownMarket(a.price, draft);
+    out.push(own
+      ? (own.inMarket
+        ? { key: 'price', hard: false, ok: true, text: `In its own market, median £${own.median.toFixed(2)} of ${own.n}`, to: 'price' }
+        : { key: 'price', hard: false, ok: false, text: `£${own.over.toFixed(2)} over its own market at £${own.ref.toFixed(2)}`, fix: 'Match the market', match: own.median, to: 'price' })
+      : p && !p.inMarket
+        ? { key: 'price', hard: false, ok: false, text: `£${p.over.toFixed(2)} over the market at £${p.ref.toFixed(2)}`, fix: 'Match the market', match: p.ref, to: 'price' }
+        : { key: 'price', hard: false, ok: Boolean(p), text: p ? 'In the market' : 'No market price', to: 'price' });
     out.push(a.keep == null
       ? { key: 'profit', hard: true, ok: false, text: 'No cost, so nothing to keep', fix: 'Add a supplier', to: 'buy' }
       : a.keep < 0
@@ -166,7 +184,9 @@ export function checksFor(channel, a, row, draft) {
         : a.target != null && a.keep < a.target
           ? { key: 'profit', hard: false, ok: false, text: `Keeps £${a.keep.toFixed(2)}, under your £${a.target.toFixed(2)}`, fix: 'Find it cheaper', to: 'buy' }
           : { key: 'profit', hard: false, ok: true, text: `Keeps £${a.keep.toFixed(2)}`, to: 'price' });
-    if (!a.store) {
+    if (!a.store && draft.as_shelf) {
+      out.push({ key: 'pack', hard: false, ok: true, text: 'Listed as the shelf product itself, priced from its own market', to: 'pack' });
+    } else if (!a.store) {
       const packOk = a.costConfirmed && !a.packCheck;
       out.push({ key: 'pack', hard: false, ok: packOk, text: packOk ? 'Pack confirmed' : a.packCheck ? `Pack not confirmed, ${a.ratio} times the shelf price` : 'Pack not confirmed', fix: 'Compare', to: 'pack' });
     }
@@ -177,6 +197,15 @@ export function checksFor(channel, a, row, draft) {
         : { key: 'title', hard: true, ok: true, text: `Title, ${title.length} of 80`, to: 'listing' });
     out.push({ key: 'photos', hard: true, ...photosFor('ebay'), to: 'listing' });
     out.push({ key: 'words', hard: true, ...words, to: 'listing' });
+    // The eBay category and the item details it needs, once eBay's check has settled them on her draft.
+    const cat = draft.ebay_category;
+    const have = new Set(Object.entries(draft.aspects ?? {}).filter(([, v]) => v && String(v).trim()).map(([k]) => k.toLowerCase()));
+    const lacking = (cat?.required ?? []).filter((n) => !have.has(n.toLowerCase()));
+    out.push(!cat
+      ? { key: 'details', hard: false, ok: false, text: 'Category and item details not checked with eBay yet', fix: 'Check with eBay', ebaycheck: true, to: 'listing' }
+      : lacking.length
+        ? { key: 'details', hard: true, ok: false, text: `eBay needs ${lacking.join(', ')} for ${cat.name ?? 'this category'}`, fix: 'Fill them', ebaycheck: true, to: 'listing' }
+        : { key: 'details', hard: false, ok: true, text: `${cat.name ?? `Category #${cat.id}`}${have.size ? `, ${have.size} item ${have.size === 1 ? 'detail' : 'details'}` : ''}`, to: 'listing' });
     // The parcel as she set it, else from the card's postage band. A weight is only needed when her eBay postage is
     // calculated by weight, which the eBay function checks against her policy; flat and free postage go without.
     const box = parcelOf(a, draft);

@@ -10,11 +10,11 @@ import { CostTry } from '@components/ui/portal/CostTry';
 import { BriefStrip, ComparePanel } from '@components/ui/portal/CandidateBrief';
 import { ShelfLabel, confirmSource } from '@components/ui/portal/CandidateRow';
 import { assess, shopName } from '@lib/assess';
-import { STATE_WORD, goLive, parcelFor, viewsOf } from '@lib/golive';
-import { isHers, noShopPhotos, photosToAdd, sourceOf } from '@lib/photos';
+import { STATE_WORD, goLive, ownMarket, parcelFor, parcelOf, viewsOf } from '@lib/golive';
+import { freshChecks, isHers, noShopPhotos, pageOf, photosToAdd, sourceOf } from '@lib/photos';
 import { ListingComposer } from '@components/ui/portal/ListingComposer';
 import { BulkBar, ListSheet } from '@components/ui/portal/BulkListing';
-import { ebayRequest, eligibility, jobOpen, readyFor, shopProduct, startQuantity } from '@lib/bulk';
+import { ebayRequest, eligibility, fromEbayCheck, jobOpen, readyFor, shopProduct, startQuantity } from '@lib/bulk';
 import { SearchTile } from '@components/ui/portal/SearchTile';
 import { Icon } from '@components/ui/icons';
 import { useApproved } from '@hooks/useApproved';
@@ -75,7 +75,7 @@ export function ApprovedPage() {
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
   const {
-    status, rows, month, jobs, addSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose,
+    status, rows, month, jobs, addSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose, marketCheck,
   } = useApproved(tenant?.id);
   const { suppliers, remember } = useSuppliers(tenant?.id);
   const [find, setFind] = useState('');
@@ -132,8 +132,9 @@ export function ApprovedPage() {
   const forShop = useMemo(() => split('shop'), [split]);
   // Ticked cards missing something Get it ready can write or find: a title, the description, or photos.
   const photosFindable = (gl) => gl.left.some((c) => { const p = gl.checks[c]?.find((x) => x.key === 'photos'); return p && !p.ok && p.find; });
+  const detailsOpen = (gl) => Boolean(gl.checks.ebay?.find((x) => x.key === 'details' && !x.ok));
   const needReady = useMemo(() => picked.filter(({ row, gl }) => !jobOpen(jobOf(row.id)) && !row.duplicate_of && (
-    !(row.draft?.title ?? '').trim() || !(row.draft?.description ?? '').trim() || photosFindable(gl)
+    !(row.draft?.title ?? '').trim() || !(row.draft?.description ?? '').trim() || photosFindable(gl) || detailsOpen(gl)
   )), [picked, jobOf]);
   const waiting = Object.values(jobs).filter((j) => j.state === 'queued').length;
   const publishing = Object.values(jobs).filter((j) => j.state === 'working').length;
@@ -200,13 +201,13 @@ export function ApprovedPage() {
     const why = (r) => (r.reason instanceof Error ? r.reason.message : String(r.reason ?? 'did not finish'));
     const worker = async () => {
       while (!stopBusy.current && next < items.length) {
-        const { row, gl } = items[next++];
+        const { row, gl, a } = items[next++];
         const d = row.draft ?? {};
         const want = { title: !(d.title ?? '').trim(), words: !(d.description ?? '').trim(), photos: photosFindable(gl) };
         const [t, w, ph] = await Promise.allSettled([
           want.title ? compose(row.id, 'title') : null,
           want.words ? compose(row.id, 'description') : null,
-          want.photos ? (row.photo_checks ?? checkPhotos(row.id)) : null,
+          want.photos ? (freshChecks(row) ?? checkPhotos(row.id)) : null,
         ]);
         const patch = {};
         const short = [];
@@ -223,6 +224,22 @@ export function ApprovedPage() {
           const add = seen ? photosToAdd(seen, d) : null;
           if (add) Object.assign(patch, add);
           else short.push(seen ? (noShopPhotos(seen) ?? 'no photos to add') : `photos: ${why(ph)}`);
+        }
+        // eBay's category and the item details, once the title and words are in, for a card eBay is still to list.
+        if (gl.left.includes('ebay') && (detailsOpen(gl) || patch.title)) {
+          try {
+            const next = { ...d, ...patch };
+            const dry = await list({ candidateId: row.id, ...ebayRequest(a, next, { quantity: startQuantity(row) }), dry: true, fill: true });
+            const found = fromEbayCheck(dry, next);
+            if (found) {
+              Object.assign(patch, found);
+              const have = new Set(Object.entries(found.aspects).filter(([, v]) => v).map(([k]) => k.toLowerCase()));
+              const still = found.ebay_category.required.filter((n) => !have.has(n.toLowerCase()));
+              if (still.length) short.push(`eBay needs ${still.join(', ')}`);
+            }
+          } catch (e) {
+            short.push(`eBay's check: ${e.message}`);
+          }
         }
         try {
           if (Object.keys(patch).length) await patchDraft(row.id, patch);
@@ -431,7 +448,8 @@ export function ApprovedPage() {
               return out;
             }}
             onShop={(product) => addToShop({ candidateId: row.id, product })}
-            onCheckPhotos={() => checkPhotos(row.id)}
+            onCheckPhotos={(opts) => checkPhotos(row.id, opts)}
+            onMarket={() => marketCheck(row.id)}
             onShowIds={(ids, label) => { setHeld({ ids: new Set(ids), label }); setOnly('held'); }}
             onSource={async (fields) => {
               await addSource({ candidateId: row.id, tenantId: tenant.id, ...fields });
@@ -540,7 +558,7 @@ const joinFixes = (xs) => {
 
 function Pack({
   row, base, baseGl, job, selected, onSelect, onCancelJob, onRetryJob, onSaved, onRead,
-  tenantId, fees, suppliers, onSource, onList, onShop, onCheckPhotos, onShowIds,
+  tenantId, fees, suppliers, onSource, onList, onShop, onCheckPhotos, onShowIds, onMarket,
 }) {
   const [open, setOpen] = useState(false);
   const [zoomed, setZoomed] = useState(false);
@@ -629,7 +647,16 @@ function Pack({
     setBusy(true);
     setProblem(null);
     try {
-      setConfirm(await onList(listing({ ...extra, dry: true })));
+      // Keepr fills what the category needs; the values go on her draft and eBay is asked once more with them.
+      let dry = await onList(listing({ ...extra, dry: true, fill: true }));
+      const found = fromEbayCheck(dry, draft);
+      if (found) {
+        change(found);
+        if (Object.keys(dry.filled ?? {}).length && dry.missing?.length) {
+          dry = await onList(listing({ ...extra, aspects: found.aspects, dry: true }));
+        }
+      }
+      setConfirm(dry);
     } catch (e) {
       setProblem(e.message);
     } finally {
@@ -637,17 +664,38 @@ function Pack({
     }
   }
 
-  // Keepr's photo check, then what passed into her draft, never over photos she already has: the shop's checked
-  // photos, and eBay's catalogue entry for eBay. `again` looks afresh; otherwise an earlier check is used.
-  // One press for what a listing needs that the card can write itself: a title, the description, and photos (the
-  // shop's once checked, and eBay's catalogue). Only what is missing, never over what she has. It stops short on
-  // anything the sources disagree about, and says so.
+  // One press for what a listing needs that the card can write itself: a title, the description, photos (the
+  // shop's once checked, and eBay's catalogue), and the eBay category with the item details it needs. Only what is
+  // missing, never over what she has. It stops short on anything the sources disagree about, and says so.
   const missing = {
     title: !(draft.title ?? '').trim(),
     words: !(draft.description ?? '').trim(),
     photos: gl.left.some((c) => { const p = gl.checks[c]?.find((x) => x.key === 'photos'); return p && !p.ok && p.find; }),
+    details: Boolean(gl.checks.ebay?.find((x) => x.key === 'details' && !x.ok)),
   };
-  const canReady = missing.title || missing.words || missing.photos;
+  const canReady = missing.title || missing.words || missing.photos || missing.details;
+
+  // eBay's check with Keepr filling the item details: the category it settles on and the values go on her draft.
+  // `over` is the draft as it will be, so a title just written is the one eBay files by.
+  async function ebayCheck(over = {}) {
+    const next = { ...draft, ...over };
+    const dry = await onList({ ...ebayRequest(whole, next, { quantity: qty, categoryId: categoryChoice }), dry: true, fill: true });
+    return { dry, patch: fromEbayCheck(dry, next) };
+  }
+  const [checkingEbay, setCheckingEbay] = useState(false);
+  async function checkWithEbay() {
+    setCheckingEbay(true);
+    setProblem(null);
+    try {
+      const { dry, patch } = await ebayCheck();
+      if (patch) change(patch);
+      if (dry.fill_error) setProblem(`Item details were not filled: ${dry.fill_error}`);
+    } catch (e) {
+      setProblem(e.message);
+    } finally {
+      setCheckingEbay(false);
+    }
+  }
   async function getReady() {
     setReadying(true);
     setProblem(null);
@@ -656,7 +704,7 @@ function Pack({
     const [t, d, ph] = await Promise.allSettled([
       missing.title ? generate('title') : null,
       missing.words ? generate('description') : null,
-      missing.photos ? (row.photo_checks ? row.photo_checks : onCheckPhotos()) : null,
+      missing.photos ? (freshChecks(row) ?? onCheckPhotos()) : null,
     ]);
     const patch = {};
     const done = [];
@@ -678,16 +726,74 @@ function Pack({
         } else short.push(`Photos: ${noShopPhotos(seen) ?? 'none to add'}. Add your own.`);
       } else short.push(`Photos: ${why(ph)}`);
     }
+    // Last, with the title and words in place: eBay's category and the item details, filled by Keepr.
+    if (gl.left.includes('ebay') && (missing.details || patch.title)) {
+      try {
+        const { dry, patch: found } = await ebayCheck(patch);
+        if (found) {
+          Object.assign(patch, found);
+          const have = new Set(Object.entries(found.aspects).filter(([, v]) => v).map(([k]) => k.toLowerCase()));
+          const still = found.ebay_category.required.filter((n) => !have.has(n.toLowerCase()));
+          done.push(`the eBay category (${found.ebay_category.name ?? found.ebay_category.id})`);
+          if (Object.keys(dry.filled ?? {}).length) done.push(`${Object.keys(dry.filled).length} item ${Object.keys(dry.filled).length === 1 ? 'detail' : 'details'}`);
+          if (still.length) short.push(`eBay still needs ${still.join(', ')}: the facts do not say, so choose it at the publish step.`);
+        }
+      } catch (e) {
+        short.push(`eBay's check: ${e.message}`);
+      }
+    }
     if (Object.keys(patch).length) change(patch);
     setReadyNote({ done, short });
     setReadying(false);
   }
 
+  // The shelf product's own eBay market, for listing it as it is when it is not the product that proved the card.
+  const [ownMkt, setOwnMkt] = useState(null);
+  const [checkingMkt, setCheckingMkt] = useState(false);
+  async function checkOwnMarket() {
+    setCheckingMkt(true);
+    setProblem(null);
+    try {
+      setOwnMkt((await onMarket()) ?? { n: 0, query: row.margin?.shelf?.product ?? a.title, listings: [] });
+    } catch (e) {
+      setProblem(e.message);
+    } finally {
+      setCheckingMkt(false);
+    }
+  }
+  // What she keeps on eBay at a price, from the same money model as everything else.
+  const keepAt = (price) => viewsOf(assess({ ...row, draft: { ...draft, ...(both ? { ebay_price: price } : { price }) } })).ebay.keep ?? 0;
+  function listAsShelf(price) {
+    const { listings, ...m } = ownMkt;
+    change({ as_shelf: true, market: { ...m, listings: listings.slice(0, 5) }, ...(both ? { ebay_price: price } : { price }) });
+    setOwnMkt(null);
+  }
+
+  // Her supplier's page for the listing, or back to the card's own. What was written from the other product goes;
+  // her own photos stay.
+  const [pendingPage, setPendingPage] = useState(null);
+  function usePage(url) {
+    change({
+      page: url,
+      title: '',
+      description: '',
+      images: (draft.images ?? []).filter((u) => isHers(u, draft)),
+      catalogue: null,
+      ebay_category: null,
+      aspects: {},
+    });
+    setCategoryChoice(null);
+    setPendingPage(null);
+    setReadyNote({ done: [], short: [`The listing now comes from ${url ? host(url) : 'the card\'s own page'}. Get it ready writes it from there.`] });
+  }
+
+  // Keepr's photo check, then what passed into her draft, never over photos she already has: the shop's checked
+  // photos, and eBay's catalogue entry for eBay. `again` looks afresh; otherwise an earlier check is used.
   async function findPhotos({ again = false, apply = true } = {}) {
     setFinding(true);
     setProblem(null);
     try {
-      const checks = !again && row.photo_checks ? row.photo_checks : await onCheckPhotos();
+      const checks = !again && freshChecks(row) ? freshChecks(row) : await onCheckPhotos({ again });
       if (!apply) return;
       const seen = { ...row, photo_checks: checks };
       const patch = photosToAdd(seen, draft);
@@ -756,6 +862,8 @@ function Pack({
     return `${lead}${parts.join(' ')}`;
   })();
 
+  // Against the shelf product's own market once she chose to list it as it is, else the card's.
+  const rowPos = ownMarket(a.price, draft) ?? a.position;
   const packOpen = !eView.store && !(eView.costConfirmed && !eView.packCheck) && eView.m?.shelf && ebayLeft;
   const pack = packOpen ? confirmSource(row, eView) : null;
   const shelf = a.m?.shelf ?? null;
@@ -764,6 +872,14 @@ function Pack({
   const alts = [...new Set((a.shops ?? a.m.shops ?? []).map(shopName))]
     .filter((n) => n && n !== 'eBay' && n !== shopName(a.best?.supplier));
   const others = (row.sources ?? []).filter((src) => src.matched_on !== 'shelf');
+  // The page the listing is written from, and her suppliers' pages she could write it from instead: the product
+  // she will actually send, when it is not the one the card was costed from.
+  const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
+  const possessive = (n) => (/s$/i.test(n) ? `${n}'` : `${n}'s`);
+  const cardPage = row.margin?.shelf?.url ?? row.margin?.cost_from?.url ?? null;
+  const writtenFrom = pageOf(row, draft);
+  const pageChoices = [...new Map(others.filter((src) => /^https?:\/\//.test(src.url ?? '') && src.url !== writtenFrom)
+    .map((src) => [src.url, src])).values()].slice(0, 3);
 
   return (
     <article ref={cardRef} className={`${styles.pack} ${open ? styles.packOpen : ''}`} data-status={status}
@@ -820,9 +936,9 @@ function Pack({
         <div className={styles.cell}>
           <span className={styles.cellLabel}>List at</span>
           <span className={styles.fig} data-num>{a.price != null ? formatGbp(a.price) : '--'}</span>
-          {a.position && (
-            <span className={styles.status} data-tone={a.position.inMarket ? 'positive' : 'warning'}>
-              <i />{a.position.inMarket ? 'In the market' : <><span data-num>{formatGbp(a.position.over)}</span> over</>}
+          {rowPos && (
+            <span className={styles.status} data-tone={rowPos.inMarket ? 'positive' : 'warning'}>
+              <i />{rowPos.inMarket ? 'In the market' : <><span data-num>{formatGbp(rowPos.over)}</span> over</>}
             </span>
           )}
         </div>
@@ -909,7 +1025,8 @@ function Pack({
           <GoLiveList gl={gl} row={row} onGo={goTo} parcel={parcel} onParcel={(box) => change({ package: box })}
             onWrite={writeWords} writing={writing} onPrice={setPrice} eView={eView}
             onFind={() => findPhotos()} finding={finding}
-            onShowBoth={() => onShowIds([row.id, row.duplicate_of.id], 'Approved twice')} />
+            onShowBoth={() => onShowIds([row.id, row.duplicate_of.id], 'Approved twice')}
+            onCheckEbay={checkWithEbay} checkingEbay={checkingEbay} />
 
           {readyNote && (readyNote.done.length > 0 || readyNote.short.length > 0) && (
             <div className={styles.readyNote} role="status" data-tone={readyNote.short.length ? 'warning' : 'positive'}>
@@ -953,10 +1070,18 @@ function Pack({
                       <span className={styles.confirmWarn}>Shop limit is {a.l.max_qty} per order</span>
                     )}
                   </div>
-                  <ConfirmItem label="Photographs" value={confirm.images} sub={confirm.image_source === 'catalogue' ? 'from eBay\'s catalogue' : 'yours'} />
+                  <ConfirmItem label="Photographs" value={confirm.images}
+                    sub={{ catalogue: 'from eBay\'s catalogue', shop: 'the shop\'s, checked', mixed: 'yours and the shop\'s', hers: 'yours' }[confirm.image_source] ?? null} />
                   <ConfirmItem label="You keep" value={formatGbp(eView.keep)} tone="positive" />
-                  <ConfirmItem label="Parcel" value={draft.package?.weight_kg ? `${draft.package.weight_kg}kg` : '--'}
-                    sub={draft.package?.length_cm ? `${draft.package.length_cm} x ${draft.package.width_cm} x ${draft.package.height_cm}cm` : null} />
+                  {(() => {
+                    const box = parcelOf(eView, draft);
+                    const size = box.length_cm && box.width_cm && box.height_cm ? `${box.length_cm} x ${box.width_cm} x ${box.height_cm}cm` : null;
+                    return (
+                      <ConfirmItem label="Parcel" value={Number(box.weight_kg) > 0 ? `${box.weight_kg}kg` : size ?? '--'}
+                        words={!(Number(box.weight_kg) > 0)}
+                        sub={Number(box.weight_kg) > 0 ? size : 'no weight: fine for flat or free postage'} />
+                    );
+                  })()}
                   {confirm.gtin && <ConfirmItem label="Barcode" value={confirm.gtin} sub={confirm.catalogue ? `in eBay's catalogue, ePID ${confirm.catalogue.epid}` : 'sent with the listing'} />}
                 </div>
 
@@ -966,7 +1091,11 @@ function Pack({
                     <span>eBay would file it under <b>{confirm.suggested.name}</b> (#{confirm.suggested.id}) from the title. The one above is where the listing that proves the market sits.</span>
                     {confirm.category?.id !== confirm.suggested.id && (
                       <button type="button" className={styles.goFix} disabled={busy}
-                        onClick={() => { setCategoryChoice(confirm.suggested.id); review({ category_id: confirm.suggested.id }); }}>
+                        onClick={() => {
+                          setCategoryChoice(confirm.suggested.id);
+                          change({ ebay_category: { id: confirm.suggested.id, name: confirm.suggested.name ?? null, source: 'chosen', required: [] } });
+                          review({ category_id: confirm.suggested.id });
+                        }}>
                         Use eBay's
                       </button>
                     )}
@@ -1039,7 +1168,17 @@ function Pack({
 
           <div className={styles.body}>
             <div className={styles.main}>
-              {packOpen && (
+              {draft.as_shelf && ebayLeft && !eView.store && (
+                <div data-part="pack" className={styles.ownMarket} data-tone="set">
+                  <Icon name="IconCheck" className={styles.btnIcon} />
+                  <span>
+                    <b>Listed as the shelf product itself.</b> {draft.market?.query} on eBay UK: median {formatGbp(draft.market?.median)} of {draft.market?.n} new listings{draft.market?.at ? `, checked ${when(draft.market.at)}` : ''}.
+                  </span>
+                  <button type="button" className={styles.revert} onClick={() => change({ as_shelf: false, market: null })}>Undo</button>
+                </div>
+              )}
+
+              {packOpen && !draft.as_shelf && (
                 <div data-part="pack" className={styles.packPanel}>
                   <ComparePanel base={eView} image={row.image_url} />
                   {pack && (
@@ -1047,10 +1186,48 @@ function Pack({
                       <button type="button" className={styles.ghost} onClick={() => goTo('buy')}>
                         <Icon name="IconX" className={styles.btnIcon} />Different pack, find the right one
                       </button>
+                      <button type="button" className={styles.ghost} disabled={checkingMkt} onClick={checkOwnMarket}>
+                        <Icon name="IconSearch" className={styles.btnIcon} />{checkingMkt ? 'Checking eBay' : 'List the shelf product as it is'}
+                      </button>
                       <button type="button" className={eView.packCheck ? styles.ghost : styles.primary}
                         onClick={() => onSource(pack)}>
                         <Icon name="IconCheck" className={styles.btnIcon} />Same item and pack, confirm {formatGbp(pack.unit_cost)}
                       </button>
+                    </div>
+                  )}
+
+                  {ownMkt && (
+                    <div className={styles.ownMarket} data-tone={!ownMkt.n ? 'none' : keepAt(ownMkt.median) < 0 ? 'loss' : 'ok'}>
+                      {!ownMkt.n ? (
+                        <span>No new listings of <b>{ownMkt.query}</b> from UK sellers on eBay right now, so there is no market to price it from. Reject it, or find the right pack.</span>
+                      ) : (
+                        <>
+                          <span>
+                            <b>{ownMkt.query}</b> on eBay UK now: {ownMkt.n} new {ownMkt.n === 1 ? 'listing' : 'listings'}, {formatGbp(ownMkt.low)} to {formatGbp(ownMkt.high)}, median {formatGbp(ownMkt.median)}, postage in.
+                            {' '}At {formatGbp(ownMkt.median)} you keep <b data-num>{formatGbp(keepAt(ownMkt.median))}</b>
+                            {keepAt(ownMkt.median) < 0 ? '. It loses money at its own price: reject it, or find it cheaper.' : keepAt(ownMkt.median) < (eView.target ?? 0) ? `, under your ${formatGbp(eView.target)} profit.` : '.'}
+                          </span>
+                          <ul className={styles.ownList}>
+                            {ownMkt.listings.slice(0, 3).map((x) => (
+                              <li key={x.url ?? x.title}>
+                                {x.url ? <a href={x.url} target="_blank" rel="noreferrer noopener">{x.title}</a> : x.title}
+                                <span data-num>{formatGbp(x.total)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                          <span className={styles.pageButtons}>
+                            <button type="button" className={styles.goFix} disabled={keepAt(ownMkt.median) < 0} onClick={() => listAsShelf(ownMkt.median)}>
+                              List it as the shelf product at {formatGbp(ownMkt.median)}
+                            </button>
+                            {eView.floor != null && eView.floor > ownMkt.median && (
+                              <button type="button" className={styles.goFix} onClick={() => listAsShelf(eView.floor)}>
+                                At your floor, {formatGbp(eView.floor)}
+                              </button>
+                            )}
+                            <button type="button" className={styles.revert} onClick={() => setOwnMkt(null)}>Close</button>
+                          </span>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1117,6 +1294,29 @@ function Pack({
                     {a.l?.in_stock === 'no' && <span className={styles.outStock}><span className={styles.dot} />Out of stock</span>}
                     {a.l?.max_qty != null && <span>Limit {a.l.max_qty} per order</span>}
                   </p>
+                )}
+                {(pageChoices.length > 0 || draft.page) && (
+                  <div className={styles.pageFrom}>
+                    <span className={styles.pageFromHead}>
+                      The listing is written from <b>{writtenFrom ? host(writtenFrom) : 'no page'}</b>
+                      {draft.page && cardPage && (
+                        <button type="button" className={styles.revert} onClick={() => setPendingPage({ url: null, label: host(cardPage) })}>Back to {host(cardPage)}</button>
+                      )}
+                    </span>
+                    {pendingPage ? (
+                      <span className={styles.pageConfirm}>
+                        Writing from {pendingPage.label} clears the title, description, photos and item details written from {writtenFrom ? host(writtenFrom) : 'the old page'}. Your own photos stay.
+                        <span className={styles.pageButtons}>
+                          <button type="button" className={styles.goFix} onClick={() => usePage(pendingPage.url)}>Write from {pendingPage.label}</button>
+                          <button type="button" className={styles.revert} onClick={() => setPendingPage(null)}>Cancel</button>
+                        </span>
+                      </span>
+                    ) : pageChoices.map((src) => (
+                      <button key={src.url} type="button" className={styles.goFix} onClick={() => setPendingPage({ url: src.url, label: src.supplier || host(src.url) })}>
+                        Write it from {possessive(src.supplier || host(src.url))} page
+                      </button>
+                    ))}
+                  </div>
                 )}
                 {alts.length > 0 && (
                   <p className={styles.alts}>
@@ -1191,7 +1391,7 @@ function Pack({
 // The go-live checklist: one column per channel the card is meant for. A channel already started says so; one
 // still to do lists its checks, green when met, amber when it is hers to weigh, red when it holds the button, each
 // with the one thing that fixes it.
-function GoLiveList({ gl, row, onGo, parcel, onParcel, onWrite, writing, onPrice, eView, onFind, finding, onShowBoth }) {
+function GoLiveList({ gl, row, onGo, parcel, onParcel, onWrite, writing, onPrice, eView, onFind, finding, onShowBoth, onCheckEbay, checkingEbay }) {
   return (
     <section className={styles.golive} aria-label="Going live">
       {gl.wants.map((c) => (
@@ -1227,14 +1427,16 @@ function GoLiveList({ gl, row, onGo, parcel, onParcel, onWrite, writing, onPrice
                       <button type="button" className={styles.goFix} onClick={() => onParcel({ weight_kg: parcel.weight_kg, length_cm: parcel.length_cm, width_cm: parcel.width_cm, height_cm: parcel.height_cm })}>
                         Use {parcel.weight_kg}kg{parcel.label ? `, ${parcel.label}` : ''}
                       </button>
+                    ) : x.ebaycheck ? (
+                      <button type="button" className={styles.goFix} disabled={checkingEbay} onClick={onCheckEbay}>{checkingEbay ? 'Checking with eBay' : x.fix}</button>
                     ) : x.dupe ? (
                       <button type="button" className={styles.goFix} onClick={onShowBoth}>{x.fix}</button>
                     ) : x.find ? (
                       <button type="button" className={styles.goFix} disabled={finding} onClick={onFind}>{finding ? 'Checking photos' : x.fix}</button>
                     ) : x.write ? (
                       <button type="button" className={styles.goFix} disabled={writing} onClick={onWrite}>{writing ? 'Writing' : 'Write it'}</button>
-                    ) : x.key === 'price' && c === 'ebay' && eView.position && !eView.position.inMarket ? (
-                      <button type="button" className={styles.goFix} onClick={() => onPrice(eView.position.ref)}>Match £{eView.position.ref.toFixed(2)}</button>
+                    ) : x.key === 'price' && x.match != null ? (
+                      <button type="button" className={styles.goFix} onClick={() => onPrice(x.match)}>Match £{x.match.toFixed(2)}</button>
                     ) : (
                       <button type="button" className={styles.goFix} onClick={() => onGo(x.to)}>{x.fix}</button>
                     )

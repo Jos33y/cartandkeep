@@ -766,3 +766,23 @@
 .channelTag { padding: 0 5px; border-right: 1px solid var(--c-line-mid); font-size: 9px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-ink-faint); background: var(--c-surface); }
 .channel[data-channel='shop'] .channelTag { color: var(--c-action-text); background: var(--c-action-wash); }
 .channelState { display: inline-flex; align-items: center; gap: 4px; padding: 0 7px 0 5px; }
+
+/* Where the listing is written from, and her suppliers' pages she can switch it to. */
+.pageFrom { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-2); padding-top: var(--s-3); border-top: 1px dashed var(--c-line-mid); font-size: var(--t-caption); color: var(--c-ink-soft); }
+.pageFromHead { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-3); }
+.pageFromHead b { font-weight: 600; color: var(--c-ink); }
+.pageConfirm { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-2) var(--s-3); border-radius: var(--r-md); background: var(--c-warning-wash); line-height: var(--lh-snug); color: var(--c-ink-soft); }
+.pageButtons { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); }
+
+/* The shelf product's own eBay market: what the same product asks now, and what she keeps there. */
+.ownMarket { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--s-2) var(--s-3); margin-top: var(--s-3); padding: var(--s-3); border-radius: var(--r-md); background: var(--c-sunk); font-size: var(--t-caption); line-height: var(--lh-snug); color: var(--c-ink-soft); }
+.ownMarket > span:first-child, .ownMarket > span:nth-child(2) { flex: 1 1 260px; min-width: 0; }
+.ownMarket b { font-weight: 600; color: var(--c-ink); }
+.ownMarket[data-tone='loss'] { background: var(--c-negative-wash); }
+.ownMarket[data-tone='set'] { margin-top: 0; background: var(--c-positive-wash); color: var(--c-positive); }
+.ownMarket[data-tone='set'] > svg { flex-shrink: 0; margin-top: 2px; }
+.ownList { display: flex; flex-direction: column; gap: 2px; flex-basis: 100%; list-style: none; }
+.ownList li { display: flex; justify-content: space-between; gap: var(--s-3); min-width: 0; font-size: var(--t-micro); }
+.ownList a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--c-action-text); }
+.ownList [data-num] { flex-shrink: 0; font-family: var(--font-data); color: var(--c-ink); }
+.packActions { flex-wrap: wrap; }

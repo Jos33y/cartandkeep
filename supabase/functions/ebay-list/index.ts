@@ -12,6 +12,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   CANDIDATE_FIELDS, EbayError, allowance, appToken, catalogueFor, duplicateOf, env, gtinOf, policiesMissing, prepare, publish, userToken,
 } from '../_shared/ebay/listing.ts';
+import { aspectFacts, fillAspects } from '../_shared/aspects.ts';
+import { marketFor } from '../_shared/ebay/market.ts';
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -45,7 +47,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { tenant_id: tenantId, candidate_id: candidateId, dry, update, lookup } = body;
+    const { tenant_id: tenantId, candidate_id: candidateId, dry, update, lookup, fill, market } = body;
     if (!tenantId || !candidateId) return json({ error: 'tenant_id and candidate_id are required' }, 400);
     if (!(await allowed(req, tenantId))) return json({ error: 'Not authorised. Sign in to the portal and try again.' }, 401);
 
@@ -91,6 +93,18 @@ Deno.serve(async (req) => {
       }
     }
 
+    // The shelf product's own market on eBay, for listing it as it is when it is not the product that proved the
+    // card's market. Read only; nothing is listed.
+    if (market) {
+      const m = c.margin ?? {};
+      const title = String(body.query ?? m.shelf?.product ?? m.cost_from?.product ?? c.listing?.title ?? c.title ?? '');
+      try {
+        return json({ market: await marketFor(title, await appOnce(), { brand: c.listing?.brand ?? null }) });
+      } catch (e) {
+        return json({ error: `eBay's search could not be read: ${e instanceof Error ? e.message : String(e)}` }, 400);
+      }
+    }
+
     const missing = policiesMissing(s);
     if (missing.length) return json({ error: `Choose ${missing.join(', ')} on the settings screen before listing.` }, 400);
 
@@ -105,7 +119,22 @@ Deno.serve(async (req) => {
     const limits = await allowance(client, tenantId, s);
 
     if (dry) {
+      // Keepr fills the details the category needs, and the ones eBay recommends, from the card's facts. Only
+      // returned: the portal puts them in her draft, where she can change them.
+      let filled: Record<string, string> = {};
+      let fillError: string | null = null;
+      const wanted = [...preview.missing.map((a) => ({ ...a, required: true })), ...preview.recommended.map((a) => ({ ...a, required: false }))];
+      if (fill && wanted.length) {
+        try {
+          filled = await fillAspects(env('ANTHROPIC_API_KEY'), aspectFacts(c, { ...(c.draft ?? {}), title: body.title ?? c.draft?.title, description: body.description ?? c.draft?.description }, preview.category?.name ?? null), wanted);
+        } catch (e) {
+          fillError = e instanceof Error ? e.message : String(e);
+        }
+      }
       return json({
+        filled,
+        fill_error: fillError,
+        recommended: preview.recommended.map((a) => ({ name: a.name, mode: a.mode, values: a.values })),
         dry: true,
         sku: preview.sku,
         title: preview.title,

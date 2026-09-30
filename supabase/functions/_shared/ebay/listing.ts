@@ -119,7 +119,10 @@ export function validGtin(v: unknown): string | null {
 export function gtinOf(c: Json): string | null {
   const m = c.margin ?? {};
   const l = c.listing ?? {};
-  for (const v of [m.shelf?.gtin, m.cost_from?.gtin, m.gtin, l.gtin, l.ean]) {
+  // Once the listing is written from her supplier's page, only that page's barcode is this product's.
+  const moved = Boolean(c.draft?.page);
+  const from = moved ? (l.source_url === c.draft.page ? [l.gtin, l.ean] : []) : [m.shelf?.gtin, m.cost_from?.gtin, m.gtin, l.gtin, l.ean];
+  for (const v of from) {
     const g = validGtin(v);
     if (g) return g;
   }
@@ -144,7 +147,7 @@ export async function suggestCategory(title: string, app: string) {
   return cat?.categoryId ? { id: String(cat.categoryId), name: cat.categoryName ?? null } : null;
 }
 
-export type Aspect = { name: string; required: boolean; mode: string; values: string[] };
+export type Aspect = { name: string; required: boolean; mode: string; values: string[]; recommended?: boolean };
 
 // The item details a category asks for. Required ones decide whether eBay takes the listing at all.
 export async function aspectsFor(categoryId: string, app: string): Promise<Aspect[]> {
@@ -155,8 +158,9 @@ export async function aspectsFor(categoryId: string, app: string): Promise<Aspec
   return ((out?.aspects ?? []) as Json[]).map((a) => ({
     name: a.localizedAspectName,
     required: Boolean(a.aspectConstraint?.aspectRequired),
+    recommended: a.aspectConstraint?.aspectUsage === 'RECOMMENDED',
     mode: a.aspectConstraint?.aspectMode ?? 'FREE_TEXT',
-    values: ((a.aspectValues ?? []) as Json[]).map((v) => v.localizedValue).slice(0, 60),
+    values: ((a.aspectValues ?? []) as Json[]).map((v) => v.localizedValue).slice(0, 200),
   }));
 }
 
@@ -220,7 +224,7 @@ export type Preview = {
   description: string; category: { id: string; name: string | null; source: 'chosen' | 'card' | 'ebay' } | null;
   suggested: { id: string; name: string | null } | null; categoryDiffers: boolean;
   gtin: string | null; catalogue: Catalogue | null; catalogueError: string | null;
-  required: Aspect[]; missing: Aspect[]; aspects: Record<string, string[]>; box: Json | null;
+  required: Aspect[]; missing: Aspect[]; recommended: Aspect[]; aspects: Record<string, string[]>; box: Json | null;
   problems: string[];
   legacy: boolean;
 };
@@ -352,12 +356,13 @@ export async function prepare(
     req.aspects,
   );
 
-  let required: Aspect[] = [];
-  if (category) {
-    required = (await aspectsFor(category.id, app).catch(() => [])).filter((a) => a.required);
-  }
+  let all: Aspect[] = [];
+  if (category) all = await aspectsFor(category.id, app).catch(() => []);
+  const required = all.filter((a) => a.required);
   const have = new Set(Object.keys(aspects).map(norm));
   const missing = required.filter((a) => !have.has(norm(a.name)));
+  // The details eBay recommends for this category and the listing does not have yet: they help it be found.
+  const recommended = all.filter((a) => !a.required && a.recommended && !have.has(norm(a.name))).slice(0, 10);
   // A revision keeps the category it went up in, and eBay took it then; the details are asked for, not required.
   if (missing.length && !revising) problems.push(`eBay needs ${missing.map((a) => a.name).join(', ')} for this category.`);
 
@@ -365,19 +370,20 @@ export async function prepare(
     sku: skuOf(c.id), title, price: sell, quantity, images, imageSource,
     description: toHtml(words || title), category, suggested,
     categoryDiffers: Boolean(category && suggested && category.id !== suggested.id),
-    gtin, catalogue, catalogueError, required, missing, aspects, box, problems,
+    gtin, catalogue, catalogueError, required, missing, recommended, aspects, box, problems,
     legacy,
   };
 }
 
 // The parcel in eBay's shape: the weight when there is one, the size when all three sides are there.
-function packageOf(box: Json | null) {
-  const sized = box?.length_cm && box?.width_cm && box?.height_cm;
-  if (!(Number(box?.weight_kg) > 0) && !sized) return null;
+// The parcel in eBay's shape, only when there is a weight to give: flat and free postage need nothing, and a
+// size on its own tells eBay nothing it prices by. No package type: eBay's UK site refuses MAILING_BOX
+// (error 216305, 30 September 2026) and takes the parcel without one.
+export function packageOf(box: Json | null) {
+  if (!(Number(box?.weight_kg) > 0)) return null;
   return {
-    packageType: 'MAILING_BOX',
-    ...(Number(box.weight_kg) > 0 ? { weight: { value: Number(box.weight_kg), unit: 'KILOGRAM' } } : {}),
-    ...(box.length_cm && box.width_cm && box.height_cm
+    weight: { value: Number(box.weight_kg), unit: 'KILOGRAM' },
+    ...(Number(box.length_cm) > 0 && Number(box.width_cm) > 0 && Number(box.height_cm) > 0
       ? { dimensions: { length: Number(box.length_cm), width: Number(box.width_cm), height: Number(box.height_cm), unit: 'CENTIMETER' } }
       : {}),
   };

@@ -87,3 +87,22 @@ Deno.test('titles survive a sentence or a fence around the list', () => {
   // A wrapper object still gives its list.
   assertEquals(parseTitles('{"titles": ["A"]}'), ['A']);
 });
+
+Deno.test('a page\'s gallery, not just the main photo: sizes counted once, logos and badges left out', async () => {
+  const html = `<html><head><meta property="og:image" content="https://shop.test/media/catalog/product/b/e/beurer-mg16.jpg">
+  <script type="application/ld+json">${JSON.stringify({ '@type': 'Product', name: 'Beurer MG 16', brand: 'Beurer', image: 'https://shop.test/media/catalog/product/b/e/beurer-mg16.jpg', description: 'Mini massager' })}</script></head>
+  <body><img src="/static/logo.png"><img src="/media/wysiwyg/trustpilot-stars.png">
+  <a data-zoom-image="https://shop.test/media/catalog/product/b/e/beurer-mg16-side.jpg"><img src="https://shop.test/media/catalog/product/cache/abc123/b/e/beurer-mg16-side.jpg"></a>
+  <img data-src="/media/catalog/product/b/e/beurer-mg16-green.jpg?v=2" srcset="/media/catalog/product/b/e/beurer-mg16-green-300x300.jpg 300w, /media/catalog/product/b/e/beurer-mg16-green.jpg 800w">
+  <img src="/media/catalog/product/cache/abc123/b/e/beurer-mg16.jpg"><img src="https://cdn.payments.test/visa.png"></body></html>`;
+  const r = await readShopPage('https://shop.test/beurer-mg-16', pages({ 'shop.test/beurer-mg-16': html }));
+  assertEquals(r?.images, [
+    'https://shop.test/media/catalog/product/b/e/beurer-mg16.jpg',
+    'https://shop.test/media/catalog/product/b/e/beurer-mg16-side.jpg',
+    'https://shop.test/media/catalog/product/b/e/beurer-mg16-green.jpg?v=2',
+  ]);
+});
+
+Deno.test('her supplier\'s page, once she chose it, is the page the listing is written from', () => {
+  assertEquals(pageUrlOf({ draft: { page: 'https://supplier.test/gun' }, margin: { shelf: { url: 'https://shop.test/a' } } }), 'https://supplier.test/gun');
+});

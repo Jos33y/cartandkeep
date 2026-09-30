@@ -7,7 +7,7 @@ function assertEquals(a: unknown, b: unknown) {
   const x = JSON.stringify(a); const y = JSON.stringify(b);
   if (x !== y) throw new Error(`expected ${y}\n     got ${x}`);
 }
-import { validGtin, gtinOf, prepare, publish, mergeAspects, skuOf, duplicateOf } from './listing.ts';
+import { validGtin, gtinOf, prepare, publish, mergeAspects, skuOf, duplicateOf, packageOf } from './listing.ts';
 
 Deno.env.set('EBAY_CLIENT_ID', 'x'); Deno.env.set('EBAY_CLIENT_SECRET', 'y');
 
@@ -235,4 +235,20 @@ Deno.test('a duplicate: another live card with the same barcode, else the same t
   assertEquals((await duplicateOf(byGtin, 't1', c))?.id, 'c9');
   const none = client({});
   assertEquals(await duplicateOf(none, 't1', c), null);
+});
+
+Deno.test('the parcel: no package type, and nothing at all without a weight', () => {
+  assertEquals(packageOf({ length_cm: 45, width_cm: 35, height_cm: 16 }), null);
+  assertEquals(packageOf(null), null);
+  const p = packageOf({ weight_kg: 0.45, length_cm: 45, width_cm: 35, height_cm: 16 }) as any;
+  assertEquals(p.packageType, undefined);
+  assertEquals(p.weight, { value: 0.45, unit: 'KILOGRAM' });
+  assertEquals(p.dimensions.unit, 'CENTIMETER');
+  assertEquals((packageOf({ weight_kg: 1, length_cm: '' }) as any).dimensions, undefined);
+});
+
+Deno.test('on her supplier\'s page, the old shelf barcode is not this product\'s', () => {
+  const c = { margin: { shelf: { gtin: EAN } }, draft: { page: 'https://supplier.test/gun' }, listing: { source_url: 'https://shop.test/old', gtin: EAN } };
+  assertEquals(gtinOf(c), null);
+  assertEquals(gtinOf({ ...c, listing: { source_url: 'https://supplier.test/gun', gtin: '5016870223499' } }), '5016870223499');
 });

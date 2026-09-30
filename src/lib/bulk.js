@@ -28,7 +28,8 @@ export function ebayRequest(whole, draft, { quantity, categoryId } = {}) {
     images: draft.images,
     aspects: draft.aspects,
     use_catalogue: Boolean(draft.catalogue?.epid),
-    ...(categoryId ? { category_id: categoryId } : {}),
+    // Her choice, else the category eBay's check settled on for this card.
+    ...((categoryId ?? draft.ebay_category?.id) ? { category_id: categoryId ?? draft.ebay_category.id } : {}),
   };
 }
 
@@ -91,4 +92,17 @@ export function lastDay(count, { daily, todayLeft, ahead = 0 }, now = new Date()
   const d = new Date(now);
   d.setDate(d.getDate() + days);
   return d;
+}
+
+// What eBay's check settled on for a card, kept on her draft: the category, the details it needs, and Keepr's values
+// for them, never over a value she set. From a dry run's answer.
+export function fromEbayCheck(dry, draft = {}) {
+  if (!dry?.category) return null;
+  const aspects = { ...(dry.filled ?? {}) };
+  for (const [k, v] of Object.entries(draft.aspects ?? {})) if (v) aspects[k] = v;
+  return {
+    // The details eBay said were still missing: the function fills Brand, MPN and the catalogue's own itself.
+    ebay_category: { id: dry.category.id, name: dry.category.name ?? null, source: dry.category.source, required: (dry.missing ?? []).map((a) => a.name) },
+    aspects,
+  };
 }

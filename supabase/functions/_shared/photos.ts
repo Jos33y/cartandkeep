@@ -15,7 +15,7 @@ export const MIN_SIDE = 500;
 // Anthropic takes images up to 5MB; base64 adds a third.
 export const MAX_BYTES = 3_700_000;
 // Enough to reach past the hero shot, not every angle.
-export const MAX_PHOTOS = 6;
+export const MAX_PHOTOS = 8;
 
 // Her folder holds her uploads and, under shop/, the copies of shop photos Keepr passed. Only the first are hers.
 export const isHers = (url: string, draft: Json = {}) =>

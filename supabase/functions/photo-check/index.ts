@@ -6,7 +6,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { appToken, catalogueFor, env, gtinOf, userToken } from '../_shared/ebay/listing.ts';
-import { pageUrlOf, readShopPage } from '../_shared/shop-page.ts';
+import { READER, pageUrlOf, readShopPage } from '../_shared/shop-page.ts';
 import {
   MAX_BYTES, MAX_PHOTOS, PHOTO_SYSTEM, brandRuleFor, imageSize, judge, parseSeen, smaller, toBase64,
 } from '../_shared/photos.ts';
@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    const { tenant_id: tenantId, candidate_id: candidateId } = await req.json();
+    const { tenant_id: tenantId, candidate_id: candidateId, again } = await req.json();
     if (!tenantId || !candidateId) return json({ error: 'tenant_id and candidate_id are required' }, 400);
     if (!(await allowed(req, tenantId))) return json({ error: 'Not authorised. Sign in to the portal and try again.' }, 401);
 
@@ -96,12 +96,16 @@ Deno.serve(async (req) => {
     // The page first, if it has never been read: its photos are what is checked.
     const page = pageUrlOf(c);
     let fresh: Record<string, unknown> | null = null;
-    if (!c.listing && page) {
+    // Read again when asked, when the page is another one now, or when it was read before the whole gallery was.
+    const stale = c.listing && (again || (c.listing.reader ?? 1) < READER || (c.listing.source_url && c.listing.source_url !== page));
+    if ((!c.listing || stale) && page) {
       const read = await readShopPage(page).catch(() => null);
       if (read) {
-        fresh = read;
-        c.listing = read;
-        await client.from('candidates').update({ listing: read }).eq('id', c.id).is('listing', null);
+        // A barcode read before stays when the fresh read has none.
+        const merged = { ...read, gtin: read.gtin ?? c.listing?.gtin ?? null };
+        fresh = merged;
+        c.listing = merged;
+        await client.from('candidates').update({ listing: merged }).eq('id', c.id);
       }
     }
     const l = c.listing ?? {};
@@ -167,6 +171,7 @@ Deno.serve(async (req) => {
     }
 
     const checks = {
+      version: READER,
       checked_at: new Date().toISOString(),
       page,
       shop,

@@ -209,3 +209,16 @@ The Overview counts every card in the live batches, read in pages. Before 30 Sep
 - count the "Kept" figure on Overview as her profit.
 
 Plain British English, no em dashes, no emojis, no filler. Notes are for her, not for an engineer.
+
+---
+
+## Part 10. Listing on 100 (built, 30 September, late)
+
+- **Parcel:** eBay UK refuses the MAILING_BOX package type (error 216305), so none is sent. No parcel goes to eBay without a weight; flat and free postage need none.
+- **Category and item details:** eBay's check saves the category and the details it still needs on the card, shown as a checklist line. Keepr fills required and recommended details (Type, Colour) from the card's facts, choosing only from eBay's own values; a specification the facts do not state is left for her.
+- **Photo galleries:** shop pages are read for every product photo, not only the main one. A card read before this is read again on its next photo check.
+- **Her supplier's page:** when the shelf product is not the product she will send, "Write it from [supplier]'s page" moves the listing to her supplier's page: facts, photos and barcode follow it, and copy written from the old product is cleared (her own photos stay).
+- **The shelf product as it is:** "List the shelf product as it is" reads that product's own market on eBay UK (new, fixed price, UK sellers, brand and model in the title), shows what she keeps at its median, and prices from it. The price check then judges against that market, not the one that proved the card.
+- **Descriptions:** a photo the model cannot read no longer fails the writing; doubt and backstage sentences ("please check the photographs", "not confirmed") are removed from buyer copy.
+
+Keepr, reading a card: a card priced from another product's market (pack "not confirmed" at a large ratio, titles naming different models) is flagged to her with the shelf product's own market, never listed at the other product's price.

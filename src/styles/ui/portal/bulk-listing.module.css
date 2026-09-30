@@ -203,7 +203,10 @@ img.thumb { background: #fff; }
   /* The count and Clear on one line, the two actions side by side under them, the reasons last. */
   .barCount { flex: 1; order: 0; }
   .barClear { order: 1; }
-  .barGo { order: 2; flex: 1 1 140px; justify-content: center; white-space: normal; text-align: center; min-height: 40px; }
+  .barGo { order: 2; flex: 1 1 120px; justify-content: center; white-space: normal; text-align: center; min-height: 40px; }
+  .barMain.barGo { flex-basis: 100%; }
+  /* A phone keeps the bar short: why cards were left out shows where they are, in the tabs and the check sheet. */
+  .barWhy { display: none; }
   .barQuiet.barGo { border: 1px solid rgba(250, 246, 239, 0.22); }
   .barWhy { order: 3; }
   .row { grid-template-columns: 40px minmax(0, 1fr) auto; }

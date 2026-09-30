@@ -30,8 +30,8 @@ export function sourceOf(url, row, draft, channel = 'ebay') {
 
 // The shop's photos Keepr passed, in the page's order, as our own copies where the check made one. None when the
 // brand is on the list.
-export function passedPhotos(row) {
-  const pc = row.photo_checks;
+export function passedPhotos(row, draft = row.draft ?? {}) {
+  const pc = freshChecks(row, draft);
   if (!pc || pc.brand_rule) return [];
   return (pc.images ?? []).filter((i) => i.ok).map((i) => i.copy ?? i.url);
 }
@@ -39,25 +39,37 @@ export function passedPhotos(row) {
 // What finding photos puts in her draft, never over what she already has: the checked shop photos when she has
 // none, and eBay's catalogue entry when she has not chosen one. Null when there is nothing to add.
 export function photosToAdd(row, draft) {
-  const pc = row.photo_checks;
+  const pc = freshChecks(row, draft);
   if (!pc) return null;
   const patch = {};
-  const passed = passedPhotos(row);
+  const passed = passedPhotos(row, draft);
   if (!(draft.images ?? []).length && passed.length) patch.images = passed.slice(0, 8);
   if (!draft.catalogue?.epid && pc.catalogue?.epid) patch.catalogue = { epid: pc.catalogue.epid, title: pc.catalogue.title, images: pc.catalogue.images ?? [] };
   return Object.keys(patch).length ? patch : null;
 }
 
 // Why the shop's photos cannot help, in one line, once they have been checked.
-export function noShopPhotos(row) {
-  const pc = row.photo_checks;
+export function noShopPhotos(row, draft = row.draft ?? {}) {
+  const pc = freshChecks(row, draft);
   if (!pc) return null;
   if (pc.brand_rule) return `${pc.brand} uses eBay's catalogue or your own photos, not the shop's`;
   if (!(pc.images ?? []).length) return 'The shop page had no photos to check';
-  if (passedPhotos(row).length) return null;
+  if (passedPhotos(row, draft).length) return null;
   const top = new Map();
   for (const i of pc.images) { const r = i.reasons?.[0]; if (r) top.set(r, (top.get(r) ?? 0) + 1); }
   const [reason] = [...top.entries()].sort((p, q) => q[1] - p[1])[0] ?? [];
   const lead = pc.images.length === 1 ? 'The shop\'s one photo did not pass' : `None of the shop's ${pc.images.length} photos passed`;
   return `${lead}${reason ? `: ${reason.charAt(0).toLowerCase()}${reason.slice(1)}` : ''}`;
 }
+
+// A photo check from before the whole gallery was read (version 2) is looked at again rather than reused.
+export const PHOTO_CHECK_VERSION = 2;
+// The page the listing is written from: her supplier's once she chose it, else the one the card was costed from.
+export const pageOf = (row, draft = row.draft ?? {}) => draft.page ?? row.margin?.shelf?.url ?? row.margin?.cost_from?.url ?? null;
+export const freshChecks = (row, draft = row.draft ?? {}) => {
+  const pc = row.photo_checks;
+  if (!pc || (pc.version ?? 1) < PHOTO_CHECK_VERSION) return null;
+  // A check of another page (before she chose her supplier's) is not this listing's.
+  if (pc.page && pageOf(row, draft) && pc.page !== pageOf(row, draft)) return null;
+  return pc;
+};

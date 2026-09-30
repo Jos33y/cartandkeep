@@ -3,6 +3,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { pageUrlOf, parseTitles, readShopPage } from '../_shared/shop-page.ts';
 import { MODEL } from '../_shared/model.ts';
+import { backstageOut } from '../_shared/copy.ts';
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -122,6 +123,8 @@ Rules:
 - British spelling throughout: colour, flavour, fibre, litre, analyse. Never the
   American forms, including inside a list copied from the source.
 - Plain text, no HTML, no markdown headings.
+- The description is what a buyer reads. Never mention the photographs, the images, the listing, the source, the
+  supplier, what is or is not confirmed, or advise the buyer to check anything. What is not known is simply left out.
 
 Reply with the description only.`;
 
@@ -150,7 +153,7 @@ Deno.serve(async (req) => {
 
     const { data: c, error } = await db()
       .from('candidates')
-      .select('id, title, external_ref, listing, entry, margin')
+      .select('id, title, external_ref, listing, entry, margin, draft, photo_checks')
       .eq('id', candidateId)
       .eq('tenant_id', tenantId)
       .maybeSingle();
@@ -163,14 +166,18 @@ Deno.serve(async (req) => {
     const url = pageUrlOf(c);
     let unread = false;
     let fresh: Record<string, unknown> | null = null;
-    if (!c.listing && url) {
+    // Read again when the listing now comes from another page (her supplier's), or was never read.
+    const moved = Boolean(c.listing && url && (c.listing as Record<string, unknown>).source_url && (c.listing as Record<string, unknown>).source_url !== url);
+    if ((!c.listing || moved) && url) {
       const read = await readShopPage(url).catch(() => null);
       if (read) {
         fresh = read;
         (c as Record<string, unknown>).listing = read;
-        await db().from('candidates').update({ listing: read }).eq('id', c.id).is('listing', null);
+        await db().from('candidates').update({ listing: read }).eq('id', c.id);
       } else {
         unread = true;
+        // Never write about the old product when the listing has moved to her supplier's page.
+        if (moved) (c as Record<string, unknown>).listing = null;
       }
     }
     const shop = url ? new URL(url).hostname.replace(/^www\./, '') : null;
@@ -194,10 +201,22 @@ Deno.serve(async (req) => {
 
     const known = facts(c);
     // First four photos: enough to reach the back panel without paying for every angle.
-    const shots = ((c.listing as { images?: string[] } | null)?.images ?? []).slice(0, 4);
+    // Photos Keepr passed and we copied (a format we know) first, then the page's own. A photo the model cannot read
+    // is dropped and the call made again without photos, rather than failing the whole piece of writing.
+    const passed = (((c as Record<string, any>).photo_checks?.images ?? []) as Array<{ ok?: boolean; copy?: string }>)
+      .filter((i) => i.ok && i.copy).map((i) => i.copy as string);
+    const shots = (passed.length ? passed : ((c.listing as { images?: string[] } | null)?.images ?? [])).slice(0, 4);
+    const write = async (system: string, max: number) => {
+      try {
+        return await claude(system, known, max, shots);
+      } catch (e) {
+        if (shots.length && /image|media|file format|url/i.test(e instanceof Error ? e.message : String(e))) return claude(system, known, max, []);
+        throw e;
+      }
+    };
 
     if (kind === 'title') {
-      const text = await claude(TITLE_SYSTEM, known, 600, shots);
+      const text = await write(TITLE_SYSTEM, 600);
       if (/^CONFLICT:/i.test(text.trim())) {
         return json({ conflict: text.trim().replace(/^CONFLICT:\s*/i, ''), read: fresh });
       }
@@ -207,7 +226,7 @@ Deno.serve(async (req) => {
       return json({ titles: titles.filter((t) => t.length <= 80).slice(0, 4), read: fresh });
     }
 
-    const out = await claude(DESC_SYSTEM, known, 1400, shots);
+    const out = backstageOut(await write(DESC_SYSTEM, 1400));
 
     // Writing through a conflict means picking whichever side makes the facts agree.
     if (/^CONFLICT:/i.test(out)) {

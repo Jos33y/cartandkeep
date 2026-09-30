@@ -188,6 +188,12 @@ export function useApproved(tenantId) {
 
   const saveAspects = useCallback((candidateId, aspects) => patchDraft(candidateId, { aspects }), [patchDraft]);
 
+  // The shelf product's own market on eBay: what new listings of it ask now. Read only.
+  const marketCheck = useCallback(async (candidateId, query = null) => {
+    const data = await invoke('ebay-list', { tenant_id: tenantId, candidate_id: candidateId, market: true, ...(query ? { query } : {}) });
+    return data.market;
+  }, [tenantId]);
+
   // Title options or a description written from the shop page's facts, for a card that is not open. A conflict
   // (the text and the pack disagree) comes back as { conflict }, never as copy.
   const compose = useCallback(async (candidateId, kind) => {
@@ -200,12 +206,12 @@ export function useApproved(tenantId) {
 
   // Keepr's photo check: eBay's catalogue for the barcode, and each of the shop's photos looked at. The answer is
   // kept on the card; nothing of hers changes until she, or a bulk action she starts, uses what passed.
-  const checkPhotos = useCallback(async (candidateId) => {
-    const data = await invoke('photo-check', { tenant_id: tenantId, candidate_id: candidateId });
+  const checkPhotos = useCallback(async (candidateId, { again = false } = {}) => {
+    const data = await invoke('photo-check', { tenant_id: tenantId, candidate_id: candidateId, again });
     setState((s) => ({
       ...s,
       rows: s.rows.map((r) => (r.id === candidateId
-        ? { ...r, photo_checks: data.photo_checks, ...(data.read && !r.listing ? { listing: data.read } : {}) }
+        ? { ...r, photo_checks: data.photo_checks, ...(data.read ? { listing: data.read } : {}) }
         : r)),
     }));
     return data.photo_checks;
@@ -293,5 +299,5 @@ export function useApproved(tenantId) {
     [tenantId],
   );
 
-  return { ...state, month, jobs, reload: load, addSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose };
+  return { ...state, month, jobs, reload: load, addSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose, marketCheck };
 }

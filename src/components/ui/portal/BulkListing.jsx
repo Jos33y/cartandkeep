@@ -105,8 +105,17 @@ export function ListSheet({ items, ahead, check, onAspects, onQueue, onHeld, onC
       const id = todo.current.shift();
       setResults((r) => ({ ...r, [id]: { ...r[id], status: 'checking' } }));
       try {
-        const dry = await check(id, requestFor(id));
+        let dry = await check(id, { ...requestFor(id), fill: true });
         if (!live()) return;
+        // Keepr filled details eBay asked for: onto her draft, and eBay asked once more with them.
+        const filled = dry.filled ?? {};
+        if (dry.missing?.length && dry.missing.every((m) => filled[m.name])) {
+          const aspects = { ...(byId[id].row.draft?.aspects ?? {}), ...(extra.current[id]?.aspects ?? {}), ...filled };
+          await onAspects(id, aspects).catch(() => {});
+          extra.current[id] = { ...extra.current[id], aspects };
+          dry = await check(id, requestFor(id));
+          if (!live()) return;
+        }
         setResults((r) => {
           const was = r[id] ?? {};
           // The first answer holds the choice: once she picks, the category is hers and eBay stops disagreeing.
