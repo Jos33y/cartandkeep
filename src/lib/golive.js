@@ -245,10 +245,14 @@ export function goLive(views, row, draft) {
     : [];
   const checks = Object.fromEntries(ch.left.map((c) => [c, [...dupe, ...checksFor(c, views[c], row, draft)]]));
   const can = Object.fromEntries(ch.left.map((c) => [c, checks[c].every((x) => !x.hard || x.ok)]));
-  const ready = ch.left.length > 0 && ch.left.every((c) => checks[c].every((x) => x.ok));
+  // Ready to go live on a channel: every check on it met. The card is Ready when at least one channel is, so a card
+  // her shop can take now is not held back by eBay, and the other way round. `complete` is every channel left.
+  const readyOn = ch.left.filter((c) => checks[c].every((x) => x.ok));
+  const ready = readyOn.length > 0;
+  const complete = ch.left.length > 0 && readyOn.length === ch.left.length;
   // The first thing to do, blocking ones first, for the row.
   const all = ch.left.flatMap((c) => checks[c].map((x) => ({ ...x, channel: c })));
   const firstOpen = all.find((x) => !x.ok && x.hard) ?? all.find((x) => !x.ok) ?? null;
   const open = [...new Map(all.filter((x) => !x.ok).map((x) => [x.key + x.text, x])).values()];
-  return { ...ch, checks, can, ready, first: firstOpen, open };
+  return { ...ch, checks, can, ready, readyOn, complete, first: firstOpen, open };
 }

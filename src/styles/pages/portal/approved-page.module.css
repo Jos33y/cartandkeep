@@ -786,3 +786,6 @@
 .ownList a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--c-action-text); }
 .ownList [data-num] { flex-shrink: 0; font-family: var(--font-data); color: var(--c-ink); }
 .packActions { flex-wrap: wrap; }
+
+/* Which channel the Ready cards are ready for, beside the count. */
+.stateDetail { font-size: var(--t-micro); color: var(--c-ink-faint); white-space: nowrap; }

@@ -110,6 +110,9 @@ export function ApprovedPage() {
   const counts = useMemo(() => ({
     ready: assessed.filter(({ gl }) => gl.ready).length,
     check: assessed.filter(({ gl }) => !gl.ready).length,
+    // Of the Ready ones, which channel each is ready for, for the tab's own count.
+    readyShopAll: assessed.filter(({ gl }) => gl.readyOn.includes('shop')).length,
+    readyEbayAll: assessed.filter(({ gl }) => gl.readyOn.includes('ebay')).length,
     half: assessed.filter(({ gl }) => gl.started.length > 0).length,
     edited: assessed.filter(({ a }) => a.edited).length,
     queued: assessed.filter(({ row }) => jobOpen(jobOf(row.id))).length,
@@ -363,7 +366,8 @@ export function ApprovedPage() {
         <StateTab id={null} only={only} setOnly={setOnly} icon="IconLayers"
           label="All" count={rows.length} />
         <StateTab id="ready" only={only} setOnly={setOnly} icon="IconCheck"
-          label="Ready to go live" count={counts.ready} tone="positive" />
+          label="Ready to go live" count={counts.ready} tone="positive"
+          detail={counts.ready > 0 && counts.readyShopAll !== counts.readyEbayAll ? `Shop ${counts.readyShopAll} · eBay ${counts.readyEbayAll}` : null} />
         <StateTab id="check" only={only} setOnly={setOnly} icon="IconInfo"
           label="Needs a look" count={counts.check} tone="warning" />
         {counts.half > 0 && (
@@ -516,7 +520,7 @@ export function ApprovedPage() {
   );
 }
 
-function StateTab({ id, only, setOnly, icon, label, count, tone }) {
+function StateTab({ id, only, setOnly, icon, label, count, tone, detail = null }) {
   const on = only === id;
   return (
     <button type="button" role="tab" aria-selected={on}
@@ -525,6 +529,7 @@ function StateTab({ id, only, setOnly, icon, label, count, tone }) {
       <Icon name={icon} className={styles.stateIcon} />
       <span>{label}</span>
       <span className={styles.stateCount} data-num>{count}</span>
+      {detail && <span className={styles.stateDetail} data-num>{detail}</span>}
     </button>
   );
 }
@@ -851,7 +856,7 @@ function Pack({
   const sentence = (() => {
     const done = gl.started.map((c) => (c === 'ebay' ? `live on eBay${row.ebay?.published_at ? ` since ${when(row.ebay.published_at)}` : ''}` : `on your shop as a ${gl.state.shop === 'onSale' ? 'product on sale' : 'draft'}`));
     const lead = done.length ? `${done.join(' and ').replace(/^./, (x) => x.toUpperCase())}. ` : '';
-    if (gl.ready) return `${lead}Everything checks for ${gl.left.map((c) => (c === 'ebay' ? 'eBay' : 'your shop')).join(' and ')}.`;
+    if (gl.complete) return `${lead}Everything checks for ${gl.left.map((c) => (c === 'ebay' ? 'eBay' : 'your shop')).join(' and ')}.`;
     const parts = gl.left.map((c) => {
       const hard = gl.checks[c].filter((x) => x.hard && !x.ok);
       const soft = gl.checks[c].filter((x) => !x.hard && !x.ok);
@@ -981,7 +986,7 @@ function Pack({
           <BriefStrip
             tone={gl.ready ? 'positive' : 'warning'}
             icon={gl.ready ? 'IconCheck' : 'IconInfo'}
-            kicker={<>{gl.ready ? 'Ready to go live' : 'Needs a look'}{row.decision?.decided_at && <span className={styles.stripWhen}> · approved {when(row.decision.decided_at)}</span>}</>}
+            kicker={<>{gl.complete ? 'Ready to go live' : gl.ready ? `Ready for ${gl.readyOn.map((c) => (c === 'ebay' ? 'eBay' : 'your shop')).join(' and ')}` : 'Needs a look'}{row.decision?.decided_at && <span className={styles.stripWhen}> · approved {when(row.decision.decided_at)}</span>}</>}
             checks={a.warnings.map((w) => ({ tone: /^Loses money/.test(w) ? 'negative' : 'info', text: w }))}
             action={!confirm && (
               <span className={styles.actions}>
