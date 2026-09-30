@@ -8,6 +8,11 @@ import path from 'node:path';
 import { parseCsv } from '../lib/sources.js';
 import { digits, squash } from './match.mjs';
 
+
+// The filters live in rules/ (one list per concern, one file per category when needed); re-exported here for
+// the scripts that read them from shelf.mjs.
+export { OWN_LABEL, NOT_SHELF, RESTRICTED, CANT_POST } from './rules/index.mjs';
+
 // Shop names compared without case, spaces or hyphens, so festive-lights, festivelights and "Festive Lights" all match.
 export const normShop = (v) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -38,7 +43,20 @@ const OWN_SHOP_BRAND = /^(b and m|home bargains|savers|poundland|the works|home 
 const add = (map, key, s) => { const list = map.get(key); if (list) list.push(s); else map.set(key, [s]); };
 
 // Names-only shelves count: seeing the product listed is the proof, a price is not needed.
-export function loadShelves({ dir = 'research/shelf', wantGtins, wantKeys, skipShops = new Set() }) {
+export function loadShelves({ dir = 'research/shelf', wantGtins, wantKeys, wantBrands = null, skipShops = new Set() }) {
+  // A names-only shelf has no brand column, and some shops put the brand last ("Biotin Solgar", "Plantago Drops
+  // A Vogel"). The longest wanted brand named anywhere in the name is its key; otherwise its first word, as before.
+  const brandIn = (n) => {
+    if (!wantBrands?.size) return null;
+    const w = n.split(' ');
+    for (let len = 4; len >= 1; len -= 1) {
+      for (let i = 0; i + len <= w.length; i += 1) {
+        const gram = w.slice(i, i + len).join(' ');
+        if (wantBrands.has(gram) && (len > 1 || gram.length >= 4)) return gram;
+      }
+    }
+    return null;
+  };
   const files = fs.readdirSync(dir).filter((f) => /^shelf-.*\.csv$/.test(f));
   const byGtin = new Map();
   const byBrand = new Map();
@@ -60,7 +78,7 @@ export function loadShelves({ dir = 'research/shelf', wantGtins, wantKeys, skipS
       // Shops name the barcode differently: Shopify calls it barcode, others ean or gtin13.
       const g = digits(r.gtin || r.barcode || r.ean || r.gtin13 || r.upc);
       if (g) s.gtin = g;
-      const key = s.brand && !OWN_SHOP_BRAND.test(s.brand) ? s.brand : squash(name).split(' ')[0];
+      const key = s.brand && !OWN_SHOP_BRAND.test(s.brand) ? s.brand : (brandIn(squash(name)) ?? squash(name).split(' ')[0]);
       const byCode = g && wantGtins.has(g);
       const byName = key && wantKeys.has(key);
       if (!byCode && !byName) continue;

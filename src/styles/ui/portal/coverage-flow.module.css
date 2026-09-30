@@ -13,6 +13,7 @@
 .link.sent { fill: var(--c-positive); opacity: 0.4; }
 .link.ours { fill: var(--c-data-3); }
 .link.market { fill: var(--c-data-6); }
+.link.check { fill: var(--c-data-4); }
 
 /* The lens: at full scale the sent group is a hairline. */
 .lens { fill: var(--c-positive); opacity: 0.14; }
@@ -26,6 +27,7 @@
 .node_sent { fill: var(--c-positive); }
 .node_ours { fill: var(--c-data-3); }
 .node_market { fill: var(--c-data-6); }
+.node_check { fill: var(--c-data-4); }
 
 .zoom_live { fill: var(--c-positive); }
 .zoom_approved { fill: var(--c-brand-strong); }
@@ -39,7 +41,7 @@
 .outcome:hover .hit { fill: var(--c-raised); }
 
 /* Text sits over ribbons, so it carries a halo in the surface colour. */
-.halo, .colLabel, .colValue, .zoomTitle {
+.halo, .colLabel, .colValue, .zoomTitle, .stageValue {
   paint-order: stroke;
   stroke: var(--c-surface);
   stroke-width: 4px;
@@ -54,6 +56,8 @@
 .colLabel { font-size: 13px; fill: var(--c-ink-soft); }
 .colValue { font-family: var(--font-data); font-size: 28px; font-weight: 500; }
 .zoomTitle { font-size: 12px; fill: var(--c-ink-faint); }
+.stageValue { font-family: var(--font-data); font-size: 22px; font-weight: 500; }
+.note { font-size: 12px; fill: var(--c-ink-faint); }
 
 @keyframes flowIn {
   from { opacity: 0; }

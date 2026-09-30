@@ -3,6 +3,8 @@ import { Link } from 'react-router';
 import { useOverview, nextMonday } from '@hooks/useOverview';
 import { useListings } from '@hooks/useListings';
 import { useFinance } from '@hooks/useFinance';
+import { useApproved } from '@hooks/useApproved';
+import { assess } from '@lib/assess';
 import { PageSkeleton } from '@components/ui/portal/Skeleton';
 import { Card, CardHead } from '@components/ui/portal/primitives';
 import { Icon } from '@components/ui/icons';
@@ -28,9 +30,21 @@ export function OverviewPage() {
   const o = useOverview(tenant?.id);
   const l = useListings(tenant?.id);
   const f = useFinance(tenant?.id);
+  const ap = useApproved(tenant?.id);
   const monday = useMemo(() => nextMonday(), []);
 
-  if (tenant === undefined || o.status === 'loading' || l.status === 'loading' || f.status === 'loading') {
+  // Approved, not yet listed, read by the same assess() as the Approved page, so "ready" here is the Approved page's
+  // Ready count and what each keeps is what the card says, confirmed costs included.
+  const approved = useMemo(() => {
+    const as = ap.rows.map((r) => assess(r));
+    return {
+      waiting: as.length,
+      ready: as.filter((a) => a.ready).length,
+      worth: as.reduce((s, a) => s + Math.max(0, a.keep ?? 0), 0),
+    };
+  }, [ap.rows]);
+
+  if (tenant === undefined || o.status === 'loading' || l.status === 'loading' || f.status === 'loading' || ap.status === 'loading') {
     return <PageSkeleton rows={3} />;
   }
 
@@ -43,11 +57,11 @@ export function OverviewPage() {
 
   // What needs her, in the order it costs money to leave it.
   const tasks = [
-    o.approved.ready > 0 && {
+    approved.ready > 0 && {
       icon: 'IconTag',
       tone: 'action',
-      count: o.approved.ready,
-      title: `${o.approved.ready} ready to list`,
+      count: approved.ready,
+      title: `${n(approved.ready)} ready to list`,
       body: 'Approved, priced against a seller who is converting, nothing to check.',
       to: portalPath('/approved'),
       cta: 'List them',
@@ -55,16 +69,16 @@ export function OverviewPage() {
     o.counts.pending > 0 && {
       icon: 'IconLayers',
       count: o.counts.pending,
-      title: `${o.counts.pending} to review`,
+      title: `${n(o.counts.pending)} to review`,
       body: 'Candidates the gate passed, waiting for a yes or no.',
       to: portalPath('/candidates'),
       cta: 'Open the queue',
     },
-    o.approved.waiting - o.approved.ready > 0 && {
+    approved.waiting - approved.ready > 0 && {
       icon: 'IconInfo',
       tone: 'warning',
-      count: o.approved.waiting - o.approved.ready,
-      title: `${o.approved.waiting - o.approved.ready} approved ${plural(o.approved.waiting - o.approved.ready, 'needs', 'need')} a look`,
+      count: approved.waiting - approved.ready,
+      title: `${approved.waiting - approved.ready} approved ${plural(approved.waiting - approved.ready, 'needs', 'need')} a look`,
       body: 'A price, a pack size or a claim to confirm before they go up.',
       to: portalPath('/approved'),
       cta: 'Check them',
@@ -81,9 +95,9 @@ export function OverviewPage() {
 
   const stages = [
     { label: 'To review', value: o.counts.pending, to: portalPath('/candidates'), icon: 'IconLayers' },
-    { label: 'Approved', value: o.approved.waiting, to: portalPath('/approved'), icon: 'IconCheck',
-      foot: o.approved.worth > 0
-        ? `${formatGbp(o.approved.worth)} if ${plural(o.approved.waiting, 'it sells', 'each sells')} once`
+    { label: 'Approved', value: approved.waiting, to: portalPath('/approved'), icon: 'IconCheck',
+      foot: approved.waiting
+        ? `not listed yet${approved.worth > 0 ? `, ${formatGbp(approved.worth)} if ${plural(approved.waiting, 'it sells', 'each sells')} once` : ''}`
         : null },
     { label: 'Live', value: onEbay, to: portalPath('/listings'), icon: 'IconTag',
       foot: onShop ? `${onShop} ${plural(onShop, 'is', 'are')} also on your shop` : 'on eBay' },
@@ -177,8 +191,9 @@ export function OverviewPage() {
                 <Mini icon="IconChart" label="Taken" value={formatGbp(f.totals.revenue)} />
                 <Mini icon="IconCheck" label="Kept"
                   value={f.totals.net == null ? 'Unknown' : formatGbp(f.totals.net)}
-                  foot={f.totals.net == null ? 'no costs recorded' : f.totals.uncosted ? `over ${f.totals.covered} of ${f.totals.lines}` : null}
-                  tone={f.totals.net > 0 ? 'positive' : null} />
+                  foot={f.totals.net == null ? 'no costs recorded'
+                    : f.totals.uncosted ? `on ${f.totals.covered} of ${f.totals.lines} sales, ${f.totals.uncosted} with no cost yet` : null}
+                  tone={f.totals.net > 0 && !f.totals.uncosted ? 'positive' : null} />
                 <Mini icon="IconBought" label="Units" value={n(f.totals.units)} />
               </div>
             ) : (

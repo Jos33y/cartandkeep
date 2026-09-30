@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { CandidateRow, confirmSource } from '@components/ui/portal/CandidateRow';
 import { CategoryTabs } from '@components/ui/portal/CategoryTabs';
 import { Tip } from '@components/ui/portal/primitives';
+import { Menu } from '@components/ui/portal/Menu';
+import { ReviewProgress } from '@components/ui/portal/ReviewProgress';
+import { Shortcuts } from '@components/ui/portal/Shortcuts';
+import { ScrollStrip } from '@components/ui/portal/ScrollStrip';
 import { PageSkeleton, RowSkeleton } from '@components/ui/portal/Skeleton';
 import { Icon } from '@components/ui/icons';
 import { useCandidates, useBatches } from '@hooks/useCandidates';
@@ -19,7 +23,7 @@ const FILTERS = [
   { key: 'approve', label: 'Approved', tone: 'positive' },
   { key: 'defer', label: 'Later', tone: 'warning' },
   { key: 'reject', label: 'Rejected', tone: 'negative' },
-  { key: 'all', label: 'All' },
+  { key: 'all', label: 'Every status' },
 ];
 
 // Grouped by what stands between the card and Approve. Worked one lane at a time; "All" shows them stacked.
@@ -64,17 +68,23 @@ const LANES = [
     title: 'To list on the shop',
     tip: 'Sells on Google in the UK and is stocked by a UK shop. Listed at Google\'s lowest price when that clears your floor, otherwise at your floor.',
   },
+  {
+    key: 'dear',
+    title: 'Over Google\'s price',
+    tip: 'Shop cards priced more than 10% over Google\'s lowest price. Buyers compare on Google, so these wait here. Where the shop\'s cost is above the lowest itself, the shop page is usually a bigger size or another variant.',
+  },
 ];
 
 const SORTS = [
-  { key: 'near', label: 'Nearest to Approve' },
-  { key: 'sold', label: 'Sold a month' },
-  { key: 'keep', label: 'You keep' },
+  { key: 'near', label: 'Nearest to Approve', short: 'Nearest', hint: 'What stands least in the way goes first' },
+  { key: 'sold', label: 'Sold a month', short: 'Sold a month', hint: 'The busiest markets first' },
+  { key: 'keep', label: 'You keep', short: 'You keep', hint: 'The most kept on a sale first' },
 ];
 
 const PAGE = 60;
 
 function nearest(x, y) {
+  if (x.a.lane === 'dear') return (x.a.position?.pct ?? 9) - (y.a.position?.pct ?? 9);
   if (x.a.store) return (!x.a.m.need) - (!y.a.m.need) || (y.a.g.months ?? 0) - (x.a.g.months ?? 0) || (x.a.g.rank ?? 1e9) - (y.a.g.rank ?? 1e9);
   if (x.a.lane === 'ready') return (y.a.month ?? 0) - (x.a.month ?? 0) || (y.a.keep ?? 0) - (x.a.keep ?? 0);
   if (x.a.lane === 'over') return (x.a.position?.pct ?? 9) - (y.a.position?.pct ?? 9);
@@ -130,8 +140,12 @@ export function CandidatesPage() {
   const [bulkRejecting, setBulkRejecting] = useState(false);
   const [toast, setToast] = useState(null);
   const [tryFor, setTryFor] = useState(null);
+  const [params, setParams] = useSearchParams();
+  // A link from Coverage names one card: its tab and status are chosen, then it is opened once it has drawn.
+  const [goTo, setGoTo] = useState(() => params.get('card'));
   const moved = useRef(false);
   const anchor = useRef(null);
+  const findRef = useRef(null);
   const sentinel = useRef(null);
 
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
@@ -196,6 +210,31 @@ export function CandidatesPage() {
   const lane = lanePick === 'all' ? 'all' : (lanes.find((l) => l.key === lanePick) ? lanePick : lanes[0]?.key ?? null);
   const view = lane === 'all' ? lanes : lanes.filter((l) => l.key === lane);
   const order = useMemo(() => view.flatMap((l) => l.items), [view]);
+  // One scale for every sold bar on screen, set by the busiest card in view, so lanes stacked together compare.
+  const soldMax = useMemo(() => order.reduce((m, { row }) => Math.max(m, row.sold_30d ?? 0), 0), [order]);
+
+  useEffect(() => {
+    if (!goTo || index.status !== 'ready') return;
+    const r = index.rows.find((x) => x.id === goTo);
+    const done = () => {
+      setGoTo(null);
+      setParams((p) => { const next = new URLSearchParams(p); next.delete('card'); return next; }, { replace: true });
+    };
+    if (!r) { done(); return; }
+    const top = r.category_top_id ?? 'all';
+    const status = r.decision?.action ?? 'pending';
+    if (tab !== top || filter !== status || lanePick !== 'all' || find || from || sub.l2 != null) {
+      setTab(top); setFilter(status); setLanePick('all'); setFind(''); setFrom(''); setSub({ l2: null, l3: null });
+      return;
+    }
+    const at = order.findIndex((o) => o.row.id === goTo);
+    if (at < 0) return;
+    if (at >= limit) { setLimit(at + PAGE); return; }
+    moved.current = true;
+    setActiveId(goTo);
+    setOpenId(goTo);
+    done();
+  }, [goTo, index, order, tab, filter, lanePick, find, from, sub, limit, setParams]);
 
   const resetView = () => { setLimit(PAGE); setOpenId(null); setRejectingId(null); setSelected(new Set()); setBulkRejecting(false); };
 
@@ -226,7 +265,8 @@ export function CandidatesPage() {
   useEffect(() => {
     if (!tryFor || openId !== tryFor) return undefined;
     const f = requestAnimationFrame(() => {
-      document.querySelector(`[data-candidate="${tryFor}"] [data-try]`)?.focus();
+      // The row opens the tab that holds the field if another tab is showing.
+      document.querySelector(`[data-candidate="${tryFor}"]`)?.dispatchEvent(new CustomEvent('ck:try'));
       setTryFor(null);
     });
     return () => cancelAnimationFrame(f);
@@ -321,6 +361,7 @@ export function CandidatesPage() {
       const safe = (p) => p.catch((err) => setToast({ failed: err?.message ?? 'Not saved. Try again.' }));
       const many = selected.size > 0;
 
+      if (e.key === '/') { e.preventDefault(); findRef.current?.focus(); return; }
       if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); go(1); return; }
       if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); return; }
       if (e.key === 'Escape') {
@@ -346,7 +387,12 @@ export function CandidatesPage() {
         if (e.key === 'u') safe(undo([cur.row.id]));
         return;
       }
-      if (e.key === 'c') safe(confirmPack(cur));
+      // Far apart in price, the likelier answer is a different pack: C opens the card to compare first, and confirms
+      // once it is open.
+      if (e.key === 'c') {
+        if (cur.a.packCheck && openId !== cur.row.id) { setOpenId(cur.row.id); return; }
+        safe(confirmPack(cur));
+      }
       else if (e.key === 'a') safe(act(cur, { action: 'approve' }));
       else if (e.key === 'l') safe(act(cur, { action: 'defer' }));
       else if (e.key === 'r') setRejectingId((v) => (v === cur.row.id ? null : cur.row.id));
@@ -357,7 +403,7 @@ export function CandidatesPage() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [order, activeId, rejectingId, act, undo, confirmPack, selected, select, actOnSelected, bulkRejecting, limit]);
+  }, [order, activeId, openId, rejectingId, act, undo, confirmPack, selected, select, actOnSelected, bulkRejecting, limit]);
 
   if (tenant === undefined || batches === undefined) return <PageSkeleton />;
 
@@ -373,14 +419,27 @@ export function CandidatesPage() {
     );
   }
 
-  const decided = counts.approve + counts.reject;
-  const approved = assessed.filter(({ row }) => row.decision?.action === 'approve');
+  // Progress follows the category tab, not the narrower filters, so choosing a source does not reset the ring.
+  const midnight = new Date().setHours(0, 0, 0, 0);
+  const tabRows = tab === 'all' ? index.rows : index.rows.filter((r) => r.category_top_id === tab);
+  const tally3 = { approve: 0, reject: 0, defer: 0 };
+  let today = 0;
+  for (const r of tabRows) {
+    const d = r.decision;
+    if (!d) continue;
+    if (d.action in tally3) tally3[d.action] += 1;
+    // Today counts what "decided" counts: approvals and rejections. Later is not a decision.
+    if (d.action !== 'defer' && d.decided_at && new Date(d.decided_at) >= midnight) today += 1;
+  }
+  // Worth follows the tab like progress does: a source filter narrows the list, not what has been approved.
+  const approved = rows
+    .filter((r) => r.decision?.action === 'approve' && (tab === 'all' || r.category_top_id === tab))
+    .map((row) => ({ row, a: assess(row) }));
   const monthly = approved.reduce((s, { a }) => s + (a.month ?? 0), 0);
   const unproved = approved.filter(({ a }) => a.month == null).length;
   const latest = (batches ?? []).reduce((d, b) => (b.delivered_for > d ? b.delivered_for : d), '');
   const week = weekOf(latest);
   const tabName = tab === 'all' ? 'Every category' : categoryName(tab) ?? 'Candidates';
-  const total = rows.length || 1;
   // A tab of store cards reads in store columns. One eBay card among them would misread, so it takes all of them.
   const storeTab = assessed.length > 0 && assessed.every(({ a }) => a.store);
 
@@ -402,37 +461,52 @@ export function CandidatesPage() {
   };
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-wide>
       <header className={styles.head}>
-        <div>
-          <p className="micro">{tabName}{week ? `, latest ${week}` : ''}</p>
+        <div className={styles.headText}>
           <h1 className={styles.title}>Candidates</h1>
+          <p className={styles.meta}>
+            {tab !== 'all' && <span className={styles.metaTab}>{tabName}</span>}
+            <span><span data-num>{tabRows.length.toLocaleString('en-GB')}</span> {tabRows.length === 1 ? 'card' : 'cards'}</span>
+            {week && <span>latest {week}</span>}
+          </p>
         </div>
 
-        {storeTab ? (
-          <div className={styles.worth}>
-            <span className={styles.worthLabel}>Approved to list</span>
-            <span className={`figure ${styles.worthValue}`} data-num>{approved.length}</span>
-            <span className={styles.worthFoot}>of {rows.length}</span>
-          </div>
-        ) : (
-          <div className={styles.worth}>
-            <span className={styles.worthLabel}>
-              Approved here
-              <Tip side="end">What the approved rows would keep a month after goods, each at its proving seller&apos;s own price and rate. Rows without a proved rate are counted, not guessed.</Tip>
-            </span>
-            {monthly > 0 ? (
-              <span className={`figure ${styles.worthValue} ${styles.positive}`}>{formatGbp(monthly)}</span>
-            ) : (
-              <span className={styles.worthWord}>{approved.length ? 'No proved rate yet' : 'Nothing yet'}</span>
-            )}
-            <span className={styles.worthFoot}>
-              {monthly > 0 && 'a month'}
-              {monthly > 0 && unproved > 0 && ', '}
-              {unproved > 0 && `${unproved} without a proved rate`}
-            </span>
-          </div>
-        )}
+        <div className={styles.stats}>
+          <ReviewProgress approve={tally3.approve} defer={tally3.defer} reject={tally3.reject} total={tabRows.length} today={today} />
+
+          {storeTab ? (
+            <div className={styles.worth}>
+              <span className={styles.worthLabel}>Approved to list</span>
+              <span className={styles.worthLine}>
+                <span className={`figure ${styles.worthValue}`} data-num>{approved.length.toLocaleString('en-GB')}</span>
+                <span className={styles.worthUnit}>of <span data-num>{rows.length.toLocaleString('en-GB')}</span></span>
+              </span>
+              <span className={styles.worthFoot}>for your shop</span>
+            </div>
+          ) : (
+            <div className={styles.worth}>
+              <span className={styles.worthLabel}>
+                Approved here
+                <Tip side="end">What the approved rows would keep a month after goods, each at its proving seller&apos;s own price and rate. Rows without a proved rate are counted, not guessed.</Tip>
+              </span>
+              {monthly > 0 ? (
+                <span className={styles.worthLine}>
+                  <span className={`figure ${styles.worthValue} ${styles.positive}`} data-num>{formatGbp(monthly)}</span>
+                  <span className={styles.worthUnit}>a month</span>
+                </span>
+              ) : (
+                <span className={styles.worthWord}>{approved.length ? 'No proved rate yet' : 'Nothing approved yet'}</span>
+              )}
+              {approved.length > 0 && (
+                <span className={styles.worthFoot}>
+                  <span data-num>{approved.length.toLocaleString('en-GB')}</span> approved
+                  {unproved > 0 && <>, <span data-num>{unproved}</span> without a proved rate</>}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </header>
 
       <CategoryTabs groups={tabs} current={tab} onPick={pickCategory} />
@@ -470,78 +544,65 @@ export function CandidatesPage() {
         </div>
       )}
 
-      <section className={styles.bar} aria-label="Progress and filters">
+      <section className={styles.bar} aria-label="Filters">
         <div className={styles.barTop}>
-          <p className={styles.progressText}>
-            <span className="figure" data-num>{decided.toLocaleString('en-GB')}</span>
-            <span> of <span data-num>{rows.length.toLocaleString('en-GB')}</span> decided</span>
-          </p>
-          <div className={styles.meter} role="img"
-            aria-label={`${counts.approve} approved, ${counts.reject} rejected, ${counts.defer} later, ${counts.pending} to review`}>
-            <span className={styles.segPositive} style={{ width: `${(counts.approve / total) * 100}%` }} />
-            <span className={styles.segNegative} style={{ width: `${(counts.reject / total) * 100}%` }} />
-            <span className={styles.segWarning} style={{ width: `${(counts.defer / total) * 100}%` }} />
-          </div>
-
           <div className={styles.status} role="tablist" aria-label="Show">
             {FILTERS.map((f) => (
               <button key={f.key} type="button" role="tab" aria-selected={filter === f.key}
-                className={styles.statusTab}
+                className={styles.statusTab} data-tone={f.tone}
                 onClick={() => { setFilter(f.key); resetView(); }}>
-                {f.tone && <i className={styles.dot} data-tone={f.tone} aria-hidden="true" />}
+                {f.tone && <i className={styles.dot} aria-hidden="true" />}
                 {f.label}
                 <span className={styles.count} data-num>{counts[f.key].toLocaleString('en-GB')}</span>
               </button>
             ))}
           </div>
 
-          <span className={styles.findWrap}>
-            <Icon name="IconSearch" className={styles.findIcon} />
-            <input className={styles.find} value={find} placeholder="Find"
-              onChange={(e) => { setFind(e.target.value); setLimit(PAGE); }} aria-label="Find a candidate" />
-          </span>
+          <div className={styles.tools}>
+            <label className={styles.findWrap}>
+              <span className="visually-hidden">Find a candidate</span>
+              <Icon name="IconSearch" className={styles.findIcon} />
+              <input ref={findRef} className={styles.find} value={find} placeholder="Find"
+                onChange={(e) => { setFind(e.target.value); setLimit(PAGE); }}
+                onKeyDown={(e) => { if (e.key === 'Escape') { setFind(''); e.currentTarget.blur(); } }} />
+              {!find && <kbd className={styles.findKey} aria-hidden="true">/</kbd>}
+            </label>
 
-          <Tip side="end" label="Keyboard shortcuts" place="below">
-            J and K move, O opens, A approves, L saves for later, R rejects then 1 to 7 picks the reason, U undoes. C confirms the pack, T tries a cost. X selects, Shift X selects a run, and then A, L and R act on every selected card.
-          </Tip>
+            {fromOptions.length > 0 && (
+              <Menu label="From" icon="IconFilter" value={from} wide
+                options={[
+                  { value: '', label: 'Anywhere', count: inTab.length, rule: true },
+                  ...fromOptions.map(([label, count]) => ({ value: label, label, count })),
+                ]}
+                onChange={(v) => { setFrom(v); resetView(); }} empty="No source by that name" />
+            )}
+
+            <Menu label="Sort" icon="IconSort" value={sort}
+              options={SORTS.map((x) => ({ value: x.key, label: x.label, short: x.short, hint: x.hint }))}
+              onChange={(v) => { setSort(v); setLimit(PAGE); }} />
+
+            <Shortcuts />
+          </div>
         </div>
 
         {lanes.length > 0 && (
-          <div className={styles.lanes} role="tablist" aria-label="Lanes">
+          <ScrollStrip label="Lanes" className={styles.lanes} frameClassName={styles.lanesFrame} current={lane}>
             {lanes.length > 1 && (
-              <button type="button" role="tab" aria-selected={lane === 'all'} className={styles.laneChip}
+              <button type="button" role="tab" aria-selected={lane === 'all'} className={styles.laneTab} data-lane="all"
                 onClick={() => { setLanePick('all'); resetView(); }}>
-                Every lane <span className={styles.count} data-num>{shown.length.toLocaleString('en-GB')}</span>
+                Every lane <span className={styles.laneCount} data-num>{shown.length.toLocaleString('en-GB')}</span>
               </button>
             )}
             {lanes.map((l) => (
-              <button key={l.key} type="button" role="tab" aria-selected={lane === l.key} className={styles.laneChip}
+              <button key={l.key} type="button" role="tab" aria-selected={lane === l.key} className={styles.laneTab}
                 data-lane={l.key} title={l.tip}
                 onClick={() => { setLanePick(l.key); resetView(); }}>
-                <i className={styles.laneDot} aria-hidden="true" />
+                <i className={styles.laneMark} aria-hidden="true" />
                 {l.title}
-                <span className={styles.count} data-num>{l.items.length.toLocaleString('en-GB')}</span>
+                <span className={styles.laneCount} data-num>{l.items.length.toLocaleString('en-GB')}</span>
               </button>
             ))}
-            <span className={styles.lanesEnd}>
-              {fromOptions.length > 0 && (
-                <label className={styles.sortWrap}>
-                  <span className="visually-hidden">Where it came from</span>
-                  <select className={styles.sort} value={from} data-on={from ? '' : undefined}
-                    onChange={(e) => { setFrom(e.target.value); resetView(); }}>
-                    <option value="">From anywhere</option>
-                    {fromOptions.map(([label, count]) => <option key={label} value={label}>{label} ({count})</option>)}
-                  </select>
-                </label>
-              )}
-              <label className={styles.sortWrap}>
-                <span className="visually-hidden">Sort</span>
-                <select className={styles.sort} value={sort} onChange={(e) => { setSort(e.target.value); setLimit(PAGE); }}>
-                  {SORTS.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
-                </select>
-              </label>
-            </span>
-          </div>
+          </ScrollStrip>
         )}
       </section>
 
@@ -578,17 +639,6 @@ export function CandidatesPage() {
 
       {status === 'ready' && order.length > 0 && (
         <div className={styles.list}>
-          <div className={styles.columns} aria-hidden="true">
-            <span />
-            <span />
-            <span>Product</span>
-            <span className={styles.right}>{storeTab ? 'Google' : 'Sold a month'}</span>
-            <span>List at, on the market</span>
-            <span className={styles.right}>Gap</span>
-            <span className={styles.right}>You keep</span>
-            <span />
-          </div>
-
           {drawn.map((l) => (
             <section key={l.key} className={styles.lane} aria-labelledby={`lane-${l.key}`}>
               {lane === 'all' && (
@@ -614,6 +664,7 @@ export function CandidatesPage() {
                       open={row.id === openId}
                       rejecting={row.id === rejectingId}
                       selected={selected.has(row.id)}
+                      soldMax={soldMax}
                       onSelect={(range) => select(row.id, range)}
                       onActivate={() => setActiveId(row.id)}
                       onToggle={() => setOpenId((v) => (v === row.id ? null : row.id))}

@@ -12,6 +12,9 @@
  * few are opened; the page's barcode decides, else its name. Nothing is written without --apply, and a card she
  * has already decided is left alone unless --override.
  *
+ * With --apply: a barcode match repoints the card. A name match is a note with the lead. Nothing found is a note
+ * too, never a rejection: an unsure card may be right as it is, and she knows her products.
+ *
  * Writes research/review/resource-<date>.csv: what was found for each card and how sure.
  */
 import fs from 'node:fs';
@@ -39,7 +42,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 if (!reviewPath && !fromPath) { console.error('\n  Pass --review= the review CSV with an action column, or --from= a results file to write.\n'); process.exit(1); }
 
 const results = fromPath ? parseCsv(fs.readFileSync(fromPath, 'utf8')) : await search();
-if (!apply) { console.log('\n  Nothing written. --apply repoints what was found and rejects what was not.\n'); process.exit(0); }
+if (!apply) { console.log('\n  Nothing written. --apply repoints barcode matches and notes the rest for her.\n'); process.exit(0); }
 
 async function search() {
 
@@ -118,8 +121,9 @@ for (const [i, { card, g }] of want.entries()) {
     found = { ...h, verdict: v, price: paid?.price ?? h.s.price, pageName: got.page.name, image: got.page.image };
     break;
   }
-  // Only a barcode, or a page read and confirmed, is sure enough to repoint a card.
-  const sure = Boolean(found && (found.verdict.startsWith('confirmed')));
+  // Only a barcode is sure enough to repoint a card by itself; a name match, even on a page read, is a lead she checks.
+  // (29 September: 9 of 22 name matches were still the wrong item.)
+  const sure = Boolean(found && /barcode/.test(found.verdict) && found.verdict.startsWith('confirmed'));
   results.push({
     id: card.id, title: card.title, was: bad, was_page: card.page_name,
     status: found ? (sure ? 'found' : 'found, check it') : 'not found',
@@ -154,7 +158,7 @@ const { data: rows, error } = await db.from('candidates').select('id, title, mar
 if (error) { console.error(`Lookup failed: ${error.message}`); process.exit(1); }
 const byId = new Map(rows.map((c) => [c.id, c]));
 const decided = (c) => (Array.isArray(c.decisions) ? c.decisions.length > 0 : Boolean(c.decisions));
-const tally = { repointed: 0, rejected: 0, left_to_check: 0, decided_by_her: 0, missing: 0, failed: 0 };
+const tally = { repointed: 0, noted_not_found: 0, left_to_check: 0, decided_by_her: 0, missing: 0, failed: 0 };
 
 for (const r of results) {
   const c = byId.get(r.id);
@@ -168,12 +172,11 @@ for (const r of results) {
     continue;
   }
   if (r.status === 'not found') {
-    const { error: e } = await db.from('decisions').upsert({
-      tenant_id: tenant.id, candidate_id: c.id, action: 'reject', reason: 'not_sourceable',
-      note: `Review ${date}: the linked page was ${r.was_page || 'another product'}, and no other UK shop on file sells the exact item.${/checked by eye/.test(r.notes ?? '') ? ` Nearest found: ${r.notes.replace(/^checked by eye: /, '')}.` : ''}`,
-      decided_at: new Date().toISOString(),
-    }, { onConflict: 'candidate_id' });
-    if (e) { tally.failed += 1; console.error(`  ${c.title}: not rejected, ${e.message}`); } else tally.rejected += 1;
+    const body = `Review ${date}: the linked page may not be this item (${r.was_page || 'another product'}), and no other UK shop on file sells it. Check the page; if it is wrong, reject as not sourceable.${r.notes ? ` Tried: ${r.notes}.` : ''}`;
+    const { data: have } = await db.from('candidate_notes').select('id').eq('candidate_id', c.id).eq('body', body).limit(1);
+    if (have?.length) { tally.noted_not_found += 1; continue; }
+    const { error: e } = await db.from('candidate_notes').insert({ tenant_id: tenant.id, candidate_id: c.id, body });
+    if (e) { tally.failed += 1; console.error(`  ${c.title}: note not added, ${e.message}`); } else tally.noted_not_found += 1;
     continue;
   }
   const m = c.margin ?? {};

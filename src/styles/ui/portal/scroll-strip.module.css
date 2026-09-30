@@ -1,0 +1,48 @@
+.frame { position: relative; min-width: 0; }
+
+.strip {
+  position: relative;
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.strip::-webkit-scrollbar { display: none; }
+
+/* A fade only on a side that hides more. */
+.frame[data-r] .strip { -webkit-mask: linear-gradient(90deg, #000 calc(100% - 56px), transparent); mask: linear-gradient(90deg, #000 calc(100% - 56px), transparent); }
+.frame[data-l] .strip { -webkit-mask: linear-gradient(90deg, transparent, #000 56px); mask: linear-gradient(90deg, transparent, #000 56px); }
+.frame[data-l][data-r] .strip {
+  -webkit-mask: linear-gradient(90deg, transparent, #000 56px, #000 calc(100% - 56px), transparent);
+  mask: linear-gradient(90deg, transparent, #000 56px, #000 calc(100% - 56px), transparent);
+}
+
+.nudge {
+  position: absolute;
+  top: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-full);
+  background: var(--c-surface);
+  color: var(--c-ink-soft);
+  box-shadow: 0 1px 3px rgba(42, 39, 35, 0.12);
+  transform: translateY(-50%);
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.nudge:hover { border-color: var(--c-control); color: var(--c-ink); }
+.nudge[data-side='l'] { left: 0; }
+.nudge[data-side='r'] { right: 0; }
+
+.arrow { width: 14px; height: 14px; }
+.nudge[data-side='l'] .arrow { transform: rotate(90deg); }
+.nudge[data-side='r'] .arrow { transform: rotate(-90deg); }
+
+/* A touch screen swipes; the arrows are for a mouse. */
+@media (hover: none) {
+  .nudge { display: none; }
+}

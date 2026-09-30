@@ -1,0 +1,132 @@
+/* A toolbar select: the label quiet, the value in ink, and a tint once it is set away from its default. */
+.wrap { position: relative; flex-shrink: 0; }
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  max-width: 13rem;
+  padding: 0 var(--s-2) 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  font-size: var(--t-caption);
+  color: var(--c-ink);
+  white-space: nowrap;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.trigger:hover { border-color: var(--c-control); }
+.trigger[aria-expanded='true'] { border-color: var(--c-control); box-shadow: 0 0 0 3px var(--c-sunk); }
+.trigger:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+.trigger[data-on] { border-color: var(--c-brand-strong); background: var(--c-brand-wash); }
+.trigger[data-on] .label { color: var(--c-brand-strong); }
+
+.icon { flex-shrink: 0; width: 14px; height: 14px; color: var(--c-ink-faint); }
+.label { color: var(--c-ink-faint); }
+.value { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 560; }
+.caret { flex-shrink: 0; width: 14px; height: 14px; color: var(--c-ink-faint); transition: transform var(--dur) var(--ease); }
+.trigger[aria-expanded='true'] .caret { transform: rotate(180deg); }
+
+.pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  z-index: var(--z-drawer);
+  display: flex;
+  flex-direction: column;
+  width: 17rem;
+  max-width: calc(100vw - 2 * var(--s-4));
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: 0 1px 2px rgba(42, 39, 35, 0.06), 0 12px 32px -8px rgba(42, 39, 35, 0.22);
+  overflow: hidden;
+  transform-origin: top right;
+  animation: pop var(--dur) var(--ease-out) both;
+}
+
+.pop[data-align='end'] { right: 0; }
+.pop[data-align='start'] { left: 0; transform-origin: top left; }
+.pop[data-wide] { width: 20rem; }
+
+.findRow { position: relative; border-bottom: 1px solid var(--c-line); }
+.findIcon { position: absolute; left: var(--s-3); top: 50%; width: 14px; height: 14px; color: var(--c-ink-faint); transform: translateY(-50%); pointer-events: none; }
+
+.find {
+  width: 100%;
+  height: 40px;
+  padding: 0 var(--s-3) 0 calc(var(--s-3) + 22px);
+  border: 0;
+  background: transparent;
+  font-size: var(--t-label);
+}
+
+.find:focus { outline: none; }
+
+.list {
+  position: relative;
+  list-style: none;
+  max-height: min(22rem, 60vh);
+  padding: var(--s-1);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.list:focus { outline: none; }
+
+/* A thin scrollbar in the line colour, not the system's grey track with arrows. */
+.list { scrollbar-width: thin; scrollbar-color: var(--c-line-mid) transparent; }
+.list::-webkit-scrollbar { width: 8px; }
+.list::-webkit-scrollbar-track { background: transparent; }
+.list::-webkit-scrollbar-thumb { border: 2px solid var(--c-surface); border-radius: var(--r-full); background: var(--c-line-mid); }
+.list::-webkit-scrollbar-thumb:hover { background: var(--c-control); }
+.list::-webkit-scrollbar-button { display: none; height: 0; }
+
+.option {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 34px;
+  padding: 6px var(--s-2);
+  border-radius: var(--r-md);
+  font-size: var(--t-label);
+  color: var(--c-ink);
+  cursor: pointer;
+}
+
+.option[data-active] { background: var(--c-sunk); }
+.option[aria-selected='true'] .optLabel { font-weight: 600; }
+.option[data-rule] { margin-bottom: var(--s-1); box-shadow: 0 5px 0 -4px var(--c-line); }
+
+.tick { display: inline-flex; width: 16px; height: 16px; color: var(--c-brand-strong); }
+.tick svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+
+.text { display: flex; flex-direction: column; min-width: 0; }
+.optLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hint { font-size: var(--t-caption); color: var(--c-ink-faint); line-height: var(--lh-snug); }
+.count { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.none { padding: var(--s-3); font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+@keyframes pop {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pop { animation: none; }
+}
+
+/* On a phone the menus share their line equally, under a full-width Find. */
+@media (max-width: 900px) {
+  .wrap { flex: 1 1 0; min-width: 0; }
+  .trigger { width: 100%; max-width: none; }
+  .value { flex: 1; text-align: left; }
+}
+
+/* The narrowest phones keep the icon and the value; the button's name still says which menu it is. */
+@media (max-width: 400px) {
+  .label { display: none; }
+}

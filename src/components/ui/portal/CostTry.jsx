@@ -23,6 +23,13 @@ const EMPTY = {
   ships_from: '', transit_days: '', url: '', note: '',
 };
 
+// Price and delivery to her together are the goods' cost; no price, no figure.
+const quickLanded = (price, delivery) => {
+  const p = parseCost(price);
+  if (p == null) return null;
+  return Math.round((p + (parseCost(delivery) ?? 0)) * 100) / 100;
+};
+
 const num = (v) => (String(v ?? '').trim() === '' ? null : Number(String(v).replace(/[£,\s%]/g, '')));
 
 // The one sentence that says what would move this card, from assess(). Never worked out here.
@@ -58,8 +65,14 @@ function nextStep(base) {
  * A cost to try, and the supplier behind it. The quick field moves the card as she types. Saving asks for everything
  * candidate_sources records, and while the form is open the card follows the landed cost the database will store.
  */
-export function CostTry({ onTry, base, view, onSave, suppliers = [] }) {
+// seed puts a figure in the quick field from outside (the brief's Try button); hideStep drops the line above the
+// field where the brief already says it.
+export function CostTry({ onTry, base, view, onSave, suppliers = [], seed = null, hideStep = false }) {
+  // The quick line: where it was found, its page, the price, and what they charge to deliver it to her.
   const [quick, setQuick] = useState('');
+  const [where, setWhere] = useState('');
+  const [link, setLink] = useState('');
+  const [delivery, setDelivery] = useState('');
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
@@ -73,25 +86,54 @@ export function CostTry({ onTry, base, view, onSave, suppliers = [] }) {
     supplier_shipping: form.fulfilment === 'dropship' ? num(form.supplier_shipping) : null,
     inbound_freight_per_unit: form.fulfilment === 'stock' ? num(form.inbound_freight_per_unit) : null,
     duty_pct: form.fulfilment === 'stock' && num(form.duty_pct) != null ? num(form.duty_pct) / 100 : null,
-  }) : parseCost(quick);
+  }) : quickLanded(quick, delivery);
 
-  // The quick field is a delivered cost, so the supplier posts it; the form says who posts.
-  const posted = saving && form.fulfilment === 'stock' ? 'you' : 'supplier';
+  // The quick line is the cost of the goods delivered to her, and she posts them on; the form says who posts.
+  const posted = saving ? (form.fulfilment === 'stock' ? 'you' : 'supplier') : 'you';
   useEffect(() => { onTry(landed, posted); }, [landed, posted, onTry]);
 
-  const step = nextStep(base);
+  const step = hideStep ? null : nextStep(base);
+  useEffect(() => { if (seed?.value != null) { setQuick(seed.value.toFixed(2)); setDelivery(''); } }, [seed]);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  // Everything typed on the quick line goes into the form, so nothing is typed twice.
   function openForm() {
-    setForm((f) => ({ ...f, unit_cost: quick, price_at_moq: quick }));
+    setForm((f) => ({
+      ...f, supplier: where, url: link, fulfilment: 'stock',
+      unit_cost: quick, price_at_moq: quick, moq: f.moq || '1', inbound_freight_per_unit: delivery,
+    }));
     setSaving(true);
   }
 
   function reset() {
     setQuick('');
+    setWhere('');
+    setLink('');
+    setDelivery('');
     setSaving(false);
     setForm(EMPTY);
     setFailed(null);
+  }
+
+  // Saved straight from the quick line: bought and delivered to her, so stock she posts, one at a time.
+  async function saveQuick() {
+    if (landed == null || !where.trim()) return;
+    setBusy(true);
+    setFailed(null);
+    try {
+      await onSave({
+        supplier: where.trim(), supplier_kind: 'unknown', fulfilment: 'stock',
+        unit_cost: parseCost(quick), price_at_moq: parseCost(quick), supplier_shipping: null, moq: 1,
+        inbound_freight_per_unit: parseCost(delivery) ?? 0, duty_pct: null,
+        ships_from: null, transit_days: null, url: link.trim() || null, note: null,
+        status: 'quoted', quoted_on: new Date().toISOString().slice(0, 10),
+      });
+      reset();
+    } catch (e) {
+      setFailed(e?.message ?? 'Not saved. Try again.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function save() {
@@ -142,19 +184,55 @@ export function CostTry({ onTry, base, view, onSave, suppliers = [] }) {
       )}
 
       {!saving && (
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor={id}>
-            Found it cheaper? <span className={styles.hint}>Delivered to your buyer, their postage in</span>
-          </label>
-          <span className={styles.inputWrap}>
-            <span className={styles.pound} aria-hidden="true">£</span>
-            <input id={id} data-try className={styles.input} inputMode="decimal" autoComplete="off"
-              value={quick} placeholder="0.00"
-              onChange={(e) => setQuick(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Escape') { setQuick(''); e.currentTarget.blur(); } }} />
-          </span>
-          {landed != null && <button type="button" className={styles.clear} onClick={reset}>Clear</button>}
-          {landed != null && <button type="button" className={styles.save} onClick={openForm}>Save as a supplier</button>}
+        <div className={styles.quick} role="group" aria-labelledby={`${id}-q`}>
+          <p className={styles.quickHead} id={`${id}-q`}>
+            Found it cheaper? <span className={styles.hint}>What it costs delivered to you. You post it on to the buyer.</span>
+          </p>
+          <div className={styles.quickRow}>
+            <label className={styles.q} data-size="where">
+              <span>Where</span>
+              <input className={styles.text} list={`${id}-sup`} value={where} onChange={(e) => setWhere(e.target.value)} placeholder="Shop or supplier" />
+            </label>
+            <datalist id={`${id}-sup`}>{suppliers.map((sp) => <option key={sp.id} value={sp.name} />)}</datalist>
+            <label className={styles.q} data-size="link">
+              <span>Link</span>
+              <input className={styles.text} type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="Paste the page" />
+            </label>
+            <label className={styles.q} data-size="money">
+              <span>Price</span>
+              <span className={styles.moneyWrap}>
+                <span className={styles.pound} aria-hidden="true">£</span>
+                <input id={id} data-try className={`${styles.text} ${styles.money}`} inputMode="decimal" autoComplete="off"
+                  value={quick} placeholder="0.00" onChange={(e) => setQuick(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Escape') { reset(); e.currentTarget.blur(); } }} />
+              </span>
+            </label>
+            <span className={styles.plus} aria-hidden="true">+</span>
+            <label className={styles.q} data-size="money">
+              <span>Delivery to you</span>
+              <span className={styles.moneyWrap}>
+                <span className={styles.pound} aria-hidden="true">£</span>
+                <input className={`${styles.text} ${styles.money}`} inputMode="decimal" autoComplete="off"
+                  value={delivery} placeholder="0.00" onChange={(e) => setDelivery(e.target.value)} />
+              </span>
+            </label>
+            <span className={styles.equals} aria-hidden="true">=</span>
+            <span className={styles.total} data-on={landed != null || undefined}>
+              <span>Goods cost</span>
+              <b data-num>{landed != null ? formatGbp(landed) : '--'}</b>
+            </span>
+          </div>
+          {landed != null && (
+            <div className={styles.quickActions}>
+              <button type="button" className={styles.primary} disabled={busy || !where.trim()} onClick={saveQuick}>
+                Save {where.trim() ? `as ${where.trim()}` : 'as a supplier'}
+              </button>
+              <button type="button" className={styles.save} onClick={openForm}>More details</button>
+              <button type="button" className={styles.clear} onClick={reset}>Clear</button>
+              {!where.trim() && <span className={styles.hint}>Say where it is from to save it.</span>}
+              {failed && <span className={styles.failed} role="alert">{failed}</span>}
+            </div>
+          )}
         </div>
       )}
 

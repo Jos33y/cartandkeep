@@ -34,7 +34,7 @@ export function useQueryCoverage(batchIds) {
         .order('id')),
       everyRow(() => supabase
         .from('candidates')
-        .select('id, batch_id, ebay, decisions ( action )')
+        .select('id, batch_id, ebay, category_top_id, decisions ( action )')
         .in('batch_id', ids)
         .order('id')),
     ]);

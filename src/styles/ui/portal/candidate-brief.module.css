@@ -1,0 +1,475 @@
+/*
+ * The opened card as a decision brief: a strip in the lane's colour, a panel for the lane's question, the detail
+ * in tabs. Every lane sets --lane and --lane-wash once and the strip, badge and kicker follow.
+ */
+
+.strip {
+  --lane: var(--c-ink-soft);
+  --lane-wash: var(--c-sunk);
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3) var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid color-mix(in srgb, var(--lane) 26%, transparent);
+  border-radius: var(--r-lg);
+  background: linear-gradient(100deg, var(--lane-wash) 0%, color-mix(in srgb, var(--lane-wash) 35%, var(--c-surface)) 55%, var(--c-surface) 100%);
+  box-shadow: 0 1px 2px rgba(42, 39, 35, 0.04);
+}
+
+.strip[data-lane='ready'], .strip[data-tone='positive'] { --lane: var(--c-positive); --lane-wash: var(--c-positive-wash); }
+.strip[data-lane='pack'], .strip[data-lane='over'], .strip[data-lane='dear'], .strip[data-lane='price'], .strip[data-tone='warning'] { --lane: var(--c-warning); --lane-wash: var(--c-warning-wash); }
+.strip[data-lane='slow'] { --lane: var(--c-brand-strong); --lane-wash: var(--c-brand-wash); }
+.strip[data-lane='untested'] { --lane: var(--c-control); --lane-wash: var(--c-sunk); }
+.strip[data-lane='short'], .strip[data-tone='negative'] { --lane: var(--c-negative); --lane-wash: var(--c-negative-wash); }
+.strip[data-lane='store'] { --lane: var(--c-info); --lane-wash: var(--c-info-wash); }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-full);
+  background: var(--lane);
+  color: var(--c-surface);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--lane) 16%, transparent);
+}
+.badgeIcon { width: 19px; height: 19px; }
+
+.text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kicker { font-size: var(--t-micro); font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--lane); }
+.when { font-weight: 500; letter-spacing: 0.02em; text-transform: none; color: var(--c-ink-faint); }
+.reason { font-size: var(--t-label); line-height: var(--lh-snug); color: var(--c-ink); }
+.reason b { font-weight: 600; }
+.action { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--s-2); }
+
+/* Also check: every flag and warning said in full, once, across the foot of the strip. */
+.checks {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: var(--s-2);
+  border-top: 1px dashed color-mix(in srgb, var(--lane) 25%, transparent);
+  list-style: none;
+}
+.checksLabel { margin-right: 2px; font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--c-ink-faint); }
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
+  padding: 2px 9px 2px 7px;
+  border-radius: var(--r-md);
+  font-size: var(--t-caption);
+  line-height: var(--lh-snug);
+}
+.check[data-tone='warning'] { background: var(--c-warning-wash); color: var(--c-warning); }
+.check[data-tone='negative'] { background: var(--c-negative-wash); color: var(--c-negative); }
+.check[data-tone='info'] { background: var(--c-surface); box-shadow: inset 0 0 0 1px var(--c-line-mid); color: var(--c-ink-soft); }
+.checkIcon { flex-shrink: 0; width: 13px; height: 13px; }
+
+/* A lane's own panel: a white card with a title and a badge for the answer. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--e-1);
+}
+
+.panelHead { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.panelTitle { display: inline-flex; align-items: center; gap: var(--s-2); font-size: var(--t-label); font-weight: 600; color: var(--c-ink); }
+.panelIcon { width: 16px; height: 16px; color: var(--c-warning); }
+
+.gapBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--r-full);
+  background: var(--c-warning-wash);
+  font-size: var(--t-caption);
+  font-weight: 600;
+  color: var(--c-warning);
+  white-space: nowrap;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.gapBadge[data-in] { background: var(--c-positive-wash); color: var(--c-positive); }
+.gapBadgeIcon { width: 13px; height: 13px; }
+
+/*
+ * The ruler: the market's price as a sage post under the track, hers as a terracotta bead over it, the gap between
+ * hatched in amber. Zoomed on the gap, and it slides as a cost is typed; in the market, the gap turns sage.
+ */
+.ruler { position: relative; height: 84px; margin: 0 var(--s-4); }
+
+.track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 38px;
+  height: 8px;
+  border-radius: var(--r-full);
+  background: var(--c-sunk);
+  box-shadow: inset 0 0 0 1px var(--c-line);
+}
+
+.band {
+  position: absolute;
+  top: 38px;
+  height: 8px;
+  border-radius: var(--r-full);
+  background: repeating-linear-gradient(135deg, var(--c-warning) 0 3px, color-mix(in srgb, var(--c-warning) 45%, var(--c-surface)) 3px 6px);
+  transition: left 280ms var(--ease-out), width 280ms var(--ease-out), background var(--dur) var(--ease);
+}
+.ruler[data-in] .band { background: var(--c-positive); }
+
+.pin { position: absolute; top: 0; bottom: 0; width: 0; transition: left 280ms var(--ease-out); }
+
+.pin[data-kind='you']::before {
+  content: '';
+  position: absolute;
+  top: 34px;
+  left: -8px;
+  width: 16px;
+  height: 16px;
+  border: 3px solid var(--c-surface);
+  border-radius: var(--r-full);
+  background: var(--c-action);
+  box-shadow: 0 1px 4px rgba(42, 39, 35, 0.35);
+}
+
+.pin[data-kind='market']::before {
+  content: '';
+  position: absolute;
+  top: 30px;
+  left: -1.5px;
+  width: 3px;
+  height: 24px;
+  border-radius: 2px;
+  background: var(--c-positive);
+}
+
+.pinLabel {
+  position: absolute;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: var(--t-micro);
+  line-height: 1.25;
+  white-space: nowrap;
+  color: var(--c-ink-faint);
+  transform: translateX(-50%);
+}
+.pinLabel b { font-family: var(--font-data); font-size: var(--t-caption); font-weight: 600; }
+.pin[data-kind='you'] .pinLabel { top: 0; }
+.pin[data-kind='you'] .pinLabel b { color: var(--c-action-text); }
+.pin[data-kind='market'] .pinLabel { top: 57px; }
+.pin[data-kind='market'] .pinLabel b { color: var(--c-positive); }
+
+/* What the goods cost now against what they would have to cost, with the difference on the arrow between. */
+.cost {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: var(--s-3);
+}
+
+.costCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-sunk);
+}
+
+.costNeed { border-color: color-mix(in srgb, var(--c-positive) 30%, transparent); background: var(--c-positive-wash); }
+.costLabel { font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--c-ink-faint); }
+.costNeed .costLabel { color: var(--c-positive); }
+.costFig { font-family: var(--font-data); font-size: 1.0625rem; font-weight: 500; color: var(--c-ink); white-space: nowrap; }
+.costNeed .costFig { color: var(--c-positive); }
+.costSub { font-size: var(--t-micro); line-height: 1.35; color: var(--c-ink-faint); }
+
+.arrow { display: flex; flex-direction: column; align-items: center; align-self: center; gap: 2px; }
+.arrow svg { width: 40px; height: 12px; fill: none; stroke: var(--c-line-strong); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.cut { font-size: var(--t-micro); font-weight: 600; color: var(--c-positive); white-space: nowrap; }
+
+.fill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-positive);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  font-size: var(--t-caption);
+  font-weight: 600;
+  color: var(--c-positive);
+  white-space: nowrap;
+  align-self: center;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.fill:hover { background: var(--c-positive); color: var(--c-surface); }
+.fill:focus-visible, .tab:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+.dead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-negative-wash);
+  font-size: var(--t-caption);
+  line-height: var(--lh-snug);
+  color: var(--c-negative);
+}
+.deadIcon { flex-shrink: 0; width: 15px; height: 15px; margin-top: 1px; }
+
+/*
+ * Confirm the pack: the eBay listing and the shelf side by side, sizes marked in both titles. The eBay side is white
+ * with its photo; the shelf side is the shop's paper label with its kraft edge, as on Where it was seen.
+ */
+.compare {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--s-3);
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+}
+
+.shelf {
+  composes: ink from '../shared/shop-ink.module.css';
+  border-bottom: 5px solid var(--c-kraft-deep);
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  background: var(--c-paper);
+}
+
+.sideKicker { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-ink-faint); }
+.side[data-side='ebay'] .sideKicker { color: var(--c-action-text); }
+.shelf .sideKicker { color: var(--c-kraft-ink); }
+
+.sideBody { display: flex; gap: var(--s-3); min-width: 0; }
+.photo {
+  flex-shrink: 0;
+  width: 96px;
+  height: 96px;
+  overflow: hidden;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+}
+.photo img { width: 100%; height: 100%; object-fit: contain; }
+.photoNone { background: var(--c-sunk); }
+a.photo:hover { border-color: var(--c-control); }
+a.photo:focus-visible, .sideLink:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+.sideText { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sideTitle { font-size: var(--t-caption); line-height: 1.45; color: var(--c-ink); overflow-wrap: anywhere; }
+.missing { color: var(--c-ink-faint); }
+.sidePrice { margin-top: auto; font-family: var(--font-data); font-size: 1.25rem; font-weight: 500; letter-spacing: -0.02em; color: var(--c-ink); }
+.sideLink { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; font-size: var(--t-caption); color: var(--c-action-text); }
+.sideLink:hover { text-decoration: underline; text-underline-offset: 3px; }
+.sideLinkIcon { width: 12px; height: 12px; }
+
+/* A size in a title, lifted like a highlighter stroke so both sides can be read against each other at a glance. */
+.size {
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--c-warning-wash);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--c-warning) 45%, transparent);
+  font-family: var(--font-data);
+  font-weight: 600;
+  color: var(--c-ink);
+}
+
+.vs {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-full);
+  background: var(--c-surface);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  color: var(--c-ink-faint);
+}
+
+.packLine {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  font-size: var(--t-caption);
+  line-height: var(--lh-snug);
+}
+.packLine b { font-family: var(--font-data); font-weight: 600; }
+.packLine[data-tone='warning'] { background: var(--c-warning-wash); color: var(--c-warning); }
+.packLine[data-tone='positive'] { background: var(--c-positive-wash); color: var(--c-positive); }
+.packLine[data-tone='muted'] { background: var(--c-sunk); color: var(--c-ink-soft); }
+.packIcon { flex-shrink: 0; width: 15px; height: 15px; margin-top: 1px; }
+
+/* The lane panels share the gap panel's card: each lane's colour on its icon and badge. */
+.iconSlate { color: var(--c-control); }
+.iconSage { color: var(--c-brand-strong); }
+.iconNeg { color: var(--c-negative); }
+.gapBadge[data-tone='slate'] { background: var(--c-sunk); color: var(--c-ink-soft); box-shadow: inset 0 0 0 1px var(--c-line-mid); }
+.gapBadge[data-tone='sage'] { background: var(--c-brand-wash); color: var(--c-brand-strong); }
+.gapBadge[data-tone='negative'] { background: var(--c-negative-wash); color: var(--c-negative); }
+.gapBadge b { font-family: var(--font-data); font-weight: 600; }
+
+.gauge { padding: 0 var(--s-1); }
+
+.facts { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); font-size: var(--t-caption); color: var(--c-ink-soft); }
+.facts b { font-family: var(--font-data); font-weight: 600; color: var(--c-ink); }
+.facts .good { color: var(--c-positive); }
+
+.note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  font-size: var(--t-caption);
+  line-height: var(--lh-snug);
+}
+.note b { font-family: var(--font-data); font-weight: 600; }
+.note[data-tone='slate'] { background: var(--c-sunk); color: var(--c-ink-soft); }
+.note[data-tone='sage'] { background: var(--c-brand-wash); color: var(--c-brand-strong); }
+.noteIcon { flex-shrink: 0; width: 15px; height: 15px; margin-top: 1px; }
+
+/* Sold a month on a bar, with the mark that makes a card ready standing over it. */
+.meter { position: relative; height: 46px; margin: 0 var(--s-2); }
+.meterTrack { position: absolute; left: 0; right: 0; top: 26px; height: 10px; border-radius: var(--r-full); background: var(--c-sunk); box-shadow: inset 0 0 0 1px var(--c-line); overflow: hidden; }
+.meterFill { display: block; height: 100%; border-radius: var(--r-full); background: var(--c-brand-strong); transition: width 280ms var(--ease-out); }
+.meterMark { position: absolute; top: 20px; width: 2px; height: 22px; margin-left: -1px; border-radius: 1px; background: var(--c-ink); }
+.meterLabel { position: absolute; bottom: calc(100% + 3px); left: 50%; font-size: var(--t-micro); white-space: nowrap; color: var(--c-ink-soft); transform: translateX(-50%); }
+.meterLabel b { font-family: var(--font-data); font-weight: 600; color: var(--c-ink); }
+
+/* The ways to close a shortfall, numbered, each with its own action where it has one. */
+.routes { display: flex; flex-direction: column; gap: var(--s-2); list-style: none; }
+.route { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) var(--s-3); border: 1px solid var(--c-line); border-radius: var(--r-md); font-size: var(--t-caption); }
+.routeNo { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: var(--r-full); background: var(--c-sunk); font-family: var(--font-data); font-size: var(--t-micro); font-weight: 600; color: var(--c-ink-soft); }
+.routeText { flex: 1; min-width: 0; line-height: var(--lh-snug); color: var(--c-ink); }
+.routeText b { font-family: var(--font-data); font-weight: 600; }
+.routeText .warn { color: var(--c-warning); }
+.route .fill { height: 30px; }
+
+/* Found it cheaper, inside the panel under a dashed rule: the question and the tool that answers it together. */
+.tryIn { padding-top: var(--s-3); border-top: 1px dashed var(--c-line-mid); }
+
+/*
+ * The detail as tabs in a sunk track, the open one raised in white with its icon in colour: plainly a set of tabs
+ * and plainly which is open. Counts sit in small pills.
+ */
+.tabs { display: flex; flex-direction: column; min-width: 0; }
+.tabList {
+  display: flex;
+  align-self: flex-start;
+  gap: 2px;
+  max-width: 100%;
+  padding: 3px;
+  border-radius: calc(var(--r-md) + 3px);
+  background: var(--c-sunk);
+  box-shadow: inset 0 0 0 1px var(--c-line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabList::-webkit-scrollbar { display: none; }
+
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-md);
+  font-size: var(--t-caption);
+  font-weight: 500;
+  color: var(--c-ink-soft);
+  white-space: nowrap;
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.tab:hover { color: var(--c-ink); background: color-mix(in srgb, var(--c-surface) 55%, transparent); }
+.tab[aria-selected='true'] {
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(42, 39, 35, 0.1), 0 0 0 1px var(--c-line);
+}
+.tabIcon { width: 15px; height: 15px; color: var(--c-ink-faint); transition: color var(--dur) var(--ease); }
+.tab[aria-selected='true'][data-tab='market'] .tabIcon { color: var(--c-action); }
+.tab[aria-selected='true'][data-tab='sources'] .tabIcon { color: var(--c-positive); }
+.tab[aria-selected='true'][data-tab='notes'] .tabIcon { color: var(--c-warning); }
+.tabCount {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: var(--r-full);
+  background: var(--c-surface);
+  box-shadow: inset 0 0 0 1px var(--c-line-mid);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 17px;
+  text-align: center;
+  color: var(--c-ink-soft);
+}
+.tab[aria-selected='true'] .tabCount { background: var(--c-ink); box-shadow: none; color: var(--c-surface); }
+
+.tabPanel { padding-top: var(--s-3); min-width: 0; }
+
+@container (max-width: 560px) {
+  .route { flex-wrap: wrap; }
+  .routeText { flex-basis: calc(100% - 22px - var(--s-3)); }
+  .route .fill { margin-left: calc(22px + var(--s-3)); }
+  .compare { grid-template-columns: minmax(0, 1fr); }
+  .vs { justify-self: center; }
+  .photo { width: 76px; height: 76px; }
+  .strip { grid-template-columns: auto minmax(0, 1fr); }
+  .action { grid-column: 1 / -1; justify-content: flex-start; }
+  .cost { grid-template-columns: minmax(0, 1fr); gap: var(--s-2); }
+  .arrow { flex-direction: row; justify-content: center; gap: var(--s-2); }
+  .arrow svg { width: 24px; transform: rotate(90deg); }
+  .fill { justify-self: start; }
+  .tabList { align-self: stretch; }
+  .tab { flex: 1 0 auto; justify-content: center; padding: 0 var(--s-2); }
+  .checks { grid-column: 1 / -1; }
+}
+
+/* A small phone: the words carry the tabs, so the icons go and the tabs share the width. */
+@container (max-width: 400px) {
+  .tabList { gap: 0; }
+  .tabIcon { display: none; }
+  .tab { gap: 5px; padding: 0 var(--s-2); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .band, .pin, .tab, .tabIcon { transition: none; }
+}

@@ -46,7 +46,7 @@
 }
 .clear:hover, .quiet:hover { background: var(--c-sunk); color: var(--c-ink); }
 
-.result { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s-1); font-size: var(--t-label); color: var(--c-ink-soft); }
+.result { font-size: var(--t-label); line-height: 1.5; color: var(--c-ink-soft); }
 .result b { font-weight: 600; color: var(--c-ink); }
 .result .gain { color: var(--c-positive); }
 .result .lose { color: var(--c-negative); }
@@ -106,11 +106,78 @@
 .primary:disabled { opacity: 0.45; cursor: default; }
 .failed { grid-column: 1 / -1; font-size: var(--t-caption); color: var(--c-negative); }
 
+/*
+ * Found it cheaper, on one line: where, its page, the price and what they charge to deliver it to her, summed into
+ * the goods cost in a pill that lights once there is a price.
+ */
+.quick { display: flex; flex-direction: column; gap: var(--s-2); }
+.quickHead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--s-2); font-size: var(--t-label); font-weight: 600; color: var(--c-ink); }
+
+.quickRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.3fr) 6.5rem 14px 6.5rem 14px minmax(7.5rem, auto);
+  align-items: end;
+  gap: var(--s-2);
+}
+
+.q { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: var(--t-micro); font-weight: 500; color: var(--c-ink-faint); }
+.q > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.plus, .equals {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  font-family: var(--font-data);
+  font-size: var(--t-label);
+  color: var(--c-ink-faint);
+}
+
+.total {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 36px;
+  padding: 3px var(--s-3);
+  border: 1px dashed var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-sunk);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.total b { font-family: var(--font-data); font-size: var(--t-label); font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--c-ink-soft); }
+.total[data-on] { border-style: solid; border-color: color-mix(in srgb, var(--c-info) 35%, transparent); background: var(--c-info-wash); color: var(--c-info); }
+.total[data-on] b { color: var(--c-info); }
+
+.quickActions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.quickActions .primary { min-height: 36px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quickActions .save { margin-left: 0; }
+.quickActions .failed { flex-basis: 100%; }
+.quickActions .hint { font-size: var(--t-caption); }
+
 .fill:focus-visible, .clear:focus-visible, .quiet:focus-visible, .save:focus-visible, .primary:focus-visible {
   outline: 2px solid var(--c-action-strong);
   outline-offset: 2px;
 }
 
+/* Narrow: where and its page on the first line, the sum on the second. */
+@container (max-width: 640px) {
+  .quickRow { grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr) 14px minmax(0, 1fr); }
+  .q[data-size='where'] { grid-column: 1 / 3; }
+  .q[data-size='link'] { grid-column: 3 / -1; }
+}
+
 @container (max-width: 520px) {
   .form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@container (max-width: 400px) {
+  .q[data-size='where'], .q[data-size='link'] { grid-column: 1 / -1; }
+  .quickRow { column-gap: 4px; }
+  .total { padding: 3px var(--s-2); }
 }

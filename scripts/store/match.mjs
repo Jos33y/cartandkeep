@@ -1,10 +1,11 @@
 // Product matching shared by store-picks and check-picks, so both judge a match the same way.
 
 export const digits = (s) => String(s ?? '').replace(/\D/g, '').replace(/^0+/, '');
-export const squash = (s) => String(s ?? '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim();
-const UNIT = /^\d+(\.\d+)?(w|v|l|ml|cl|g|kg|mm|cm|m|in|pk|pcs?|x|mah|gb|tb|hz|oz|tog|lm|in1|pack|tier)$/i;
+// Accents folded first, so Estée is estee, not "est e".
+export const squash = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim();
+const UNIT = /^\d+(\.\d+)?(w|v|l|ml|cl|g|kg|mm|cm|m|in|pk|pcs?|x|mah|gb|tb|hz|oz|tog|lm|in1|pack|tier|mg|mcg|ug|iu|hr|hrs|caps?|tabs?|softgels?|servings?|days?|months?)$/i;
 // Specs that read like model numbers but are shared by hundreds of products: IP65, GU10, 3in1, 750lm, 5000 series.
-const SPEC = /^(ip\d{2}|gu\d{1,2}|mr\d{2}|e\d{2}|b\d{2}|g\d{1,2}|t\d{1,2}|\d+in\d+|\d+lm|\d+k)$/i;
+const SPEC = /^(ip\d{2}|gu\d{1,2}|mr\d{2}|e\d{2}|b\d{2}|g\d{1,2}|t\d{1,2}|\d+in\d+|\d+lm|\d+k|\d+cct|spf\d+|\d+-\d+v|a\d{2}|gr\d+q|r7s|g\d+q)$/i;
 export function modelsIn(title) {
   return [...new Set(String(title).split(/[\s,()/|]+/).map((t) => t.replace(/[^a-z0-9-]/gi, '').toLowerCase())
     .filter((t) => t.length >= 4 && /\d/.test(t) && !UNIT.test(t) && !SPEC.test(t) && !/^(19|20)\d{2}$/.test(t)
@@ -118,29 +119,9 @@ export function sameProduct(title, brand, name, { df, brands }) {
   return 'unsure, look at it';
 }
 
-/*
- * Why someone has to search for this exact thing: a part for something they own, a refill, or a problem to fix today.
- * These are searched by need rather than browsed by brand, so a small shop is not up against the famous names.
- */
-const NEED_RULES = [
-  ['safety', /\b(smoke alarm|heat alarm|carbon monoxide|co alarm|key safe|door chain|window lock|security light|fire blanket|extinguisher)\b/i],
-  ['pest', /\b(flea|bed ?bugs?|wasps?|rats?|mouse|mice|rodent|bait|slugs?|ants?|moths?|spiders?|fox|cats? repell\w*|repellent|insect|fly (?:killer|trap)|traps?)\b/i],
-  ['damp', /\b(mould|mold|damp|moisture absorber|condensation|dehumidifier refills?|dryzone)\b/i],
-  ['plumbing', /\b(valve|tap (?:gland|cartridge|washer)|cistern|inhibitor|shower head|shower hose|waste trap|plug and chain)\b/i],
-  ['care', /\b(grab rail|toilet seat raiser|raised toilet|commode|bed rail|perching|dressing aid|sock aid|jar opener|reacher|grabber|pill|incontinence|walking|mobility|magnif\w*|big button|amplified)\b/i],
-  ['winter', /\b(draught|draft excluder|de-?icer|rock salt|grit|thermal curtain|radiator (?:key|reflector|booster)|heated airer|hot water bottle|electric blanket|heated throw)\b/i],
-  ['clean-fix', /\b(limescale|descaler|unblocker|drain|oven cleaner|stain remover|rust|restorer|repair|sealant|filler|grout)\b/i],
-  ['part', /\b(replacement|spares?|refills?|cartridges?|compatible|fits)\b/i],
-  ['part', /\bfor (?:[a-z]+ )?(?:[a-z]*\d[a-z0-9-]*)\b/i],
-  // A filter jug, a lunch bag or a shoe bag is the product itself, so the part word has to stand on its own.
-  ['part', /\b(filters?|belts?|seals?|gaskets?|elements?|blades?|nozzles?|brush ?heads?|mop heads?|pads?|glands?|fill valve|flush valve|thermostats?|ignitors?|fuses?|expansion vessel)\b(?! (?:jugs?|tanks?|bottles?|taps?|kettles?|systems?|coffee))/i],
-  ['part', /\b(?:vacuum|hoover|dust|hepa) bags?\b|\bbags? for\b/i],
-  ['part', /\b(batter(?:y|ies)|chargers?)\b(?! (?:operated|powered))/i],
-];
-export function needOf(title) {
-  for (const [need, rx] of NEED_RULES) if (rx.test(title)) return need;
-  return '';
-}
+// Need words live per Google category in ./needs, so a word that means a fix in one category (repair,
+// inhibitor, refill) is not read as one in another. needOf(title, category) picks the category's list.
+export { needOf } from './needs/index.mjs';
 
 /*
  * When it sells. The words settle Christmas and Halloween; the months settle the rest:
@@ -148,11 +129,20 @@ export function needOf(title) {
  */
 const CHRISTMAS = /\b(christmas|xmas|advent|festive|santa|reindeer|snowman|snowflake|nativity|tinsel|bauble|stocking|elf|gingerbread|mistletoe|wreath|garland|nutcracker|christmas tree|tree lights|fairy lights)\b/i;
 const HALLOWEEN = /\b(halloween|pumpkin|spooky|witch|skeleton|ghost|bat decoration|cobweb|trick or treat|zombie|skull)\b/i;
-export function seasonOf(title, periods = []) {
+// exported: every period the exports cover. Winter or Summer is said only when both halves of the year were
+// exported; a product seen only in August when only August was exported says nothing about winter.
+const WINTER = /^M20\d\d(10|11|12|01|02)$/;
+const SUMMER = /^M20\d\d(05|06|07|08)$/;
+const monthOf = (p) => (/^W\d{8}$/.test(p) ? `M${p.slice(1, 7)}` : p);
+export function seasonOf(title, periods = [], exported = null) {
   if (HALLOWEEN.test(title)) return 'Halloween';
   if (CHRISTMAS.test(title)) return 'Christmas';
-  const winter = periods.some((p) => /^M20\d\d(10|11|12|01|02)$/.test(p));
-  const summer = periods.some((p) => /^M20\d\d(05|06|07|08)$/.test(p));
+  if (exported) {
+    const months = exported.map(monthOf);
+    if (!months.some((p) => WINTER.test(p)) || !months.some((p) => SUMMER.test(p))) return 'All year';
+  }
+  const winter = periods.map(monthOf).some((p) => WINTER.test(p));
+  const summer = periods.map(monthOf).some((p) => SUMMER.test(p));
   if (winter && !summer) return 'Winter';
   if (summer && !winter) return 'Summer';
   return 'All year';
@@ -165,19 +155,61 @@ export function seasonOf(title, periods = []) {
  * the thing, with sizes, colours and sales words left out.
  */
 const QUERY_SKIP = new Set(['a', 'an', 'and', 'the', 'of', 'to', 'in', 'on', 'for', 'by', 'x', 'uk', 'new', 'premium', 'luxury', 'professional', 'quality', 'genuine', 'original', 'official', 'best', 'ideal', 'perfect', 'pack', 'packs', 'pcs', 'pc', 'piece', 'pieces', 'inch', 'size', 'compatible', 'black', 'white', 'grey', 'gray', 'silver', 'gold', 'blue', 'red', 'green', 'pink', 'cream', 'beige', 'brown', 'clear', 'natural', 'multicolour', 'multicolor']);
+// A short model straight after the brand: Omron M2, Omron RS1, Braun IRT6520 is long enough already. Two or three
+// characters, letters then digits, so a size (5L, 2kg) or a spec (E27, GU10) is never read as one.
+function shortModelAfterBrand(title, brand) {
+  const bw = squash(brand).split(' ').filter(Boolean);
+  if (!bw.length) return null;
+  const t = squash(title).split(' ');
+  for (let i = 0; i + bw.length < t.length; i += 1) {
+    if (bw.every((w, k) => t[i + k] === w)) {
+      const next = t[i + bw.length];
+      if (isShortModel(next)) return next;
+    }
+  }
+  // Anywhere else in the name before the first dash, bar or comma: Xpelair Simply Silent Contour C4.
+  const head = String(title).split(/\s[-\u2013|]\s|[|,(]/)[0];
+  // Never the brand's own name (Ion8, F10): that was the bug that lumped every Ion8 bottle.
+  return squash(head).split(' ').find((w) => isShortModel(w) && !bw.includes(w)) ?? null;
+}
+// Two or three characters, letters then digits: M2, RS1, C4, V15. Not a paper size (A4), a pack (X2), a spec (E27)
+// or a vitamin (B5, B12, D3, K2, Q10).
+function isShortModel(w) {
+  return /^[a-z]{1,3}\d{1,3}[a-z]?$/.test(w) && !UNIT.test(w) && !SPEC.test(w) && !/^(a\d|x\d+|no\d+|b\d{1,2}|d[23]|k[12]|q10)$/.test(w);
+}
+// The kind of thing a beauty or health product is, when the name puts it late: kept in the key (see queryOf).
+const KINDS_OF = new Set(['foundation', 'concealer', 'powder', 'primer', 'serum', 'shampoo', 'conditioner', 'mascara',
+  'lipstick', 'gloss', 'eyeliner', 'bronzer', 'blusher', 'highlighter', 'palette', 'cleanser', 'toner', 'moisturiser',
+  'moisturizer', 'makeup', 'tint', 'stick', 'fluid', 'gel', 'balm', 'mask', 'gummies', 'drops', 'capsules', 'tablets',
+  'softgels', 'spray', 'refill', 'trimmer', 'razor', 'shaver', 'blades', 'bundle', 'set', 'kit']);
+// Initials joined by "&" stay one word, as shops and eBay write them: A&D, B&Q, M&S (not "a d").
+const initials = (brand) => { const m = String(brand ?? '').trim().match(/^([a-z])\s*&\s*([a-z])$/i); return m ? `${m[1]}&${m[2]}`.toLowerCase() : null; };
+
 export function queryOf(title, brand) {
   // Two brand words at most: "the workplace depot" is found as "workplace depot".
-  const b = squash(brand).split(' ').filter((w) => w !== 'the' && w !== 'and').slice(0, 2).join(' ');
+  const b = initials(brand) ?? squash(brand).split(' ').filter((w) => w !== 'the' && w !== 'and').slice(0, 2).join(' ');
   const bw = new Set(squash(brand).split(' '));
   // A size range, an "x in 1" or the brand's own name is not a model: 40-50cm, 6-in-1, Ion8.
-  const model = modelsIn(title).find((m) => /[a-z]/.test(m.replace(/in/g, '')) && !/^[\d.-]+(cm|mm|m|kg|g|l|ml|db|mah|lm)$/.test(m) && !bw.has(squash(m)));
-  if (model) return squash(`${b} ${model}`);
+  const model = modelsIn(title).find((m) => /[a-z]/.test(m.replace(/in/g, '')) && !/^[\d.-]+(cm|mm|m|kg|g|l|ml|db|mah|lm)$/.test(m) && !bw.has(squash(m)))
+    ?? shortModelAfterBrand(title, brand);
+  if (model) return `${b} ${squash(model)}`.trim();
   const skip = new Set([...QUERY_SKIP, 'with', ...bw]);
   // The name before the first dash, bar, comma, bracket, colon or "with": what follows describes it.
   const head = String(title).split(/\s[-\u2013|]\s|[|,(:\u2013]|\swith\s/i)[0];
-  const take = (s) => squash(s).split(' ').filter((w) => w && !skip.has(w) && !/\d/.test(w));
+  // Words with digits are sizes and codes and are dropped, but a vitamin name is the product: D3, K2, B12, Q10.
+  const take = (s) => squash(s).split(' ').filter((w) => w && !skip.has(w) && (!/\d/.test(w) || /^(b(?:[1-9]|1[0-2])|d[23]|k[12]|q10)$/.test(w)));
+  // A range number the name depends on: Braun Series 7, not Series 5 (the number alone is dropped as a size).
+  const series = String(title).match(/\b(series|gen|generation|mk|mark|version)\s*(\d{1,4})\b/i);
   let rest = take(head);
   // A name that is all brand ("Magic Hose 40m") is searched as the brand; only a bare word reaches for the rest.
   if ([...b.split(' ').filter(Boolean), ...rest].length < 2) rest = take(title);
-  return [b, ...rest.slice(0, 3)].filter(Boolean).join(' ').trim();
+  // Past the first three words, a vitamin or the kind of thing still tells products apart: Double Wear makeup and
+  // Double Wear concealer, Vitamin D capsules and Vitamin D drops.
+  const first = rest.slice(0, 3);
+  const later = rest.slice(3);
+  const extra = [
+    ...later.filter((w) => /^(b(?:[1-9]|1[0-2])|d[23]|k[12]|q10)$/.test(w)),
+    ...(first.some((w) => KINDS_OF.has(w)) ? [] : later.filter((w) => KINDS_OF.has(w)).slice(0, 1)),
+  ];
+  return [b, ...first, ...[...new Set(extra)].filter((w) => !first.includes(w)), ...(series && !first.includes(series[2]) ? [series[2]] : [])].filter(Boolean).join(' ').trim();
 }

@@ -8,9 +8,28 @@
 
 export const decode = (s) => String(s ?? '').replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d))).replace(/&amp;/g, '&').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
 
-// Shops whose pages price without VAT. Add a host here when a shop is found doing it.
-export const EX_VAT_HOSTS = /(^|\.)(cpc\.farnell\.com|uk\.farnell\.com|farnell\.com|rs-online\.com|cef\.co\.uk|tlc-direct\.co\.uk)$/i;
+// Shops whose pages price without VAT. Add a host here when a shop is found doing it (Medisave: shelf £7.99, page £9.59 inc VAT).
+export const EX_VAT_HOSTS = /(^|\.)(cpc\.farnell\.com|uk\.farnell\.com|farnell\.com|rs-online\.com|cef\.co\.uk|tlc-direct\.co\.uk|medisave\.co\.uk)$/i;
 export const VAT = 1.2;
+/*
+ * Care shops that show the disability VAT-relief price by default: the figure on the page and in the shop's feed
+ * has no VAT, and she pays VAT buying for resale. Complete Care Shop's Blue Badge wallet reads "Now £12.66" with
+ * "Eligible for VAT relief" selected; the full price £15.83 is £18.99 less VAT. Check a shop with vat-check.mjs
+ * before adding it.
+ */
+// Checked with vat-check.mjs on 30 September: Manage at Home ("£190.83 with VAT Relief, £229"), Miller Care ("Price
+// Shown Already Excludes VAT") and Ability Superstore (shelf £19.99, page "£23.99 including VAT") do the same. On a
+// product not eligible for relief the shop's price already has VAT, so adding it over-costs that product: the safe side.
+export const VAT_RELIEF_HOSTS = /(^|\.)(completecareshop\.co\.uk|manageathome\.co\.uk|millercare\.[a-z.]+|abilitysuperstore\.[a-z.]+)$/i;
+const hostOf = (url) => { try { return new URL(url).hostname; } catch { return ''; } };
+// A shelf or page price as she would pay it: VAT added for trade and VAT-relief shops.
+export function withVat(price, url) {
+  const n = Number(price);
+  if (!(n > 0)) return null;
+  const h = hostOf(url);
+  const add = EX_VAT_HOSTS.test(h) || VAT_RELIEF_HOSTS.test(h);
+  return { price: Math.round(n * (add ? VAT : 1) * 100) / 100, vatAdded: add };
+}
 
 const ogImage = (html) => decode(html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)/i)?.[1] ?? '');
 // Where a page keeps its price when its structured data has none: meta tags, itemprop, then Magento's
@@ -65,7 +84,7 @@ export function paidPrice(page, url) {
   if (!(n > 0)) return null;
   let host = '';
   try { host = new URL(url).hostname; } catch { /* no host, no VAT rule */ }
-  const addVat = page.exVat || EX_VAT_HOSTS.test(host);
+  const addVat = page.exVat || EX_VAT_HOSTS.test(host) || VAT_RELIEF_HOSTS.test(host);
   return { price: Math.round(n * (addVat ? VAT : 1) * 100) / 100, vatAdded: addVat };
 }
 

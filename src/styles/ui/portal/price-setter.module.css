@@ -1,0 +1,77 @@
+/* Her price in a stepper, what it keeps beside it, the market's own prices as one-press chips, the chart under. */
+.setter { display: flex; flex-direction: column; gap: var(--s-4); min-width: 0; }
+
+.head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--s-3) var(--s-5); }
+
+.label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-ink-faint); }
+
+.priceBox { display: flex; flex-direction: column; gap: 6px; }
+.priceRow {
+  display: inline-flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 4px;
+  border: 1px solid var(--c-control);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  box-shadow: 0 1px 2px rgba(42, 39, 35, 0.05);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.priceRow:focus-within { border-color: var(--c-action); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-action) 18%, transparent); }
+
+.step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  color: var(--c-ink-soft);
+}
+.step svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.step:hover { background: var(--c-sunk); color: var(--c-ink); }
+.step:focus-visible, .chip:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+.currency { margin-left: 4px; font-family: var(--font-data); font-size: 1.25rem; color: var(--c-ink-faint); }
+.input {
+  width: 6.5ch;
+  border: none;
+  background: none;
+  font-family: var(--font-data);
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--c-ink);
+  -moz-appearance: textfield;
+}
+.input::-webkit-outer-spin-button, .input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.input:focus { outline: none; }
+
+.keepBox { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
+.keep { font-family: var(--font-data); font-size: 1.75rem; font-weight: 500; letter-spacing: -0.02em; line-height: 1.1; color: var(--c-ink); }
+.keepFoot { font-size: var(--t-micro); color: var(--c-ink-faint); }
+.keepBox[data-tone='positive'] .keep { color: var(--c-positive); }
+.keepBox[data-tone='warning'] .keep, .keepBox[data-tone='warning'] .keepFoot { color: var(--c-warning); }
+.keepBox[data-tone='negative'] .keep, .keepBox[data-tone='negative'] .keepFoot { color: var(--c-negative); }
+
+.chips { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-full);
+  background: var(--c-surface);
+  font-size: var(--t-caption);
+  color: var(--c-ink-soft);
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.chip span { font-family: var(--font-data); color: var(--c-ink); }
+.chip:hover { border-color: var(--c-control); color: var(--c-ink); }
+.chip[data-on] { border-color: var(--c-action); background: var(--c-action-wash); color: var(--c-action-text); }
+
+@media (max-width: 520px) {
+  .keepBox { align-items: flex-start; text-align: left; }
+}

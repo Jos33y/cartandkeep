@@ -86,7 +86,20 @@ async function finish() {
   const raw = (await readFile(outFile, 'utf8')).split('\n').filter(Boolean).map(l => JSON.parse(l));
   const scale = scaleOf(raw);
   const fix = v => (v == null || v === '' ? v : Math.round((Number(v) / scale) * 100) / 100);
-  const all = scale === 1 ? raw : raw.map(r => ({ ...r, price: fix(r.price), was: fix(r.was) }));
+  // products.json carries no barcode; shelf-barcodes.mjs reads them from each product's .js and keeps them here.
+  const codes = new Map();
+  const cacheFile = join(dir, `${tag}-barcodes.csv`);
+  if (await exists(cacheFile)) {
+    for (const l of (await readFile(cacheFile, 'utf8')).split('\n').slice(1)) {
+      const [, variant, code] = l.split(',');
+      if (variant && code) codes.set(variant.trim(), code.trim());
+    }
+  }
+  const all = raw.map(r => ({
+    ...r,
+    ...(scale === 1 ? {} : { price: fix(r.price), was: fix(r.was) }),
+    gtin: r.gtin || codes.get(String(r.variant_id)) || null,
+  }));
   if (scale !== 1) console.log(`\nPrices read at 1/${scale}: this shop publishes them ${scale} times too large. --price-scale=1 to keep them as published.`);
   await writeFile(csvFile, [COLS.join(','), ...all.map(r => COLS.map(c => cell(r[c])).join(','))].join('\n'));
   return { products: new Set(all.map(r => r.product_id)).size, variants: all.length };

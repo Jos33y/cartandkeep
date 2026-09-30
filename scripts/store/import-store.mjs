@@ -20,7 +20,11 @@ import { parseCsv } from '../lib/sources.js';
 import { queryOf, squash } from './match.mjs';
 import { PROFIT, STORE, ebayAtWeight } from '../../src/lib/pricing.js';
 import { priceStore } from './price-store.mjs';
+import { withVat } from './page.mjs';
 import { categorise } from '../categories/categorise.mjs';
+import path from 'node:path';
+import { buildCoverage, printCoverage, readCoverageFiles, writeCoverage } from './coverage.mjs';
+import { postCheckOf, stopOf } from './rules/index.mjs';
 
 const args = process.argv.slice(2);
 const arg = (k, d = null) => args.find((a) => a.startsWith(`--${k}=`))?.split('=').slice(1).join('=') ?? d;
@@ -45,18 +49,22 @@ if (!label) {
 }
 
 const rows = parseCsv(fs.readFileSync(picksPath, 'utf8'));
-const tally = { read: rows.length, wrong_match: 0, unsure_match: 0, not_checked: 0, big_brand: 0, no_price: 0, bigger_pack: 0, over_20kg: 0, kept: 0 };
+const tally = { read: rows.length, stopped_by_rules: 0, wrong_match: 0, unsure_match: 0, not_checked: 0, big_brand: 0, no_price: 0, bigger_pack: 0, over_20kg: 0, kept: 0 };
 const bandCount = {};
 const cards = [];
 const seenRefs = new Set();
 
 for (const r of rows) {
+  // The rules again, so a picks file made before a rule was added cannot bring in what the rule now stops.
+  if (stopOf({ title: r.title, brand: r.brand, category: r.category || label })) { tally.stopped_by_rules += 1; continue; }
   const verdict = String(r.verdict ?? '');
   if (/^wrong/.test(verdict)) { tally.wrong_match += 1; continue; }
   if (/^unsure/.test(verdict) && !withUnsure) { tally.unsure_match += 1; continue; }
   if (!/^confirmed/.test(verdict) && !/^unsure/.test(verdict) && !withUnsure) { tally.not_checked += 1; continue; }
   if (r.big_brand === 'yes' && !r.need && !bigBrands) { tally.big_brand += 1; continue; }
-  const cost = Number(r.seen_price) > 0 ? Number(r.seen_price) : Number(r.page_price) > 0 ? Number(r.page_price) : null;
+  // The shelf price is the shop's own figure: a VAT-relief or trade shop's gains VAT here. The page price already has it.
+  const shelfCost = withVat(r.seen_price, r.seen_link)?.price ?? null;
+  const cost = shelfCost ?? (Number(r.page_price) > 0 ? Number(r.page_price) : null);
   if (cost == null && !withoutPrice) { tally.no_price += 1; continue; }
   // A cost over twice Google's highest price is a bigger pack or another model: the page check read the wrong thing.
   if (cost != null && Number(r.google_max) > 0 && cost > Number(r.google_max) * 2) { tally.bigger_pack += 1; continue; }
@@ -114,6 +122,7 @@ for (const r of rows) {
       brand: r.brand || null,
       gtin: r.gtin || null,
       need: r.need || null,
+      post: r.post || postCheckOf(r.title) || null,
       big_brand: r.big_brand === 'yes',
       shops,
       match: { by: r.matched_by || null, verdict: r.verdict || null },
@@ -134,13 +143,30 @@ for (const c of cards.slice(0, 20)) {
 }
 if (cards.length > 20) console.log(`  ... and ${cards.length - 20} more`);
 
-if (dry) { console.log('\n  Dry run, nothing written.\n'); process.exit(0); }
 if (!cards.length) { console.error('\n  Nothing to import.\n'); process.exit(1); }
 
 const { connect } = await import('../../pipeline/lib/db.js');
 const { db } = await connect();
 const { data: tenant } = await db.from('tenants').select('id').eq('slug', slug).maybeSingle();
 if (!tenant) { console.error(`Tenant "${slug}" not found.`); process.exit(1); }
+
+// A card made before the key rule changed (match.mjs queryOf) is found by its title and keeps its old key, so a
+// better key never turns her existing card into a second one.
+{
+  const titles = [...new Set(cards.map((c) => c.title))];
+  const byTitle = new Map();
+  for (let i = 0; i < titles.length; i += 100) {
+    const { data } = await db.from('candidates').select('external_ref, title').eq('tenant_id', tenant.id).in('title', titles.slice(i, i + 100));
+    for (const c of data ?? []) if (!byTitle.has(c.title)) byTitle.set(c.title, c.external_ref);
+  }
+  let rekeyed = 0;
+  const taken = new Set(cards.map((c) => c.external_ref));
+  for (const c of cards) {
+    const old = byTitle.get(c.title);
+    if (old && old !== c.external_ref && !taken.has(old)) { taken.delete(c.external_ref); c.external_ref = old; taken.add(old); rekeyed += 1; }
+  }
+  if (rekeyed) console.log(`\n  ${rekeyed} card${rekeyed === 1 ? '' : 's'} already in her queue under an older key, matched by title and kept on it`);
+}
 
 // A product already in her queue under another batch is the same card twice, so no second card is made.
 // If that card is an eBay card she has not decided, it gains the shop: the mirror of import-gate adding eBay to a store card.
@@ -155,6 +181,39 @@ const prior = [];
     if (pErr) { console.error(`Duplicate check failed, nothing imported: ${pErr.message}`); process.exit(1); }
     prior.push(...(data ?? []));
   }
+}
+
+// The dry run reads her queue too (never writes), so it says how many cards are new, not only how many passed.
+if (dry) {
+  const { data: past } = await db.from('batches').select('id, delivered_for').eq('tenant_id', tenant.id).eq('term', term).order('delivered_for');
+  const target = (past ?? []).find((b) => b.delivered_for === date);
+  const dateOf = new Map((past ?? []).map((b) => [b.id, b.delivered_for]));
+  const inQueue = new Map();
+  for (const p of prior) if (!inQueue.has(p.external_ref)) inQueue.set(p.external_ref, p);
+  const tallyQ = { new: 0, sameBatch: 0, sameBatchDecided: 0, storeElsewhere: 0, ebayUndecided: 0, ebayDecided: 0 };
+  const byBatch = {};
+  for (const c of cards) {
+    const p = inQueue.get(c.external_ref);
+    if (!p) { tallyQ.new += 1; continue; }
+    const decided = Array.isArray(p.decisions) ? p.decisions.length > 0 : Boolean(p.decisions);
+    if (target && p.batch_id === target.id) { tallyQ[decided ? 'sameBatchDecided' : 'sameBatch'] += 1; continue; }
+    if (p.margin?.channel === 'store' && p.margin?.store_import !== term) {
+      tallyQ.storeElsewhere += 1;
+      const d = dateOf.get(p.batch_id) ?? 'another label';
+      byBatch[d] = (byBatch[d] ?? 0) + 1;
+      continue;
+    }
+    tallyQ[decided ? 'ebayDecided' : 'ebayUndecided'] += 1;
+  }
+  console.log(`\n  Her queue, read only. "${term}" batches: ${(past ?? []).map((b) => b.delivered_for).join(', ') || 'none'}; this import ${target ? `refreshes the ${date} batch` : `makes a new ${date} batch`}`);
+  console.log(`    new cards                          ${tallyQ.new}`);
+  if (tallyQ.sameBatch) console.log(`    in the ${date} batch, refreshed       ${tallyQ.sameBatch}`);
+  if (tallyQ.sameBatchDecided) console.log(`    in the ${date} batch, decided, left   ${tallyQ.sameBatchDecided}`);
+  if (tallyQ.storeElsewhere) console.log(`    store cards already, left there    ${tallyQ.storeElsewhere} (${Object.entries(byBatch).map(([k, v]) => `${k}: ${v}`).join(', ')})`);
+  if (tallyQ.ebayUndecided) console.log(`    eBay cards, gain the Shop label    ${tallyQ.ebayUndecided}`);
+  if (tallyQ.ebayDecided) console.log(`    eBay cards she decided, left       ${tallyQ.ebayDecided}`);
+  console.log('\n  Dry run, nothing written.\n');
+  process.exit(0);
 }
 
 const { data: batch, error: bErr } = await db.from('batches').upsert({
@@ -225,9 +284,28 @@ if (otherStore) console.log(`  ${otherStore} already store cards in another impo
 if (held.size) console.log(`  ${held.size} already decided by her, left exactly as they are`);
 
 // Written 100 at a time, so one large request never fails the whole import.
+const written = [];
 for (let i = 0; i < fresh.length; i += 100) {
-  const { error: cErr } = await db.from('candidates').upsert(fresh.slice(i, i + 100), { onConflict: 'batch_id,external_ref' });
+  const { data: got, error: cErr } = await db.from('candidates').upsert(fresh.slice(i, i + 100), { onConflict: 'batch_id,external_ref' }).select('id, external_ref, margin');
   if (cErr) { console.error(`Candidate upsert failed after ${i} cards: ${cErr.message}. Rerun to finish; written cards are refreshed, not doubled.`); process.exit(1); }
+  written.push(...(got ?? []));
+}
+
+// A Royal Mail limit goes on her card as a note, once, so she sees it without a portal change.
+{
+  const withPost = written.filter((c) => c.margin?.post);
+  const bodyOf = (c) => `Postage: ${c.margin.post}.`;
+  let added = 0;
+  for (let i = 0; i < withPost.length; i += 100) {
+    const slice = withPost.slice(i, i + 100);
+    const { data: have } = await db.from('candidate_notes').select('candidate_id, body').in('candidate_id', slice.map((c) => c.id));
+    const known = new Set((have ?? []).map((n) => `${n.candidate_id}|${n.body}`));
+    const rowsToAdd = slice.filter((c) => !known.has(`${c.id}|${bodyOf(c)}`)).map((c) => ({ tenant_id: tenant.id, candidate_id: c.id, body: bodyOf(c) }));
+    if (!rowsToAdd.length) continue;
+    const { error: nErr } = await db.from('candidate_notes').insert(rowsToAdd);
+    if (nErr) console.error(`  Postage notes not added: ${nErr.message}`); else added += rowsToAdd.length;
+  }
+  if (added) console.log(`  ${added} postage note${added === 1 ? '' : 's'} added (aerosol, perfume, battery limits)`);
 }
 
 const { count } = await db.from('candidates').select('id', { count: 'exact', head: true }).eq('batch_id', batch.id);
@@ -241,4 +319,21 @@ try {
   console.log(`  Categories: ${tally.set} set, ${tally.deeper} made more specific, ${tally.ai_calls} classification calls\n`);
 } catch (e) {
   console.error(`  Categories not set (${e.message}). Run scripts/categories/fill-categories.mjs once the migration is in.\n`);
+}
+
+// Coverage: every Google product in the exports and where it stopped, written beside the cards. store-picks writes
+// coverage.csv next to the picks; --coverage= points elsewhere. Without it, say so rather than skip silently.
+const coveragePath = arg('coverage', path.join(path.dirname(picksPath), 'coverage.csv'));
+if (!fs.existsSync(coveragePath)) {
+  console.log(`  Coverage not written: no ${coveragePath}. Run store-picks for this category, then scripts/store/store-coverage.mjs --label="${label}" --apply.\n`);
+} else {
+  try {
+    const { rows: covRows, checked } = readCoverageFiles(coveragePath, picksPath);
+    const built = await buildCoverage({ db, tenantId: tenant.id, batchId: batch.id, rows: covRows, checked });
+    printCoverage(label, built.list, built);
+    await writeCoverage(db, built.list);
+    console.log(`  Written ${built.list.length} coverage rows.\n`);
+  } catch (e) {
+    console.error(`  Coverage not written (${e.message}). Rerun with scripts/store/store-coverage.mjs --label="${label}" --apply.\n`);
+  }
 }

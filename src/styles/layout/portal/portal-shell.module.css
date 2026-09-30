@@ -164,6 +164,13 @@
   gap: var(--s-6);
 }
 
+/* Data-heavy pages ask for more width with data-wide on their root, and tighter side gutters on a computer:
+   the rail already sets the page in from the left. Settings and text pages keep the reading width. */
+.main:has([data-wide]) { max-width: var(--shell-wide); }
+@media (min-width: 901px) {
+  .main:has([data-wide]) { padding-inline: calc(var(--s-4) + var(--s-1)); }
+}
+
 .scrim { display: none; }
 
 .skip {

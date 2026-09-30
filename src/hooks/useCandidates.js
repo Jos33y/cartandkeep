@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@lib/supabase';
+import { readPages } from '@lib/readPages';
 
 // The unique constraint on candidate_id makes this a to-one embed, so PostgREST
 // returns an object here and an array elsewhere. Take either.
@@ -9,21 +10,7 @@ function one(decisions) {
 }
 
 // The light read behind the category tabs: every live card's category, labels and decision, no market data.
-const INDEX = 'id, batch_id, category_id, category_top_id, category_level2_id, category_source, category_flag, source_labels, decisions ( action )';
-
-async function readPages(build) {
-  const data = [];
-  // In pages, ordered by id so none is skipped or read twice. One request stopped at the API's row ceiling
-  // (1,000 by default) without an error, so a category past that would have lost cards silently.
-  // A ceiling on pages, so a server that ignored the range could never loop for ever.
-  for (let from = 0; from < PAGE * 60; from += PAGE) {
-    const page = await build().order('id').range(from, from + PAGE - 1);
-    if (page.error) return { data, error: page.error };
-    data.push(...page.data);
-    if (page.data.length < PAGE) break;
-  }
-  return { data, error: null };
-}
+const INDEX = 'id, batch_id, category_id, category_top_id, category_level2_id, category_source, category_flag, source_labels, decisions ( action, decided_at )';
 
 function flatten(row) {
   const { decisions, candidate_notes: notes, candidate_sources: sources, ...candidate } = row;

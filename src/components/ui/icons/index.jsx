@@ -302,6 +302,43 @@ const IconPlus = (p) => (
   </svg>
 );
 
+// Keyboard shortcuts: a key cap, not a laptop.
+const IconKeyboard = (p) => (
+  <svg {...base} {...p}>
+    <rect x="2.75" y="5.25" width="14.5" height="9.5" rx="1.75" />
+    <path d="M6 8.5h.01M8.67 8.5h.01M11.33 8.5h.01M14 8.5h.01M6.5 11.5h7" />
+  </svg>
+);
+
+// Sort: two arrows passing, one up and one down.
+const IconSort = (p) => (
+  <svg {...base} {...p}>
+    <path d="M6.5 15.5v-11M3.75 7.25L6.5 4.5l2.75 2.75M13.5 4.5v11M10.75 12.75l2.75 2.75 2.75-2.75" />
+  </svg>
+);
+
+// A spark for today's run of decisions.
+const IconSpark = (p) => (
+  <svg {...base} {...p}>
+    <path d="M10 2.75l1.6 4.65L16.25 9 11.6 10.6 10 15.25 8.4 10.6 3.75 9l4.65-1.6z" />
+  </svg>
+);
+
+// A flag: something on the card asks for a check before it is approved.
+const IconFlag = (p) => (
+  <svg {...base} {...p}>
+    <path d="M4.75 17.25V3.5M4.75 3.75h9.5l-2 3.5 2 3.5h-9.5" />
+  </svg>
+);
+
+// Undo: an arrow curling back on itself.
+const IconUndo = (p) => (
+  <svg {...base} {...p}>
+    <path d="M7.5 5.25L4 8.75l3.5 3.5" />
+    <path d="M4.25 8.75h7.5a4.25 4.25 0 0 1 0 8.5H9.5" />
+  </svg>
+);
+
 export const ICONS = {
   IconGrid,
   IconGauge,
@@ -336,6 +373,11 @@ export const ICONS = {
   IconCaret,
   IconPlus,
   IconHeart,
+  IconKeyboard,
+  IconSort,
+  IconSpark,
+  IconFlag,
+  IconUndo,
 };
 
 export function Icon({ name, ...rest }) {

@@ -9,7 +9,10 @@ export const BLENDED = 10;
 const CEILING = 1000;
 
 // Above this, the converting listing is usually a bigger pack than the shelf one.
-const PACK_RATIO = 3.5;
+export const PACK_RATIO = 3.5;
+
+// A shop card this far over Google's lowest price is not one to list as it is: Over Google's price.
+export const STORE_OVER = 0.10;
 
 // Under this many sold a month across the sample, a proved card still waits in Sells slowly.
 export const READY_MIN_SOLD = 5;
@@ -65,6 +68,12 @@ const SHOP_NAMES = {
   completecareshop: 'Complete Care Shop', essentialaids: 'Essential Aids', hannworld: 'Hannworld', maplin: 'Maplin',
   qdstores: 'QD Stores', cpc: 'CPC', hartsofstur: 'Harts of Stur', studio: 'Studio', johnlewis: 'John Lewis',
   homediscount: 'Home Discount', monstershop: 'MonsterShop', lights4fun: 'Lights4fun',
+  cityplumbing: 'City Plumbing', longacres: 'Longacres', petsathome: 'Pets at Home', halfords: 'Halfords',
+  towsure: 'Towsure', vetshop: 'VetShop', petshop: 'Pet Shop', spares2you: 'Spares2you', swelluk: 'Swell UK',
+  homescapes: 'Homescapes', minky: 'Minky', howetools: 'Howe Tools', abilitysuperstore: 'Ability Superstore',
+  manageathome: 'Manage at Home', medisave: 'Medisave',
+  // The Home Bargains scans label their cards "H & B".
+  'H & B': 'Home Bargains',
 };
 // Tags from the shelf scripts, and web addresses from the store pipeline ("lakeland.co.uk"), read as one name.
 export const shopName = (tag) => {
@@ -72,7 +81,8 @@ export const shopName = (tag) => {
   const raw = String(tag).trim();
   if (SHOP_NAMES[raw]) return SHOP_NAMES[raw];
   const host = raw.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
-  if (!/\.[a-z]{2,}$/.test(host)) return raw;
+  // A bare tag in lower case ("cityplumbing") is a machine's spelling, so it reads with a capital.
+  if (!/\.[a-z]{2,}$/.test(host)) return /^[a-z0-9 ]+$/.test(raw) ? raw.replace(/\b\w/g, (c) => c.toUpperCase()) : raw;
   const key = host.split('.')[0];
   return SHOP_NAMES[key] ?? key.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 };
@@ -90,11 +100,12 @@ function marketReadOf(comp) {
   };
 }
 
-// Where a card is for. Cards from before channels existed came from the eBay pipeline.
+// Where a card is for. A card through the eBay route (scanned, gated and imported with the eBay account) is for
+// her shop as well as eBay, whatever the import wrote. A store card is for the channels the import recommended.
 export function channelsOf(row) {
   const set = new Set(row?.recommended_channels ?? []);
   if (row?.margin?.channel === 'store') set.add('store');
-  if (set.size === 0) set.add('ebay');
+  else { set.add('ebay'); set.add('store'); }
   return ['store', 'ebay'].filter((c) => set.has(c));
 }
 
@@ -158,7 +169,10 @@ function assessStore(row, tryCost = null, holdPrice = false, tryPosted = 'suppli
     postageBand: m.postage_band ?? null,
     onEbay: (row.recommended_channels ?? []).includes('ebay'),
     entry: row.entry ?? null,
-    lane: 'store',
+    // More than 10% over Google's lowest, the shop card waits in its own lane. The cost above the low itself means no
+    // price reaches it, which is usually a bigger size or another variant on the shop page.
+    lane: position && !position.inMarket && position.pct > STORE_OVER ? 'dear' : 'store',
+    costOverLow: cost != null && lowest != null && cost > lowest,
     month: null,
     title: d.title ?? row.title,
     images: d.images ?? [],

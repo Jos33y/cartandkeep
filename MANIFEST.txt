@@ -1,20 +1,24 @@
-Cart & Keep, category tabs on Google's taxonomy, 2026-09-29
-Only the files changed since ck-candidates-postage-2026-09-29.zip. Unzip at the repo root.
+Cart & Keep, Coverage by route and category, 2026-09-29
 
-SQL, in this order, before deploying the portal:
-  1. Rename supabase/migrations/0108_candidate_categories.sql to 0109_candidate_categories.sql (same content, included here).
-     If it was run in the SQL editor, nothing runs again: delete the old 0108 file so the folder has one 0108.
-     If it went through the Supabase CLI, the recorded version must change too; ask before deploying.
-  2. Run 0110_set_candidate_category.sql in the SQL editor. It replaces the NNNN draft; do not run the draft.
+Run first, in the Supabase SQL editor:
+  supabase/migrations/0111_store_coverage.sql
+  Your NNNN_store_coverage.sql with three changes: portal read only (select policy, the import writes with the
+  service key), the store_coverage_gap view for the brand list, and an index for reading a reason by rank.
+  Safe to run twice. Run it in place of NNNN, not as well as it.
 
-  new       src/components/ui/portal/CategoryPicker.jsx
-  new       src/lib/categories.js
-  new       src/styles/ui/portal/category-picker.module.css
-  new       supabase/migrations/0109_candidate_categories.sql
-  new       supabase/migrations/0110_set_candidate_category.sql
-  overwrite src/components/ui/portal/CandidateRow.jsx
-  overwrite src/components/ui/portal/CategoryTabs.jsx
-  overwrite src/hooks/useCandidates.js
-  overwrite src/pages/portal/CandidatesPage.jsx
-  overwrite src/styles/pages/portal/candidates-page.module.css
-  overwrite src/styles/ui/portal/candidate-row.module.css
+New
+  src/components/ui/portal/StoreFlow.jsx      the Google route flow: ranked to sent, stops falling away by kind
+  src/components/ui/portal/StoreRoute.jsx     season chips, flow, list by late October, why the rest stopped
+  src/hooks/useStoreCoverage.js               summary counts; a reason's products read 50 at a time when opened
+  src/lib/storeCoverage.js                    stages, reason wording and kinds, in one place
+
+Changed
+  src/pages/portal/CoveragePage.jsx           route switch, Google category tabs, 1,060 line, no batch labels
+  src/components/ui/portal/CoverageFlow.jsx   zoom title and the "fewer cards than searches sent" note
+  src/hooks/useQueryCoverage.js               cards carry category_top_id for the tabs
+  src/pages/portal/CandidatesPage.jsx         ?card=<id> opens that card on its tab and status
+  src/styles/pages/portal/coverage-page.module.css
+  src/styles/ui/portal/coverage-flow.module.css
+
+Tidy
+  0108_candidate_categories.sql and 0109 are the same file. Delete 0108 from the repo; running both did no harm.

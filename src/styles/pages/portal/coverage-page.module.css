@@ -3,7 +3,46 @@
 .head > p { margin-bottom: var(--s-2); }
 .title { font-size: 2rem; letter-spacing: -0.025em; font-weight: 560; }
 
-.scope { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.lede { margin-top: var(--s-2); font-size: var(--t-label); color: var(--c-ink-soft); }
+.lede span { color: var(--c-ink); }
+
+/* The two routes a card reaches her by, as a pair of switches. */
+.routes {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-1);
+  align-self: flex-start;
+  padding: var(--s-1);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-sunk);
+}
+
+.route {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 12rem;
+  min-height: var(--tap);
+  padding: var(--s-2) var(--s-4);
+  border-radius: calc(var(--r-lg) - 4px);
+  text-align: left;
+  color: var(--c-ink-soft);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.route:hover { color: var(--c-ink); }
+.route:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 1px; }
+.route[aria-selected='true'] { background: var(--c-surface); color: var(--c-ink); box-shadow: var(--e-1); }
+.routeName { font-size: var(--t-label); font-weight: 560; }
+.routeCount { font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+.scopeNote { font-size: var(--t-caption); color: var(--c-ink-soft); line-height: var(--lh-snug); max-width: 72ch; }
+
+.seasons { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.seasonsLabel { display: inline-flex; align-items: center; gap: var(--s-1); margin-right: var(--s-1); font-size: var(--t-caption); color: var(--c-ink-faint); }
+.chipCount { margin-left: var(--s-1); color: var(--c-ink-faint); font-size: var(--t-caption); }
 
 .chip {
   min-height: 36px;
@@ -62,6 +101,7 @@
 
 .stageValue { font-size: var(--t-figure); line-height: 1; margin-top: var(--s-2); }
 .stage[data-stage='live'] .stageValue { color: var(--c-positive); }
+.stageNote { font-size: var(--t-caption); color: var(--c-ink-faint); }
 
 .stageBar {
   display: block;
@@ -107,6 +147,7 @@
 .key span { display: inline-flex; align-items: center; gap: var(--s-2); }
 .key i { width: 12px; height: 6px; border-radius: var(--r-full); background: var(--c-data-6); }
 .key i[data-kind='ours'] { background: var(--c-data-3); }
+.key i[data-kind='check'] { background: var(--c-data-4); }
 
 .reasons {
   list-style: none;
@@ -155,7 +196,88 @@
 
 .reasonBar span[data-reason='held_back'],
 .reasonBar span[data-reason='no_buy_price'],
-.reasonBar span[data-reason='duplicate'] { background: var(--c-data-3); }
+.reasonBar span[data-reason='duplicate'],
+.reasonBar span[data-kind='ours'] { background: var(--c-data-3); }
+.reasonBar span[data-kind='check'] { background: var(--c-data-4); }
+
+/* The Google route's reasons sit under the stage that stopped them. */
+.group + .group { border-top: 1px solid var(--c-line-mid); }
+
+.groupHead {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4) var(--s-2) var(--s-5);
+  font-size: var(--t-micro);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.groupList { list-style: none; }
+.groupList .reason { border-top: 1px solid var(--c-line); }
+
+.detailWait { padding-top: var(--s-3); font-size: var(--t-caption); color: var(--c-ink-faint); }
+.gapHead { margin-top: var(--s-3); font-size: var(--t-caption); font-weight: 600; color: var(--c-ink-soft); }
+
+.brands {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--s-5);
+  margin-top: var(--s-2);
+}
+
+.brand {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 7.5rem;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--c-line);
+  font-size: var(--t-caption);
+}
+
+.brandCount { color: var(--c-ink); font-weight: 600; }
+.brand .itemFigure { text-align: right; }
+
+.more {
+  margin-top: var(--s-3);
+  min-height: 36px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-full);
+  background: var(--c-surface);
+  font-size: var(--t-caption);
+  color: var(--c-ink);
+}
+
+.more:hover { border-color: var(--c-control); }
+.more span { margin-left: var(--s-1); color: var(--c-ink-faint); }
+
+.product { align-items: center; }
+.product > * { min-width: 0; max-width: 100%; }
+.productText { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.productText .itemFigure { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.itemLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  width: 100%;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.itemLink:hover .itemName { text-decoration: underline; text-underline-offset: 2px; }
+.itemLink:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; border-radius: 2px; }
+.itemGo { flex-shrink: 0; width: 12px; height: 12px; color: var(--c-ink-faint); transform: rotate(-90deg); align-self: center; }
+
+.soon { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-4) var(--s-5); }
+.soonHead { display: flex; align-items: center; gap: var(--s-2); }
+.soonIcon { width: 16px; height: 16px; color: var(--c-warning); }
 
 .reasonCount { font-size: var(--t-label); text-align: right; color: var(--c-ink); }
 
@@ -246,7 +368,12 @@
   .ratio { top: 0; left: var(--s-5); transform: translateY(-50%); }
   .reasonRow { grid-template-columns: minmax(0, 1fr) 2.5rem 16px; }
   .reasonBar { grid-column: 1 / -1; grid-row: 2; }
-  .items { grid-template-columns: minmax(0, 1fr); }
+  .items, .brands { grid-template-columns: minmax(0, 1fr); }
+  .itemGo { display: none; }
+  .product { align-items: stretch; }
+  .routes { display: grid; align-self: stretch; }
+  .route { min-width: 0; }
+  .soon { padding: var(--s-4); }
   .item { flex-direction: column; gap: 2px; }
   .itemName { max-width: 100%; }
   .stageBody { padding: var(--s-4); }

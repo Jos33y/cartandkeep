@@ -1,14 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EmptyState } from '@components/ui/portal/EmptyState';
 import { ImageLightbox } from '@components/ui/portal/ImageLightbox';
 import { SourceList } from '@components/ui/portal/SourceList';
 import { PageSkeleton } from '@components/ui/portal/Skeleton';
 import { Card, CardHead } from '@components/ui/portal/primitives';
-import { PriceScale } from '@components/ui/portal/PriceScale';
-import { assess } from '@lib/assess';
+import { PriceSetter } from '@components/ui/portal/PriceSetter';
+import { TillRoll } from '@components/ui/portal/TillRoll';
+import { CostTry } from '@components/ui/portal/CostTry';
+import { BriefStrip } from '@components/ui/portal/CandidateBrief';
+import { ShelfLabel } from '@components/ui/portal/CandidateRow';
+import { REF_WORD } from '@components/ui/portal/GapRail';
+import { STORE_OVER, assess, shopName } from '@lib/assess';
 import { ListingComposer } from '@components/ui/portal/ListingComposer';
 import { SearchTile } from '@components/ui/portal/SearchTile';
-import { Breakdown } from '@components/ui/portal/Breakdown';
 import { Icon } from '@components/ui/icons';
 import { ChannelMarks } from '@components/ui/portal/ChannelMarks';
 import { useApproved } from '@hooks/useApproved';
@@ -103,7 +107,7 @@ export function ApprovedPage() {
         body="What you have committed to, kept together so you can price it and write it before anything goes live."
         columns={COLUMNS}
         rows={ROWS}
-        note="Approving a candidate brings it here with the price a small seller is being paid and the most the goods can cost, so nothing is worked out twice. Fourteen are waiting to review."
+        note="Approving a candidate brings it here with the price a small seller is being paid and the most the goods can cost, so nothing is worked out twice. Anything you approve on Candidates lands here."
         action={{ to: portalPath('/candidates'), label: 'Go to candidates' }}
       />
     );
@@ -211,6 +215,21 @@ function StateTab({ id, only, setOnly, icon, label, count, tone }) {
   );
 }
 
+// What stands between an approved card and going up, each said in full: the card's warnings, and a price over the
+// market it lists against.
+function checksOf(a) {
+  const p = a.position;
+  const out = [];
+  if (p && !p.inMarket) {
+    const word = REF_WORD[p.refName] ?? p.refName;
+    out.push({ tone: a.store && p.pct > STORE_OVER ? 'negative' : 'warning', text: `${formatGbp(p.over)} over ${word} at ${formatGbp(p.ref)}` });
+  }
+  for (const w of a.warnings) out.push({ tone: /^Loses money/.test(w) ? 'negative' : 'info', text: w });
+  // A shop card is never ready without its own photographs, so the reason is said. eBay takes the listing's.
+  if (a.store && !(a.images ?? []).length) out.push({ tone: 'warning', text: 'No photographs yet, add them under The listing' });
+  return out;
+}
+
 function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }) {
   const [open, setOpen] = useState(false);
   const [zoomed, setZoomed] = useState(false);
@@ -218,24 +237,35 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   const [shopping, setShopping] = useState(false);
+  const [trial, setTrial] = useState(null);
+  const onTry = useCallback((cost, posted) => setTrial(cost == null ? null : { cost, posted }), []);
+  const confirmRef = useRef(null);
   // She buys after each sale, and the shop caps how many one order can take.
   const [qty, setQty] = useState(Math.min(5, row.listing?.max_qty ?? 5));
 
   const { draft, change, revert, generate, upload, saving, edited } = useDraft(row, tenantId);
 
-  // Live while editing, from the same function the closed line uses.
-  const whole = useMemo(() => assess({ ...row, draft }), [row, draft]);
+  // Live while editing, from the same function the closed line uses. A cost she is trying holds her price and moves
+  // what she keeps.
+  const whole = useMemo(() => assess({ ...row, draft }, trial ? { tryCost: trial.cost, tryPosted: trial.posted, holdPrice: true } : {}),
+    [row, draft, trial]);
   // A store card the gate also passed is listed in two places, each at its own price.
   const both = Boolean(whole.store && whole.ebay);
   const [view, setView] = useState('store');
   const a = both && view === 'ebay' ? whole.ebay : whole;
   const setPrice = (v) => change(both && view === 'ebay' ? { ebay_price: v } : { price: v });
   const hero = whole.images[0] ?? row.image_url;
-  const status = a.ready ? 'ready' : 'check';
+  const status = base.ready ? 'ready' : 'check';
+  const checks = checksOf(a);
+  const closedChecks = checksOf(base);
 
   const inShop = (row.store_products ?? [])[0] ?? null;
   // Always the shop's own figures, whichever view is open: a store card already keeps them, an eBay card is re-costed here.
   const shopKeep = whole.store ? whole.keep : storeKeep(whole.price, fees, whole.goods, whole.postage);
+
+  useEffect(() => {
+    if (confirm) confirmRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [confirm]);
 
   async function sendToShop() {
     setShopping(true);
@@ -264,55 +294,104 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
     }
   }
 
+  // eBay checks the listing first and says which category it chose from the title; nothing goes up until Publish.
+  async function review() {
+    setBusy(true);
+    setProblem(null);
+    try {
+      setConfirm(await onList({
+        price: a.price,
+        quantity: qty,
+        package: draft.package,
+        title: draft.title,
+        description: draft.description,
+        images: draft.images,
+        dry: true,
+      }));
+    } catch (e) {
+      setProblem(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const onEbayView = !a.store;
+  const shopButton = (both && view === 'ebay') ? null : inShop ? (
+    <span className={styles.inShop}>
+      <Icon name="IconCheck" className={styles.btnIcon} />
+      On your shop as a {inShop.status}
+    </span>
+  ) : (
+    // On a shop card it is the main action, unless the price is far over what shoppers compare it with.
+    <button type="button" className={onEbayView || checks.some((c) => c.tone === 'negative') ? styles.ghost : styles.primary} disabled={shopping || whole.goods == null}
+      onClick={sendToShop}>
+      <Icon name="IconShop" className={styles.btnIcon} />
+      {shopping ? 'Adding' : shopKeep != null ? `Add to your shop, keep ${formatGbp(shopKeep)}` : 'Add to your shop'}
+    </button>
+  );
+
+  const shelf = a.m?.shelf ?? null;
+  const product = a.store ? a.m.cost_from?.product : a.costFrom?.basis === 'supplier' ? 'Your supplier' : shelf?.product;
+  const labelState = a.costFrom?.basis === 'supplier' ? 'confirmed' : a.store ? 'page' : a.costConfirmed ? 'confirmed' : 'estimate';
+  const alts = [...new Set((a.shops ?? a.m.shops ?? []).map(shopName))]
+    .filter((n) => n && n !== 'eBay' && n !== shopName(a.best?.supplier));
+
   return (
-    <article className={`${styles.pack} ${open ? styles.packOpen : ''}`}>
+    <article className={`${styles.pack} ${open ? styles.packOpen : ''}`} data-status={status}>
       {zoomed && <ImageLightbox src={hero} alt={a.title} onClose={() => setZoomed(false)} />}
 
       <div className={styles.top} role="button" tabIndex={0} aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((v) => !v); }
         }}>
-        <span className={`${styles.rail} ${styles[status]}`} aria-hidden="true" />
-
         {hero
           ? (
-            <button className={styles.thumb} aria-label={`View ${a.title} larger`}
+            <button type="button" className={styles.thumb} aria-label={`View ${base.title} larger`}
               onClick={(e) => { e.stopPropagation(); setZoomed(true); }}>
-              <img src={a.images[0] ? hero : thumb(hero)} alt="" loading="lazy" />
+              <img src={base.images[0] ? hero : thumb(hero)} alt="" loading="lazy" />
             </button>
           )
           : <span className={`${styles.thumb} ${styles.thumbEmpty}`} aria-hidden="true" />}
 
         <div className={styles.subject}>
-          <span className={styles.nameRow}>
-            <h2 className={styles.name}>{a.title}</h2>
-            <ChannelMarks channels={whole.channels} />
-          </span>
+          <h2 className={styles.name}>{base.title}</h2>
           <p className={styles.evidence}>
-            {a.store
-              ? <><Icon name="IconCheck" className={styles.evIcon} />{a.g.rank != null ? `Google best seller #${a.g.rank.toLocaleString('en-GB')}` : 'Sells on Google'}{a.onEbay && ', and on eBay'}</>
-              : a.entry?.proved
-                ? <><Icon name="IconCheck" className={styles.evIcon} />Converting at {formatGbp(a.entry.price)}</>
+            {base.store
+              ? <><Icon name="IconCheck" className={styles.evIcon} />{base.g.rank != null ? <>Google best seller <b data-num>#{base.g.rank.toLocaleString('en-GB')}</b></> : 'Sells on Google'}{base.onEbay && ', and on eBay'}</>
+              : base.entry?.proved
+                ? <><Icon name="IconCheck" className={styles.evIcon} />Small seller converting at <b data-num>{formatGbp(base.entry.price)}</b></>
                 : <><Icon name="IconInfo" className={styles.evIconWarn} />No small seller converting</>}
-            {a.warnings.length > 0 && (
-              <span className={styles.warnCount}>{a.warnings.length} to check</span>
+          </p>
+          <span className={styles.flags}>
+            <ChannelMarks channels={base.channels} compact />
+            {closedChecks[0] && (
+              <span className={styles.flag} data-tone={closedChecks[0].tone} title={closedChecks[0].text}>
+                <Icon name="IconFlag" className={styles.flagIcon} />{closedChecks[0].text}
+                {closedChecks.length > 1 && <span className={styles.flagMore}>+{closedChecks.length - 1}</span>}
+              </span>
             )}
             {edited && <span className={styles.editedTag}>Edited</span>}
-          </p>
-        </div>
-
-        <div className={styles.figures}>
-          <span className={styles.figLabel}>List at</span>
-          <span className={styles.figPrice} data-num>{formatGbp(a.price)}</span>
-          {a.position && <span className={`${styles.figLabel} ${styles[`pos_${a.position.tone}`] ?? ''}`}>{a.position.short}</span>}
-        </div>
-
-        <div className={styles.figures}>
-          <span className={styles.figLabel}>You keep</span>
-          <span className={`figure ${styles.figKeep} ${a.keep < 0 ? styles.loss : ''}`}>
-            {a.keep != null ? formatGbp(a.keep) : 'Unknown'}{a.keep != null && a.costConfirmed === false && <span className={styles.figLabel}> est.</span>}
           </span>
+        </div>
+
+        <div className={styles.cell}>
+          <span className={styles.cellLabel}>List at</span>
+          <span className={styles.fig} data-num>{base.price != null ? formatGbp(base.price) : '--'}</span>
+          {base.position && (
+            <span className={styles.status} data-tone={base.position.inMarket ? 'positive' : 'warning'}>
+              <i />{base.position.inMarket ? 'In the market' : <><span data-num>{formatGbp(base.position.over)}</span> over</>}
+            </span>
+          )}
+        </div>
+
+        <div className={styles.cell}>
+          <span className={styles.cellLabel}>You keep</span>
+          <span className={`${styles.fig} ${styles.keepFig}`} data-tone={base.keep == null ? undefined : base.keep < 0 ? 'negative' : base.costConfirmed ? 'positive' : 'estimate'} data-num>
+            {base.keep != null ? formatGbp(base.keep) : '--'}
+          </span>
+          <span className={styles.sub}>{base.keep == null ? 'no cost yet' : base.keep < 0 ? 'loses money' : base.costConfirmed ? 'confirmed' : 'estimate'}</span>
         </div>
 
         <span className={styles.caret} data-open={open || undefined} aria-hidden="true">
@@ -341,6 +420,30 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
               ))}
             </div>
           )}
+
+          <BriefStrip
+            tone={a.ready ? 'positive' : 'warning'}
+            icon={a.ready ? 'IconCheck' : 'IconInfo'}
+            kicker={<>{a.ready ? 'Ready to publish' : 'Needs a look'}{row.decision?.decided_at && <span className={styles.stripWhen}> · approved {when(row.decision.decided_at)}</span>}</>}
+            checks={checks}
+            action={!confirm && (
+              <>
+                {shopButton}
+                {onEbayView && (
+                  <button type="button" className={styles.primary} disabled={busy || a.keep == null || a.keep < 0} onClick={review}>
+                    <Icon name="IconTag" className={styles.btnIcon} />
+                    {busy ? 'Checking with eBay' : `Review and list at ${formatGbp(a.price)}`}
+                  </button>
+                )}
+              </>
+            )}>
+            {a.ready
+              ? <>Priced, costed and nothing outstanding. Check the listing below, then {onEbayView ? 'review it with eBay' : 'add it to your shop'}.</>
+              : <>{checks.length ? `${['One thing', 'Two things', 'Three things', 'Four things', 'Five things'][checks.length - 1] ?? `${checks.length} things`}` : 'Something'} to settle before it goes up.</>}
+            {row.reference_url && <> <a className={styles.reference} href={row.reference_url} target="_blank" rel="noreferrer noopener">See the listing this came from</a></>}
+          </BriefStrip>
+
+          {problem && <p className={styles.problem} role="alert">{problem}</p>}
           {!a.modelled && (
             <p className={styles.notice}>
               <Icon name="IconInfo" className={styles.noticeIcon} />
@@ -348,294 +451,183 @@ function Pack({ row, base, tenantId, fees, suppliers, onSource, onList, onShop }
             </p>
           )}
 
-          {a.store ? (
-            <Card raised>
-              <CardHead title="Price" note={`Cheapest cost${a.costFrom ? `, ${a.costFrom.from} ${formatGbp(a.costFrom.cost)}` : ''}, plus Royal Mail for its weight, the card fee and your profit${a.floor != null ? `. Floor ${formatGbp(a.floor)}` : ''}`} />
-              <label className={styles.storePrice}>
-                <span>List at</span>
-                <input type="number" min="0" step="0.01" inputMode="decimal" data-num
-                  value={a.price ?? ''} onChange={(e) => setPrice(e.target.value === '' ? null : Number(e.target.value))} />
-              </label>
-              {a.position && <p className={`${styles.position} ${styles[`pos_${a.position.tone}`] ?? ''}`}>{a.position.text}</p>}
-            </Card>
-          ) : (
-          <div className={styles.deck}>
-            <Card raised>
-              <CardHead title="Price" note="Against what is selling, not the middle of the field" />
-              <PriceScale
-                market={row.competition}
-                entry={a.entry}
-                price={a.price}
-                goods={a.goods ?? a.assumed ?? null}
-                goodsAssumed={a.costBasis === 'market'}
-                margin={a.m}
-                onChange={setPrice}
-              />
-            </Card>
+          {confirm && (
+            <div ref={confirmRef}>
+              <Card raised className={styles.confirm}>
+                <CardHead title="Publish to eBay"
+                  note="eBay chose the category from the title. It is the one field nobody can check in advance." />
 
-            <Card>
-              <CardHead title="In search results" note="All a buyer sees before deciding to open it" />
-              <SearchTile
-                title={a.title}
-                image={hero}
-                price={a.price}
-                feedback={a.entry?.seller_feedback}
-                compare={a.entry?.price}
-              />
-            </Card>
-          </div>
-          )}
-
-          {/* The case for it, as evidence rather than a list of facts. */}
-          <div className={styles.case}>
-            <Card>
-              <CardHead title="Why this one" />
-
-              {a.store ? (
-              <div className={styles.proofs}>
-                <Proof icon="IconCheck" tone="positive"
-                  value={a.g.rank != null ? `#${a.g.rank.toLocaleString('en-GB')}` : 'Ranked'}
-                  label={`among Google's UK best sellers${a.g.months ? `, in ${a.g.months} of the months checked` : ''}`} />
-                <Proof icon="IconChart"
-                  value={a.g.min != null ? `${formatGbp(a.g.min)} to ${formatGbp(a.g.max)}` : 'Unknown'}
-                  label="what shops charge for it on Google" />
-                <Proof icon="IconLayers" value={a.shops.length} label={a.shops.length === 1 ? 'UK shop stocks it' : 'UK shops stock it'} />
-              </div>
-              ) : (
-              <div className={styles.proofs}>
-                <Proof
-                  icon="IconCheck"
-                  tone={a.entry?.proved ? 'positive' : 'warning'}
-                  value={a.entry?.proved ? `${a.entry.sold_lifetime} sold` : 'Unproven'}
-                  label={a.entry?.proved
-                    ? `in ${a.entry.age_days} days by a ${a.entry.seller_feedback} feedback seller`
-                    : 'no small seller converting'}
-                />
-                <Proof
-                  icon="IconChart"
-                  value={a.month != null ? formatGbp(a.month) : 'Not proved'}
-                  label="a month kept, at that seller's price and rate"
-                />
-                <Proof
-                  icon="IconLayers"
-                  value={row.active_listings ?? 'Unknown'}
-                  label="listings competing on the same search"
-                />
-              </div>
-              )}
-
-              <div className={styles.divider} />
-
-              <p className={styles.caseHead}>Where £{a.price?.toFixed(2)} goes</p>
-              <Breakdown
-                feeLabel={a.store ? 'Card fee' : undefined}
-                price={a.price}
-                fees={a.fees}
-                postage={a.postage}
-                goods={a.goods ?? a.assumed ?? null}
-                goodsLabel={a.costBasis === 'market' ? 'Goods, at most' : 'Goods'}
-                keep={a.keep}
-              />
-
-              {a.warnings.length > 0 && (
-                <ul className={styles.warnings}>
-                  {a.warnings.map((w) => (
-                    <li key={w}><Icon name="IconInfo" className={styles.warnIcon} />{w}</li>
-                  ))}
-                </ul>
-              )}
-
-              {row.decision?.decided_at && (
-                <p className={styles.decided}>Approved {when(row.decision.decided_at)}</p>
-              )}
-            </Card>
-
-            <Card>
-              <CardHead title="Where to buy it" note="Only once one sells" />
-
-              {a.best && (
-                <a className={styles.shop} href={a.best.url ?? undefined}
-                  target="_blank" rel="noreferrer noopener">
-                  <span className={styles.shopMain}>
-                    <span className={styles.shopName}>
-                      {a.best.supplier}
-                      {a.best.url && <Icon name="IconOut" className={styles.shopOut} />}
+                <div className={styles.confirmGrid}>
+                  <ConfirmItem label="Category" value={confirm.category.name} sub={`#${confirm.category.id}`} />
+                  <ConfirmItem label="Price" value={formatGbp(confirm.price)} />
+                  <div className={styles.confirmItem}>
+                    <span className={styles.confirmLabel}>Quantity</span>
+                    <span className={styles.qty}>
+                      <button type="button" className={styles.qtyStep} aria-label="One fewer"
+                        onClick={() => setQty((q) => Math.max(1, q - 1))}>−</button>
+                      <span className={styles.confirmValue} data-num>{qty}</span>
+                      <button type="button" className={styles.qtyStep} aria-label="One more"
+                        onClick={() => setQty((q) => Math.min(99, q + 1))}>+</button>
                     </span>
-                    <span className={styles.shopMeta}>
-                      {a.l?.in_stock === 'yes' && (
-                        <span className={styles.inStock}><span className={styles.dot} />In stock</span>
-                      )}
-                      {a.l?.in_stock === 'no' && (
-                        <span className={styles.outStock}><span className={styles.dot} />Out of stock</span>
-                      )}
-                      {a.l?.max_qty != null && <span>Limit {a.l.max_qty} per order</span>}
-                    </span>
-                  </span>
-                  <span className={styles.shopPrice} data-num>{formatGbp(a.best.landed_unit_cost)}</span>
-                </a>
-              )}
-
-              {(a.shops ?? a.m.shops ?? []).length > 0 && (
-                <div className={styles.alts}>
-                  <span className={styles.altsLabel}>Also stocked by</span>
-                  <span className={styles.altsList}>
-                    {(a.shops ?? a.m.shops).map((s) => <span key={s} className={styles.alt}>{s}</span>)}
-                  </span>
+                    {a.l?.max_qty != null && qty > a.l.max_qty && (
+                      <span className={styles.confirmWarn}>Shop limit is {a.l.max_qty} per order</span>
+                    )}
+                  </div>
+                  <ConfirmItem label="Photographs" value={confirm.images} />
+                  <ConfirmItem label="You keep" value={formatGbp(a.keep)} tone="positive" />
                 </div>
-              )}
 
-              <SourceList candidate={row} onAdd={onSource} suppliers={suppliers} compact
-                keepOf={(s) => assess({ ...row, draft }, {
-                  tryCost: Number(s.landed_unit_cost), tryPosted: s.fulfilment === 'stock' ? 'you' : 'supplier', holdPrice: true,
-                }).keep} />
-            </Card>
-          </div>
+                {/* eBay's tracked services price by parcel and refuse a listing without one. */}
+                <div className={styles.parcel}>
+                  <span className={styles.confirmLabel}>Parcel, as packed</span>
+                  <div className={styles.parcelFields}>
+                    {[['weight_kg', 'Weight', 'kg'], ['length_cm', 'Length', 'cm'], ['width_cm', 'Width', 'cm'], ['height_cm', 'Height', 'cm']].map(([k, label, unit]) => (
+                      <label key={k} className={styles.parcelField}>
+                        <span>{label}</span>
+                        <span className={styles.parcelControl}>
+                          <input inputMode="decimal" data-num
+                            value={draft.package?.[k] ?? ''}
+                            onChange={(e) => change({ package: { ...(draft.package ?? {}), [k]: e.target.value === '' ? '' : Number(e.target.value) } })} />
+                          <span className={styles.parcelUnit}>{unit}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
 
-          <Card>
-            <CardHead
-              title="The listing"
-              note={[a.l?.brand, breadcrumb(row.ebay_category_path) || a.l?.shop_category, band(a.m.headroom_band)]
-                .filter(Boolean).join(' · ')}
-              aside={edited && (
-                <span className={styles.draftState}>
-                  {saving ? 'Saving' : 'Saved'}
-                  <button type="button" className={styles.revert} onClick={revert}>Reset to shop copy</button>
-                </span>
-              )}
-            />
-            <ListingComposer listing={a.l} draft={draft} onChange={change}
-              onGenerate={generate} onUpload={upload} />
-          </Card>
+                <p className={styles.confirmTitle}>{a.title}</p>
 
-          {problem && <p className={styles.problem} role="alert">{problem}</p>}
-
-          {!confirm && (
-            <div className={styles.bar}>
-              <p className={styles.barNote}>
-                {a.ready
-                  ? 'Nothing outstanding.'
-                  : `${a.warnings.length || 'Some'} thing${a.warnings.length === 1 ? '' : 's'} to check first.`}
-                {row.reference_url && (
-                  <a className={styles.reference} href={row.reference_url}
-                    target="_blank" rel="noreferrer noopener">See the listing this came from</a>
-                )}
-              </p>
-
-              {/* Same price, different arithmetic: no eBay fee or ad rate on her
-                  own shop, only the card fee. */}
-              {both && view === 'ebay' ? null : inShop ? (
-                <span className={styles.inShop}>
-                  <Icon name="IconCheck" className={styles.btnIcon} />
-                  On your shop as a {inShop.status}
-                </span>
-              ) : (
-                <button className={styles.ghost} disabled={shopping || whole.goods == null}
-                  onClick={sendToShop}>
-                  <Icon name="IconShop" className={styles.btnIcon} />
-                  {shopping ? 'Adding' : shopKeep != null
-                    ? `Add to your shop · keep ${formatGbp(shopKeep)}`
-                    : 'Add to your shop'}
-                </button>
-              )}
-
-              {!a.store && (
-              <button className={styles.primary} disabled={busy || a.keep == null || a.keep < 0}
-                onClick={async () => {
-                  setBusy(true);
-                  setProblem(null);
-                  try {
-                    setConfirm(await onList({
-                      price: a.price,
-                      quantity: qty,
-                      package: draft.package,
-                      title: draft.title,
-                      description: draft.description,
-                      images: draft.images,
-                      dry: true,
-                    }));
-                  } catch (e) {
-                    setProblem(e.message);
-                  } finally {
-                    setBusy(false);
-                  }
-                }}>
-                <Icon name="IconTag" className={styles.btnIcon} />
-                {busy ? 'Checking with eBay' : `Review and list at ${formatGbp(a.price)}`}
-              </button>
-              )}
+                <div className={styles.confirmActions}>
+                  <button type="button" className={styles.ghost} onClick={() => setConfirm(null)}>Back</button>
+                  <button type="button" className={styles.primary} disabled={busy}
+                    onClick={async () => {
+                      setBusy(true);
+                      setProblem(null);
+                      try {
+                        await onList({
+                          price: confirm.price,
+                          quantity: qty,
+                          package: draft.package,
+                          title: draft.title,
+                          description: draft.description,
+                          images: draft.images,
+                        });
+                      } catch (e) {
+                        setProblem(e.message);
+                        setBusy(false);
+                      }
+                    }}>
+                    {busy ? 'Publishing' : 'Publish'}
+                  </button>
+                </div>
+              </Card>
             </div>
           )}
 
-          {confirm && (
-            <Card raised className={styles.confirm}>
-              <CardHead title="Publish to eBay"
-                note="eBay chose the category from the title. It is the one field nobody can check in advance." />
+          <div className={styles.body}>
+            <div className={styles.main}>
+              <section className={styles.panel} aria-label="Price">
+                <header className={styles.panelHead}>
+                  <span className={styles.panelTitle}><Icon name="IconTag" className={styles.panelIcon} />Price</span>
+                  <span className={styles.panelNote}>{a.store ? 'Against Google\'s prices, where buyers compare' : 'Against what is selling, not the middle of the field'}</span>
+                </header>
+                <PriceSetter a={a} market={row.competition} listings={a.marketRead?.listings ?? []}
+                  medianLabel={a.marketRead?.basis === 'selling' && a.marketRead.sellingSeen ? `median of ${a.marketRead.sellingSeen} selling` : 'median'}
+                  onChange={setPrice} />
+              </section>
 
-              <div className={styles.confirmGrid}>
-                <ConfirmItem label="Category" value={confirm.category.name} sub={`#${confirm.category.id}`} />
-                <ConfirmItem label="Price" value={formatGbp(confirm.price)} />
-                <div className={styles.confirmItem}>
-                  <span className={styles.confirmLabel}>Quantity</span>
-                  <span className={styles.qty}>
-                    <button type="button" className={styles.qtyStep} aria-label="One fewer"
-                      onClick={() => setQty((q) => Math.max(1, q - 1))}>−</button>
-                    <span className={styles.confirmValue} data-num>{qty}</span>
-                    <button type="button" className={styles.qtyStep} aria-label="One more"
-                      onClick={() => setQty((q) => Math.min(99, q + 1))}>+</button>
-                  </span>
-                  {a.l?.max_qty != null && qty > a.l.max_qty && (
-                    <span className={styles.confirmWarn}>Shop limit is {a.l.max_qty} per order</span>
+              <Card>
+                <CardHead
+                  title="The listing"
+                  note={[a.l?.brand, breadcrumb(row.ebay_category_path) || a.l?.shop_category, band(a.m.headroom_band)]
+                    .filter(Boolean).join(' · ')}
+                  aside={edited && (
+                    <span className={styles.draftState}>
+                      {saving ? 'Saving' : 'Saved'}
+                      <button type="button" className={styles.revert} onClick={revert}>Reset to shop copy</button>
+                    </span>
                   )}
+                />
+                <ListingComposer listing={a.l} draft={draft} onChange={change}
+                  onGenerate={generate} onUpload={upload} />
+              </Card>
+            </div>
+
+            <aside className={styles.side}>
+              <TillRoll a={a} />
+
+              <section className={styles.panel} aria-label="Where to buy it">
+                <header className={styles.panelHead}>
+                  <span className={styles.panelTitle}><Icon name="IconShop" className={styles.panelIcon} />Where to buy it</span>
+                  <span className={styles.panelNote}>Only once one sells</span>
+                </header>
+                {a.best && (
+                  <ShelfLabel shop={shopName(a.best.supplier) ?? a.best.supplier} product={product ?? a.title}
+                    price={a.best.landed_unit_cost} url={a.best.url} state={labelState} />
+                )}
+                {(a.l?.in_stock || a.l?.max_qty != null) && (
+                  <p className={styles.shopMeta}>
+                    {a.l?.in_stock === 'yes' && <span className={styles.inStock}><span className={styles.dot} />In stock</span>}
+                    {a.l?.in_stock === 'no' && <span className={styles.outStock}><span className={styles.dot} />Out of stock</span>}
+                    {a.l?.max_qty != null && <span>Limit {a.l.max_qty} per order</span>}
+                  </p>
+                )}
+                {alts.length > 0 && (
+                  <p className={styles.alts}>
+                    <span className={styles.altsLabel}>Also stocked by</span>
+                    {alts.map((n) => <span key={n} className={styles.alt}>{n}</span>)}
+                  </p>
+                )}
+                <div className={styles.tryIn}>
+                  <CostTry onTry={onTry} base={a} view={a} suppliers={suppliers} onSave={onSource} hideStep />
                 </div>
-                <ConfirmItem label="Photographs" value={confirm.images} />
-                <ConfirmItem label="You keep" value={formatGbp(a.keep)} tone="positive" />
-              </div>
+                <SourceList candidate={row} onAdd={onSource} suppliers={suppliers} compact canAdd={false}
+                  keepOf={(src) => assess({ ...row, draft }, {
+                    tryCost: Number(src.landed_unit_cost), tryPosted: src.fulfilment === 'stock' ? 'you' : 'supplier', holdPrice: true,
+                  }).keep} />
+              </section>
 
-              {/* eBay's tracked services price by parcel and refuse a listing without one. */}
-              <div className={styles.parcel}>
-                <span className={styles.confirmLabel}>Parcel, as packed</span>
-                <div className={styles.parcelFields}>
-                  {[['weight_kg', 'Weight', 'kg'], ['length_cm', 'Length', 'cm'], ['width_cm', 'Width', 'cm'], ['height_cm', 'Height', 'cm']].map(([k, label, unit]) => (
-                    <label key={k} className={styles.parcelField}>
-                      <span>{label}</span>
-                      <span className={styles.parcelControl}>
-                        <input inputMode="decimal" data-num
-                          value={draft.package?.[k] ?? ''}
-                          onChange={(e) => change({ package: { ...(draft.package ?? {}), [k]: e.target.value === '' ? '' : Number(e.target.value) } })} />
-                        <span className={styles.parcelUnit}>{unit}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+              <section className={styles.panel} aria-label="Why this one">
+                <header className={styles.panelHead}>
+                  <span className={styles.panelTitle}><Icon name="IconSpark" className={styles.panelIcon} />Why this one</span>
+                </header>
+                {a.store ? (
+                  <div className={styles.proofs}>
+                    <Proof icon="IconCheck" tone="positive"
+                      value={a.g.rank != null ? `#${a.g.rank.toLocaleString('en-GB')}` : 'Ranked'}
+                      label={`among Google's UK best sellers${a.g.months ? `, in ${a.g.months} of the months checked` : ''}`} />
+                    <Proof icon="IconChart"
+                      value={a.g.min != null ? `${formatGbp(a.g.min)} to ${formatGbp(a.g.max)}` : 'Unknown'}
+                      label="what shops charge for it on Google" />
+                    <Proof icon="IconLayers" value={a.shops.length} label={a.shops.length === 1 ? 'UK shop stocks it' : 'UK shops stock it'} />
+                  </div>
+                ) : (
+                  <div className={styles.proofs}>
+                    <Proof icon="IconCheck" tone={a.entry?.proved ? 'positive' : 'warning'}
+                      value={a.entry?.proved ? `${a.entry.sold_lifetime} sold` : 'Unproven'}
+                      label={a.entry?.proved
+                        ? `in ${a.entry.age_days} days by a ${Number(a.entry.seller_feedback).toLocaleString('en-GB')} feedback seller`
+                        : 'no small seller converting'} />
+                    <Proof icon="IconChart" value={a.month != null ? formatGbp(a.month) : 'Not proved'}
+                      label="a month kept, at that seller's price and rate" />
+                    <Proof icon="IconLayers" value={row.active_listings ?? 'Unknown'}
+                      label="listings competing on the same search" />
+                  </div>
+                )}
+              </section>
 
-              <p className={styles.confirmTitle}>{a.title}</p>
-
-              <div className={styles.confirmActions}>
-                <button className={styles.ghost} onClick={() => setConfirm(null)}>Back</button>
-                <button className={styles.primary} disabled={busy}
-                  onClick={async () => {
-                    setBusy(true);
-                    setProblem(null);
-                    try {
-                      await onList({
-                        price: confirm.price,
-                        quantity: qty,
-                        package: draft.package,
-                        title: draft.title,
-                        description: draft.description,
-                        images: draft.images,
-                      });
-                    } catch (e) {
-                      setProblem(e.message);
-                      setBusy(false);
-                    }
-                  }}>
-                  {busy ? 'Publishing' : 'Publish'}
-                </button>
-              </div>
-            </Card>
-          )}
+              {onEbayView && (
+                <section className={styles.panel} aria-label="In search results">
+                  <header className={styles.panelHead}>
+                    <span className={styles.panelTitle}><Icon name="IconSearch" className={styles.panelIcon} />In search results</span>
+                    <span className={styles.panelNote}>All a buyer sees before opening it</span>
+                  </header>
+                  <SearchTile title={a.title} image={hero} price={a.price}
+                    feedback={a.entry?.seller_feedback} compare={a.entry?.price} />
+                </section>
+              )}
+            </aside>
+          </div>
         </div>
       )}
     </article>

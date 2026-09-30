@@ -1,0 +1,73 @@
+.wrap { position: relative; flex-shrink: 0; }
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-ink-soft);
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.button:hover, .button[aria-expanded='true'] { border-color: var(--c-control); color: var(--c-ink); }
+.button:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+.icon { width: 16px; height: 16px; }
+
+.card {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: var(--z-drawer);
+  width: 19rem;
+  padding: var(--s-3) var(--s-4) var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: 0 1px 2px rgba(42, 39, 35, 0.06), 0 12px 32px -8px rgba(42, 39, 35, 0.22);
+  transform-origin: top right;
+  animation: pop var(--dur) var(--ease-out) both;
+}
+
+.head { margin-bottom: var(--s-2); font-size: var(--t-micro); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-ink-faint); }
+
+.grid { display: flex; flex-direction: column; }
+.row { display: grid; grid-template-columns: 4.75rem minmax(0, 1fr); align-items: center; gap: var(--s-3); padding: 5px 0; }
+.row + .row { border-top: 1px solid var(--c-line); }
+.row dd { font-size: var(--t-caption); color: var(--c-ink-soft); }
+
+.keys { display: flex; gap: 4px; }
+
+.keys kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border: 1px solid var(--c-line-mid);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--c-raised);
+  font-family: var(--font-data);
+  font-size: var(--t-micro);
+  color: var(--c-ink);
+  white-space: nowrap;
+}
+
+.foot { margin-top: var(--s-2); font-size: var(--t-caption); color: var(--c-ink-faint); }
+
+@keyframes pop {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+}
+
+@media (hover: none) {
+  .wrap { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card { animation: none; }
+}

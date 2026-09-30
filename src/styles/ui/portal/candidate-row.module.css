@@ -1,16 +1,25 @@
-/* A ruled ledger line. The lane's colour is the left edge; the active line is warm; a chosen line is kraft. */
+/*
+ * A ruled ledger line. At rest it is quiet: no edge, no buttons, only the product and its figures. Pointing at it
+ * shows the lane's colour as a 2px edge and brings up the actions; the keyboard's line is warm with a terracotta
+ * edge, so the cursor is never lost in a thousand rows. A chosen line is kraft.
+ */
 .row {
   position: relative;
   border-top: 1px solid var(--c-line);
   background: var(--c-surface);
-  box-shadow: inset 3px 0 0 var(--lane, var(--c-line-mid));
+  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 
 .row:first-child { border-top: 0; }
+/* The lane's colour runs down the left edge at rest, so ready reads green and blocked reads amber down the list. */
+.row { box-shadow: inset 3px 0 0 var(--lane, var(--c-line-mid)); }
 .row:hover { background: var(--c-raised); }
-.active { background: var(--c-raised); box-shadow: inset 3px 0 0 var(--lane, var(--c-line-mid)), inset 0 0 0 1px var(--c-line-mid); }
-.row[data-selected] { background: #fbf5ea; }
-.open { background: var(--c-surface); }
+.active, .active:hover {
+  background: color-mix(in srgb, var(--c-action-wash) 55%, var(--c-surface));
+  box-shadow: inset 3px 0 0 var(--c-action);
+}
+.row[data-selected], .row[data-selected]:hover { background: #fbf5ea; }
+.open, .open:hover { background: var(--c-surface); box-shadow: inset 3px 0 0 var(--c-action); }
 
 .row[data-lane='ready'] { --lane: var(--c-positive); }
 .row[data-lane='pack'], .row[data-lane='over'], .row[data-lane='price'] { --lane: var(--c-warning); }
@@ -18,15 +27,19 @@
 .row[data-lane='untested'] { --lane: var(--c-line-strong); }
 .row[data-lane='short'] { --lane: var(--c-negative); }
 .row[data-lane='store'] { --lane: var(--c-info); }
-.row[data-lane^='decided'] .thumb img { opacity: 0.6; }
+.row[data-lane='dear'] { --lane: var(--c-warning); }
+/* A decided line steps back: the name stays readable, the figures and photo fade. */
+.row[data-lane^='decided'] :is(.thumb, .ev, .cellMarket, .cellPrice, .cellKeep, .flags) { opacity: 0.55; transition: opacity var(--dur) var(--ease); }
+.row[data-lane^='decided']:hover :is(.thumb, .ev, .cellMarket, .cellPrice, .cellKeep, .flags),
+.row[data-lane^='decided'].active :is(.thumb, .ev, .cellMarket, .cellPrice, .cellKeep, .flags) { opacity: 1; }
 
 .top {
   display: grid;
-  grid-template-columns: var(--cand-cols, 18px 36px minmax(0, 1fr) 72px 148px 64px 84px 128px);
-  grid-template-areas: 'check thumb subject market price gap keep actions';
+  grid-template-columns: var(--cand-cols, 18px 56px minmax(0, 1fr) 116px 132px 116px 184px);
+  grid-template-areas: 'check thumb subject market price keep actions';
   align-items: center;
-  gap: var(--cand-gap, var(--s-3));
-  min-height: 52px;
+  gap: var(--cand-gap, var(--s-4));
+  min-height: 72px;
   padding: 6px var(--s-3) 6px var(--s-4);
 }
 
@@ -37,15 +50,36 @@
 .thumb {
   grid-area: thumb;
   display: block;
-  width: 36px;
-  height: 36px;
-  padding: 2px;
+  width: 56px;
+  height: 56px;
+  padding: 4px;
   overflow: hidden;
-  border-radius: var(--r-sm);
+  border-radius: 8px;
   border: 1px solid var(--c-line);
-  background: var(--c-surface);
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(42, 39, 35, 0.05);
   cursor: zoom-in;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
+.thumb:hover { border-color: var(--c-line-mid); box-shadow: 0 2px 8px rgba(42, 39, 35, 0.12); }
+
+/* The photo at a size that can be recognised, beside the row, while the pointer rests on it. */
+.peek {
+  position: fixed;
+  z-index: var(--z-drawer);
+  width: 208px;
+  height: 208px;
+  padding: 10px;
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-lg);
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(42, 39, 35, 0.06), 0 16px 40px -10px rgba(42, 39, 35, 0.3);
+  transform: translateY(-50%);
+  pointer-events: none;
+  animation: peek var(--dur) var(--ease-out) both;
+}
+.peek img { width: 100%; height: 100%; object-fit: contain; }
+@keyframes peek { from { opacity: 0; transform: translateY(-50%) scale(0.96); } }
 
 .thumb img { width: 100%; height: 100%; object-fit: contain; }
 .thumbEmpty { background: var(--c-sunk); cursor: default; }
@@ -70,8 +104,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--t-label);
-  font-weight: 500;
+  font-size: 0.875rem;
+  font-weight: 560;
+  line-height: 1.35;
+  letter-spacing: -0.005em;
   color: var(--c-ink);
 }
 
@@ -79,7 +115,48 @@
 .nameRow > :not(.name) { flex-shrink: 0; }
 .pill { flex-shrink: 0; margin-left: var(--s-1); font-size: 10.5px; line-height: 1.5; padding-top: 0; padding-bottom: 0; }
 
-.ev { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: var(--t-micro); color: var(--c-ink-soft); }
+.ev { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: var(--t-caption); line-height: 1.4; color: var(--c-ink-soft); }
+/* The price leads and never shrinks; the words after it give way first. */
+.evLead { flex-shrink: 0; font-size: var(--t-caption); font-weight: 600; color: var(--c-ink); }
+
+/* Flags: one amber chip for what asks for a check, then plain facts as quiet words. */
+.flags { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; white-space: nowrap; }
+.flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  height: 18px;
+  padding: 0 6px 0 5px;
+  border-radius: 4px;
+  background: var(--c-warning-wash);
+  font-size: var(--t-micro);
+  font-weight: 560;
+  color: var(--c-warning);
+}
+.flagIcon { width: 11px; height: 11px; }
+.flagMore { margin-left: 2px; opacity: 0.75; }
+/* Facts as soft chips, each kind in its own colour, so Branded, an import or a season reads at a glance. */
+.fact {
+  --fact: var(--c-ink-faint);
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--fact) 11%, var(--c-surface));
+  font-size: var(--t-micro);
+  font-weight: 500;
+  color: var(--fact);
+}
+.fact[data-kind='caution'] { --fact: var(--c-negative); }
+.fact[data-kind='match'] { --fact: var(--c-positive); }
+.fact[data-kind='branded'] { --fact: var(--c-data-5); }
+.fact[data-kind='open'] { --fact: var(--c-data-4); }
+.fact[data-kind='import'] { --fact: var(--c-data-1); }
+.fact[data-kind='need'] { --fact: var(--c-brand-strong); }
+.fact[data-kind='season'] { --fact: var(--c-info); }
 .evText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .evIcon { width: 12px; height: 12px; flex-shrink: 0; }
 .ev.positive .evIcon { color: var(--c-positive); }
@@ -87,62 +164,185 @@
 .ev.muted { color: var(--c-ink-faint); }
 .ev.muted .evIcon { color: var(--c-ink-faint); }
 
-.cellMarket { grid-area: market; text-align: right; }
-.cellPrice { grid-area: price; min-width: 0; }
-.cellGap { grid-area: gap; text-align: right; }
-.cellKeep { grid-area: keep; text-align: right; min-width: 0; }
+.cellMarket { grid-area: market; }
+.cellPrice { grid-area: price; }
+.cellKeep { grid-area: keep; }
+
+/* Every figure cell labels itself, so a row forty lines down reads without the header. */
+.cell { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.cellLabel { font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--c-ink-faint); }
+.fig { font-family: var(--font-data); font-size: 0.9375rem; font-weight: 500; letter-spacing: -0.01em; line-height: 1.25; color: var(--c-ink); }
+.figLine { display: inline-flex; align-items: baseline; gap: 5px; }
+.unit { font-size: var(--t-micro); color: var(--c-ink-faint); }
+.sub { font-size: var(--t-micro); color: var(--c-ink-faint); white-space: nowrap; }
+.sub[data-tone='positive'] { color: var(--c-positive); }
+.sub[data-tone='warning'] { color: var(--c-warning); }
+.sub[data-tone='negative'] { color: var(--c-negative); }
+.sub[data-tone='info'] { color: var(--c-info); }
+
+/* Her price against the market, in words, with a dot in its colour. */
+.status { display: inline-flex; align-items: center; gap: 5px; font-size: var(--t-micro); font-weight: 560; white-space: nowrap; }
+.status i { width: 6px; height: 6px; border-radius: var(--r-full); background: currentColor; }
+.status[data-tone='positive'] { color: var(--c-positive); }
+.status[data-tone='warning'] { color: var(--c-warning); }
+
+/* Google's months as dots: filled for each month it ranked. */
+.months { display: inline-flex; align-items: center; gap: 3px; }
+.months i { width: 6px; height: 6px; border-radius: var(--r-full); background: var(--c-sunk); box-shadow: inset 0 0 0 1px var(--c-line-mid); }
+.months i[data-on] { background: var(--c-info); box-shadow: none; }
+.months .unit { margin-left: 3px; }
+
 .market { font-family: var(--font-data); font-size: var(--t-caption); color: var(--c-ink-soft); }
+
+/* Sold a month over a bar, sage, square-root scaled to the busiest card on screen. */
+.soldBar { display: block; width: 88px; height: 4px; margin-top: 2px; border-radius: var(--r-full); background: var(--c-sunk); overflow: hidden; }
+.soldBar span { display: block; height: 100%; border-radius: var(--r-full); background: var(--c-brand-strong); }
+.row:hover .soldBar span, .active .soldBar span { background: var(--c-positive); }
 .none { font-size: var(--t-caption); color: var(--c-ink-faint); }
 
-/* What she keeps: green only on a confirmed cost. An estimate is plain ink with est in amber beside it. */
-.keepLine { display: inline-flex; align-items: baseline; justify-content: flex-end; gap: 4px; white-space: nowrap; }
-.keepFig { font-family: var(--font-data); font-size: var(--t-label); font-weight: 500; }
+/* What she keeps: green only on a confirmed cost; how sure it is, in words under it. */
+.keepFig[data-pending] { opacity: 0.5; }
 .keepSure { color: var(--c-positive); }
 .keepEst { color: var(--c-ink-soft); }
 .keepTry { color: var(--c-info); }
 .short, .loses { color: var(--c-negative); }
-.est, .ifMark { font-size: 10px; font-weight: 600; letter-spacing: 0.02em; color: var(--c-warning); }
-.ifMark { color: var(--c-info); }
+
 
 .actions { grid-area: actions; display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
 
+/* At rest a line shows one quiet word, Approve. Later and Reject, and the filled Approve, come with the pointer,
+   the keyboard or the active line. A touch screen has no pointer to wait for, so it shows everything. */
+.act { opacity: 0; pointer-events: none; }
+.actions { gap: 4px; }
+.row:hover .act, .row:focus-within .act, .active .act, .open .act { opacity: 1; pointer-events: auto; }
+
 .act {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
+  border: 1px solid transparent;
   border-radius: var(--r-md);
-  color: var(--c-ink-faint);
-  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+  color: var(--c-ink-soft);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), opacity var(--dur) var(--ease);
 }
 
-.act:hover { background: var(--c-sunk); color: var(--c-ink); }
-.reject:hover { background: var(--c-negative-wash); color: var(--c-negative); }
+.later:hover { border-color: color-mix(in srgb, var(--c-warning) 30%, transparent); background: var(--c-warning-wash); color: var(--c-warning); }
+.reject:hover { border-color: color-mix(in srgb, var(--c-negative) 30%, transparent); background: var(--c-negative-wash); color: var(--c-negative); }
 .actOn { background: var(--c-negative-wash); color: var(--c-negative); }
-.btnIcon { width: 15px; height: 15px; }
+.btnIcon { width: 18px; height: 18px; }
+
+/* A label over a button while the pointer rests on it, with its key: which one is being pressed is never a guess. */
+[data-tip] { position: relative; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  z-index: 3;
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: var(--c-ink);
+  font-family: var(--font-ui);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: pre;
+  color: var(--c-base);
+  opacity: 0;
+  transform: translate(-50%, 3px);
+  transition: opacity 120ms var(--ease), transform 120ms var(--ease);
+  pointer-events: none;
+}
+[data-tip]:hover::after, [data-tip]:focus-visible::after { opacity: 1; transform: translate(-50%, 0); transition-delay: 250ms; }
 
 .approve {
-  height: 30px;
-  margin-left: var(--s-1);
-  padding: 0 var(--s-3);
-  border: 1px solid var(--c-line-strong);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  margin-left: 2px;
+  padding: 0 var(--s-3) 0 10px;
+  border: 1px solid var(--c-line-mid);
   border-radius: var(--r-md);
+  background: var(--c-surface);
+  box-shadow: 0 1px 1px rgba(42, 39, 35, 0.05);
   font-size: var(--t-caption);
-  font-weight: 500;
+  font-weight: 560;
   color: var(--c-ink);
   transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 
-/* Filled only where the card is worth approving; elsewhere it stays a choice, not a nudge. */
-.row[data-lane='ready'] .approve { background: var(--c-action); border-color: var(--c-action); color: var(--c-surface); }
-.approve:hover, .row[data-lane='ready'] .approve:hover { background: var(--c-action-strong); border-color: var(--c-action-strong); color: var(--c-surface); }
-.active:not([data-lane='ready']) .approve { border-color: var(--c-ink); }
+/*
+ * Approve by state, every rule at the same weight so the order below decides: quiet at rest, terracotta words on a
+ * card worth approving, outlined under the pointer, filled on a ready card under the pointer and on the active or
+ * open line, darker still under the pointer itself.
+ */
+.approveTick { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.row[data-lane='ready'] .approve { border-color: color-mix(in srgb, var(--c-action) 45%, transparent); background: var(--c-action-wash); color: var(--c-action-text); }
+.row[data-lane]:hover .approve, .row[data-lane]:focus-within .approve { border-color: var(--c-line-strong); color: var(--c-ink); }
+.row[data-lane='ready']:hover .approve,
+.row[data-lane].active .approve,
+.row[data-lane].open .approve { border-color: var(--c-action); background: var(--c-action); color: var(--c-surface); }
+.row[data-lane] .approve:hover { border-color: var(--c-action-strong); background: var(--c-action-strong); color: var(--c-surface); }
+
+/* A decided line: the verdict and its undo joined as one small control, tinted in the verdict's colour. */
+.decided {
+  --tone: var(--c-ink-soft);
+  --tone-wash: var(--c-sunk);
+  display: inline-flex;
+  align-items: stretch;
+  height: 32px;
+  border: 1px solid color-mix(in srgb, var(--tone) 28%, transparent);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+}
+.decided[data-tone='positive'] { --tone: var(--c-positive); --tone-wash: var(--c-positive-wash); }
+.decided[data-tone='warning'] { --tone: var(--c-warning); --tone-wash: var(--c-warning-wash); }
+.decided[data-tone='negative'] { --tone: var(--c-negative); --tone-wash: var(--c-negative-wash); }
+
+.verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: 5px 0 0 5px;
+  background: var(--tone-wash);
+  font-size: var(--t-caption);
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--tone);
+}
+.verdict i { width: 6px; height: 6px; border-radius: var(--r-full); background: currentColor; }
+
+.undo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px 0 8px;
+  border-left: 1px solid color-mix(in srgb, var(--tone) 28%, transparent);
+  border-radius: 0 5px 5px 0;
+  font-size: var(--t-caption);
+  font-weight: 500;
+  color: var(--c-ink-soft);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.undo:hover:not(:disabled) { background: var(--c-sunk); color: var(--c-ink); }
+.undo:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+.undoIcon { width: 14px; height: 14px; }
 
 /* Touch screens get full size targets. */
 @media (pointer: coarse) {
   .act, .approve { height: var(--tap); }
   .act { width: var(--tap); }
+}
+
+@media (hover: none) {
+  .act { opacity: 1; pointer-events: auto; }
+  .row[data-lane] .approve { border-color: var(--c-line-strong); color: var(--c-ink); }
+  .row[data-lane='ready'] .approve { border-color: var(--c-action); background: var(--c-action); color: var(--c-surface); }
 }
 
 .quiet {
@@ -169,7 +369,7 @@ button:disabled { cursor: default; }
   align-items: center;
   flex-wrap: wrap;
   gap: var(--s-2);
-  margin: 0 var(--s-3) var(--s-2) calc(18px + 36px + 2 * var(--s-3) + var(--s-4));
+  margin: 0 var(--s-3) var(--s-2) calc(18px + 56px + 2 * var(--s-4) + var(--s-4));
   padding: var(--s-2) var(--s-3);
   border-radius: var(--r-md);
   background: var(--c-negative-wash);
@@ -207,7 +407,7 @@ button:disabled { cursor: default; }
 .reasonNote:focus { outline: none; border-color: var(--c-control); }
 
 .failed {
-  margin: 0 var(--s-3) var(--s-2) calc(18px + 36px + 2 * var(--s-3) + var(--s-4));
+  margin: 0 var(--s-3) var(--s-2) calc(18px + 56px + 2 * var(--s-4) + var(--s-4));
   font-size: var(--t-caption);
   color: var(--c-negative);
 }
@@ -223,22 +423,6 @@ button:disabled { cursor: default; }
   background: var(--c-base);
   animation: open var(--dur-settle) var(--ease-out) both;
 }
-
-ul.warnings {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
-  padding: var(--s-2) var(--s-3);
-  border-radius: var(--r-md);
-  background: var(--c-warning-wash);
-  list-style: none;
-  font-size: var(--t-caption);
-  color: var(--c-ink);
-}
-
-.warnings li { display: flex; align-items: center; gap: var(--s-2); }
-.warnIcon { width: 14px; height: 14px; flex-shrink: 0; color: var(--c-warning); }
 
 .marketPanel {
   display: flex;
@@ -261,19 +445,22 @@ ul.warnings {
 .headOver { font-size: var(--t-caption); color: var(--c-warning); }
 .headIf { font-size: var(--t-caption); color: var(--c-info); }
 
-/* The category path as a quiet breadcrumb, how it was set, where it came from, and Move to. */
-.category { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-3); margin-top: calc(var(--s-2) * -1); font-size: var(--t-caption); }
-.crumbs { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0 4px; color: var(--c-ink-faint); }
-.crumbLast { color: var(--c-ink-soft); font-weight: 500; }
+/* The category path on its own line with Move to at its end; how it was set and where it came from under it. */
+.category { display: flex; flex-direction: column; gap: 6px; padding-bottom: var(--s-3); border-bottom: 1px solid var(--c-line); font-size: var(--t-caption); }
+.categoryTop { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
+.crumbs { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0 4px; min-width: 0; color: var(--c-ink-faint); }
+.crumbLast { color: var(--c-ink); font-weight: 600; }
 .crumbSep { margin-left: 4px; color: var(--c-line-strong); }
 .crumbNone { color: var(--c-warning); }
-.how { font-size: var(--t-micro); color: var(--c-ink-faint); }
-.how[data-source='manual'] { color: var(--c-positive); }
-.how[data-source='default'], .how[data-source='google_export'] { color: var(--c-warning); }
-.labels { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.sourceLabel { padding: 0 6px; border: 1px solid var(--c-line-mid); border-radius: var(--r-full); font-size: 10.5px; line-height: 18px; color: var(--c-ink-soft); background: var(--c-surface); }
-.moveWrap { position: relative; margin-left: auto; }
-.move { min-height: 28px; padding: 0 var(--s-3); border: 1px solid var(--c-line-mid); border-radius: var(--r-md); font-size: var(--t-caption); color: var(--c-ink-soft); }
+.how { padding: 0 6px; border-radius: 4px; background: var(--c-sunk); font-size: 10.5px; font-weight: 500; line-height: 18px; color: var(--c-ink-faint); }
+.how[data-source='manual'] { background: var(--c-positive-wash); color: var(--c-positive); }
+.how[data-source='default'], .how[data-source='google_export'] { background: var(--c-warning-wash); color: var(--c-warning); }
+.labels { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.sourceLabel { padding: 0 6px; border: 1px solid var(--c-line-mid); border-radius: 4px; font-size: 10.5px; font-weight: 500; line-height: 16px; color: var(--c-ink-soft); background: var(--c-surface); }
+.moveWrap { position: relative; flex-shrink: 0; margin-left: auto; }
+.move { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 var(--s-2) 0 var(--s-3); border: 1px solid var(--c-line-mid); border-radius: var(--r-md); background: var(--c-surface); font-size: var(--t-caption); font-weight: 500; color: var(--c-ink-soft); }
+.moveCaret { width: 13px; height: 13px; color: var(--c-ink-faint); transition: transform var(--dur) var(--ease); }
+.move[aria-expanded='true'] .moveCaret { transform: rotate(180deg); }
 .move:hover, .move[aria-expanded='true'] { border-color: var(--c-control); color: var(--c-ink); }
 .move:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
 
@@ -288,11 +475,15 @@ ul.warnings {
   background: var(--c-sunk);
   font-size: var(--t-caption);
   color: var(--c-ink-soft);
+  scroll-margin: 96px;
 }
-.stripLabel { font-weight: 600; color: var(--c-ink); }
-.stripGauge { flex: 0 1 170px; min-width: 120px; }
+.stripLabel { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--c-ink); }
+.stripIcon { width: 14px; height: 14px; color: var(--c-ink-faint); }
+.stripGauge { flex: 0 1 230px; min-width: 170px; }
 .stripFacts { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-4); }
 .stripFacts b { font-family: var(--font-data); font-weight: 500; color: var(--c-ink); }
+.stripNone { color: var(--c-ink-soft); }
+.stripNone b { font-weight: 600; color: var(--c-ink); }
 
 .tryRule { border-top: 1px dashed var(--c-line-mid); }
 
@@ -324,7 +515,7 @@ a.label:focus-visible { outline: 2px solid var(--c-action-strong); outline-offse
 .labelProduct { grid-area: product; font-size: var(--t-caption); color: var(--c-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .labelPrice { grid-area: price; justify-self: end; font-family: var(--font-data); font-size: 1.5rem; font-weight: 500; line-height: 1.15; letter-spacing: -0.02em; color: var(--c-ink); }
 .labelState { grid-area: state; align-self: start; padding: 1px var(--s-2); border-radius: var(--r-full); font-size: var(--t-micro); white-space: nowrap; }
-.label[data-state='confirmed'] .labelState { background: var(--c-positive-wash); color: var(--c-positive); }
+.label[data-state='confirmed'] .labelState, .label[data-state='page'] .labelState { background: var(--c-positive-wash); color: var(--c-positive); }
 .label[data-state='estimate'] .labelState { background: var(--c-warning-wash); color: var(--c-warning); }
 .label[data-state='aside'] .labelState { background: var(--c-sunk); color: var(--c-ink-faint); }
 .label[data-state='aside'] .labelPrice { color: var(--c-ink-faint); }
@@ -346,6 +537,39 @@ a.label:focus-visible { outline: 2px solid var(--c-action-strong); outline-offse
 .confirm:disabled { opacity: 0.5; }
 .confirmIcon { width: 14px; height: 14px; }
 .confirm .kbd { color: var(--c-positive); opacity: 0.7; }
+
+/* The brief strip's actions, 36px and solid, so the one thing to do is the loudest thing on the card. */
+.work .confirm, .briefTry, .briefApprove, .briefApproveQuiet, .briefOut, .briefDiff {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 36px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-md);
+  font-size: var(--t-caption);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.work .confirm { border: 1px solid var(--c-positive); background: var(--c-positive); color: var(--c-surface); }
+.work .confirm:hover:not(:disabled) { background: color-mix(in srgb, var(--c-positive) 85%, var(--c-ink)); }
+.briefTry { border: 1px solid var(--c-warning); background: var(--c-surface); color: var(--c-warning); }
+.briefTry:hover { background: var(--c-warning-wash); }
+.briefApprove { border: 1px solid var(--c-action); background: var(--c-action); color: var(--c-surface); }
+.briefApprove:hover:not(:disabled) { background: var(--c-action-strong); border-color: var(--c-action-strong); }
+.work .confirm.confirmWary { background: var(--c-surface); color: var(--c-positive); }
+.work .confirm.confirmWary:hover:not(:disabled) { background: var(--c-positive-wash); }
+.briefDiff { border: 1px solid color-mix(in srgb, var(--c-warning) 55%, transparent); background: var(--c-surface); color: var(--c-warning); }
+.briefDiff:hover { border-color: var(--c-warning); background: var(--c-warning-wash); }
+.briefOut { border: 1px solid color-mix(in srgb, var(--c-warning) 55%, transparent); background: var(--c-surface); color: var(--c-warning); }
+.briefOut:hover { border-color: var(--c-warning); background: var(--c-warning-wash); }
+.briefOut[data-tone='slate'] { border-color: var(--c-control); color: var(--c-ink); }
+.briefOut[data-tone='slate']:hover { background: var(--c-sunk); }
+.briefApproveQuiet { border: 1px solid var(--c-action); background: var(--c-surface); color: var(--c-action-text); }
+.briefApproveQuiet:hover:not(:disabled) { background: var(--c-action-wash); }
+.briefTry:focus-visible, .briefApprove:focus-visible, .briefOut:focus-visible, .briefDiff:focus-visible, .briefApproveQuiet:focus-visible, .work .confirm:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+.lanePanel { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
 
 .shops { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-2); }
 .shopsLabel { font-size: var(--t-micro); color: var(--c-ink-faint); margin-right: var(--s-1); }
@@ -378,6 +602,8 @@ a.label:focus-visible { outline: 2px solid var(--c-action-strong); outline-offse
 }
 .notes .panelTitle { padding-top: var(--s-2); }
 .notesBody { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; }
+.notesEmpty { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-3); border: 1px dashed var(--c-line-mid); border-radius: var(--r-md); font-size: var(--t-caption); color: var(--c-ink-faint); }
+.notesEmptyIcon { flex-shrink: 0; width: 16px; height: 16px; color: var(--c-line-strong); }
 .noteItem { display: flex; gap: var(--s-3); font-size: var(--t-caption); color: var(--c-ink-soft); }
 .noteWhen { flex-shrink: 0; color: var(--c-ink-faint); }
 .noteAdd { display: flex; gap: var(--s-2); }
@@ -398,27 +624,34 @@ a.label:focus-visible { outline: 2px solid var(--c-action-strong); outline-offse
 }
 
 /* The list is a size container (candidates-page), so the line follows the room it has, not the window. */
-@container (max-width: 880px) {
+/* Narrower: the figures drop under the product, still labelled, and the actions stay on the first line. */
+@container (max-width: 960px) {
   .top {
-    grid-template-columns: 18px 36px minmax(0, 1fr) auto auto;
+    grid-template-columns: 18px 56px repeat(3, minmax(0, 1fr)) auto;
     grid-template-areas:
-      'check thumb subject subject actions'
-      '. . price gap keep';
-    row-gap: var(--s-1);
+      'check thumb subject subject subject actions'
+      '. . market price keep .';
+    row-gap: var(--s-2);
   }
-  .cellMarket { display: none; }
   .work { grid-template-columns: minmax(0, 1fr); }
 }
 
 @container (max-width: 560px) {
   .top {
-    grid-template-columns: 36px minmax(0, 1fr) auto auto;
+    grid-template-columns: 48px repeat(3, minmax(0, 1fr));
     grid-template-areas:
       'thumb subject subject subject'
-      'price price gap keep'
+      'market market price keep'
       'actions actions actions actions';
     padding-left: var(--s-3);
   }
+  .thumb { width: 48px; height: 48px; }
+  .sub, .status { white-space: normal; }
+  /* A flex status keeps its words on one line whatever the width; as a block it wraps inside its own column. */
+  .status { display: block; line-height: 1.35; }
+  .status i { display: inline-block; margin-right: 4px; vertical-align: 1px; }
+  .flags { flex-wrap: wrap; row-gap: 2px; white-space: normal; }
+  .soldBar { width: 100%; max-width: 88px; }
   .check { display: none; }
   .actions { justify-content: flex-end; }
   .reasons, .failed { margin-left: var(--s-3); }
@@ -427,5 +660,6 @@ a.label:focus-visible { outline: 2px solid var(--c-action-strong); outline-offse
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .row, .act { transition: none; }
   .reasons, .work { animation: none; }
 }

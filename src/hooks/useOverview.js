@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@lib/supabase';
+import { readPages } from '@lib/readPages';
 
 // decisions is a to-one embed here and an array elsewhere.
 const one = (d) => (Array.isArray(d) ? d[0] ?? null : d ?? null);
@@ -9,7 +10,6 @@ const EMPTY = {
   batches: [],
   counts: { total: 0, approved: 0, rejected: 0, deferred: 0, pending: 0 },
   reasons: [],
-  approved: { waiting: 0, ready: 0, worth: 0 },
   traffic: null,
   days: [],
 };
@@ -34,20 +34,14 @@ export function useOverview(tenantId) {
 
       const batches = batchList ?? [];
 
-      const [candidates, waiting, total, days] = await Promise.all([
+      // In pages: one read stops at 1,000 rows without an error, which is how To review once showed 829 of 1,415.
+      const [candidates, total, days] = await Promise.all([
         batches.length
-          ? supabase
+          ? readPages(() => supabase
             .from('candidates')
             .select('id, batch_id, decisions ( action, reason )')
-            .in('batch_id', batches.map((b) => b.id))
+            .in('batch_id', batches.map((b) => b.id)))
           : Promise.resolve({ data: [] }),
-        // Same rule as the Approved page: approved, not yet published.
-        supabase
-          .from('candidates')
-          .select('id, margin, entry, draft, decisions!inner ( action )')
-          .eq('tenant_id', tenantId)
-          .eq('decisions.action', 'approve')
-          .is('ebay', null),
         supabase
           .from('ebay_traffic')
           .select('window_start, window_end, impressions, views, transactions, click_rate, conversion_rate, fetched_at')
@@ -86,13 +80,6 @@ export function useOverview(tenantId) {
         .map(([reason, count]) => ({ reason, count }))
         .sort((a, b) => b.count - a.count);
 
-      const approvedRows = waiting.data ?? [];
-      const approved = {
-        waiting: approvedRows.length,
-        ready: approvedRows.filter((r) => r.entry?.proved && r.margin?.list_trusted === true).length,
-        worth: approvedRows.reduce((s, r) => s + Number(r.margin?.net ?? 0), 0),
-      };
-
       setState({
         status: 'ready',
         batches: batches.map((b) => ({
@@ -101,7 +88,6 @@ export function useOverview(tenantId) {
         })),
         counts,
         reasons,
-        approved,
         traffic: total.data ?? null,
         days: [...(days.data ?? [])].reverse(),
       });

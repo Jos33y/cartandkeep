@@ -1,30 +1,60 @@
-/* Shared with the row so the column labels line up with the cells: select, thumb, product, sold, price, gap, keep, act. */
+/* The row grid lives here so a page can change its widths: select, photo, product, sells, price, keep, act. */
 .page {
-  --cand-cols: 18px 36px minmax(0, 1fr) 72px 148px 64px 84px 128px;
-  --cand-gap: var(--s-3);
+  --cand-cols: 18px 56px minmax(0, 1fr) 116px 132px 116px 184px;
+  --cand-gap: var(--s-4);
   display: flex;
   flex-direction: column;
   gap: var(--s-4);
   padding-bottom: var(--s-8);
 }
 
+/*
+ * The head: what this is on the left, where she is on the right. Progress and worth sit in one strip of equal
+ * height, so the two answers to "how am I doing" read as a pair rather than two things in two corners.
+ */
 .head {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--s-6);
+  gap: var(--s-4) var(--s-6);
   flex-wrap: wrap;
 }
 
-.head > div:first-child > p { margin-bottom: var(--s-2); }
-.title { font-size: 2rem; letter-spacing: -0.025em; font-weight: 560; }
+.headText { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.title { font-size: 2rem; line-height: 1.1; letter-spacing: -0.025em; font-weight: 560; }
 
-.worth { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; font-size: var(--t-label); color: var(--c-ink-faint); }
+.meta > span + span::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin: 0 var(--s-2);
+  border-radius: var(--r-full);
+  background: var(--c-line-strong);
+  vertical-align: middle;
+}
+.metaTab { color: var(--c-ink); font-weight: 560; }
+
+.stats {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: 0 1px 2px rgba(42, 39, 35, 0.04);
+}
+
+.stats > * { padding: var(--s-3) var(--s-4); }
+.stats > * + * { border-left: 1px solid var(--c-line); }
+
+.worth { display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 11rem; }
 
 .worthLabel {
   display: inline-flex;
   align-items: center;
-  gap: var(--s-2);
+  gap: var(--s-1);
   font-size: var(--t-micro);
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -32,10 +62,12 @@
   color: var(--c-ink-faint);
 }
 
-.worthValue { margin-top: 2px; color: var(--c-ink-soft); }
+.worthLine { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.worthValue { font-size: 1.375rem; color: var(--c-ink); }
 .worthValue.positive { color: var(--c-positive); }
-.worthWord { margin-top: var(--s-1); font-size: var(--t-lead); font-weight: 500; color: var(--c-ink-soft); }
-.worthFoot { min-height: 1em; margin-top: var(--s-1); font-size: var(--t-micro); color: var(--c-ink-faint); }
+.worthUnit { font-size: var(--t-caption); color: var(--c-ink-soft); }
+.worthWord { font-size: var(--t-body); font-weight: 560; color: var(--c-ink-soft); line-height: 1.6; }
+.worthFoot { font-size: var(--t-caption); color: var(--c-ink-faint); white-space: nowrap; }
 
 /* Inside a tab: the second level as small chips under the divider tabs; Healthcare's third level indented below. */
 .subs { display: flex; gap: var(--s-1); overflow-x: auto; scrollbar-width: none; margin-top: calc(var(--s-2) * -1); }
@@ -57,89 +89,82 @@
 .sub[aria-selected='true'] { background: var(--c-sunk); color: var(--c-ink); font-weight: 600; box-shadow: inset 0 2px 0 var(--c-ink); }
 .sub[data-unplaced] { color: var(--c-warning); }
 .sub:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
-.sort[data-on] { border-color: var(--c-ink); font-weight: 500; }
 
-/* One bar that stays in reach: progress, status, sort, find, then the lanes as chips. */
+/*
+ * One bar that stays in reach: which cards (status), how to narrow them (find, from, sort), then the lanes as
+ * quiet tabs underneath. Every control is 32px, one radius, one type size.
+ */
 .bar {
   position: sticky;
   top: var(--bar-h);
   z-index: var(--z-sticky);
   display: flex;
   flex-direction: column;
-  gap: var(--s-2);
-  margin: calc(var(--s-4) * -1) calc(var(--s-2) * -1) 0;
-  padding: var(--s-3) var(--s-2) var(--s-2);
-  background: var(--c-base);
+  margin: calc(var(--s-2) * -1) calc(var(--s-2) * -1) 0;
+  padding: var(--s-3) var(--s-2) 0;
+  background: color-mix(in srgb, var(--c-base) 92%, transparent);
+  backdrop-filter: saturate(1.4) blur(8px);
+  -webkit-backdrop-filter: saturate(1.4) blur(8px);
   border-bottom: 1px solid var(--c-line);
+  container: bar / inline-size;
 }
 
-.barTop { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.barTop { display: flex; align-items: center; gap: var(--s-2) var(--s-3); flex-wrap: wrap; }
+.tools { display: flex; flex: 1 1 24rem; justify-content: flex-end; align-items: center; gap: var(--s-2); min-width: 0; }
 
-.progressText { flex-shrink: 0; display: flex; align-items: baseline; gap: var(--s-1); font-size: var(--t-caption); color: var(--c-ink-soft); }
-.progressText .figure { font-size: var(--t-body); color: var(--c-ink); }
-
-.meter {
-  width: 96px;
-  display: flex;
-  height: 6px;
-  overflow: hidden;
-  border-radius: var(--r-full);
-  background: var(--c-surface);
-  box-shadow: inset 0 0 0 1px var(--c-line);
-}
-.meter span { transition: width var(--dur-enter) var(--ease-out); }
-.segPositive { background: var(--c-positive); }
-.segNegative { background: var(--c-negative); opacity: 0.7; }
-.segWarning { background: var(--c-warning); opacity: 0.8; }
-
-/* Status as one segmented control. */
 .status {
   display: inline-flex;
-  padding: 2px;
-  border-radius: var(--r-md);
+  flex-shrink: 0;
+  max-width: 100%;
+  padding: 3px;
+  border-radius: 9px;
   background: var(--c-sunk);
+  box-shadow: inset 0 0 0 1px var(--c-line);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.status::-webkit-scrollbar { display: none; }
 
 .statusTab {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 30px;
+  flex-shrink: 0;
+  height: 28px;
   padding: 0 var(--s-3);
-  border-radius: 5px;
+  border-radius: 6px;
   font-size: var(--t-caption);
   color: var(--c-ink-soft);
   white-space: nowrap;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 .statusTab:hover { color: var(--c-ink); }
-.statusTab[aria-selected='true'] { background: var(--c-surface); color: var(--c-ink); box-shadow: var(--e-1); font-weight: 500; }
+.statusTab[aria-selected='true'] { background: var(--c-surface); color: var(--c-ink); font-weight: 560; box-shadow: 0 1px 2px rgba(42, 39, 35, 0.1), 0 0 0 1px var(--c-line); }
 
-.dot { width: 7px; height: 7px; border-radius: var(--r-full); }
-.dot[data-tone='positive'] { background: var(--c-positive); }
-.dot[data-tone='warning'] { background: var(--c-warning); }
-.dot[data-tone='negative'] { background: var(--c-negative); }
+/* The dots are the ring's colours, so the ring above needs no key. */
+.dot { width: 7px; height: 7px; border-radius: var(--r-full); background: var(--tone); }
+.statusTab[data-tone='positive'] { --tone: var(--c-positive); --tone-wash: var(--c-positive-wash); }
+.statusTab[data-tone='warning'] { --tone: var(--c-warning); --tone-wash: var(--c-warning-wash); }
+.statusTab[data-tone='negative'] { --tone: var(--c-negative); --tone-wash: var(--c-negative-wash); }
 
-.count { font-size: var(--t-micro); color: var(--c-ink-faint); }
-[aria-selected='true'] > .count { color: var(--c-ink-soft); }
-
-.lanesEnd { display: inline-flex; gap: var(--s-2); position: sticky; right: 0; margin-left: auto; padding-left: var(--s-3); background: linear-gradient(90deg, transparent, var(--c-base) 12px); }
-.sortWrap { display: block; }
-.sort {
-  max-width: 170px;
-  height: 28px;
-  padding: 0 var(--s-6) 0 var(--s-3);
-  border: 1px solid var(--c-line-mid);
-  border-radius: var(--r-md);
-  background: var(--c-surface);
-  font-size: var(--t-caption);
-  color: var(--c-ink);
+.count {
+  min-width: 20px;
+  padding: 1px 5px;
+  border-radius: var(--r-full);
+  font-size: var(--t-micro);
+  text-align: center;
+  color: var(--c-ink-faint);
 }
+.statusTab[aria-selected='true'] .count { background: var(--tone-wash, var(--c-sunk)); color: var(--tone, var(--c-ink-soft)); font-weight: 600; }
+.sub .count { min-width: 0; padding: 0; }
+.sub[aria-selected='true'] .count { color: var(--c-ink-soft); }
 
-.findWrap { position: relative; flex: 1 1 160px; max-width: 260px; margin-left: auto; }
+.findWrap { position: relative; display: block; flex: 0 1 13rem; min-width: 7rem; }
 
 .findIcon {
   position: absolute;
-  left: var(--s-3);
+  z-index: 3;
+  left: 10px;
   top: 50%;
   transform: translateY(-50%);
   width: 14px;
@@ -151,43 +176,137 @@
 .find {
   width: 100%;
   height: 32px;
-  padding: 0 var(--s-3) 0 calc(var(--s-3) + 20px);
+  padding: 0 30px 0 30px;
   border: 1px solid var(--c-line-mid);
   border-radius: var(--r-md);
   background: var(--c-surface);
   font-size: var(--t-caption);
-  transition: border-color var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
-.find:focus { outline: none; border-color: var(--c-control); }
+.find:hover { border-color: var(--c-control); }
+.find:focus { outline: none; border-color: var(--c-control); box-shadow: 0 0 0 3px var(--c-sunk); }
 
-/* Lanes as chips: one lane is worked at a time, each with its colour and count. */
-.lanes { display: flex; gap: var(--s-1); overflow-x: auto; scrollbar-width: none; }
-.lanes::-webkit-scrollbar { display: none; }
-
-.laneChip {
+.findKey {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--c-line-mid);
+  border-radius: 4px;
+  background: var(--c-raised);
+  font-family: var(--font-data);
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+  pointer-events: none;
+}
+
+/*
+ * Short of room, Find folds into a 32px button. A click or / opens it leftwards over the empty space beside the
+ * status control, and it stays open while it holds text. Phones keep it full width on its own line instead.
+ */
+@media (min-width: 901px) {
+  @container bar (max-width: 1180px) {
+    .findWrap { flex: 0 0 32px; width: 32px; height: 32px; min-width: 0; }
+    .findIcon { left: 9px; }
+    .findKey { display: none; }
+
+    .find {
+      position: absolute;
+      z-index: 2;
+      top: 0;
+      right: 0;
+      width: 32px;
+      padding: 0 0 0 30px;
+      color: transparent;
+      cursor: pointer;
+      transition: width var(--dur) var(--ease-out), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+    }
+
+    .find::placeholder { color: transparent; }
+
+    /* Open, it grows leftwards from the button, so the icon stays where it was clicked, at the right. */
+    .find:focus, .find:not(:placeholder-shown) {
+      width: 13rem;
+      padding: 0 30px 0 var(--s-3);
+      color: var(--c-ink);
+      cursor: text;
+      box-shadow: 0 0 0 3px var(--c-sunk), 0 8px 20px -8px rgba(42, 39, 35, 0.25);
+    }
+
+    .find:focus::placeholder { color: var(--c-ink-faint); }
+  }
+}
+
+/*
+ * Lanes as tabs on the bar's bottom rule: a mark in the lane's colour, the name, the count. The chosen lane takes
+ * its colour as an underline and a tinted count. One line, scrolling sideways with a fade, never cut by a control.
+ */
+/* Pulled left by a tab's padding, so the first lane's text sits on the same edge as everything above it. */
+.lanesFrame { margin: var(--s-2) 0 0 calc(var(--s-2) * -1); }
+.lanes { gap: var(--s-1); }
+
+.laneTab {
+  --lane: var(--c-ink);
+  --lane-wash: var(--c-sunk);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   flex-shrink: 0;
-  height: 28px;
-  padding: 0 var(--s-3);
-  border: 1px solid transparent;
-  border-radius: var(--r-full);
+  height: 36px;
+  padding: 0 var(--s-2);
   font-size: var(--t-caption);
   color: var(--c-ink-soft);
   white-space: nowrap;
+  transition: color var(--dur) var(--ease);
 }
-.laneChip:hover { background: var(--c-sunk); color: var(--c-ink); }
-.laneChip[aria-selected='true'] { border-color: var(--c-line-strong); background: var(--c-surface); color: var(--c-ink); font-weight: 500; }
 
-.laneDot { width: 8px; height: 3px; border-radius: 2px; background: var(--c-line-strong); }
-.laneChip[data-lane='ready'] .laneDot { background: var(--c-positive); }
-.laneChip[data-lane='pack'] .laneDot, .laneChip[data-lane='over'] .laneDot, .laneChip[data-lane='price'] .laneDot { background: var(--c-warning); }
-.laneChip[data-lane='slow'] .laneDot { background: var(--c-brand-strong); }
-.laneChip[data-lane='short'] .laneDot { background: var(--c-negative); }
-.laneChip[data-lane='store'] .laneDot { background: var(--c-info); }
+.laneTab::after {
+  content: '';
+  position: absolute;
+  left: var(--s-2);
+  right: var(--s-2);
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--lane);
+  transform: scaleX(0);
+  transition: transform var(--dur) var(--ease-out);
+}
 
-.statusTab:focus-visible, .laneChip:focus-visible, .sort:focus-visible, .blankAction:focus-visible, .toastUndo:focus-visible, .moreButton:focus-visible,
+.laneTab:hover { color: var(--c-ink); }
+.laneTab[aria-selected='true'] { color: var(--c-ink); font-weight: 560; }
+.laneTab[aria-selected='true']::after { transform: scaleX(1); }
+
+.laneMark { width: 8px; height: 8px; border-radius: 2px; background: var(--lane); }
+
+.laneCount {
+  padding: 1px 6px;
+  border-radius: var(--r-full);
+  background: var(--c-sunk);
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+}
+.laneTab[aria-selected='true'] .laneCount { background: var(--lane-wash); color: var(--lane); font-weight: 600; }
+
+.laneTab[data-lane='ready'] { --lane: var(--c-positive); --lane-wash: var(--c-positive-wash); }
+.laneTab[data-lane='pack'],
+.laneTab[data-lane='over'],
+.laneTab[data-lane='price'] { --lane: var(--c-warning); --lane-wash: var(--c-warning-wash); }
+.laneTab[data-lane='slow'] { --lane: var(--c-brand-strong); --lane-wash: var(--c-brand-wash); }
+.laneTab[data-lane='short'] { --lane: var(--c-negative); --lane-wash: var(--c-negative-wash); }
+.laneTab[data-lane='store'] { --lane: var(--c-info); --lane-wash: var(--c-info-wash); }
+/* A shop card over Google's price: the shop's blue and the amber of over, split on the mark. */
+.laneTab[data-lane='dear'] { --lane: var(--c-warning); --lane-wash: var(--c-warning-wash); }
+.laneTab[data-lane='dear'] .laneMark { background: linear-gradient(135deg, var(--c-info) 50%, var(--c-warning) 50%); }
+.laneTab[data-lane='untested'] .laneMark { background: repeating-linear-gradient(135deg, var(--c-line-strong) 0 2px, transparent 2px 4px); box-shadow: inset 0 0 0 1px var(--c-line-strong); }
+
+.statusTab:focus-visible, .laneTab:focus-visible, .blankAction:focus-visible, .toastUndo:focus-visible, .moreButton:focus-visible,
 .bulk button:focus-visible {
   outline: 2px solid var(--c-action-strong);
   outline-offset: 2px;
@@ -200,25 +319,6 @@
   .laneHead { position: relative; }
   .laneHead > span:has(> [role='tooltip']) { position: static; }
   .laneHead [role='tooltip'] { left: 0 !important; right: auto !important; transform: none !important; max-width: 100%; }
-}
-
-.columns {
-  white-space: nowrap;
-  display: grid;
-  grid-template-columns: var(--cand-cols);
-  gap: var(--cand-gap);
-  padding: 0 var(--s-3) 0 var(--s-4);
-  margin-bottom: calc(var(--s-4) * -1 + var(--s-1));
-  font-size: var(--t-micro);
-  color: var(--c-ink-faint);
-  letter-spacing: 0.02em;
-}
-
-.right { text-align: right; }
-
-/* After .columns, so it wins: the header goes when the line wraps to two. */
-@container (max-width: 880px) {
-  .columns { display: none; }
 }
 
 .lane { display: flex; flex-direction: column; gap: var(--s-2); }
@@ -241,6 +341,7 @@
 .laneHead[data-lane='untested']::before { background: repeating-linear-gradient(180deg, var(--c-line-strong) 0 4px, transparent 4px 7px); }
 .laneHead[data-lane='short']::before { background: var(--c-negative); }
 .laneHead[data-lane='store']::before { background: var(--c-info); }
+.laneHead[data-lane='dear']::before { background: linear-gradient(180deg, var(--c-info) 50%, var(--c-warning) 50%); }
 .laneLine { font-size: var(--t-caption); color: var(--c-warning); }
 
 .laneTitle { font-size: var(--t-label); font-weight: 600; }
@@ -251,8 +352,12 @@
   border: 1px solid var(--c-line);
   border-radius: var(--r-lg);
   background: var(--c-surface);
-  overflow: clip;
 }
+
+/* The sheet does not clip, so a button's label can rise above the first line; its first and last lines round
+   their own corners instead. */
+.sheet > :first-child { border-top-left-radius: calc(var(--r-lg) - 1px); border-top-right-radius: calc(var(--r-lg) - 1px); }
+.sheet > :last-child { border-bottom-left-radius: calc(var(--r-lg) - 1px); border-bottom-right-radius: calc(var(--r-lg) - 1px); }
 
 .more { display: flex; justify-content: center; padding: var(--s-3) 0; }
 .moreButton {
@@ -411,14 +516,22 @@
 
 @media (max-width: 900px) {
   /* On a phone the bar scrolls away: held at the top it would take a third of the screen. */
-  .bar { position: static; }
-  .lanesEnd { position: relative; background: none; }
-  .worth { align-items: flex-start; text-align: left; }
-  .findWrap { max-width: none; }
-  .status { max-width: 100%; overflow-x: auto; }
+  .bar { position: static; backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--c-base); }
+  .stats { width: 100%; }
+  .stats > * { flex: 1 1 0; min-width: 0; padding: var(--s-3); }
+  .worth { min-width: 0; }
+  .tools { flex: 1 1 100%; flex-wrap: wrap; justify-content: stretch; }
+  .findWrap { flex: 1 1 100%; min-width: 0; }
+  .findKey { display: none; }
+}
+
+/* A narrow phone stacks the two stats rather than squeezing them side by side. */
+@media (max-width: 480px) {
+  .stats { flex-direction: column; }
+  .stats > * + * { border-left: 0; border-top: 1px solid var(--c-line); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .toast, .bulk { animation: none; }
-  .meter span { transition: none; }
+  .laneTab::after, .find { transition: none; }
 }

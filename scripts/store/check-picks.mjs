@@ -6,6 +6,8 @@
  *   node scripts/store/check-picks.mjs --top=100
  *   node scripts/store/check-picks.mjs --recheck   re-judges the pages already read, no fetching
  *   node scripts/store/check-picks.mjs --top=all --refetch   reads every page again, to pick up barcodes
+ *   node scripts/store/check-picks.mjs --with-big-brands     also reads big-brand pages (held back at import anyway)
+ *   node scripts/store/check-picks.mjs --read-all             also opens loose name matches that share almost no words
  *
  * A page already read in an earlier run is reused, not fetched again, so a rerun after new shelves or a
  * stopped run only reads what is new. Progress is saved every 25 picks, so stopping loses at most 25.
@@ -19,7 +21,7 @@
 import fs from 'node:fs';
 import { parseCsv } from '../lib/sources.js';
 import path from 'node:path';
-import { barcodeVerdict, digits, sameProduct, squash, wordCounts } from './match.mjs';
+import { barcodeVerdict, digits, overlap, sameProduct, squash, wordCounts } from './match.mjs';
 import { decode, fetchPage, paidPrice } from './page.mjs';
 
 const arg = (k, d = null) => process.argv.slice(2).find((a) => a.startsWith(`--${k}=`))?.split('=').slice(1).join('=') ?? d;
@@ -30,6 +32,12 @@ const pause = Number(arg('pause', 1500));
 const googleDir = arg('google', 'research/google');
 const recheck = process.argv.includes('--recheck');
 const refetch = process.argv.includes('--refetch');
+// A big brand that is not a need is held back at import anyway, so its page is not read unless asked.
+const withBig = process.argv.includes('--with-big-brands');
+// A loose name match whose shelf name shares under a fifth of the product's words ("Smile Therapy Toothbrush" against
+// a knitting book) is never the product: not opened, so the run spends its time on real candidates. --read-all opens them.
+const readAll = process.argv.includes('--read-all');
+const tooFar = (pick) => pick.matched_by === 'name, check it' && overlap(pick.title, pick.seen_as ?? '', squash(pick.brand)) < 0.2;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // The same word counts and brand list store-picks sees, so a page is judged by the rule that picked it.
@@ -96,6 +104,8 @@ for (const [i, pick] of chosen.entries()) {
     if (hit.gone) verdict = hit.gone;
     else { page = hit; verdict = verdictOf(pick, page); }
   }
+  else if (!withBig && pick.big_brand === 'yes' && !pick.need) verdict = 'big brand, not checked';
+  else if (!readAll && tooFar(pick)) verdict = 'unsure, names too far apart, not read';
   else if (!host) verdict = 'no link to check';
   else if (blockedHosts.has(host)) verdict = 'shop blocked, not checked';
   else {

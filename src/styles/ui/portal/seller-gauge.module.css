@@ -93,12 +93,15 @@
 .rungs span:first-child { transform: none; }
 .rungs span:last-child { transform: translateX(-100%); }
 
-.compact { gap: 4px; flex-direction: row; align-items: center; }
-.compact .track { flex: 1; height: 6px; margin-top: 0; }
+.compact { gap: var(--s-2); flex-direction: row; align-items: center; }
+/* On the sunk seller strip the rail is white with a hairline, so its whole length reads. */
+.compact .track { flex: 1; height: 6px; margin-top: 0; background: var(--c-surface); box-shadow: inset 0 0 0 1px var(--c-line-mid); }
 .compact .dot { width: 10px; height: 10px; margin: -5px 0 0 -5px; border-width: 2px; }
 .compact .ceiling { top: -2px; bottom: -2px; }
 
-.value { font-size: var(--t-caption); color: var(--c-ink-soft); }
+.value { flex-shrink: 0; font-size: var(--t-caption); color: var(--c-ink-faint); white-space: nowrap; }
+.value b { font-family: var(--font-data); font-weight: 600; color: var(--c-ink); }
+.gauge[data-tone='proved'] .value b { color: var(--c-positive); }
 .gauge[data-tone='none'] .value { color: var(--c-ink-faint); }
 
 @keyframes arrive {

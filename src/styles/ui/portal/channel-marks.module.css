@@ -27,3 +27,21 @@
 }
 
 .mark[data-channel='ebay'] .icon { color: var(--c-brand-mid); }
+
+/* On a row: one small mark, split in two for a card that is for both, her shop in terracotta. */
+.pair {
+  display: inline-flex;
+  flex-shrink: 0;
+  height: 16px;
+  border: 1px solid var(--c-line-mid);
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 14px;
+  text-transform: uppercase;
+}
+.half { padding: 0 4px; color: var(--c-ink-faint); background: var(--c-surface); }
+.half + .half { border-left: 1px solid var(--c-line-mid); }
+.half[data-channel='store'] { color: var(--c-action-text); background: var(--c-action-wash); }

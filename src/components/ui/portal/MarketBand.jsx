@@ -44,10 +44,6 @@ export function MarketBand({
 
   const loss = breakEven != null ? at(breakEven) : null;
   const thin = floor != null ? at(floor) : null;
-  const clipped = [
-    market?.low != null && market.low < lo && `lowest ${formatGbp(market.low)}`,
-    market?.high != null && market.high > hi && `highest ${formatGbp(market.high)}`,
-  ].filter(Boolean);
   const short = keep != null && keep < (target ?? 0);
   const x = price != null ? at(price) : null;
 
@@ -113,42 +109,36 @@ export function MarketBand({
         </span>
       </div>
 
-      <div className={styles.axis} data-num>
-        <span>{formatGbp(lo)}</span>
-        <span>{formatGbp(hi)}</span>
+      {/* The ends of the scale, with anything the scale leaves off said at the end it falls past. */}
+      <div className={styles.axis}>
+        <span><span data-num>{formatGbp(lo)}</span>{market?.low != null && market.low < lo && <span className={styles.clipped}>, lowest <span data-num>{formatGbp(market.low)}</span> off the scale</span>}</span>
+        <span><span data-num>{formatGbp(hi)}</span>{market?.high != null && market.high > hi && <span className={styles.clipped}>, highest <span data-num>{formatGbp(market.high)}</span> off the scale</span>}</span>
       </div>
 
+      {/*
+       * Three lines at most: the market, the seller who proves it, and where it pays. Each listing dot carries its own
+       * price and sales on hover, so the dots need no line of their own.
+       */}
       <figcaption className={styles.key}>
         {market?.p25 != null && market?.p75 != null && (
-          <span className={styles.keyItem}><i className={styles.keyBody} />{bodyLabel}, <b data-num>{formatGbp(market.p25)}</b> to <b data-num>{formatGbp(market.p75)}</b></span>
-        )}
-        {market?.median != null && (
           <span className={styles.keyItem}>
-            <i className={styles.keyMedian} />{medianLabel}, <b data-num>{formatGbp(market.median)}</b>
-            {medianListed != null && <>; all listed <b data-num>{formatGbp(medianListed)}</b></>}
+            <i className={styles.keyBody} />{bodyLabel} <b data-num>{formatGbp(market.p25)}</b> to <b data-num>{formatGbp(market.p75)}</b>
+            {market?.median != null && <>, <i className={styles.keyMedian} />{medianLabel} <b data-num>{formatGbp(market.median)}</b></>}
+            {medianListed != null && <span className={styles.clipped}> (all listed <span data-num>{formatGbp(medianListed)}</span>)</span>}
           </span>
-        )}
-        {listings.length > 0 && (
-          <span className={styles.keyItem}><i className={styles.keyDots} />{listings.length} listings opened, filled if sold</span>
         )}
         {entry?.price != null && (
           <span className={styles.keyItem}>
             <i className={`${styles.keyDot} ${entry.proved ? styles.sellerProved : ''}`} />
-            {entry.proved ? 'small seller selling' : 'smallest seller seen'}, <b data-num>{formatGbp(entry.price)}</b>
+            {entry.proved ? 'small seller selling' : 'smallest seller seen'} <b data-num>{formatGbp(entry.price)}</b>
           </span>
         )}
         {breakEven != null && (
-          <>
-            <span className={styles.keyItem}><i className={styles.keyLoss} />loses money under <b data-num>{formatGbp(breakEven)}</b></span>
-            {target != null && floor != null && (
-              <>
-                {floor > breakEven && <span className={styles.keyItem}><i className={styles.keyThin} />keeps under your {formatGbp(target)} profit</span>}
-                <span className={styles.keyItem}><i className={styles.keyGain} />keeps your {formatGbp(target)} from <b data-num>{formatGbp(floor)}</b>, your floor</span>
-              </>
-            )}
-          </>
+          <span className={styles.keyItem}>
+            <i className={styles.keyPays} />loses under <b data-num>{formatGbp(breakEven)}</b>
+            {target != null && floor != null && <>, your {formatGbp(target)} profit from <b data-num>{formatGbp(floor)}</b></>}
+          </span>
         )}
-        {clipped.length > 0 && <span className={styles.clipped}>Off the scale: {clipped.join(', ')}</span>}
       </figcaption>
     </figure>
   );

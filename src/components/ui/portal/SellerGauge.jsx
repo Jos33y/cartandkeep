@@ -36,7 +36,7 @@ export function SellerGauge({ entry, ceiling, compact = false }) {
           <span className={styles.ceiling} style={{ left: `${line}%` }} />
           {has && <span className={styles.dot} style={{ left: `${at(entry.seller_feedback)}%` }} />}
         </div>
-        <span className={styles.value} data-num>{has ? fmt(entry.seller_feedback) : 'None'}</span>
+        <span className={styles.value}>{has ? <><b data-num>{fmt(entry.seller_feedback)}</b> feedback</> : 'None'}</span>
       </div>
     );
   }

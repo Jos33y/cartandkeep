@@ -2,10 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Tip } from '@components/ui/portal/primitives';
 import { CoverageFlow } from '@components/ui/portal/CoverageFlow';
+import { CategoryTabs } from '@components/ui/portal/CategoryTabs';
+import { StoreRoute } from '@components/ui/portal/StoreRoute';
 import { PageSkeleton } from '@components/ui/portal/Skeleton';
 import { Icon } from '@components/ui/icons';
-import { useBatches, groupBatches } from '@hooks/useCandidates';
+import { useBatches } from '@hooks/useCandidates';
 import { useQueryCoverage } from '@hooks/useQueryCoverage';
+import { useStoreCoverage } from '@hooks/useStoreCoverage';
+import { HER_TOPS, categoryName, loadCategories } from '@lib/categories';
 import { loadTenant } from '@lib/tenant';
 import { formatGbp } from '@utils/formatGbp';
 import { portalPath } from '@utils/constants';
@@ -121,23 +125,71 @@ const REASONS = {
 
 const reasonOf = (q) => (q.outcome === 'refused' ? q.reason ?? 'unknown' : q.outcome);
 
+const ROUTE_KEY = 'ck.portal.coverage.route';
+// A store batch is one Google category: "Home & Garden" on the batch is the Home & Garden tab.
+const topOfBatch = (b) => HER_TOPS.find((id) => categoryName(id) === (b.category_label ?? '').trim()) ?? (b.category_label ?? 'Google best sellers');
+const isStore = (b) => (b.sources_used ?? []).includes('google_best_sellers') || (b.term ?? '').startsWith('store-');
+
 export function CoveragePage() {
   const [tenant, setTenant] = useState(undefined);
-  const [only, setOnly] = useState(null);
+  const [route, setRoute] = useState(() => { try { return localStorage.getItem(ROUTE_KEY) === 'google' ? 'google' : 'ebay'; } catch { return 'ebay'; } });
+  const [cat, setCat] = useState('all');
   const [open, setOpen] = useState(null);
+  const [names, setNamesLoaded] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
   const batches = useBatches(tenant?.id);
-  // One tab per shop, as on Candidates. Two deliveries from the same shop were
-  // showing as two tabs both reading H & B.
-  const groups = useMemo(() => groupBatches(batches ?? []), [batches]);
-  const scope = useMemo(
-    () => groups.filter((g) => !only || g.key === only).flatMap((g) => g.ids),
-    [groups, only],
+  const ebayIds = useMemo(() => (batches ?? []).filter((b) => !isStore(b)).map((b) => b.id), [batches]);
+  const storeBatches = useMemo(() => (batches ?? []).filter(isStore), [batches]);
+  const storeIds = useMemo(() => storeBatches.map((b) => b.id), [storeBatches]);
+
+  const ebay = useQueryCoverage(batches === undefined ? null : ebayIds);
+  const store = useStoreCoverage(batches === undefined ? null : storeIds);
+  const { queries } = ebay;
+
+  // Names for the tabs: her top categories, and whatever the eBay cards sit in.
+  useEffect(() => {
+    const ids = [...HER_TOPS, ...ebay.candidates.map((c) => c.category_top_id)];
+    loadCategories(ids, false).then(() => setNamesLoaded((x) => x + 1)).catch(() => {});
+  }, [ebay.candidates]);
+
+  const tabs = useMemo(() => {
+    if (route === 'ebay') {
+      const m = new Map();
+      for (const c of ebay.candidates) if (c.category_top_id != null) m.set(c.category_top_id, (m.get(c.category_top_id) ?? 0) + 1);
+      return [{ key: 'all', label: 'All', count: ebay.candidates.length },
+        ...[...m.entries()].sort((a, b) => b[1] - a[1]).map(([id, count]) => ({ key: id, label: categoryName(id) ?? `Category ${id}`, count }))];
+    }
+    const m = new Map();
+    for (const b of storeBatches) {
+      const key = topOfBatch(b);
+      const g = m.get(key) ?? { key, label: typeof key === 'number' ? categoryName(key) : key, count: 0, ids: [] };
+      g.ids.push(b.id);
+      g.count += store.candidates.filter((c) => c.batch_id === b.id).length;
+      m.set(key, g);
+    }
+    return [{ key: 'all', label: 'All', count: store.candidates.length, ids: storeIds }, ...[...m.values()].sort((a, b) => b.count - a.count)];
+    // names: the tab labels redraw once the category names have loaded.
+  }, [route, ebay.candidates, store.candidates, storeBatches, storeIds, names]);
+
+  const tab = tabs.find((t) => t.key === cat) ?? tabs[0];
+  const catName = tab.key === 'all' ? null : tab.label;
+
+  const pickRoute = (r) => {
+    setRoute(r);
+    setCat('all');
+    setOpen(null);
+    try { localStorage.setItem(ROUTE_KEY, r); } catch { /* private mode */ }
+  };
+  const pickCat = (k) => { setCat(k); setOpen(null); };
+
+  // eBay searches are not sorted by category; the tab applies from the cards on.
+  const candidates = useMemo(
+    () => (catName && route === 'ebay' ? ebay.candidates.filter((c) => c.category_top_id === tab.key) : ebay.candidates),
+    [ebay.candidates, catName, route, tab.key],
   );
-  const { status, queries, candidates } = useQueryCoverage(batches === undefined ? null : scope);
 
   const funnel = useMemo(() => {
     const checked = queries.length;
@@ -147,15 +199,15 @@ export function CoveragePage() {
     const live = candidates.filter((c) => c.ebay).length;
     return [
       { key: 'checked', label: 'Checked', value: checked,
-        tip: 'Every shelf product in these batches, searched against live eBay UK listings.' },
+        tip: 'Every shelf product in these searches, looked up against live eBay UK listings.' },
       { key: 'passed', label: 'Passed the check', value: passed,
         tip: 'Something is selling, the market is big enough, and a listing can reach page one.' },
-      { key: 'sent', label: 'Sent to you', value: sent,
-        tip: 'Passed, and keeps at least £2 a sale at the shelf price.' },
+      { key: 'sent', label: catName ? `Sent to you, ${catName}` : 'Sent to you', value: sent,
+        tip: 'Passed, and keeps at least £2 a sale at the shelf price.', cut: !!catName },
       { key: 'approved', label: 'Approved', value: approved, to: '/approved' },
       { key: 'live', label: 'Live on eBay', value: live, to: '/listings' },
     ];
-  }, [queries, candidates]);
+  }, [queries, candidates, catName]);
 
   const reasons = useMemo(() => {
     const map = new Map();
@@ -199,54 +251,75 @@ export function CoveragePage() {
       ?.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }));
   };
 
-  if (tenant === undefined || batches === undefined || status === 'loading') return <PageSkeleton rows={4} />;
+  if (tenant === undefined || batches === undefined || ebay.status === 'loading' || store.status === 'loading') return <PageSkeleton rows={4} />;
 
   const stopped = reasons.reduce((s, r) => s + r.items.length, 0);
   const widest = reasons[0]?.items.length || 1;
+  const cardsEbay = ebay.candidates.length;
+  const cardsStore = store.candidates.length;
+  const sentSearches = flow.counts.sent ?? 0;
+  const short = !catName ? sentSearches - cardsEbay : 0;
+  const ranked = store.summary.reduce((t, r) => t + r.products, 0);
+  const failed = route === 'ebay' ? ebay.status === 'error' : store.status === 'error';
 
   return (
     <div className={styles.page}>
       <header className={styles.head}>
         <p className="micro">Coverage</p>
         <h1 className={styles.title}>What was checked</h1>
+        {cardsEbay + cardsStore > 0 && (
+          <p className={styles.lede}>
+            <span data-num>{n(cardsEbay + cardsStore)}</span> cards sent to you: <span data-num>{n(cardsEbay)}</span> from eBay searches,{' '}
+            <span data-num>{n(cardsStore)}</span> from Google best sellers.
+          </p>
+        )}
       </header>
 
-      {groups.length > 1 && (
-        <div className={styles.scope} role="tablist" aria-label="Where these came from">
-          <button type="button" role="tab" aria-selected={!only}
-            className={`${styles.chip} ${!only ? styles.chipOn : ''}`} onClick={() => { setOnly(null); setOpen(null); }}>
-            Everything checked
+      <div className={styles.routes} role="tablist" aria-label="Route">
+        {[['ebay', 'eBay searches', queries.length, 'searched'], ['google', 'Google best sellers', ranked || cardsStore, ranked ? 'ranked' : 'cards']].map(([k, label, count, unit]) => (
+          <button key={k} type="button" role="tab" aria-selected={route === k}
+            className={styles.route} onClick={() => pickRoute(k)}>
+            <span className={styles.routeName}>{label}</span>
+            <span className={styles.routeCount} data-num>{n(count)} {unit}</span>
           </button>
-          {groups.map((g) => (
-            <button key={g.key} type="button" role="tab" aria-selected={only === g.key}
-              className={`${styles.chip} ${only === g.key ? styles.chipOn : ''}`}
-              onClick={() => { setOnly(g.key); setOpen(null); }}>
-              {g.label}
-            </button>
-          ))}
-        </div>
-      )}
+        ))}
+      </div>
 
-      {status === 'error' && (
+      {tabs.length > 1 && <CategoryTabs groups={tabs} current={tab.key} onPick={pickCat} />}
+
+      {failed && (
         <div className={`card ${styles.blank}`} role="alert">
           <p className={styles.blankTitle}>Coverage did not load</p>
           <p className={styles.blankBody}>Reload the page. If it happens again, send me a note and I will look at it.</p>
         </div>
       )}
 
-      {status === 'ready' && queries.length === 0 && (
+      {route === 'google' && !failed && (
+        <StoreRoute status={store.status} batchIds={tab.ids ?? storeIds} cards={tab.count}
+          summary={store.summary.filter((r) => (tab.ids ?? storeIds).includes(r.batch_id))}
+          candidates={store.candidates.filter((c) => (tab.ids ?? storeIds).includes(c.batch_id))} />
+      )}
+
+      {route === 'ebay' && ebay.status === 'ready' && queries.length === 0 && (
         <div className={`card ${styles.blank}`}>
           <span className={styles.blankIcon}><Icon name="IconMap" className={styles.blankGlyph} /></span>
-          <p className={styles.blankTitle}>Nothing checked in the current batches yet</p>
-          <p className={styles.blankBody}>Each batch shows here with every product that was checked and why it did or did not reach you.</p>
+          <p className={styles.blankTitle}>Nothing searched on eBay yet</p>
+          <p className={styles.blankBody}>Each search shows here with every product that was checked and why it did or did not reach you.</p>
         </div>
       )}
 
-      {status === 'ready' && queries.length > 0 && (
+      {route === 'ebay' && ebay.status === 'ready' && queries.length > 0 && (
         <>
+          {catName && (
+            <p className={styles.scopeNote}>
+              Searches are not sorted by category, so Checked and the reasons below cover every eBay search. From Sent to you on, only {catName}.
+            </p>
+          )}
           <section className={`card ${styles.flowCard}`} aria-label="Where every checked product went">
             <CoverageFlow counts={flow.counts} totals={flow.totals} labels={flow.labels}
-              decisions={flow.decisions} onPick={pick} />
+              decisions={flow.decisions} onPick={pick}
+              zoomTitle={catName ? `Your ${n(candidates.length)} ${catName} cards` : `Your ${n(candidates.length)} cards from these searches`}
+              note={short > 0 ? `${n(short)} fewer cards than searches sent` : null} />
           </section>
 
           <section className={styles.funnel} aria-label="From checked to live">
@@ -267,7 +340,7 @@ export function CoveragePage() {
               );
               return (
                 <div key={s.key} className={styles.stage} data-stage={s.key}>
-                  {i > 0 && (
+                  {i > 0 && !s.cut && (
                     <span className={styles.ratio} data-num>
                       {prev ? `${Math.round((s.value / prev) * 100)}%` : 'None'}
                     </span>

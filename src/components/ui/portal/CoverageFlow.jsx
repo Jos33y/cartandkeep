@@ -3,6 +3,9 @@ import styles from '@styles/ui/portal/coverage-flow.module.css';
 
 const W = 1040;
 const H = 420;
+// A label is a line tall, so no outcome sits closer than this to the next, however small it is.
+const SLOT = 17;
+const STEP = 5;
 const TOP = 28;
 const NODE = 10;
 const GAP = 10;
@@ -17,7 +20,7 @@ function ribbon(x0, a0, b0, x1, a1, b1) {
   return `M${x0},${a0} C${m},${a0} ${m},${a1} ${x1},${a1} L${x1},${b1} C${m},${b1} ${m},${b0} ${x0},${b0} Z`;
 }
 
-export function CoverageFlow({ counts, totals, labels, decisions, onPick }) {
+export function CoverageFlow({ counts, totals, labels, decisions, onPick, zoomTitle, note }) {
   const [hover, setHover] = useState(null);
 
   const layout = useMemo(() => {
@@ -31,13 +34,16 @@ export function CoverageFlow({ counts, totals, labels, decisions, onPick }) {
     const scale = (H - TOP - GAP * (outcomes.length + 1)) / total;
     const h = (v) => Math.max(MIN, v * scale);
 
+    // Large outcomes keep their gap; the long tail of small ones sits a label apart.
     let y = TOP;
     const out = {};
     outcomes.forEach((k, i) => {
-      if (i === passedKeys.length) y += GAP;
-      out[k] = { y, h: h(counts[k]) };
-      y += out[k].h + GAP;
+      if (i === passedKeys.length) y += GAP * 2;
+      const hk = h(counts[k]);
+      out[k] = { y, h: hk, slot: Math.max(hk, SLOT) };
+      y += out[k].slot + (hk >= SLOT ? GAP : STEP);
     });
+    const bottom = y;
 
     const group = (keys) => {
       const sum = keys.reduce((s, k) => s + out[k].h, 0);
@@ -51,10 +57,10 @@ export function CoverageFlow({ counts, totals, labels, decisions, onPick }) {
     const checkedH = passed.h + refused.h;
     const checked = { y: (passed.y + refused.y + refused.h - checkedH) / 2, h: checkedH };
 
-    return { passedKeys, marketKeys, out, passed, refused, checked };
+    return { passedKeys, marketKeys, out, passed, refused, checked, bottom };
   }, [counts]);
 
-  const { passedKeys, marketKeys, out, passed, refused, checked } = layout;
+  const { passedKeys, marketKeys, out, passed, refused, checked, bottom } = layout;
   const toneOf = (k) => (k === 'sent' ? 'sent' : OURS.includes(k) ? 'ours' : 'market');
 
   const sent = out.sent;
@@ -91,7 +97,7 @@ export function CoverageFlow({ counts, totals, labels, decisions, onPick }) {
   const dim = (k) => hover && hover !== k;
 
   return (
-    <svg className={styles.flow} viewBox={`0 0 ${W} ${H + 20}`} role="img" onPointerLeave={() => setHover(null)}
+    <svg className={styles.flow} viewBox={`0 0 ${W} ${Math.max(H, bottom, (note ? Math.max(ly, zy) + 22 : 0)) + 20}`} role="img" onPointerLeave={() => setHover(null)}
       aria-label={`${n(totals.checked)} checked, ${n(totals.passed)} passed, ${n(counts.sent ?? 0)} sent to you.`}>
       <path className={styles.linkPassed}
         d={ribbon(X.checked + NODE, checked.y, checked.y + passed.h, X.split, passed.y, passed.y + passed.h)} />
@@ -130,7 +136,7 @@ export function CoverageFlow({ counts, totals, labels, decisions, onPick }) {
           onClick={() => { setHover(null); onPick?.(k); }}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick?.(k); } }}>
           <rect className={styles[`node_${toneOf(k)}`]} x={X.outcome} y={out[k].y} width={NODE} height={out[k].h} rx="2" />
-          <rect className={styles.hit} x={X.outcome - 4} y={out[k].y - 3} width="250" height={Math.max(out[k].h + 6, 20)} />
+          <rect className={styles.hit} x={X.outcome - 4} y={out[k].y - 3} width="250" height={out[k].slot + 6} />
           <text className={`${styles.halo} ${k === 'sent' ? styles.strong : ''}`} x={X.outcome + NODE + 8} y={out[k].y + out[k].h / 2 + 4}>
             {labels[k]}
             <tspan className={styles.num} dx="8">{n(counts[k])}</tspan>
@@ -147,7 +153,10 @@ export function CoverageFlow({ counts, totals, labels, decisions, onPick }) {
         </g>
       ))}
       {sentTotal > 0 && (
-        <text className={styles.zoomTitle} x={X.zoom} y={TOP - 12}>Of the {n(sentTotal)} sent to you</text>
+        <text className={styles.zoomTitle} x={X.zoom} y={TOP - 12}>{zoomTitle ?? `Of the ${n(sentTotal)} sent to you`}</text>
+      )}
+      {sentTotal > 0 && note && (
+        <text className={`${styles.halo} ${styles.note}`} x={X.zoom} y={Math.max(ly, zy) + 22}>{note}</text>
       )}
     </svg>
   );

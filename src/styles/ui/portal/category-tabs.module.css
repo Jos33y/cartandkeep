@@ -53,64 +53,9 @@
 .count { font-size: var(--t-micro); color: var(--c-ink-faint); }
 .tab[aria-selected='true'] .count { color: var(--c-kraft-ink); }
 
-.tab:focus-visible, .all:focus-visible, .item:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+.tab:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
 
-.menuWrap { position: relative; flex-shrink: 0; margin-bottom: 4px; }
+.menuWrap { position: relative; flex-shrink: 0; margin: 0 0 4px auto; }
 
-.all {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-1);
-  height: 30px;
-  padding: 0 var(--s-3);
-  border: 1px solid var(--c-line-mid);
-  border-radius: var(--r-md);
-  background: var(--c-surface);
-  font-size: var(--t-caption);
-  color: var(--c-ink-soft);
-}
-.all:hover { border-color: var(--c-control); color: var(--c-ink); }
-.allIcon { width: 13px; height: 13px; }
-
-.menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: var(--z-drawer);
-  width: 280px;
-  max-height: 360px;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--c-line-mid);
-  border-radius: var(--r-lg);
-  background: var(--c-surface);
-  box-shadow: var(--e-3);
-  overflow: hidden;
-}
-
-.find {
-  margin: var(--s-2);
-  min-height: 36px;
-  padding: 0 var(--s-3);
-  border: 1px solid var(--c-line-mid);
-  border-radius: var(--r-md);
-  font-size: var(--t-caption);
-}
-.find:focus { outline: none; border-color: var(--c-control); }
-
-.list { list-style: none; overflow-y: auto; padding: 2px var(--s-1) var(--s-2); }
-.item {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  width: 100%;
-  min-height: 36px;
-  padding: 0 var(--s-3);
-  border-radius: var(--r-md);
-  font-size: var(--t-caption);
-  text-align: left;
-  color: var(--c-ink);
-}
-.item:hover { background: var(--c-sunk); }
-.item[aria-current] { background: var(--c-kraft); font-weight: 600; }
-.none { padding: var(--s-3); font-size: var(--t-caption); color: var(--c-ink-faint); }
+.allText { display: inline-flex; align-items: baseline; gap: 6px; color: var(--c-ink); font-weight: 500; }
+.allCount { font-size: var(--t-micro); color: var(--c-ink-faint); font-weight: 400; }

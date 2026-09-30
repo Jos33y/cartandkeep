@@ -48,7 +48,6 @@
 }
 .dot[data-sold] { background: var(--c-brand-strong); }
 .dot:hover, .dot:focus-visible { transform: scale(1.6); outline: none; }
-.keyDots { display: inline-block; width: 7px; height: 7px; border-radius: var(--r-full); background: var(--c-brand-strong); box-shadow: 9px 0 0 -1px var(--c-surface), 9px 0 0 0 var(--c-brand-strong); margin-right: 14px !important; }
 
 .median {
   position: absolute;
@@ -155,6 +154,7 @@
 .axis {
   display: flex;
   justify-content: space-between;
+  gap: var(--s-3);
   margin-left: calc(7.5rem + var(--s-4));
   font-size: var(--t-micro);
   color: var(--c-ink-faint);
@@ -164,6 +164,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--s-2) var(--s-5);
+  line-height: 1.5;
   font-size: var(--t-caption);
   color: var(--c-ink-soft);
 }
@@ -171,12 +172,19 @@
 .keyItem { display: inline-block; }
 .keyItem > i { margin-right: var(--s-2); vertical-align: middle; }
 .keyItem b { font-weight: 500; color: var(--c-ink); }
-.keyBody, .keyLoss, .keyGain, .keyThin { display: inline-block; width: 16px; height: 8px; border-radius: var(--r-full); }
-.keyThin { background: var(--c-warning-wash); box-shadow: inset 0 0 0 1px var(--c-warning); }
+.keyBody { display: inline-block; width: 16px; height: 8px; border-radius: var(--r-full); }
 .keyMedian { display: inline-block; width: 2px; height: 12px; background: var(--c-brand-strong); }
 .keyBody { background: var(--c-brand-mid); }
-.keyLoss { background: var(--c-negative-wash); box-shadow: inset 0 0 0 1px var(--c-negative); }
-.keyGain { background: var(--c-positive-wash); box-shadow: inset 0 0 0 1px var(--c-positive); }
+/* Where it pays in one chip: the three colours of the rail, loss, short of profit, full profit. */
+.keyPays {
+  display: inline-block;
+  width: 24px;
+  height: 8px;
+  border-radius: var(--r-full);
+  background: linear-gradient(90deg, var(--c-negative-wash) 0 33%, var(--c-warning-wash) 33% 66%, var(--c-positive-wash) 66%);
+  box-shadow: inset 0 0 0 1px var(--c-line-strong);
+}
+.keyItem .keyMedian { margin: 0 5px 0 4px; }
 
 .keyDot {
   display: inline-block;
@@ -187,11 +195,13 @@
 }
 
 .keyDot.sellerProved { border-color: var(--c-positive); }
-.clipped { color: var(--c-ink-faint); }
+.clipped { color: var(--c-ink-faint); font-family: var(--font-ui); }
 
 @media (max-width: 640px) {
   .lanes { grid-template-columns: 4.5rem minmax(0, 1fr); column-gap: var(--s-3); }
   .axis { margin-left: calc(4.5rem + var(--s-3)); }
+  /* No room for the off-scale note beside the ends on a phone; the rail's own dots still carry their prices. */
+  .axis .clipped { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
