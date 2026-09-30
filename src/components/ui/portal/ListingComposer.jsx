@@ -8,16 +8,18 @@ const TITLE_MAX = 80;
 /*
  * The listing, before it goes up.
  *
- * Home Bargains writes for a shelf label. eBay buyers arrive by searching, so
- * the title decides whether a listing is ever shown and the first photograph
- * decides whether it is opened.
+ * Everything here is hers. The shop's photos and wording are shown for reference and never go up: the draft starts
+ * empty, Suggest and Rewrite for eBay write new copy from the facts, and photos are ones she adds. A photo in the
+ * draft that is the shop's or another seller's is marked, and the card will not go live with it.
  */
-export function ListingComposer({ listing, draft, onChange, onGenerate, onUpload }) {
-  const title = draft.title ?? listing?.title ?? '';
-  const description = draft.description ?? listing?.description ?? '';
-  const images = draft.images ?? listing?.images ?? [];
-  const all = [...new Set([...(listing?.images ?? []), ...(draft.uploads ?? [])])];
-  const excluded = all.filter((src) => !images.includes(src));
+export function ListingComposer({ listing, draft, onChange, onGenerate, onUpload, notMine = [] }) {
+  const title = draft.title ?? '';
+  const description = draft.description ?? '';
+  const images = draft.images ?? [];
+  const theirs = new Set(notMine);
+  // Her own uploads she has taken out can be put back; the shop's cannot.
+  const excluded = (draft.uploads ?? []).filter((src) => !images.includes(src));
+  const reference = [...new Set(listing?.images ?? [])].filter((src) => !images.includes(src)).slice(0, 6);
   const [uploading, setUploading] = useState(false);
 
   const [busy, setBusy] = useState(null);
@@ -66,9 +68,9 @@ export function ListingComposer({ listing, draft, onChange, onGenerate, onUpload
     onChange({ images: next });
   }
 
-  // eBay needs one. Removing the last would publish nothing.
+  // eBay needs one, but a photo that is not hers can always come out.
   function drop(src) {
-    if (images.length <= 1) return;
+    if (images.length <= 1 && !theirs.has(src)) return;
     onChange({ images: images.filter((s) => s !== src) });
   }
 
@@ -121,9 +123,18 @@ export function ListingComposer({ listing, draft, onChange, onGenerate, onUpload
           className={`${styles.input} ${over ? styles.inputOver : ''}`}
           value={title}
           maxLength={TITLE_MAX + 20}
+          placeholder="Press Suggest, or write it"
           onChange={(e) => onChange({ title: e.target.value })}
           aria-label="Listing title"
         />
+        {!title && listing?.title && (
+          <p className={styles.reference}>
+            The shop calls it <q>{listing.title}</q>.{' '}
+            <button type="button" className={styles.referenceUse} onClick={() => onChange({ title: String(listing.title).slice(0, TITLE_MAX) })}>
+              Start from that
+            </button>
+          </p>
+        )}
 
         {options?.length > 0 && (
           <ul className={styles.options}>
@@ -142,10 +153,10 @@ export function ListingComposer({ listing, draft, onChange, onGenerate, onUpload
 
       <Field
         label="Photographs"
-        hint="The first is the search tile. Drag to reorder."
+        hint="Yours only. The first is the search tile; drag to reorder."
         aside={
           <span className={styles.count} data-num>
-            {images.length} of {all.length} going up
+            {images.length} going up
           </span>
         }
       >
@@ -161,8 +172,9 @@ export function ListingComposer({ listing, draft, onChange, onGenerate, onUpload
               onDragEnd={() => setDragFrom(null)}
             >
               <img src={src} alt="" loading="lazy" />
+              {theirs.has(src) && <span className={styles.notMine}>Not yours</span>}
 
-              {images.length > 1 && (
+              {(images.length > 1 || theirs.has(src)) && (
                 <button type="button" className={styles.remove} onClick={() => drop(src)}
                   aria-label="Leave this photograph out">
                   <Icon name="IconX" className={styles.removeIcon} />
@@ -201,16 +213,27 @@ export function ListingComposer({ listing, draft, onChange, onGenerate, onUpload
             </li>
           )}
         </ol>
+        {!images.length && (
+          <p className={styles.reference}>No photos yet. Add your own; the shop's are for reference and never go up.</p>
+        )}
+        {reference.length > 0 && (
+          <div className={styles.refShots}>
+            <span className={styles.refLabel}>The shop's, for reference only</span>
+            <span className={styles.refRow}>
+              {reference.map((src) => <img key={src} src={src} alt="" loading="lazy" />)}
+            </span>
+          </div>
+        )}
       </Field>
 
       <Field
         label="Description"
-        hint="Seeded from the shop's own copy"
+        hint="Your words. The shop's are never used"
         action={
           <button type="button" className={styles.ghost} disabled={busy === 'description'}
             onClick={() => generate('description')}>
             <Icon name="IconRefresh" className={`${styles.icon} ${busy === 'description' ? styles.spin : ''}`} />
-            {busy === 'description' ? 'Writing' : 'Rewrite for eBay'}
+            {busy === 'description' ? 'Writing' : description ? 'Rewrite for eBay' : 'Write for eBay'}
           </button>
         }
       >
@@ -222,6 +245,7 @@ export function ListingComposer({ listing, draft, onChange, onGenerate, onUpload
             className={styles.area}
             value={description}
             rows={4}
+            placeholder="Press Write for eBay: it writes from the facts, and stops if the pack and the text disagree."
             onFocus={() => setFull(true)}
             onChange={(e) => onChange({ description: e.target.value })}
             aria-label="Listing description"

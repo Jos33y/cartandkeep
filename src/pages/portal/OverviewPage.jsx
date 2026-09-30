@@ -5,6 +5,7 @@ import { useListings } from '@hooks/useListings';
 import { useFinance } from '@hooks/useFinance';
 import { useApproved } from '@hooks/useApproved';
 import { assess } from '@lib/assess';
+import { goLive, viewsOf } from '@lib/golive';
 import { PageSkeleton } from '@components/ui/portal/Skeleton';
 import { Card, CardHead } from '@components/ui/portal/primitives';
 import { Icon } from '@components/ui/icons';
@@ -36,11 +37,12 @@ export function OverviewPage() {
   // Approved, not yet listed, read by the same assess() as the Approved page, so "ready" here is the Approved page's
   // Ready count and what each keeps is what the card says, confirmed costs included.
   const approved = useMemo(() => {
-    const as = ap.rows.map((r) => assess(r));
+    const as = ap.rows.map((r) => { const a = assess(r); return { a, gl: goLive(viewsOf(a), r, r.draft ?? {}) }; });
     return {
       waiting: as.length,
-      ready: as.filter((a) => a.ready).length,
-      worth: as.reduce((s, a) => s + Math.max(0, a.keep ?? 0), 0),
+      ready: as.filter(({ gl }) => gl.ready).length,
+      half: as.filter(({ gl }) => gl.started.length > 0).length,
+      worth: as.reduce((s, { a }) => s + Math.max(0, a.keep ?? 0), 0),
     };
   }, [ap.rows]);
 
@@ -61,8 +63,8 @@ export function OverviewPage() {
       icon: 'IconTag',
       tone: 'action',
       count: approved.ready,
-      title: `${n(approved.ready)} ready to list`,
-      body: 'Approved, priced against a seller who is converting, nothing to check.',
+      title: `${n(approved.ready)} ready to go live`,
+      body: 'Approved and checked: in the market, your profit, your photos and your words.',
       to: portalPath('/approved'),
       cta: 'List them',
     },
@@ -79,7 +81,7 @@ export function OverviewPage() {
       tone: 'warning',
       count: approved.waiting - approved.ready,
       title: `${approved.waiting - approved.ready} approved ${plural(approved.waiting - approved.ready, 'needs', 'need')} a look`,
-      body: 'A price, a pack size or a claim to confirm before they go up.',
+      body: 'Photos, a description, a parcel or a price to settle before they go up.',
       to: portalPath('/approved'),
       cta: 'Check them',
     },
@@ -97,7 +99,7 @@ export function OverviewPage() {
     { label: 'To review', value: o.counts.pending, to: portalPath('/candidates'), icon: 'IconLayers' },
     { label: 'Approved', value: approved.waiting, to: portalPath('/approved'), icon: 'IconCheck',
       foot: approved.waiting
-        ? `not listed yet${approved.worth > 0 ? `, ${formatGbp(approved.worth)} if ${plural(approved.waiting, 'it sells', 'each sells')} once` : ''}`
+        ? `${approved.half ? `${n(approved.half)} with one channel left` : 'not live yet'}${approved.worth > 0 ? `, ${formatGbp(approved.worth)} if ${plural(approved.waiting, 'it sells', 'each sells')} once` : ''}`
         : null },
     { label: 'Live', value: onEbay, to: portalPath('/listings'), icon: 'IconTag',
       foot: onShop ? `${onShop} ${plural(onShop, 'is', 'are')} also on your shop` : 'on eBay' },

@@ -217,3 +217,26 @@ ol.gallery { display: flex; gap: var(--s-2); overflow-x: auto; padding-bottom: v
 .addLabel:hover { border-color: var(--c-action-strong); background: var(--c-action-wash); color: var(--c-action-text); }
 .addIcon { width: 18px; height: 18px; }
 .fileInput { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+/* A photo in the draft that is the shop's or another seller's: marked red across the top, and it holds the card back. */
+.notMine {
+  position: absolute;
+  inset: 0 0 auto 0;
+  padding: 2px 0;
+  background: var(--c-negative);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--c-surface);
+}
+
+/* The shop's own name and photos, for reference: quiet, small, and never something that goes up. */
+.reference { margin-top: var(--s-2); font-size: var(--t-caption); line-height: var(--lh-snug); color: var(--c-ink-faint); }
+.reference q { color: var(--c-ink-soft); }
+.referenceUse { font-size: var(--t-caption); font-weight: 500; color: var(--c-action-text); text-decoration: underline; text-underline-offset: 3px; }
+.refShots { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1px dashed var(--c-line-mid); }
+.refLabel { font-size: var(--t-micro); color: var(--c-ink-faint); }
+.refRow { display: flex; gap: 6px; }
+.refRow img { width: 40px; height: 40px; object-fit: contain; border: 1px solid var(--c-line); border-radius: var(--r-sm); background: var(--c-surface); opacity: 0.7; filter: grayscale(0.4); }

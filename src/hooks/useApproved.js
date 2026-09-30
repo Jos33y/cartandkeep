@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@lib/supabase';
+import { readPages } from '@lib/readPages';
+import { channelStates } from '@lib/golive';
 
 // Same to-one embed as the candidates read.
 function one(decisions) {
@@ -24,7 +26,8 @@ export function useApproved(tenantId) {
     if (!tenantId) return;
     setState((s) => ({ ...s, status: 'loading' }));
 
-    const { data, error } = await supabase
+    // In pages: past 1,000 approved cards a single read would stop short without saying so.
+    const { data, error } = await readPages(() => supabase
       .from('candidates')
       .select(`
         id, title, category, external_ref, reference_url, classification,
@@ -45,16 +48,15 @@ export function useApproved(tenantId) {
         )
       `)
       .eq('tenant_id', tenantId)
-      .eq('decisions.action', 'approve')
-      // A row goes to Listings the moment it publishes, so this screen stays
-      // what is still waiting.
-      .is('ebay', null);
+      .eq('decisions.action', 'approve'));
 
     if (error) return setState({ status: 'error', rows: [], error });
 
     setState({
       status: 'ready',
-      rows: data.map(({ decisions, batches, candidate_sources: sources, ...c }) => ({
+      // A card stays until every channel it is meant for has started: live on eBay, and on her shop as a draft
+      // or on sale. A card on eBay still waiting for the shop stays, with only the shop left to do.
+      rows: data.filter((c) => channelStates(c).left.length > 0).map(({ decisions, batches, candidate_sources: sources, ...c }) => ({
         ...c,
         decision: one(decisions),
         delivered_for: batches?.delivered_for ?? null,
@@ -108,7 +110,13 @@ export function useApproved(tenantId) {
         body: { tenant_id: tenantId, candidate_id: candidateId, dry, ...fields },
       });
       if (error || data?.error) throw new Error(data?.error ?? error.message);
-      if (!dry) setState((s) => ({ ...s, rows: s.rows.filter((r) => r.id !== candidateId) }));
+      // Live on eBay: the card keeps its place while another channel is left, and goes once none is.
+      if (!dry) {
+        setState((s) => ({
+          ...s,
+          rows: s.rows.map((r) => (r.id === candidateId ? { ...r, ebay: data } : r)).filter((r) => channelStates(r).left.length > 0),
+        }));
+      }
       return data;
     },
     [tenantId],
@@ -131,7 +139,8 @@ export function useApproved(tenantId) {
 
       setState((s) => ({
         ...s,
-        rows: s.rows.map((r) => (r.id === candidateId ? { ...r, store_products: [data] } : r)),
+        rows: s.rows.map((r) => (r.id === candidateId ? { ...r, store_products: [data] } : r))
+          .filter((r) => channelStates(r).left.length > 0),
       }));
       return data;
     },

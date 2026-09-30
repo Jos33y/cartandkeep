@@ -161,7 +161,7 @@
   text-overflow: ellipsis;
 }
 .flag[data-tone='warning'], .flag[data-tone='info'] { background: var(--c-warning-wash); color: var(--c-warning); }
-.flag[data-tone='negative'] { background: var(--c-negative-wash); color: var(--c-negative); }
+.flag[data-tone='negative'], .flag[data-tone='block'] { background: var(--c-negative-wash); color: var(--c-negative); }
 .flagIcon { flex-shrink: 0; width: 11px; height: 11px; }
 .flagMore { flex-shrink: 0; margin-left: 2px; font-family: var(--font-data); font-weight: 600; }
 .editedTag { flex-shrink: 0; padding: 0 7px; border-radius: 4px; background: var(--c-info-wash); font-size: 11.5px; font-weight: 500; line-height: 18px; color: var(--c-info); }
@@ -172,6 +172,7 @@
 .keepFig[data-tone='positive'] { color: var(--c-positive); }
 .keepFig[data-tone='estimate'] { color: var(--c-ink-soft); }
 .keepFig[data-tone='negative'] { color: var(--c-negative); }
+.keepFig[data-tone='short'] { color: var(--c-warning); }
 .sub { font-size: var(--t-micro); color: var(--c-ink-faint); }
 .status { display: inline-flex; align-items: center; gap: 5px; font-size: var(--t-micro); font-weight: 560; white-space: nowrap; }
 .status i { width: 6px; height: 6px; border-radius: var(--r-full); background: currentColor; }
@@ -459,7 +460,9 @@
   .toast { left: var(--s-3); right: var(--s-3); bottom: var(--s-3); max-width: none; }
 }
 
-.parcel { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-4); }
+.parcel { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-4); padding-top: var(--s-4); border-top: 1px solid var(--c-line); }
+.parcelHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2); }
+.parcelTitle { font-size: var(--t-label); font-weight: 600; color: var(--c-ink); }
 .parcelFields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-2); }
 .parcelField { display: flex; flex-direction: column; gap: var(--s-1); font-size: var(--t-micro); color: var(--c-ink-faint); }
 
@@ -516,3 +519,145 @@
 .channelOption:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
 
 
+
+/* Where the card stands on each channel, as a mark per channel on the row: grey to do, pulsing while working,
+   green once live or on sale, blue as a shop draft. */
+.channels { display: inline-flex; flex-shrink: 0; gap: 4px; }
+.channel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 7px 0 6px;
+  border: 1px solid var(--c-line-mid);
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 18px;
+  color: var(--c-ink-soft);
+  background: var(--c-surface);
+}
+.channel b { font-weight: 500; color: var(--c-ink-faint); }
+.channel i { width: 6px; height: 6px; border-radius: var(--r-full); border: 1.5px solid var(--c-line-strong); }
+.channel[data-state='live'], .channel[data-state='onSale'] { border-color: color-mix(in srgb, var(--c-positive) 35%, transparent); background: var(--c-positive-wash); }
+.channel[data-state='live'] i, .channel[data-state='onSale'] i { border: none; background: var(--c-positive); }
+.channel[data-state='live'] b, .channel[data-state='onSale'] b { color: var(--c-positive); }
+.channel[data-state='draft'] { border-color: color-mix(in srgb, var(--c-info) 35%, transparent); background: var(--c-info-wash); }
+.channel[data-state='draft'] i { border-color: var(--c-info); }
+.channel[data-state='draft'] b { color: var(--c-info); }
+.channel[data-state='working'] i { border: none; background: var(--c-action); animation: pulse 1s var(--ease) infinite alternate; }
+.channel[data-state='working'] b { color: var(--c-action-text); }
+@keyframes pulse { from { opacity: 0.35; } to { opacity: 1; } }
+
+.actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--s-2); }
+.lockNote { flex-basis: 100%; font-size: var(--t-micro); text-align: right; color: var(--c-ink-faint); }
+
+/* Going live: a column per channel, every check with a mark, and the one thing that fixes it. */
+.golive {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--s-3);
+}
+.goCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+  padding: var(--s-3) var(--s-4) var(--s-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--e-1);
+}
+.goHead { display: flex; align-items: center; gap: var(--s-2); padding-bottom: var(--s-2); border-bottom: 1px solid var(--c-line); }
+.goIcon { width: 16px; height: 16px; color: var(--c-ink-faint); }
+.goCol[data-channel='ebay'] .goIcon { color: var(--c-action); }
+.goCol[data-channel='shop'] .goIcon { color: var(--c-info); }
+.goName { font-size: var(--t-label); font-weight: 600; color: var(--c-ink); }
+.goState { padding: 0 7px; border-radius: var(--r-full); background: var(--c-sunk); font-size: var(--t-micro); font-weight: 600; line-height: 18px; color: var(--c-ink-soft); }
+.goState[data-state='live'], .goState[data-state='onSale'] { background: var(--c-positive-wash); color: var(--c-positive); }
+.goState[data-state='draft'] { background: var(--c-info-wash); color: var(--c-info); }
+.goCount { margin-left: auto; font-size: var(--t-micro); color: var(--c-ink-faint); }
+.goDone { font-size: var(--t-caption); line-height: var(--lh-snug); color: var(--c-ink-soft); }
+.goDone b { font-family: var(--font-data); font-weight: 600; color: var(--c-ink); }
+.goDone a { color: var(--c-action-text); text-decoration: underline; text-underline-offset: 3px; }
+
+.goList { display: flex; flex-direction: column; list-style: none; }
+.goItem {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 34px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--c-line);
+  font-size: var(--t-caption);
+  color: var(--c-warning);
+}
+.goItem:last-child { border-bottom: none; }
+.goItem[data-ok] { color: var(--c-ink-soft); }
+.goItem[data-hard] { color: var(--c-negative); }
+.goMark {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--r-full);
+  background: var(--c-warning-wash);
+}
+.goMark i { width: 6px; height: 6px; border-radius: var(--r-full); background: var(--c-warning); }
+.goMark svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.goItem[data-ok] .goMark { background: var(--c-positive-wash); color: var(--c-positive); }
+.goItem[data-hard] .goMark { background: var(--c-negative-wash); color: var(--c-negative); }
+.goText { flex: 1; min-width: 0; line-height: var(--lh-snug); }
+.goFix {
+  flex-shrink: 0;
+  min-height: 26px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  color: var(--c-ink);
+  white-space: nowrap;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.goFix:hover:not(:disabled) { border-color: var(--c-control); background: var(--c-sunk); }
+.goFix:disabled { opacity: 0.55; }
+.goFix:focus-visible, .cheaper:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+.packPanel { display: flex; flex-direction: column; gap: var(--s-2); }
+.packActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s-2); }
+
+.cheaper {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 32px;
+  padding: 0 var(--s-3);
+  border: 1px dashed var(--c-line-strong);
+  border-radius: var(--r-md);
+  font-size: var(--t-caption);
+  font-weight: 500;
+  color: var(--c-ink-soft);
+}
+.cheaper:hover { border-style: solid; color: var(--c-ink); }
+
+.panelNote .draftState { margin-left: var(--s-3); }
+
+@media (prefers-reduced-motion: reduce) {
+  .channel[data-state='working'] i { animation: none; }
+}
+
+@container (max-width: 640px) {
+  .flags { flex-wrap: wrap; row-gap: 4px; white-space: normal; }
+  .flag { white-space: normal; }
+  .golive { grid-template-columns: minmax(0, 1fr); }
+  .goItem { flex-wrap: wrap; }
+  .goFix { margin-left: calc(18px + var(--s-2)); }
+  .actions { justify-content: flex-start; }
+  .lockNote { text-align: left; }
+}

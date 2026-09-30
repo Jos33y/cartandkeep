@@ -75,6 +75,9 @@ const SHOP_NAMES = {
   // The Home Bargains scans label their cards "H & B".
   'H & B': 'Home Bargains',
 };
+// Every shop's name as she reads it, for catching a shop named in her own listing copy.
+export const SHOP_NAME_LIST = [...new Set(Object.values(SHOP_NAMES))];
+
 // Tags from the shelf scripts, and web addresses from the store pipeline ("lakeland.co.uk"), read as one name.
 export const shopName = (tag) => {
   if (tag == null) return tag;
