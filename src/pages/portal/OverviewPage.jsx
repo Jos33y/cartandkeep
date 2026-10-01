@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useOverview, nextMonday } from '@hooks/useOverview';
-import { useListings } from '@hooks/useListings';
+import { useLiveCounts } from '@hooks/useLiveListings';
 import { useFinance } from '@hooks/useFinance';
 import { useApproved } from '@hooks/useApproved';
 import { useSupplierWatch } from '@hooks/useSupplierWatch';
@@ -30,7 +30,8 @@ export function OverviewPage() {
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
   const o = useOverview(tenant?.id);
-  const l = useListings(tenant?.id);
+  // What is live, counted in the database: the Listings page's own numbers.
+  const live = useLiveCounts(tenant?.id);
   const f = useFinance(tenant?.id);
   const ap = useApproved(tenant?.id);
   const sw = useSupplierWatch(tenant?.id);
@@ -48,15 +49,16 @@ export function OverviewPage() {
     };
   }, [ap.rows]);
 
-  if (tenant === undefined || o.status === 'loading' || l.status === 'loading' || f.status === 'loading' || ap.status === 'loading') {
+  if (tenant === undefined || o.status === 'loading' || live.status === 'loading' || f.status === 'loading' || ap.status === 'loading') {
     return <PageSkeleton rows={3} />;
   }
 
-  const onEbay = l.items.filter((i) => i.listingId).length;
-  const onShop = l.items.filter((i) => i.shop?.status === 'live').length;
-  const ebayOnly = l.items.filter((i) => i.listingId && !i.shop).length;
-  // eBay listings with a shop draft that never went live: on eBay, not yet on her shop.
-  const shopDrafts = l.items.filter((i) => i.listingId && i.shop && i.shop.status !== 'live').length;
+  const lc = live.counts ?? {};
+  const onEbay = Number(lc.ebay ?? 0);
+  const onShop = Number(lc.shop ?? 0);
+  // Live on eBay with no shop product at all, and live on eBay with a shop draft waiting in Products.
+  const ebayOnly = Number(lc.no_shop ?? 0);
+  const shopDrafts = Number(lc.drafts ?? 0);
   /*
    * Sold is every unit from her orders, on every channel, since the first sale. It used to add up the traffic of
    * the listings live today over 90 days, so a listing that sold out and ended took its sales with it, and anything
@@ -125,9 +127,9 @@ export function OverviewPage() {
     ebayOnly > 0 && {
       icon: 'IconShop',
       count: ebayOnly,
-      title: `${ebayOnly} on eBay, ${plural(ebayOnly, 'not', 'none')} on your shop`,
-      body: 'Same price keeps more on your own shop, with no eBay fee.',
-      to: portalPath('/listings'),
+      title: `${n(ebayOnly)} on eBay with nothing on your shop`,
+      body: 'Same price keeps more on your own shop, with no eBay fee. Add them as drafts in one go.',
+      to: portalPath('/listings?show=noShop'),
       cta: 'Add them',
     },
   ].filter(Boolean);

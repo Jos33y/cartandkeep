@@ -48,8 +48,16 @@ async function readFrom(queue, only) {
     const buf = Buffer.from(await res.arrayBuffer());
     const xml = (buf[0] === 0x1f && buf[1] === 0x8b ? gunzipSync(buf) : buf).toString('utf8');
     const list = locs(xml);
-    if (/<sitemapindex/i.test(xml)) queue.push(...list.filter((c) => !only || c.toLowerCase().includes(only)));
-    else found.push(...list);
+    // A 200 with no <loc> is usually a bot-check page, not an empty sitemap; say so instead of counting it as read.
+    if (!list.length) console.log(`  sitemap ${res.status}, no <loc> (${res.headers.get('content-type') ?? '?'}): ${u}\n    starts: ${xml.replace(/\s+/g, ' ').slice(0, 120)}`);
+    else if (/<sitemapindex/i.test(xml)) {
+      const next = list.filter((c) => !only || c.toLowerCase().includes(only));
+      queue.push(...next);
+      if (args.verbose) console.log(`  index ${u}: ${list.length} children, following ${next.length}`);
+    } else {
+      found.push(...list);
+      if (args.verbose) console.log(`  ${list.length} urls: ${u}`);
+    }
     await new Promise((r) => setTimeout(r, 400));
   }
   console.log(`  ${seen.size} sitemaps read`);
@@ -59,6 +67,8 @@ async function readFrom(queue, only) {
 if (!await exists(urlFile)) {
   if (!args.base) { console.error(`\n  ${urlFile} not found. Pass --base=<shop> to read its sitemaps here.\n`); process.exit(1); }
   const urls = await readSitemaps(String(args.base));
+  // Nothing read: leave no cache behind, so a retry with --maps or --sitemap reads the sitemaps again.
+  if (!urls.length) { console.log(`\n  0 urls read from ${args.base}, nothing cached. Rerun with --verbose to see each sitemap.\n`); process.exit(1); }
   await writeFile(urlFile, urls.join('\n'));
   console.log(`\n  ${urls.length} urls read from ${args.base}'s sitemaps, cached in ${urlFile}`);
 }

@@ -256,6 +256,8 @@ Deno.serve(async (req) => {
           sold_at: o.creationDate,
           title: l.title ?? 'eBay sale',
           external_sku: sku ?? (legacy || null),
+          // The eBay listing it sold on, whatever SKU she gave it, so each listing's sales can be counted.
+          listing_id: legacy || null,
           product_id: byLegacy.get(legacy) ?? (candidate ? productByCandidate.get(candidate) ?? null : null),
           qty,
           unit_price: qty ? round(gross / qty) : gross,

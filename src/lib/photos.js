@@ -2,8 +2,8 @@
  * Which photos may go up, the portal's copy of supabase/functions/_shared/photos.ts. The eBay function enforces the
  * same rule, so a card the portal calls ready is one eBay's function accepts.
  *
- * A photo goes up when it is hers (she uploaded it), the shop's and Keepr passed it, or eBay's catalogue photo for
- * the barcode (eBay only). Anything else is refused, including the eBay seller's photo the research found.
+ * Any photo she puts in the card goes up, except another eBay seller's (such as the listing the research found).
+ * eBay's catalogue photos are for eBay only. Keepr's photo check suggests and orders photos; it never blocks one.
  */
 
 import { listingOf, productKey, swappedTo } from './product.js';
@@ -22,14 +22,15 @@ export function sourceOf(url, row, draft, channel = 'ebay') {
       ? { url, source: 'catalogue', ok: true }
       : { url, source: 'catalogue', ok: false, why: 'eBay\'s catalogue photos are for eBay only' };
   }
+  // The one photo that never goes up: another eBay seller's, such as the listing the research found.
+  if (ANOTHER_SELLER.test(url)) return { url, source: 'other', ok: false, why: 'another eBay seller\'s photo' };
+  // Anything else she put in the card goes up. Keepr's photo check advises; it does not hold a listing back.
   const seen = checkedPhotos(pc).find((i) => i.url === url || i.copy === url);
-  if (seen) {
-    if (pc.brand_rule) return { url, source: 'shop', ok: false, why: `${pc.brand} photos come from eBay's catalogue or yours, not the shop's` };
-    return seen.ok ? { url, source: 'shop', ok: true } : { url, source: 'shop', ok: false, why: seen.reasons?.[0] ?? 'failed the photo check' };
-  }
-  if ((listingOf(row, draft)?.images ?? []).includes(url)) return { url, source: 'shop', ok: false, why: 'not checked yet' };
-  return { url, source: 'other', ok: false, why: 'not yours, not checked, and not from the catalogue' };
+  return { url, source: 'shop', ok: true, note: seen && !seen.ok ? seen.reasons?.[0] ?? null : null };
 }
+
+// eBay's own image host: a photo there that is not eBay's catalogue entry is another seller's.
+const ANOTHER_SELLER = /^https?:\/\/i\.ebayimg\.com\//i;
 
 // Every photo Keepr checked for this product: the first shop's, then those of other UK shops matched to it.
 export const checkedPhotos = (pc) => [
@@ -42,20 +43,34 @@ export const checkedPhotos = (pc) => [
 export function passedPhotos(row, draft = row.draft ?? {}) {
   const pc = freshChecks(row, draft);
   if (!pc || pc.brand_rule) return [];
-  return checkedPhotos(pc).filter((i) => i.ok).map((i) => i.copy ?? i.url);
+  // Plain product shots first: the first photo is the search tile. The maker's callouts and lifestyle shots follow.
+  return checkedPhotos(pc).filter((i) => i.ok)
+    .sort((x, y) => Number(Boolean(x.extra)) - Number(Boolean(y.extra)))
+    .map((i) => i.copy ?? i.url);
 }
 
-// What finding photos puts in her draft, never over what she already has: the checked shop photos when she has
-// none, and eBay's catalogue entry when she has not chosen one. Null when there is nothing to add.
+// What finding photos puts in her draft: every photo that passed, plain shots first, after what she already has, up
+// to eBay's twelve; and eBay's catalogue entry when she has not chosen one. A photo goes in once: one she took out
+// is remembered in `photos_offered` and never comes back by itself. Null when there is nothing to add.
 export function photosToAdd(row, draft) {
   const pc = freshChecks(row, draft);
   if (!pc) return null;
   const patch = {};
-  const passed = passedPhotos(row, draft);
-  if (!(draft.images ?? []).length && passed.length) patch.images = passed.slice(0, 8);
+  const have = draft.images ?? [];
+  const offered = new Set(draft.photos_offered ?? []);
+  const fresh = passedPhotos(row, draft).filter((u) => !have.includes(u) && !offered.has(u));
+  const room = Math.max(0, 12 - have.length);
+  if (fresh.length && room) {
+    const adding = fresh.slice(0, room);
+    patch.images = [...have, ...adding];
+    patch.photos_offered = [...offered, ...have, ...adding];
+  }
   if (!draft.catalogue?.epid && pc.catalogue?.epid) patch.catalogue = { epid: pc.catalogue.epid, title: pc.catalogue.title, images: pc.catalogue.images ?? [] };
   return Object.keys(patch).length ? patch : null;
 }
+
+// How many photos a patch from photosToAdd puts in.
+export const photosAdded = (patch, draft) => (patch?.images ? patch.images.length - (draft?.images ?? []).length : 0);
 
 // Why the shop's photos cannot help, in one line, once they have been checked.
 export function noShopPhotos(row, draft = row.draft ?? {}) {

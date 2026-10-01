@@ -64,34 +64,28 @@ Deno.test('a bare card cannot go up, and nothing falls back to the shop', async 
   assertEquals(p.images, []);
 });
 
-Deno.test('unchecked shop photos and the competitor\'s photo are refused; the shop\'s wording is refused', async () => {
+Deno.test('only another eBay seller\'s photo is refused; the shop\'s wording is refused', async () => {
   mockFetch(baseRoutes);
   const p = await prepare(card({ draft: { title: 'Flexitol Heel Balm 40g', description: 'Buy Flexitol at Home Bargains', images: ['https://hb.example/shop1.jpg', 'https://i.ebayimg.com/competitor.jpg'], package: { weight_kg: 0.1 }, aspects: { Type: 'Cream' } } }), {}, tokens);
   const text = p.problems.join(' ');
-  assert(text.includes('2 photos cannot go up: not checked yet; not hers, not checked, and not from the catalogue'), text);
+  assert(text.includes("A photo cannot go up: another eBay seller's photo"), text);
+  assert(!text.includes('not checked'), text);
   assert(text.includes("the shop's own wording"), text);
 });
 
 const checked = (images: any[], extra: any = {}) => ({ checked_at: '2026-09-30T20:00:00Z', shop: 'hb.example', brand: 'Flexitol', brand_rule: null, images, ...extra });
 const words = { title: 'Flexitol Heel Balm 40g', description: 'For dry heels.', package: { weight_kg: 0.1 }, aspects: { Type: 'Cream' } };
 
-Deno.test('a shop photo Keepr passed goes up, recorded as the shop\'s; one it failed is refused with the reason', async () => {
+Deno.test('a shop photo goes up whatever the check said: it advises, it does not hold a listing back', async () => {
   mockFetch({ ...baseRoutes, 'product_summary/search': () => [404, { errors: [{ message: 'none' }] }] });
   const pass = card({ draft: { ...words, images: ['https://hb.example/shop1.jpg'] }, photo_checks: checked([{ url: 'https://hb.example/shop1.jpg', ok: true, reasons: [] }]) });
   let p = await prepare(pass, {}, tokens);
   assertEquals(p.problems, []);
   assertEquals(p.images, ['https://hb.example/shop1.jpg']);
   assertEquals(p.imageSource, 'shop');
-  const fail = card({ draft: { ...words, images: ['https://hb.example/shop1.jpg'] }, photo_checks: checked([{ url: 'https://hb.example/shop1.jpg', ok: false, reasons: ["Shop's name or logo on it"] }]) });
-  p = await prepare(fail, {}, tokens);
-  assert(p.problems.some((x) => x.includes("A photo cannot go up: Shop's name or logo on it")), p.problems.join(' '));
-});
-
-Deno.test('a brand on the list: its shop photos are refused even when they passed', async () => {
-  mockFetch({ ...baseRoutes, 'product_summary/search': () => [404, { errors: [{ message: 'none' }] }] });
-  const c = card({ draft: { ...words, images: ['https://hb.example/shop1.jpg'] }, photo_checks: checked([{ url: 'https://hb.example/shop1.jpg', ok: true, reasons: [] }], { brand: 'Lego', brand_rule: 'catalogue_only' }) });
-  const p = await prepare(c, {}, tokens);
-  assert(p.problems.some((x) => x.includes("Lego photos come from eBay's catalogue or yours")), p.problems.join(' '));
+  const flagged = card({ draft: { ...words, images: ['https://hb.example/shop1.jpg'] }, photo_checks: checked([{ url: 'https://hb.example/shop1.jpg', ok: false, reasons: ["Shop's name or logo on it"] }], { brand: 'Lego', brand_rule: 'catalogue_only' }) });
+  p = await prepare(flagged, {}, tokens);
+  assertEquals(p.problems, []);
 });
 
 Deno.test('eBay: her photos first, then the catalogue, then the shop\'s passed photos', async () => {
@@ -251,4 +245,61 @@ Deno.test('on her supplier\'s page, the old shelf barcode is not this product\'s
   const c = { margin: { shelf: { gtin: EAN } }, draft: { page: 'https://supplier.test/gun' }, listing: { source_url: 'https://shop.test/old', gtin: EAN } };
   assertEquals(gtinOf(c), null);
   assertEquals(gtinOf({ ...c, listing: { source_url: 'https://supplier.test/gun', gtin: '5016870223499' } }), '5016870223499');
+});
+
+Deno.test('a 12-digit barcode goes up as a UPC, not an EAN', async () => {
+  mockFetch({
+    ...baseRoutes,
+    '/inventory_item/': () => [204, null],
+    '/offer?sku=': () => [404, { errors: [{ message: 'none' }] }],
+    '/offer/OFF1/publish': () => [200, { listingId: '556' }],
+    '/sell/inventory/v1/offer': () => [201, { offerId: 'OFF1' }],
+  });
+  const c = card({ margin: { sale_price: 27.49, shelf: { gtin: '734730596013' } }, draft: { title: 'Shaver', description: 'Words.', images: ['https://store.example/her1.jpg'], uploads: ['https://store.example/her1.jpg'], aspects: { Type: 'Gel' } } });
+  const p = await prepare(c, {}, tokens);
+  await publish(c, p, { fulfillment: 'F', payment: 'P', return: 'R', location: 'L' }, 'U');
+  const item = calls.find((x) => x.url.includes('/inventory_item/') && x.method === 'PUT')!;
+  assertEquals(item.body.product.upc, ['734730596013']);
+  assertEquals(item.body.product.ean, undefined);
+});
+
+Deno.test('"Product not found" at publish: the item goes up again without its barcode, and it lists', async () => {
+  let n = 0;
+  mockFetch({
+    ...baseRoutes,
+    '/inventory_item/': () => [204, null],
+    '/offer?sku=': () => [200, { offers: [{ offerId: 'OFF2' }] }],
+    '/offer/OFF2/publish': () => (++n === 1
+      ? [400, { errors: [{ errorId: 25604, message: 'Input error. Seller Inventory Service can not publish the data. Product not found.' }] }]
+      : [200, { listingId: '557' }]),
+    '/offer/OFF2': () => [204, null],
+  });
+  const c = card({ draft: { title: 'Flexitol Heel Balm 40g', description: 'For dry heels.', images: ['https://store.example/her1.jpg'], uploads: ['https://store.example/her1.jpg'], aspects: { Type: 'Cream', EAN: EAN } } });
+  const p = await prepare(c, { price: 12 }, tokens);
+  const rec = await publish(c, p, { fulfillment: 'F', payment: 'P', return: 'R', location: 'L' }, 'U');
+  const puts = calls.filter((x) => x.url.includes('/inventory_item/') && x.method === 'PUT');
+  assertEquals(puts.length, 2);
+  assertEquals(puts[0].body.product.ean, [EAN]);
+  assertEquals(puts[1].body.product.ean, undefined);
+  assertEquals(puts[1].body.product.aspects.EAN, undefined);
+  assertEquals(puts[1].body.product.aspects.Type, ['Cream']);
+  assertEquals(rec.listing_id, '557');
+  assertEquals(rec.barcode_dropped, EAN);
+  assertEquals(rec.gtin, undefined);
+});
+
+Deno.test('any other refusal at publish is not retried', async () => {
+  mockFetch({
+    ...baseRoutes,
+    '/inventory_item/': () => [204, null],
+    '/offer?sku=': () => [200, { offers: [{ offerId: 'OFF3' }] }],
+    '/offer/OFF3/publish': () => [400, { errors: [{ errorId: 25002, message: 'A user error has occurred.' }] }],
+    '/offer/OFF3': () => [204, null],
+  });
+  const c = card({ draft: { title: 'Flexitol Heel Balm 40g', description: 'For dry heels.', images: ['https://store.example/her1.jpg'], uploads: ['https://store.example/her1.jpg'], aspects: { Type: 'Cream' } } });
+  const p = await prepare(c, { price: 12 }, tokens);
+  let threw = false;
+  try { await publish(c, p, { fulfillment: 'F', payment: 'P', return: 'R', location: 'L' }, 'U'); } catch (e) { threw = true; assert(String((e as Error).message).includes('user error')); }
+  assert(threw);
+  assertEquals(calls.filter((x) => x.url.includes('/inventory_item/') && x.method === 'PUT').length, 1);
 });

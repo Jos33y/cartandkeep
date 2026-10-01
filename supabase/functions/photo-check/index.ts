@@ -171,9 +171,11 @@ Deno.serve(async (req) => {
      * refuse to be read by a server are read by her browser, on the page she is looking at. Its photos are checked
      * like any shop's, and kept beside the others; the rest of the check is left as it was.
      */
+    // A sent page is the gallery she chose to send, so all of eBay's twelve are looked at.
+    const SENT_PHOTOS = 12;
     if (supplied && Array.isArray(supplied.images)) {
       const from = (() => { try { return new URL(String(supplied.url)).hostname.replace(/^www\./, ''); } catch { return 'your supplier'; } })();
-      const pics = [...new Set((supplied.images as unknown[]).map(String).filter((u) => /^https:\/\//.test(u)))].slice(0, MAX_PHOTOS);
+      const pics = [...new Set((supplied.images as unknown[]).map(String).filter((u) => /^https:\/\//.test(u)))].slice(0, SENT_PHOTOS);
       const checked = rule ? [] : await checkPhotos(pics, from, (i) => `s${i + 1}`);
       const prev = c.photo_checks && (c.photo_checks.product ?? null) === productKey(c) && (c.photo_checks.version ?? 1) >= READER ? c.photo_checks : null;
       const entry = {

@@ -132,3 +132,25 @@ export function riskLine(r) {
     concerns: (k.concerns ?? []).map((c) => ({ topic: c.topic, text: `${c.negative} of ${c.mentions} mentions negative`, quote: c.quote })),
   };
 }
+
+/*
+ * The item's weight from her Amazon page, in kilograms: Amazon's details table first ("Item Weight: 500 Grams"),
+ * then a weight in the bullets. Null when nothing says.
+ */
+const UNIT = [[/^(kg|kilo|kilogram|kilograms)$/i, 1], [/^(g|gram|grams)$/i, 0.001], [/^(lb|lbs|pound|pounds)$/i, 0.4536], [/^(oz|ounce|ounces)$/i, 0.02835]];
+export function weightKg(text) {
+  const m = /(\d+(?:[.,]\d+)?)\s*(kg|kilograms?|kilo|g|grams?|lbs?|pounds?|oz|ounces?)\b/i.exec(String(text ?? ''));
+  if (!m) return null;
+  const n = Number(m[1].replace(',', '.'));
+  const unit = UNIT.find(([re]) => re.test(m[2]));
+  const kg = unit ? n * unit[1] : null;
+  return kg && kg > 0 && kg < 100 ? Math.round(kg * 1000) / 1000 : null;
+}
+export function amazonWeight(r) {
+  const details = r?.facts?.details ?? [];
+  const line = details.find((d) => /^(item weight|weight|product weight)\s*:/i.test(d))
+    ?? details.find((d) => /weight/i.test(d) && !/capacity|max|load/i.test(d));
+  return weightKg(line?.split(':').slice(1).join(':')) ?? null;
+}
+// Packed, it weighs more: 15% for the box and wrapping, rounded up to the next 50g, at least 50g more.
+export const packedKg = (itemKg) => (itemKg ? Math.ceil(Math.max(itemKg * 1.15, itemKg + 0.05) * 20) / 20 : null);

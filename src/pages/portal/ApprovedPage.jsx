@@ -11,10 +11,10 @@ import { BriefStrip, ComparePanel } from '@components/ui/portal/CandidateBrief';
 import { ShelfLabel, confirmSource } from '@components/ui/portal/CandidateRow';
 import { assess, shopName } from '@lib/assess';
 import { STATE_WORD, goLive, ownMarket, parcelFor, parcelOf, viewsOf } from '@lib/golive';
-import { freshChecks, isHers, noShopPhotos, pageOf, photosToAdd, sourceOf } from '@lib/photos';
+import { freshChecks, isHers, noShopPhotos, pageOf, photosAdded, photosToAdd, sourceOf } from '@lib/photos';
 import { PRODUCT_FIELDS, sameListing } from '@lib/product';
 import { bookmarkletFor, likelyCard, readSent } from '@lib/sendToCart';
-import { amazonPageOf, isAmazonUk, needsRead, readOf, sentOf, supplierPatch, supplierWarnings } from '@lib/supplierWatch';
+import { amazonPageOf, amazonWeight, isAmazonUk, needsRead, packedKg, readOf, sentOf, supplierPatch, supplierWarnings, weightKg } from '@lib/supplierWatch';
 import { SupplierWatch } from '@components/ui/portal/SupplierWatch';
 import { KeeprSuggestion } from '@components/ui/portal/MarketListings';
 import { ListingComposer } from '@components/ui/portal/ListingComposer';
@@ -118,7 +118,7 @@ export function ApprovedPage() {
         const mine = (pc.others ?? []).find((o) => o.url === sent.url);
         passed = (mine?.images ?? []).filter((i) => i.ok).length;
         const add = photosToAdd({ ...row, photo_checks: pc }, { ...(row.draft ?? {}), supplier_text: sent.text });
-        if (add?.images) { await patchDraft(row.id, add); added = add.images.length; }
+        if (add?.images) { await patchDraft(row.id, add); added = photosAdded(add, row.draft); }
       }
       setNotice({
         title: `Sent from ${sent.shop || "your supplier's page"}`,
@@ -281,7 +281,14 @@ export function ApprovedPage() {
           try { d = await patchDraft(row.id, fill); done.push('Amazon\'s product details'); } catch (e) { short.push(`Amazon's details not saved: ${e.message}`); }
         }
       } else short.push(`Amazon's page: ${got?.error ?? 'not read'}`);
-    } else if (readOf(row)?.facts) supplied = sentOf(readOf(row));
+    } else if (readOf(row)?.facts) {
+      // Read already, by the morning check or another card: its facts still go in an empty supplier box.
+      supplied = sentOf(readOf(row));
+      const fill = supplierPatch(d, readOf(row));
+      if (fill) {
+        try { d = await patchDraft(row.id, fill); done.push('Amazon\'s product details'); } catch (e) { short.push(`Amazon's details not saved: ${e.message}`); }
+      }
+    }
     const [t, w, ph] = await Promise.allSettled([
       want.title ? compose(row.id, 'title') : null,
       want.words ? compose(row.id, 'description') : null,
@@ -300,7 +307,8 @@ export function ApprovedPage() {
       const add = seen ? photosToAdd(seen, d) : null;
       if (add) {
         Object.assign(patch, add);
-        if (add.images) done.push(`${add.images.length} ${add.images.length === 1 ? 'photo' : 'photos'}`);
+        const n = photosAdded(add, d);
+        if (n) done.push(`${n} ${n === 1 ? 'photo' : 'photos'}`);
         if (add.catalogue) done.push('eBay\'s catalogue');
       } else short.push(seen ? (noShopPhotos(seen, d) ?? 'no photos to add, add your own') : `photos: ${why(ph)}`);
     }
@@ -849,6 +857,20 @@ function Pack({
   // Her Amazon supplier: the page the card is checked against, and what it said when last read.
   const amazonPage = amazonPageOf({ ...row, draft });
   const amazonRead = readOf({ ...row, draft });
+  // Her Amazon page, read already (on add or by the morning check): its facts go in an empty supplier box once the
+  // card is opened, so the writing has them. Never over words she pasted or edited.
+  useEffect(() => {
+    if (!open || !amazonRead?.facts || (draft.supplier_text ?? '').trim()) return;
+    const fill = supplierPatch(draft, amazonRead);
+    if (fill) change(fill);
+  }, [open, amazonRead?.read_at]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Photos that passed and are not in the draft yet go in when the card is opened, plain shots first. She takes out
+  // the ones she does not want; those stay out.
+  useEffect(() => {
+    if (!open || queued || working || row.ebay?.listing_id) return;
+    const add = photosToAdd(row, draft);
+    if (add?.images) change({ images: add.images, photos_offered: add.photos_offered });
+  }, [open, row.photo_checks]); // eslint-disable-line react-hooks/exhaustive-deps
   const supplierFlag = useMemo(() => supplierWarnings(readOf(row)).find((w) => w.level !== 'note') ?? null, [row]);
 
   // eBay's check with Keepr filling the item details: the category it settles on and the values go on her draft.
@@ -891,7 +913,18 @@ function Pack({
       } catch (e) {
         short.push(`Amazon's page: ${e.message}`);
       }
-    } else if (amazonRead?.facts) supplied = sentOf(amazonRead);
+    } else if (amazonRead?.facts) {
+      supplied = sentOf(amazonRead);
+      const fill = supplierPatch(draft, amazonRead);
+      if (fill) { change(fill); await flush(); done.push('Amazon\'s product details'); }
+    }
+    // Amazon's item weight, packed, into a parcel with none: calculated postage prices by it.
+    const kg = packedKg(amazonWeight(amazonRead));
+    if (kg && !(Number(draft.package?.weight_kg) > 0)) {
+      const { label: _band, ...box } = parcel ?? {};
+      patch.package = { ...box, ...(draft.package ?? {}), weight_kg: kg };
+      done.push(`a ${kg}kg parcel weight from Amazon`);
+    }
     const [t, d, ph] = await Promise.allSettled([
       missing.title ? generate('title') : null,
       missing.words ? generate('description') : null,
@@ -909,7 +942,8 @@ function Pack({
         const add = photosToAdd(seen, draft);
         if (add) {
           Object.assign(patch, add);
-          if (add.images) done.push(`${add.images.length} ${add.images.length === 1 ? 'photo' : 'photos'}`);
+          const n = photosAdded(add, draft);
+          if (n) done.push(`${n} ${n === 1 ? 'photo' : 'photos'}`);
           if (add.catalogue) done.push('eBay\'s catalogue');
         } else short.push(`Photos: ${noShopPhotos(seen, draft) ?? 'none to add'}. Add your own.`);
       } else short.push(`Photos: ${why(ph)}`);
@@ -1098,7 +1132,7 @@ function Pack({
       if (photos && sent?.images?.length) {
         const pc = await onCheckPhotos({ supplied: sent });
         const add = photosToAdd({ ...row, photo_checks: pc }, { ...draft, ...(fill ?? {}) });
-        if (add) { change(add); added = add.images?.length ?? 0; }
+        if (add) { change(add); added = photosAdded(add, draft); }
       }
       return { r, filled: Boolean(fill), added };
     } finally {
@@ -1123,7 +1157,11 @@ function Pack({
     setFinding(true);
     setProblem(null);
     try {
-      const checks = !again && !wider && freshChecks(row, draft) ? freshChecks(row, draft) : await onCheckPhotos({ again, wider });
+      // Her Amazon page's photos, read but not yet looked at, go through the check first.
+      const amazonSent = amazonRead?.facts ? sentOf(amazonRead) : null;
+      const checks = amazonSent && (again || unchecked(row, amazonSent))
+        ? await onCheckPhotos({ again, wider, supplied: amazonSent })
+        : !again && !wider && freshChecks(row, draft) ? freshChecks(row, draft) : await onCheckPhotos({ again, wider });
       if (!apply) return;
       const seen = { ...row, photo_checks: checks };
       const patch = photosToAdd(seen, draft);
@@ -1218,7 +1256,9 @@ function Pack({
   return (
     <article ref={cardRef} className={`${styles.pack} ${open ? styles.packOpen : ''}`} data-status={status}
       data-selected={selected || undefined} data-candidate={row.id}>
-      {zoomed && <ImageLightbox src={hero} alt={a.title} onClose={() => setZoomed(false)} />}
+      {zoomed && ((draft.images ?? []).length
+        ? <ImageLightbox images={draft.images} alt={a.title} note="Going up on eBay in this order. The first is the search tile." onClose={() => setZoomed(false)} />
+        : <ImageLightbox src={hero} alt={a.title} onClose={() => setZoomed(false)} />)}
 
       <div className={styles.top} role="button" tabIndex={0} aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
@@ -1607,8 +1647,8 @@ function Pack({
                 <ListingComposer listing={a.moved ? a.l : a.l ?? row.listing} draft={draft} onChange={change}
                   onGenerate={generate} onUpload={upload}
                   judge={(src) => sourceOf(src, row, draft, gl.left.includes('ebay') ? 'ebay' : 'shop')}
-                  checks={freshChecks(row, draft)} onCheck={() => findPhotos({ again: true, apply: false })} checking={finding}
-                  onWider={() => findPhotos({ wider: true, apply: false })} />
+                  checks={freshChecks(row, draft)} onCheck={() => findPhotos({ again: true })} checking={finding}
+                  onWider={() => findPhotos({ wider: true })} />
                 {draft.catalogue?.epid && (
                   <div className={styles.catalogue}>
                     {draft.catalogue.images?.[0] && <img src={draft.catalogue.images[0]} alt="" loading="lazy" />}
@@ -1621,7 +1661,7 @@ function Pack({
                     <button type="button" className={styles.revert} onClick={() => change({ catalogue: null })}>Remove</button>
                   </div>
                 )}
-                <Parcel box={draft.package} suggest={parcel} onChange={(box) => change({ package: box })} />
+                <Parcel box={draft.package} suggest={parcel} onChange={(box) => change({ package: box })} itemKg={amazonWeight(amazonRead)} />
               </section>
             </div>
 
@@ -1782,7 +1822,7 @@ function SendButtonHint() {
   return (
     <span className={styles.sendHint}>
       Faster: drag <a ref={ref} className={styles.sendButton} onClick={(e) => e.preventDefault()} draggable="true">Send to Cart &amp; Keep</a> to
-      your bookmarks bar once. On the supplier's product page, press it: the details and photos come straight here.
+      your bookmarks bar once. Then open your supplier's product page, on any shop, and press it there: the details and photos come straight here.
     </span>
   );
 }
@@ -1855,16 +1895,32 @@ function GoLiveList({ gl, row, onGo, parcel, onParcel, onWrite, writing, onPrice
 // The parcel as packed, which eBay's tracked services price by. Filled from the card's postage band when she agrees.
 // The parcel as packed, which eBay's calculated postage prices by. Until she changes it, it is the card's postage
 // band: shown as real values, and what goes up.
-function Parcel({ box = null, suggest, onChange }) {
+function Parcel({ box = null, suggest, onChange, itemKg = null }) {
   const { label, ...band } = suggest ?? {};
   const v = { ...band, ...(box ?? {}) };
-  const set = (k) => (e) => onChange({ ...v, [k]: e.target.value === '' ? '' : Number(e.target.value) });
+  /*
+   * What she types, kept as typed until it is a number: "0." on its way to "0.5" stays "0.", and "500g" or
+   * "1.2 kg" is read in its unit. Saved as kilograms and centimetres.
+   */
+  const [typed, setTyped] = useState({});
+  const shown = (k) => (typed[k] ?? (v[k] ?? ''));
+  const set = (k) => (e) => {
+    const raw = e.target.value;
+    setTyped((t) => ({ ...t, [k]: raw }));
+    const text = raw.trim();
+    if (text === '') { onChange({ ...v, [k]: '' }); return; }
+    const value = k === 'weight_kg' && /[a-z]/i.test(text) ? weightKg(text) : /^\d+(\.\d+)?$/.test(text) ? Number(text) : null;
+    if (value != null) onChange({ ...v, [k]: value });
+  };
+  const settle = (k) => () => setTyped((t) => { const { [k]: _gone, ...rest } = t; return rest; });
+  const packed = packedKg(itemKg);
+  const weightNow = Number(v.weight_kg) || null;
   return (
     <div className={styles.parcel} data-part="parcel">
       <span className={styles.parcelHead}>
         <span className={styles.parcelTitle}>Parcel, as packed</span>
         {suggest && (box ? (
-          <button type="button" className={styles.goFix} onClick={() => onChange(null)}>
+          <button type="button" className={styles.goFix} onClick={() => { setTyped({}); onChange(null); }}>
             Back to the {label ?? 'postage band'}
           </button>
         ) : (
@@ -1876,14 +1932,22 @@ function Parcel({ box = null, suggest, onChange }) {
           <label key={k} className={styles.parcelField}>
             <span>{name}</span>
             <span className={styles.parcelControl}>
-              <input inputMode="decimal" data-num value={v[k] ?? ''} onChange={set(k)} placeholder={k === 'weight_kg' ? 'Optional' : ''} />
+              <input inputMode="decimal" data-num value={shown(k)} onChange={set(k)} onBlur={settle(k)}
+                placeholder={k === 'weight_kg' ? (packed ? String(packed) : 'Optional') : ''}
+                aria-label={k === 'weight_kg' ? 'Weight in kilograms, or type it in grams, for example 500g' : `${name} in centimetres`} />
               <span className={styles.parcelUnit}>{unit}</span>
             </span>
           </label>
         ))}
       </div>
-      {!(Number(v.weight_kg) > 0) && (
-        <p className={styles.parcelNote}>No weight needed for flat or free postage. If your eBay postage works the cost out by weight, eBay's check will ask for it.</p>
+      {packed && weightNow !== packed && (
+        <p className={styles.parcelNote}>
+          Amazon gives the item as {itemKg < 1 ? `${Math.round(itemKg * 1000)}g` : `${itemKg}kg`}. Packed, about {packed}kg.{' '}
+          <button type="button" className={styles.goFix} onClick={() => { setTyped({}); onChange({ ...v, weight_kg: packed }); }}>Use {packed}kg</button>
+        </p>
+      )}
+      {!weightNow && !packed && (
+        <p className={styles.parcelNote}>No weight needed for flat or free postage. If your eBay postage works the cost out by weight, eBay's check will ask for it. Type it in kg, or in grams as 500g.</p>
       )}
     </div>
   );

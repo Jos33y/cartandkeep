@@ -39,7 +39,7 @@ import { D, BANDS } from './lib/cost.js';
 import { parseCsv, readShelf, readShelfProducts, shelfFor, readProducts, shopFromUrl, num, int, yes } from './lib/sources.js';
 import { envKey, proposeShops } from './lib/shops.js';
 import { entryKeepOf, listingsOf, refusalsOf } from './lib/refusals.js';
-import { BAND_LABEL, entryRank, buildRow, listPrice, titleOf } from './lib/row.js';
+import { BAND_LABEL, entryRank, buildRow, listPrice, matchOf, titleOf } from './lib/row.js';
 import { MARKET, refreshMarket, writeCoverage } from './lib/persist.js';
 import { ebayAtWeight } from '../src/lib/pricing.js';
 import { categorise } from './categories/categorise.mjs';
@@ -52,6 +52,16 @@ export { listPrice, buildRow, parseCsv, readShelf };
 // A store card the gate also passes gains eBay: the label, the market read and the eBay figures under
 // margin.ebay, with the store card's cost standing as the goods so the eBay view has a real keep figure.
 // Its store figures, title and batch are left as they are.
+// The eBay pack is judged by the gate's own check (matchOf), run against the store card's shelf, never asserted:
+// a store card proves the shop's pack, not the pack the eBay listing sells (Pedigree cubes, £1.29 shelf against a
+// £12.39 listing). Same pack only when the check says so; otherwise the card asks her to confirm the pack.
+function packAgainst(m, entryTitle) {
+  if (m?.cost == null || !m?.cost_from?.product) return null;
+  const got = matchOf({ product: m.cost_from.product, brand: m.brand ?? null, gtin: m.gtin ?? null, price: m.cost }, null, entryTitle);
+  return got ? { ...got, via: `${got.via}, shelf from the store card` } : null;
+}
+const UNKNOWN_PACK = { level: 'same_product_unknown_pack', via: 'the store card, pack not compared' };
+
 function addEbay(db, card, gated) {
   return db.from('candidates').update({
     recommended_channels: [...new Set(['store', ...(card.recommended_channels ?? []), 'ebay'])],
@@ -67,7 +77,7 @@ function addEbay(db, card, gated) {
       ebay: {
         ...ebayAtWeight(gated.margin, card.margin?.postage_band?.grams),
         shelf: card.margin?.cost_from ? { ...card.margin.cost_from, price: card.margin.cost } : gated.margin.shelf,
-        match: card.margin?.cost != null ? { level: 'same_product_same_pack', via: 'the store card' } : gated.margin.match,
+        match: card.margin?.cost != null ? packAgainst(card.margin, gated.entry?.title) ?? UNKNOWN_PACK : gated.margin.match,
       },
     },
   }).eq('id', card.id);

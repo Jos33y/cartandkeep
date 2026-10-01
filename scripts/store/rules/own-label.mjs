@@ -17,6 +17,11 @@ export const OWN_LABEL = [
   'h&m', 'shein', 'primark', 'very', 'debenhams', 'cotton traders', 'papier',
   // Print on demand
   'photobox', 'printerpix', 'optimalprint', 'soufeel', 'zazzle', 'displate',
+  // Toy shops' own brands
+  'chad valley', 'addo', 'hamleys', 'the entertainer', 'smyths', 'smyths toys', 'toys r us', 'early learning centre', 'elc',
+  // Shops whose own brand reaches Google's best sellers: Harrods x Disney bears, Vertbaudet kitchens, Decathlon's sports brands
+  'harrods', 'vertbaudet', 'fortnum & mason', 'fortnum and mason', 'decathlon', 'kipsta', 'domyos', 'btwin', 'ryman', 'tts',
+  'natural history museum', 'science museum', 'mamas & papas', 'mamas and papas', 'hb', 'sweeek',
   // Pets
   '3 peaks', 'pets at home',
   // Health and beauty

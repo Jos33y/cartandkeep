@@ -21,14 +21,14 @@ const BIG_APPLIANCE = String.raw`integrated|freestanding|free standing|built[- ]
 
 export const NOT_SHELF = [
   // Made to order and print on demand
-  ['blinds?', null, String.raw`brackets?|cords?|chains?|cleaner|fittings?|clips?|springs?|parts?|wands?`],
+  ['blinds?', null, String.raw`brackets?|cords?|chains?|cleaner|fittings?|clips?|springs?|parts?|wands?|box(?:es)?|bags?|series|figures?|mystery|pendant`],
   ['made to measure'], ['personali[sz]ed'], ['photo ?book'], ['poster'], ['wallpaper', null, String.raw`cover[- ]up|strippers?|steamers?|paste|adhesive|scrapers?|scorers?|primer|remover|smoothers?|brush(?:es)?|cutters?|tools?|kit`], ['mural'],
   // "Print" only as a picture: leopard print and bow print bedding pass.
   [String.raw`(?:art|framed|photo|canvas|giclee|fine art|wall) prints?|prints? (?:a[1-5]|framed|unframed)`],
   ['prints?', String.raw`wall art|posters?|framed|unframed|a[1-5]|canvas|giclee|wall decor`],
   // Living plants and trees. Pots, feed, stands, lights, artificial plants and Christmas trees pass.
-  ['plants?', null, String.raw`pots?|planters?|food|feed|fertili[sz]ers?|stands?|hangers?|labels?|supports?|saucers?|misters?|spray|lights?|lamps?|artificial|fake|faux|silk|troughs?|covers?|fleece|trays?|ties|cages?|watering|mats?|protection|shel(?:f|ves)|compost|nutrients?|plant[- ]based|powered|milk|protein`],
-  ['trees?', null, String.raw`artificial|christmas|cat|lights?|skirts?|stands?|toppers?|decorations?|ornaments?|shoes?|coat|hat|jewell?ery|baubles?|guards?|ties?|stakes?|feed|pruners?|loppers?|saw|family tree|tree of life|pre-?lit|led|fibre optic|pop[- ]up|tinsel|pvc|tea tree|shoe tree`],
+  ['plants?', null, String.raw`pots?|planters?|food|feed|fertili[sz]ers?|stands?|hangers?|labels?|supports?|saucers?|misters?|spray|lights?|lamps?|artificial|fake|faux|silk|troughs?|covers?|fleece|trays?|ties|cages?|watering|mats?|protection|shel(?:f|ves)|compost|nutrients?|plant[- ]based|powered|milk|protein|lego|botanicals?|bricks?|building|toys?|plush|zombies|jigsaws?|playsets?`],
+  ['trees?', null, String.raw`artificial|christmas|cat|lights?|skirts?|stands?|toppers?|decorations?|ornaments?|shoes?|coat|hat|jewell?ery|baubles?|guards?|ties?|stakes?|feed|pruners?|loppers?|saw|family tree|tree of life|pre-?lit|led|fibre optic|pop[- ]up|tinsel|pvc|tea tree|shoe tree|playsets?|play ?sets?|toys?|lego|tree ?house|figures?|jigsaws?|plush|bluey|sylvanian`],
   ['bulbs? for planting'], ['bare roots?'],
   // Furniture and garden buildings
   // A shed's own parts: a "double door pent shed" is still a shed.
@@ -49,6 +49,9 @@ export const NOT_SHELF = [
   // Services, vouchers and experiences
   ['meal plan'], ['gift card'], ['voucher'], ['spa day'], ['spa experience'], ['bath experience'], ['valid monday'],
   [String.raw`experience (?:for|with|day|voucher)`], [String.raw`\d+[- ]?(?:min(?:ute)?s?|hours?) massage`], ['hour perfume experience'],
+  // Tickets, subscriptions and made to order under other names
+  [String.raw`(?:entry|tickets?|admission) for (?:two|2|one|1|a family|four|4)`], ['subscription(?: box| crate)?'],
+  ['customi[sz]ed'], [String.raw`custom (?:name|photo|made|design|wooden)`], [String.raw`photo (?:jigsaws?|puzzles?|blocks?)`], ['create your own design'],
   // Second hand
   ['refurbished'], ['pre-?owned'], ['second[- ]hand'], ['renewed'],
 ];

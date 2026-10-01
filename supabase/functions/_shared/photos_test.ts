@@ -27,20 +27,28 @@ Deno.test('image sizes from the first bytes', () => {
 });
 
 Deno.test('the verdict: a clean product shot passes; each problem is named in her words', () => {
-  const clean = { shop_mark: false, watermark: false, overlay: false, background: 'plain', shows: 'product', pack: 'matches' };
+  const clean = { shop_mark: false, watermark: false, promo: false, overlay: false, background: 'plain', shows: 'product', pack: 'matches' };
   assertEquals(judge(clean, { width: 1000, height: 1000 }, 'medisave.co.uk'), { ok: true, reasons: [] });
   assertEquals(judge({ ...clean, pack: 'unclear' }, { width: 1000, height: 1000 }, null).ok, true);
-  const bad = judge({ ...clean, shop_mark: true, overlay: true, background: 'scene', pack: 'differs', note: '4 pack, card is 12' }, { width: 400, height: 300 }, 'medisave.co.uk');
+  const bad = judge({ ...clean, shop_mark: true, promo: true, overlay: true, background: 'scene', pack: 'differs', note: '4 pack, card is 12' }, { width: 400, height: 300 }, 'medisave.co.uk');
   assertEquals(bad.ok, false);
   assertEquals(bad.reasons, [
     'Too small for eBay, 400 x 300',
     "Shop's name or logo on it",
-    'Has text or a sticker laid over it',
-    'A styled scene, not a plain product shot',
+    'A price, an offer or ratings laid over it',
     'A different pack or product: 4 pack, card is 12',
   ]);
-  assertEquals(judge({ ...clean, shows: 'other' }, null, null).reasons, ['Not a photo of the product']);
   assertEquals(judge(null, { width: 900, height: 900 }, null), { ok: false, reasons: ['Could not be checked'] });
+});
+
+Deno.test('the maker\'s callouts, a lifestyle shot or a diagram pass, but only as extras after the first photo', () => {
+  const clean = { shop_mark: false, watermark: false, promo: false, overlay: false, background: 'plain', shows: 'product', pack: 'matches' };
+  assertEquals(judge({ ...clean, overlay: true }, { width: 1500, height: 1500 }, 'amazon.co.uk'), { ok: true, reasons: [], extra: true, notes: ["The maker's text on it"] });
+  assertEquals(judge({ ...clean, overlay: true, background: 'scene' }, null, null).notes, ["The maker's text on it", 'A lifestyle shot']);
+  assertEquals(judge({ ...clean, shows: 'other' }, null, null), { ok: true, reasons: [], extra: true, notes: ['A chart or diagram'] });
+  // Selling text or another shop's name is never used, however good the photo.
+  assertEquals(judge({ ...clean, overlay: true, promo: true }, null, null).ok, false);
+  assertEquals(judge({ ...clean, shop_mark: true, background: 'scene' }, null, null).ok, false);
 });
 
 Deno.test('brands on the list match as words, not inside other words', () => {
@@ -60,7 +68,9 @@ Deno.test('where a photo comes from, per channel', () => {
   };
   assertEquals(sourceOf('https://her.test/1.jpg', c), { url: 'https://her.test/1.jpg', source: 'hers', ok: true });
   assertEquals(sourceOf('https://shop.test/a.jpg', c, 'shop').ok, true);
-  assertEquals(sourceOf('https://shop.test/b.jpg', c), { url: 'https://shop.test/b.jpg', source: 'shop', ok: false, why: 'Watermarked' });
+  // Keepr's check advises; a photo it flagged still goes up if she put it in the card.
+  assertEquals(sourceOf('https://shop.test/b.jpg', c), { url: 'https://shop.test/b.jpg', source: 'shop', ok: true });
+  assertEquals(sourceOf('https://supplier.test/unchecked.jpg', c).ok, true);
   assertEquals(sourceOf('https://i.ebayimg.com/cat.jpg', c, 'ebay').ok, true);
   assertEquals(sourceOf('https://i.ebayimg.com/cat.jpg', c, 'shop').ok, false);
   // The eBay seller the research found: never.

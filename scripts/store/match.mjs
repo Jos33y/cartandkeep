@@ -5,7 +5,7 @@ export const digits = (s) => String(s ?? '').replace(/\D/g, '').replace(/^0+/, '
 export const squash = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim();
 const UNIT = /^\d+(\.\d+)?(w|v|l|ml|cl|g|kg|mm|cm|m|in|pk|pcs?|x|mah|gb|tb|hz|oz|tog|lm|in1|pack|tier|ltrs?|litres?|liters?|ft|feet|mg|mcg|ug|iu|hr|hrs|caps?|tabs?|softgels?|servings?|days?|months?)$|^\d{1,3}(\.\d+)?(a|ax|ma|ka|ah|amps?)$/i;
 // Specs that read like model numbers but are shared by hundreds of products: IP65, GU10, 3in1, 750lm, 5000 series.
-const SPEC = /^(ip\d{2}|gu\d{1,2}|mr\d{2}|e\d{2}|b\d{2}|g\d{1,2}|t\d{1,2}|\d+in\d+|\d+lm|\d+k|\d+cct|spf\d+|\d+-\d+v|\d+-\d+w|\d+-?(?:way|gang|pole)|\d+-[a-z]+|dx\d{2,3}|pk\d+|gen\d|a15|b125|c250|d400|e600|f900|a\d{2}|gr\d+q|r7s|g\d+q)$/i;
+const SPEC = /^(ip\d{2}|gu\d{1,2}|mr\d{2}|e\d{2}|b\d{2}|g\d{1,2}|t\d{1,2}|\d+in\d+|\d+lm|\d+k|\d+cct|spf\d+|\d+-\d+v|\d+-\d+w|\d+-?(?:way|gang|pole)|\d+-[a-z]+|dx\d{2,3}|pk\d+|gen\d|a15|b125|c250|d400|e600|f900|f1|\d+(?:st|nd|rd|th)|a\d{2}|gr\d+q|r7s|g\d+q)$/i;
 export function modelsIn(title) {
   return [...new Set(String(title).split(/[\s,()/|]+/).map((t) => t.replace(/[^a-z0-9-]/gi, '').toLowerCase())
     .filter((t) => t.length >= 4 && /\d/.test(t) && !UNIT.test(t) && !SPEC.test(t) && !/^(19|20)\d{2}$/.test(t)
@@ -191,7 +191,10 @@ export function queryOf(title, brand) {
   const b = initials(brand) ?? squash(brand).split(' ').filter((w) => w !== 'the' && w !== 'and').slice(0, 2).join(' ');
   const bw = new Set(squash(brand).split(' '));
   // A size range, an "x in 1" or the brand's own name is not a model: 40-50cm, 6-in-1, Ion8.
-  const long = modelsIn(title).find((m) => /[a-z]/.test(m.replace(/in/g, '')) && !/^[\d.-]+(cm|mm|m|kg|g|l|ml|db|mah|lm)$/.test(m) && !bw.has(squash(m)));
+  const setNo = /^(lego|duplo|playmobil|mega bloks|cobi|bluebrixx|lepin|sluban)\b/i.test(squash(brand)) || /^(lego|playmobil)\b/i.test(squash(title))
+    ? String(title).match(/\b(\d{4,6})\b/)?.[1] : null;
+  const long = (setNo && !/^(19|20)\d\d$/.test(setNo) ? setNo : null)
+    ?? modelsIn(title).find((m) => /[a-z]/.test(m.replace(/in/g, '')) && !/^[\d.-]+(cm|mm|m|kg|g|l|ml|db|mah|lm)$/.test(m) && !bw.has(squash(m)));
   const model = long ?? shortModelAfterBrand(title, brand);
   // A short model is a range, not one product, when a capacity sets the item: Milwaukee M18 2.0Ah and 5.0Ah.
   const ah = !long && String(title).match(/\b(\d+)(?:\.(\d))?\s*ah\b/i);

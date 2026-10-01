@@ -60,9 +60,11 @@ export function readError(status: number, body: Json) {
 // An eBay error keeps its status, so the queue can tell a refusal (never retried) from a hiccup (tried again).
 export class EbayError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  ids: number[];
+  constructor(message: string, status: number, ids: number[] = []) {
     super(message);
     this.status = status;
+    this.ids = ids;
   }
 }
 
@@ -81,7 +83,7 @@ export async function call(path: string, access: string, init: RequestInit = {})
   });
   const text = await res.text();
   const body = text ? JSON.parse(text) : {};
-  if (!res.ok) throw new EbayError(readError(res.status, body), res.status);
+  if (!res.ok) throw new EbayError(readError(res.status, body), res.status, ((body?.errors ?? []) as Json[]).map((e) => Number(e.errorId)).filter(Boolean));
   return body;
 }
 
@@ -434,6 +436,43 @@ export function packageOf(box: Json | null) {
   };
 }
 
+// Where a barcode goes on eBay's inventory item: 12 digits is a UPC, 8 or 13 an EAN. Sent as an EAN, a 12-digit
+// code is looked up as one and not found. eBay's inventory item has no field for 14 digits, so that is left off.
+export function barcodeFields(gtin: string | null): Json {
+  if (!gtin) return {};
+  if (gtin.length === 12) return { upc: [gtin] };
+  if (gtin.length === 13 || gtin.length === 8) return { ean: [gtin] };
+  return {};
+}
+
+// Item details that are product codes: eBay looks these up as well.
+const CODE_ASPECT = /^(ean|upc|isbn|gtin|epid|ean\/upc)$/i;
+
+// The inventory item for a prepared card. `bare` leaves every product code off, for eBay's catalogue to ignore.
+export function itemBody(p: Preview, epid: string | null, bare = false) {
+  const aspects = bare ? Object.fromEntries(Object.entries(p.aspects).filter(([k]) => !CODE_ASPECT.test(k.trim()))) : p.aspects;
+  return {
+    availability: { shipToLocationAvailability: { quantity: p.quantity } },
+    condition: 'NEW',
+    ...(packageOf(p.box) ? { packageWeightAndSize: packageOf(p.box) } : {}),
+    product: {
+      title: p.title,
+      description: p.description,
+      imageUrls: p.images,
+      brand: p.aspects.Brand?.[0] ?? 'Unbranded',
+      mpn: p.aspects.MPN?.[0] ?? 'Does not apply',
+      aspects,
+      ...(bare ? {} : barcodeFields(p.gtin)),
+      ...(epid ? { epid } : {}),
+    },
+  };
+}
+
+// eBay's "Product not found" at publish: error 25604, or its words when the id is not given.
+export const productNotFound = (e: unknown) => e instanceof EbayError
+  && (e.ids.includes(25604) || /product not found/i.test(e.message));
+const hasProductCodes = (p: Preview, epid: string | null) => Boolean(p.gtin || epid || Object.keys(p.aspects).some((k) => CODE_ASPECT.test(k.trim())));
+
 /*
  * Puts a prepared card on eBay: inventory item, offer, publish. `update` revises a live listing in place from the
  * card's current copy and keeps the category it went up in. Returns the record saved on candidates.ebay.
@@ -444,24 +483,12 @@ export async function publish(c: Json, p: Preview, s: Json, access: string, { up
     ? { id: String(c.ebay.category_id), name: c.ebay.category_name ?? null }
     : p.category!;
 
-  await call(`/sell/inventory/v1/inventory_item/${p.sku}`, access, {
+  const epid = p.imageSource === 'catalogue' && p.catalogue ? p.catalogue.epid : null;
+  const putItem = (bare: boolean) => call(`/sell/inventory/v1/inventory_item/${p.sku}`, access, {
     method: 'PUT',
-    body: JSON.stringify({
-      availability: { shipToLocationAvailability: { quantity: p.quantity } },
-      condition: 'NEW',
-      ...(packageOf(p.box) ? { packageWeightAndSize: packageOf(p.box) } : {}),
-      product: {
-        title: p.title,
-        description: p.description,
-        imageUrls: p.images,
-        brand: p.aspects.Brand?.[0] ?? 'Unbranded',
-        mpn: p.aspects.MPN?.[0] ?? 'Does not apply',
-        aspects: p.aspects,
-        ...(p.gtin ? { ean: [p.gtin] } : {}),
-        ...(p.imageSource === 'catalogue' && p.catalogue ? { epid: p.catalogue.epid } : {}),
-      },
-    }),
+    body: JSON.stringify(itemBody(p, bare ? null : epid, bare)),
   });
+  await putItem(false);
 
   const offerBody = {
     sku: p.sku,
@@ -486,9 +513,30 @@ export async function publish(c: Json, p: Preview, s: Json, access: string, { up
   }
 
   // Updating a published offer revises the live listing in place.
-  const published = update
-    ? { listingId: c.ebay.listing_id }
-    : await call(`/sell/inventory/v1/offer/${offerId}/publish`, access, { method: 'POST' });
+  const publishOffer = () => call(`/sell/inventory/v1/offer/${offerId}/publish`, access, { method: 'POST' });
+  let dropped: string | null = null;
+  let published: Json;
+  if (update) {
+    published = { listingId: c.ebay.listing_id };
+  } else {
+    try {
+      published = await publishOffer();
+    } catch (e) {
+      // eBay looks the barcode up in its catalogue at publish and refuses with "Product not found" when it has no
+      // entry for it (a US code on the UK site, say). The barcode is optional: the item goes up again without it.
+      if (!(productNotFound(e) && hasProductCodes(p, epid))) throw e;
+      await putItem(true);
+      try {
+        published = await publishOffer();
+      } catch (again) {
+        if (productNotFound(again)) {
+          throw new EbayError(`${(again as Error).message} eBay still could not find the item without its barcode. Try again in a minute; if it repeats, send this message to the studio.`, 400);
+        }
+        throw again;
+      }
+      dropped = p.gtin ?? epid;
+    }
+  }
 
   return {
     ...(update ? c.ebay : {}),
@@ -500,8 +548,9 @@ export async function publish(c: Json, p: Preview, s: Json, access: string, { up
     price: p.price,
     quantity: p.quantity,
     images_from: p.imageSource,
-    ...(p.gtin ? { gtin: p.gtin } : {}),
-    ...(p.imageSource === 'catalogue' && p.catalogue ? { epid: p.catalogue.epid } : {}),
+    ...(p.gtin && !dropped ? { gtin: p.gtin } : {}),
+    ...(epid && !dropped ? { epid } : {}),
+    ...(dropped ? { barcode_dropped: dropped } : {}),
     ...(p.box ? { package: p.box } : {}),
     ...(update ? { revised_at: new Date().toISOString() } : { published_at: new Date().toISOString() }),
   };

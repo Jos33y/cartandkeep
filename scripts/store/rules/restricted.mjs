@@ -9,7 +9,7 @@ export const RESTRICTED = {
   // not have. Brands whose whole range is medicine are named; mixed ranges (Savlon, Vicks) only by the medicine.
   shelf_medicines: String.raw`\b(fybogel|acnecide|duac|benzoyl peroxide|olbas|echinaforce|traditional herbal (?:medicinal|medicine|remedy)|thr registered|paracetamol|ibuprofen|aspirin|nurofen|anadin|calpol|lemsip|beechams|night nurse|day nurse|benylin|strepsils|gaviscon|rennie(?! tools)|imodium|loperamide|senokot|dulcolax|bisacodyl|lactulose|sudafed|pseudoephedrine|phenylephrine|otrivine|xylometazoline|beconase|piriton|chlorphenamine|cetirizine|loratadine|fexofenadine|acrivastine|clarityn|benadryl|nytol|sominex|zovirax|aciclovir|anusol|preparation h|sudocrem|bonjela|voltarol|ibuleve|diclofenac|hydrocortisone|vaporub|minoxidil|regaine|daktarin|(?:thrush|cystitis) (?:treatment|cream|tablets?|capsules?|pessar(?:y|ies))|canesten (?:thrush|cream|oral|combi|duo|once|pessary)|(?:hay ?fever|antihistamine|allergy relief|pain ?relief|painkiller|travel sickness|sleep ?aid|laxative) (?:tablets?|capsules?|caplets?|liquid|syrup)|cough (?:syrup|medicine|mixture|linctus)|cold (?:and|&) flu (?:tablets?|capsules?|sachets?|relief))\b`,
   // Infant formula: its promotion is restricted by law, and it is the most counterfeited baby product
-  infant_formula: String.raw`\b(infant (?:formula|milk)|baby formula|first (?:infant )?milk|follow[- ]on milk|(?:aptamil|kendamil|hipp|sma|cow (?:&|and) gate)[^|,]*\b(?:first|infant|follow[- ]on|stage 1|stage 2))\b`,
+  infant_formula: String.raw`\b(infant (?:formula|milk)|baby formula|first (?:infant )?milk|follow[- ]on milk|(?:aptamil|kendamil|hipp|sma|cow (?:&|and) gate)\b[^|,]*\b(?:first|infant|follow[- ]on|stage 1|stage 2))\b`,
   // Prescription pet diets, sold for animals under a vet's care
   vet_diet: String.raw`\b(prescription diet|veterinary diet|vet diet|hill'?s (?:prescription|[a-z]/d)|royal canin veterinary|pro plan veterinary|renal diet)\b`,
   // Illegal in UK cosmetics or unlicensed injectables
@@ -28,7 +28,7 @@ export const RESTRICTED = {
   // barware in the title (glasses, cups, smoker kits, barrels, figures and lights named after a drink all pass).
   alcohol: String.raw`^(?!.*\b(?:glass(?:es|ware)?|cups?|tumblers?|goblets?|flutes?|decanters?|smoker|smoking|barrels?|kegs?|racks?|openers?|coolers?|chillers?|stoppers?|pourers?|carriers?|holders?|stands?|displays?|figures?|ornaments?|leds?|lights?|candles?|scented|signs?|mugs?|stones?|molds?|moulds?|making kit|essence|flavou?rings?|cake|fudge|truffles?|chocolates?|sauce)\b).*\b(vodka|gin|whisk(?:e)?y|rum|tequila|liqueur|prosecco|champagne|cava|cider|brandy|cognac|bourbon|sake|(?:red|white|ros[eé]|sparkling|mulled) wine|pre-?mixed|cocktail cans?)\b.*\b(\d+(?:\.\d+)? ?(?:cl|ml|l|litres?)|cans?|\d+ ?(?:x|pack|pk)|tasting|miniatures?|bottles?|abv|vol)\b|\b\d+(\.\d+)?% (?:abv|vol)\b`,
   // Weapons and knives need age checks she is not set up for
-  weapons: String.raw`\b(crossbows?|air (?:rifles?|pistols?)|pepper spray|stun guns?|tasers?|knuckle dusters?|flick knives?|machetes?)\b`,
+  weapons: String.raw`^(?!.*\b(?:toys?|games?|catapults?|suction|foam|nerf|darts?|rc|truck|truggy|lego|fake|prop|plastic|costume|cosplay|kids?|children'?s?)\b).*\b(crossbows?|machetes?)\b|\b(air (?:rifles?|pistols?)|pepper spray|stun guns?|tasers?|knuckle dusters?|flick knives?)\b`,
 };
 // Titles that name alcohol but are not it.
 // Titles that name alcohol or nicotine but are not it. They clear only that one rule: a nicotine-free vape still

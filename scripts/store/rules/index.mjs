@@ -18,10 +18,12 @@ import { RESTRICTED as RES, NOT_RESTRICTED } from './restricted.mjs';
 import { CANT_POST as POST, POST_CHECK, TOILETRY_AEROSOL } from './post.mjs';
 import * as healthBeauty from './categories/health-beauty.mjs';
 import * as hardware from './categories/hardware.mjs';
+import * as toysGames from './categories/toys-games.mjs';
 
 const BY_CATEGORY = new Map([
   ['health and beauty', healthBeauty],
   ['hardware', hardware],
+  ['toys and games', toysGames],
 ]);
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -67,6 +69,8 @@ function forCategory(category) {
     notShelf: extra.NOT_SHELF?.length ? [...SHARED_SHELF, ...shelfRules(extra.NOT_SHELF.map((e) => (Array.isArray(e) ? e : [e])))] : SHARED_SHELF,
     // A category's extras are named (an object) or numbered (an array).
     restricted: [...restrictedParts, ...(Array.isArray(extra.RESTRICTED) ? extra.RESTRICTED.map((s, i) => [`${k} ${i + 1}`, s]) : Object.entries(extra.RESTRICTED ?? {})).map(([n, s]) => [n, new RegExp(s, 'i')])],
+    branded: extra.BRANDED ? new RegExp(extra.BRANDED, 'i') : null,
+    ownTitle: extra.OWN_TITLE ? new RegExp(extra.OWN_TITLE, 'i') : null,
     post: [...postParts, ...(extra.CANT_POST ?? []).map((s, i) => [`${k} ${i + 1}`, new RegExp(s, 'i')])],
   };
   cache.set(k, rules);
@@ -80,7 +84,8 @@ function forCategory(category) {
 export function stopOf({ title, brand = '', category = '' }) {
   const r = forCategory(category);
   const t = String(title ?? '');
-  if (r.own.test(String(brand ?? '').trim())) return { stop: 'own_label', rule: 'own label', hit: String(brand).trim() };
+  if (r.own.test(String(brand ?? '').trim()) && !(r.branded && r.branded.test(t))) return { stop: 'own_label', rule: 'own label', hit: String(brand).trim() };
+  if (r.ownTitle) { const m = t.match(r.ownTitle); if (m) return { stop: 'own_label', rule: 'own label', hit: m[0] }; }
   const ns = notShelfHit(r.notShelf, t);
   if (ns) return { stop: 'not_shelf', rule: 'not shelf', hit: ns };
   if (staleYear(t)) return { stop: 'not_shelf', rule: 'dated', hit: t.match(/\b20\d\d\b/)[0] };

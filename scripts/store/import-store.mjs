@@ -22,6 +22,7 @@ import { PROFIT, STORE, ebayAtWeight } from '../../src/lib/pricing.js';
 import { priceStore } from './price-store.mjs';
 import { withVat } from './page.mjs';
 import { categorise } from '../categories/categorise.mjs';
+import { matchOf } from '../lib/row.js';
 import path from 'node:path';
 import { buildCoverage, printCoverage, readCoverageFiles, writeCoverage } from './coverage.mjs';
 import { postCheckOf, stopOf } from './rules/index.mjs';
@@ -58,6 +59,10 @@ const seenRefs = new Set();
 for (const r of rows) {
   // The rules again, so a picks file made before a rule was added cannot bring in what the rule now stops.
   if (stopOf({ title: r.title, brand: r.brand, category: r.category || label })) { tally.stopped_by_rules += 1; continue; }
+  // The page often says what Google's title leaves out: "Hydrosoft Granular Salt" is a 25kg bag on the page, and
+  // "Rust-Oleum Elegant Metallic Paint" a spray can. Own label is about the brand, so only the other rules apply here.
+  const byPage = r.page_name ? stopOf({ title: r.page_name, brand: '', category: r.category || label }) : null;
+  if (byPage && byPage.stop !== 'own_label') { tally.stopped_by_rules += 1; continue; }
   const verdict = String(r.verdict ?? '');
   if (/^wrong/.test(verdict)) { tally.wrong_match += 1; continue; }
   if (/^unsure/.test(verdict) && !withUnsure) { tally.unsure_match += 1; continue; }
@@ -181,7 +186,7 @@ const prior = [];
   const refs = cards.map((c) => c.external_ref);
   for (let i = 0; i < refs.length; i += 100) {
     const { data, error: pErr } = await db.from('candidates')
-      .select('id, external_ref, batch_id, margin, recommended_channels, image_url, decisions ( id )')
+      .select('id, external_ref, batch_id, margin, recommended_channels, image_url, entry, decisions ( id )')
       .eq('tenant_id', tenant.id).in('external_ref', refs.slice(i, i + 100));
     if (pErr) { console.error(`Duplicate check failed, nothing imported: ${pErr.message}`); process.exit(1); }
     prior.push(...(data ?? []));
@@ -227,6 +232,16 @@ const { data: batch, error: bErr } = await db.from('batches').upsert({
 }, { onConflict: 'tenant_id,delivered_for,term' }).select().single();
 if (bErr) { console.error('Batch failed:', bErr.message); process.exit(1); }
 
+// The eBay pack is judged by the gate's own check (matchOf), run against the store card's shelf, never asserted:
+// a store card proves the shop's pack, not the pack the eBay listing sells (Pedigree cubes, £1.29 shelf against a
+// £12.39 listing). Same pack only when the check says so; otherwise the card asks her to confirm the pack.
+function packAgainst(m, entryTitle) {
+  if (m?.cost == null || !m?.cost_from?.product) return null;
+  const got = matchOf({ product: m.cost_from.product, brand: m.brand ?? null, gtin: m.gtin ?? null, price: m.cost }, null, entryTitle);
+  return got ? { ...got, via: `${got.via}, shelf from the store card` } : null;
+}
+const UNKNOWN_PACK = { level: 'same_product_unknown_pack', via: 'the store card, pack not compared' };
+
 const decidedOf = (c) => (Array.isArray(c.decisions) ? c.decisions.length > 0 : Boolean(c.decisions));
 const isStore = (c) => c.margin?.channel === 'store';
 const byRef = new Map(cards.map((c) => [c.external_ref, c]));
@@ -241,7 +256,7 @@ const withStore = (card, storeCard) => {
       ebay: {
         ...ebay,
         shelf: m.cost_from ? { ...m.cost_from, price: m.cost } : ebay.shelf,
-        match: m.cost != null ? { level: 'same_product_same_pack', via: 'the store card' } : ebay.match,
+        match: m.cost != null ? packAgainst(m, card.entry?.title) ?? UNKNOWN_PACK : ebay.match,
       },
     } : {}),
   };
@@ -280,7 +295,7 @@ const fresh = cards.filter((c) => !skip.has(c.external_ref) && !held.has(c.exter
     tenant_id: tenant.id,
     batch_id: batch.id,
     recommended_channels: onEbay ? ['store', 'ebay'] : c.recommended_channels,
-    margin: onEbay ? withStore({ margin: was.margin }, c) : c.margin,
+    margin: onEbay ? withStore({ margin: was.margin, entry: was.entry }, c) : c.margin,
   };
 });
 if (gainedStore) console.log(`\n  ${gainedStore} eBay card${gainedStore === 1 ? '' : 's'} already in her queue labelled Shop as well, with the shop price added or refreshed`);

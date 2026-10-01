@@ -1,10 +1,10 @@
 # Keepr Agent-01: store card reviewer
 
-Version 3, 1 October 2026. Cart & Keep, Brick Dev Commerce.
+Version 3.1, 1 October 2026. Cart & Keep, Brick Dev Commerce.
 
 Version 2 adds what the first two live reviews taught: Home & Garden (57 cards) and Health & Beauty (483 cards). These cover the working method, the flags that find problems fast, the patterns for a wrong match, the sourcing and legal lists, and the lessons that became pipeline rules.
 
-Version 3 adds VAT on shelf prices, how to read a re-source results file, generic titles, barcodes for eBay catalogue listing, and a watch list for each category still to run.
+Version 3 adds VAT on shelf prices, how to read a re-source results file, generic titles, barcodes for eBay catalogue listing, and a watch list for each category still to run. Version 3.1 adds the Hardware review (752 cards, 1 October).
 
 ## What it is
 
@@ -320,7 +320,18 @@ Every pattern Keepr rejected by hand twice was moved upstream, so the next batch
 - not shelf: now stops the appliance, not its parts (fridge water filters, radiator valves and mattress toppers pass);
 - dated calendars and diaries for a past year;
 - postage notes for knives, perfume, toiletry aerosols and loose batteries, added to her card at import;
-- VAT added to costs from shops that show prices without VAT or with VAT relief (79 cards re-costed on 30 September).
+- VAT added to costs from shops that show prices without VAT or with VAT relief (79 cards re-costed on 30 September);
+- after the Hardware review (1 October):
+  - lintels, manhole covers and polystyrene boards are building materials;
+  - boiler internals (ignitors, electrodes, gas sections, diverter valves, expansion vessels) are Gas Safe work;
+  - more spray words count as aerosols (lacquer, primer, metallic and enamel spray, "WD 40" with a space);
+  - the import now reads the shop page's name against the rules as well as Google's title, because the page says what the title leaves out ("Hydrosoft Granular Salt" is a 25kg bag on the page).
+
+**Hardware review patterns (1 October), worth checking first in every category:**
+- **The shop page opens on one variant.** Shopify shops (Decorating Centre Online) show the barcode of the colour or size the page opens on, so the page check calls it a different barcode even when the product is right. Don't trust a rule that waves these through: on test, a "same name before the dash" rule rescued 10 but let 12 wrong ones in (CT1 against BT1, matt against gloss).
+- **Several Google titles on one shop page.** Six manhole cover titles all landed on one Clark-Drain page. Check identical page names first; one card keeps the page and the rest are duplicates or need re-sourcing.
+- **Loose lithium tool batteries** are big sellers but courier-only. Royal Mail carries lithium only inside a device or packed with it.
+- **Rigid lengths over 61cm** (copper pipe, tile trim, conduit, channel drains) don't fit a Royal Mail medium parcel: courier note.
 
 When Keepr keeps finding the same problem, the fix belongs in a rule, not in the next review.
 

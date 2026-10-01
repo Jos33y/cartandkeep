@@ -12,7 +12,7 @@ import { deleteProductImage } from '@lib/productImages';
  * action than authoring one and is exactly what the 0036 comment asks for.
  */
 
-const SELECT = `
+export const PRODUCT_SELECT = `
   id, tenant_id, slug, title, price, image_url, images, status, is_sample, stock,
   category, category_path, section, brand, description, source_description,
   specifications, in_the_box,
@@ -236,7 +236,7 @@ export function useCatalogue(tenantId) {
 
     const { data, error } = await supabase
       .from('store_products')
-      .select(SELECT)
+      .select(PRODUCT_SELECT)
       .eq('tenant_id', tenantId)
       .order('title', { ascending: true });
 
@@ -540,7 +540,7 @@ export function useCatalogue(tenantId) {
       throw new Error(said?.error ?? error.message);
     }
     if (data?.error) throw new Error(data.error);
-    const { data: fresh } = await supabase.from('store_products').select(SELECT).in('id', ids);
+    const { data: fresh } = await supabase.from('store_products').select(PRODUCT_SELECT).in('id', ids);
     if (fresh?.length) {
       setState((s) => ({ ...s, rows: s.rows.map((r) => fresh.find((f) => f.id === r.id) ?? r) }));
     }

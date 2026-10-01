@@ -352,6 +352,7 @@ Deno.serve(async (req) => {
         conversion_rate: views ? transactions / views : null,
         ended_at: null,
         quantity_sold: null,
+        quantity_available: null,
         fetched_at: now,
       },
       // A listing eBay reports nothing for was shown to nobody in the window.
@@ -372,6 +373,8 @@ Deno.serve(async (req) => {
           conversion_rate: t ? num(t.SALES_CONVERSION_RATE) : 0,
           ended_at: l.ended_at ?? null,
           quantity_sold: l.sold ?? null,
+          // What is left to sell on an active listing; an ended one has none to offer.
+          quantity_available: l.ended_at ? null : l.available ?? null,
           fetched_at: now,
         };
       }),

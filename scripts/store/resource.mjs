@@ -166,6 +166,9 @@ for (const r of results) {
   if (!c) { tally.missing += 1; continue; }
   if (decided(c) && !override) { tally.decided_by_her += 1; continue; }
   // Not sure enough to repoint: the lead goes on the card as a note, and she decides.
+  // A barcode match with no price on the shop's page cannot be her cost: repointing would empty the card's price.
+  // It goes on as a lead instead (Brita at Studio, 1 October).
+  if (r.status === 'found' && !(Number(r.price) > 0)) r.status = 'found, check it';
   if (r.status === 'found, check it') {
     const body = `Review ${date}: another shop may have it: ${r.shop}, ${r.page_name || r.url}${r.price ? `, £${Number(r.price).toFixed(2)}` : ''} (${r.url}). ${r.notes || 'Check it is the same item before using it.'}`;
     const { data: have } = await db.from('candidate_notes').select('id').eq('candidate_id', c.id).eq('body', body).limit(1);

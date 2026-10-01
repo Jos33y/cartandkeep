@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@components/ui/icons';
+import { ImageLightbox } from '@components/ui/portal/ImageLightbox';
 import styles from '@styles/ui/portal/listing-composer.module.css';
 
 // eBay allows 80 and ranks full ones better.
@@ -23,11 +24,11 @@ export function ListingComposer({
   const title = draft.title ?? '';
   const description = draft.description ?? '';
   const images = draft.images ?? [];
-  // Her own uploads she has taken out can be put back.
-  const excluded = (draft.uploads ?? []).filter((src) => !images.includes(src));
+  // Photos she has taken out, her own or ones that went in by themselves, can be put back.
+  const excluded = [...new Set([...(draft.uploads ?? []), ...(draft.photos_offered ?? [])])].filter((src) => !images.includes(src));
   // The shop's photos: with Keepr's verdict once checked, as they are on the page before.
   const shopShots = checks
-    ? (checks.images ?? []).map((i) => ({ url: i.url, use: i.copy ?? i.url, ok: i.ok && !checks.brand_rule, why: checks.brand_rule ? null : i.reasons?.[0] ?? null, checked: true }))
+    ? (checks.images ?? []).map((i) => ({ url: i.url, use: i.copy ?? i.url, ok: i.ok && !checks.brand_rule, why: checks.brand_rule ? null : i.reasons?.[0] ?? null, checked: true, extra: i.extra, notes: i.notes }))
     : [...new Set(listing?.images ?? [])].slice(0, 6).map((url) => ({ url, use: url, ok: false, why: null, checked: false }));
   // What goes in the draft is our copy of a passed photo, so "in use" is judged by it.
   const inUse = (x) => images.includes(x.use) || images.includes(x.url);
@@ -45,6 +46,8 @@ export function ListingComposer({
   const [failed, setFailed] = useState(null);
   const [dragFrom, setDragFrom] = useState(null);
   const [full, setFull] = useState(false);
+  // The photo open at full size: which set, and where in it.
+  const [viewing, setViewing] = useState(null);
 
   // Grows while editing, capped when it is not. Twenty lines of copy pushed the
   // publish button a full screen away.
@@ -176,7 +179,7 @@ export function ListingComposer({
 
       <Field
         label="Photographs"
-        hint="Yours, or the shop's once checked. The first is the search tile; drag to reorder."
+        hint="Every photo that passed is in. Take out any you do not want, press one to see it large, drag to reorder. The first is the search tile."
         aside={
           <span className={styles.count} data-num>
             {images.length} going up
@@ -196,7 +199,10 @@ export function ListingComposer({
               onDrop={() => reorder(i)}
               onDragEnd={() => setDragFrom(null)}
             >
-              <img src={src} alt="" loading="lazy" />
+              <button type="button" className={styles.view} onClick={() => setViewing({ set: 'draft', at: i })}
+                aria-label={`See photograph ${i + 1} large`}>
+                <img src={src} alt="" loading="lazy" draggable={false} />
+              </button>
               {!j.ok
                 ? <span className={styles.notMine} title={j.why}>{j.why ? `${j.why.charAt(0).toUpperCase()}${j.why.slice(1)}` : 'Cannot go up'}</span>
                 : j.source === 'shop' && <span className={styles.fromShop}>Shop's, checked</span>}
@@ -221,7 +227,10 @@ export function ListingComposer({
 
           {excluded.map((src) => (
             <li key={src} className={`${styles.shot} ${styles.shotOut}`}>
-              <img src={src} alt="" loading="lazy" />
+              <button type="button" className={styles.view} onClick={() => setViewing({ set: 'out', at: excluded.indexOf(src) })}
+                aria-label="See this photograph large">
+                <img src={src} alt="" loading="lazy" draggable={false} />
+              </button>
               <button type="button" className={styles.restore} onClick={() => restore(src)}>
                 Put back
               </button>
@@ -274,9 +283,12 @@ export function ListingComposer({
                   const inDraft = inUse(x);
                   return (
                     <li key={x.url} className={styles.refShot} data-state={!x.checked ? 'unchecked' : x.ok ? 'passed' : 'failed'}>
-                      <img src={x.url} alt="" loading="lazy" />
+                      <button type="button" className={styles.refView} onClick={() => setViewing({ set: 'shop', at: shopShots.indexOf(x) })}
+                        aria-label="See this photograph large">
+                        <img src={x.url} alt="" loading="lazy" />
+                      </button>
                       <span className={styles.refVerdict} title={x.why ?? undefined}>
-                        {!x.checked ? 'Not checked' : x.ok ? (inDraft ? 'In use' : 'Passed') : x.why ?? 'Not used'}
+                        {!x.checked ? 'Not checked' : x.ok ? (inDraft ? 'In use' : x.extra ? 'Passed, not first' : 'Passed') : x.why ?? 'Not used'}
                       </span>
                       {x.ok && !inDraft && images.length < 12 && (
                         <button type="button" className={styles.refUse} onClick={() => use([x.use])}>Use</button>
@@ -311,12 +323,17 @@ export function ListingComposer({
                 {(o.images ?? []).length > 0 ? (
                   <ul className={styles.refGrid}>
                     {o.images.map((i) => {
-                      const x = { url: i.url, use: i.copy ?? i.url, ok: i.ok, why: i.reasons?.[0] ?? null };
+                      const x = { url: i.url, use: i.copy ?? i.url, ok: i.ok, why: i.reasons?.[0] ?? null, extra: i.extra, notes: i.notes };
                       const inDraft = inUse(x);
                       return (
                         <li key={i.url} className={styles.refShot} data-state={x.ok ? 'passed' : 'failed'}>
-                          <img src={i.url} alt="" loading="lazy" />
-                          <span className={styles.refVerdict} title={x.why ?? undefined}>{x.ok ? (inDraft ? 'In use' : 'Passed') : x.why ?? 'Not used'}</span>
+                          <button type="button" className={styles.refView} onClick={() => setViewing({ set: `other:${o.url}`, at: o.images.indexOf(i) })}
+                            aria-label="See this photograph large">
+                            <img src={i.url} alt="" loading="lazy" />
+                          </button>
+                          <span className={styles.refVerdict} title={x.extra ? `${x.notes?.join(', ')}: fine in the gallery, not as the first photo` : x.why ?? undefined}>
+                            {x.ok ? (inDraft ? 'In use' : x.extra ? 'Passed, not first' : 'Passed') : x.why ?? 'Not used'}
+                          </span>
                           {x.ok && !inDraft && images.length < 12 && (
                             <button type="button" className={styles.refUse} onClick={() => use([x.use])}>Use</button>
                           )}
@@ -370,8 +387,35 @@ export function ListingComposer({
       </Field>
 
       {failed && <p className={styles.failed} role="alert">{failed}</p>}
+
+      {viewing && (() => {
+        const v = viewSet(viewing.set, { images, excluded, shopShots, matched, inUse });
+        return v.images.length
+          ? <ImageLightbox images={v.images} start={viewing.at} alt="Photographs" note={v.note} onClose={() => setViewing(null)} />
+          : null;
+      })()}
     </div>
   );
+}
+
+// The photographs a full-size view steps through, each with what it is, and the line under them.
+function viewSet(set, { images, excluded, shopShots, matched, inUse }) {
+  const said = (x) => (!x.checked && x.checked !== undefined ? 'Not checked'
+    : x.ok ? (inUse(x) ? 'In your listing' : x.extra ? 'Passed, not as the first photo' : 'Passed')
+      : x.why ? `${x.why.charAt(0).toUpperCase()}${x.why.slice(1)}` : 'Not used');
+  if (set === 'draft') {
+    return {
+      images: images.map((src, i) => ({ src, label: i === 0 ? 'The search tile' : `Photo ${i + 1}` })),
+      note: 'Going up on eBay in this order.',
+    };
+  }
+  if (set === 'out') return { images: excluded.map((src) => ({ src, label: 'Taken out' })), note: 'Put back adds it at the end of your photos.' };
+  if (set === 'shop') return { images: shopShots.map((x) => ({ src: x.url, label: said(x) })), note: 'The shop\'s photos, as Keepr checked them.' };
+  const o = matched.find((m) => `other:${m.url}` === set);
+  return {
+    images: (o?.images ?? []).map((i) => ({ src: i.url, label: said({ url: i.url, use: i.copy ?? i.url, ok: i.ok, why: i.reasons?.[0], extra: i.extra }) })),
+    note: o ? `From ${o.shop}.` : null,
+  };
 }
 
 function Field({ label, hint, aside, action, children }) {

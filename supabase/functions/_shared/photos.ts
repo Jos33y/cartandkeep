@@ -35,18 +35,10 @@ export function sourceOf(url: string, c: Json, channel: 'ebay' | 'shop' = 'ebay'
       ? { url, source: 'catalogue', ok: true } as const
       : { url, source: 'catalogue', ok: false, why: 'eBay\'s catalogue photos are for eBay only' } as const;
   }
-  // The first shop's photos, then those of other UK shops matched to the same product.
-  const checked = [...(pc.images ?? []), ...((pc.others ?? []) as Json[]).filter((o) => o.ok).flatMap((o) => o.images ?? [])];
-  const seen = checked.find((i: Json) => i.url === url || i.copy === url);
-  if (seen) {
-    if (pc.brand_rule) return { url, source: 'shop', ok: false, why: `${pc.brand} photos come from eBay's catalogue or yours, not the shop's` } as const;
-    return seen.ok
-      ? { url, source: 'shop', ok: true } as const
-      : { url, source: 'shop', ok: false, why: (seen.reasons ?? [])[0] ?? 'failed the photo check' } as const;
-  }
-  const shops = new Set([...(listingOf(c)?.images ?? [])]);
-  if (shops.has(url)) return { url, source: 'shop', ok: false, why: 'not checked yet' } as const;
-  return { url, source: 'other', ok: false, why: 'not hers, not checked, and not from the catalogue' } as const;
+  // The one photo that never goes up: another eBay seller's, such as the listing the research found.
+  if (/^https?:\/\/i\.ebayimg\.com\//i.test(url)) return { url, source: 'other', ok: false, why: 'another eBay seller\'s photo' } as const;
+  // Anything else she put in the card goes up. Keepr's photo check advises; it does not hold a listing back.
+  return { url, source: 'shop', ok: true } as const;
 }
 
 // One word for what went up, for counting later: which sources hold up, brand by brand.
@@ -110,8 +102,10 @@ For each photo, report:
 - shop_mark: the shop's name, logo or any retailer's branding is visible anywhere, including corners and the
   packaging background. The product's own brand on its own packaging is NOT a shop mark.
 - watermark: any watermark, semi-transparent text or pattern laid over the image.
-- overlay: text or badges laid over the photo that are not printed on the product: prices, "offer", "bestseller",
-  "new", stars, icons, arrows, feature callouts.
+- promo: selling text laid over the photo: a price, a discount or "% off", "offer", "sale", "deal", "bestseller",
+  "new", star ratings, "free delivery", or a retailer's slogan.
+- overlay: any other text or graphics laid over the photo that are not printed on the product: the maker's feature
+  callouts, labels, icons, arrows, measurements.
 - background: "plain" for a product shot on a plain or white background, "scene" for a styled or lifestyle scene,
   a room, a person, or a hand.
 - shows: "product" if the product or its packaging is the subject, "other" if it is a chart, a size guide, a
@@ -121,15 +115,22 @@ For each photo, report:
 - note: at most 12 words on what decided anything you flagged. Empty if nothing was flagged.
 
 Reply with JSON only, no preamble and no markdown fence: an array with one object per photo, in order, each
-{"n": 1, "shop_mark": false, "watermark": false, "overlay": false, "background": "plain", "shows": "product",
+{"n": 1, "shop_mark": false, "watermark": false, "promo": false, "overlay": false, "background": "plain", "shows": "product",
 "pack": "matches", "note": ""}.`;
 
 export type Seen = {
-  n?: number; shop_mark?: boolean; watermark?: boolean; overlay?: boolean;
+  n?: number; shop_mark?: boolean; watermark?: boolean; promo?: boolean; overlay?: boolean;
   background?: string; shows?: string; pack?: string; note?: string;
 };
 
-// Pass or fail, with her reasons in plain words, from what Keepr saw and the image's size.
+/*
+ * Pass or fail, with her reasons in plain words, from what Keepr saw and the image's size.
+ *
+ * Judged as a person listing it would: another shop's name, a watermark, selling text (a price, an offer, stars) or
+ * the wrong product is never used. The maker's own feature callouts, a lifestyle shot or a diagram are fine further
+ * along the gallery, as every seller uses them, but never as the first photo, the search tile eBay and Google show,
+ * which has to be the product itself. Those pass as `extra`, with what they are in `notes`.
+ */
 export function judge(seen: Seen | null, size: { width: number; height: number } | null, _shop: string | null = null) {
   const reasons: string[] = [];
   if (size && Math.max(size.width, size.height) < MIN_SIDE) reasons.push(`Too small for eBay, ${size.width} x ${size.height}`);
@@ -139,11 +140,14 @@ export function judge(seen: Seen | null, size: { width: number; height: number }
   }
   if (seen.shop_mark) reasons.push('Shop\'s name or logo on it');
   if (seen.watermark) reasons.push('Watermarked');
-  if (seen.overlay) reasons.push('Has text or a sticker laid over it');
-  if (seen.shows === 'other') reasons.push('Not a photo of the product');
-  else if (seen.background !== 'plain') reasons.push('A styled scene, not a plain product shot');
+  if (seen.promo) reasons.push('A price, an offer or ratings laid over it');
   if (seen.pack === 'differs') reasons.push(`A different pack or product${seen.note ? `: ${seen.note}` : ''}`);
-  return { ok: reasons.length === 0, reasons };
+  if (reasons.length) return { ok: false, reasons };
+  const notes: string[] = [];
+  if (seen.overlay) notes.push('The maker\'s text on it');
+  if (seen.shows === 'other') notes.push('A chart or diagram');
+  else if (seen.background !== 'plain') notes.push('A lifestyle shot');
+  return notes.length ? { ok: true, reasons, extra: true, notes } : { ok: true, reasons };
 }
 
 // The model's list, even with a sentence or a fence around it.
