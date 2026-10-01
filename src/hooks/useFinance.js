@@ -1,3 +1,4 @@
+import { summariseRefunds } from '@lib/refunds';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@lib/supabase';
 
@@ -24,7 +25,7 @@ const sum = (rows, key) => rows.reduce((n, r) => n + Number(r[key] ?? 0), 0);
 const round = (n) => Math.round(n * 100) / 100;
 
 export function useFinance(tenantId) {
-  const [state, setState] = useState({ status: 'loading', rows: [], costs: null, error: null });
+  const [state, setState] = useState({ status: 'loading', rows: [], refunds: [], costs: null, error: null });
   const [month, setMonth] = useState(null);
 
   const load = useCallback(async () => {
@@ -40,9 +41,18 @@ export function useFinance(tenantId) {
     const error = profit.error ?? tenant.error;
     if (error) return setState({ status: 'error', rows: [], costs: null, error });
 
+    // Refunds read on their own: a database without the reason columns yet (before 0117) still shows the money.
+    const back = await supabase.from('channel_sales')
+      .select('external_ref, line_no, external_sku, product_id, title, sold_at, qty, gross, status, refunded, refunded_at, refund_reason, refund_fault')
+      .eq('tenant_id', tenantId)
+      .or('status.neq.paid,refunded.not.is.null')
+      .order('sold_at', { ascending: false })
+      .limit(500);
+
     setState({
       status: 'ready',
       rows: profit.data ?? [],
+      refunds: back.error ? [] : back.data ?? [],
       costs: tenant.data?.store?.selling_costs ?? {},
       error: null,
     });
@@ -196,6 +206,17 @@ export function useFinance(tenantId) {
       .sort((a, b) => b.revenue - a.revenue);
   }, [inMonth]);
 
+  // Refunds in the month shown, with each product's units still sold beside its refunded ones.
+  const refunds = useMemo(() => {
+    const rows = showing === 'all' ? state.refunds : state.refunds.filter((r) => String(r.sold_at).slice(0, 7) === String(showing).slice(0, 7));
+    const sold = (key, title) => {
+      const t = String(title ?? '').toLowerCase();
+      const p = products.find((x) => x.product_id === key) ?? products.find((x) => String(x.title ?? '').toLowerCase() === t);
+      return p?.units ?? 0;
+    };
+    return { rows, ...summariseRefunds(rows, sold) };
+  }, [state.refunds, showing, products]);
+
   const saveCosts = useCallback(async (next) => {
     const num = (v) => {
       const s = String(v ?? '').trim();
@@ -277,7 +298,7 @@ export function useFinance(tenantId) {
   }, [tenantId, load]);
 
   return {
-    ...state, months, showing, setMonth, byChannel, totals, products, series, saveCosts, saveProductCost, reload: load,
+    ...state, months, showing, setMonth, byChannel, totals, products, series, refunds, saveCosts, saveProductCost, reload: load,
     pullEbay, pulling, pulled,
   };
 }

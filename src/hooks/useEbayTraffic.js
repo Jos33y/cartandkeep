@@ -72,7 +72,7 @@ export const VERDICTS = {
 };
 
 export function useEbayTraffic(tenantId) {
-  const [state, setState] = useState({ status: 'loading', total: null, listings: [], days: [], sales: [], error: null });
+  const [state, setState] = useState({ status: 'loading', total: null, listings: [], days: [], sales: [], refunds: [], error: null });
   const [pulling, setPulling] = useState(false);
   const [onShop, setOnShop] = useState(() => new Map());
 
@@ -167,7 +167,17 @@ export function useEbayTraffic(tenantId) {
       .order('sold_at', { ascending: false })
       .limit(500);
 
-    setState({ status: 'ready', total, listings, days: days ?? [], sales: sales ?? [], error: null });
+    // Sales that came back, so a listing that keeps being refunded says so before it is put back up. Read on its own:
+    // without the reason columns (before 0117) the page still loads.
+    const { data: refunds } = await supabase
+      .from('channel_sales')
+      .select('external_ref, external_sku, title, qty, status, refund_reason, refund_fault')
+      .eq('tenant_id', tenantId)
+      .eq('channel', 'ebay')
+      .neq('status', 'paid')
+      .limit(500);
+
+    setState({ status: 'ready', total, listings, days: days ?? [], sales: sales ?? [], refunds: refunds ?? [], error: null });
   }, [tenantId]);
 
   useEffect(() => { load(); }, [load]);

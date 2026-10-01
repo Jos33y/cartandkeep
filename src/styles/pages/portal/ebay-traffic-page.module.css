@@ -570,3 +570,6 @@ a.name:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset
 .endedOn { font-size: var(--t-micro); color: var(--c-ink-faint); }
 .row[data-ended] .thumb { filter: grayscale(0.6); opacity: 0.8; }
 .findWrap { min-width: 170px; }
+.backTag { background: var(--c-negative-wash); color: var(--c-negative); }
+/* A refund is the one tag kept on a phone: it is the warning, not a label. */
+@media (max-width: 640px) { .tag.backTag { display: inline; } }

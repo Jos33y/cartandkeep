@@ -25,12 +25,15 @@ const exists = p => access(p).then(() => true, () => false);
 const num = v => (v === null || v === undefined || v === '' ? null : Number(v));
 
 class Stop extends Error {}
+// Shopify serves at most 25,000 products through /products.json (page x limit); past that, go by collection.
+class Cap extends Error {}
 
-async function page(n) {
-  const url = `${base}/products.json?limit=${perPage}&page=${n}`;
+async function page(n, from = '') {
+  const url = `${base}${from}/products.json?limit=${perPage}&page=${n}`;
   const res = await fetch(url, { headers: { 'user-agent': UA, accept: 'application/json', 'accept-language': 'en-GB' } });
   const text = await res.text();
   if (res.status === 429) throw new Stop(`rate limited (429) on page ${n}`);
+  if (res.status === 400 && /25000/.test(text)) throw new Cap(text.slice(0, 120));
   if (res.status !== 200) throw new Stop(`status ${res.status} on page ${n}: ${text.slice(0, 120)}`);
   let body;
   try { body = JSON.parse(text); } catch { throw new Stop(`page ${n} is not JSON, products.json is probably disabled: ${text.slice(0, 120)}`); }
@@ -105,6 +108,35 @@ async function finish() {
   return { products: new Set(all.map(r => r.product_id)).size, variants: all.length };
 }
 
+// Every collection's own products.json, each under the 25,000 cap; products already kept are skipped.
+async function byCollection(seen) {
+  const handles = [];
+  for (let k = 1; ; k++) {
+    await sleep(pause);
+    const res = await fetch(`${base}/collections.json?limit=250&page=${k}`, { headers: { 'user-agent': UA, accept: 'application/json' } });
+    if (res.status === 429) throw new Stop(`rate limited (429) on collections page ${k}`);
+    if (!res.ok) throw new Stop(`collections.json status ${res.status}`);
+    const list = (await res.json()).collections ?? [];
+    if (!list.length) break;
+    handles.push(...list.map((c) => c.handle));
+  }
+  console.log(`${handles.length} collections`);
+  for (const [i, h] of handles.entries()) {
+    let added = 0;
+    for (let n = 1; n <= 100; n++) {
+      await sleep(pause);
+      let products;
+      try { products = await page(n, `/collections/${h}`); } catch (e) { if (e instanceof Cap) break; throw e; }
+      if (!products.length) break;
+      const fresh = products.filter((p) => !seen.has(p.id));
+      fresh.forEach((p) => seen.add(p.id));
+      added += fresh.length;
+      if (fresh.length) await appendFile(outFile, fresh.flatMap(rows).map((r) => JSON.stringify(r)).join('\n') + '\n');
+    }
+    if (added) console.log(`collection ${i + 1}/${handles.length}  ${h}: ${added} new, ${seen.size} total`);
+  }
+}
+
 async function sitemapCount() {
   if (!await exists(probeUrls)) return null;
   return (await readFile(probeUrls, 'utf8')).split('\n').filter(l => /sitemap_products/.test(l.split('\t')[0])).length;
@@ -136,6 +168,7 @@ try {
   }
 
   let lastFirst = null;
+  try {
   while (true) {
     await sleep(pause);
     const products = await page(n);
@@ -147,8 +180,13 @@ try {
     if (fresh.length) await appendFile(outFile, fresh.flatMap(rows).map(r => JSON.stringify(r)).join('\n') + '\n');
     await writeFile(stateFile, String(n));
     console.log(`page ${String(n).padStart(3)}  ${products.length} products, ${fresh.length} new, ${seen.size} total`);
-    if (products.length < perPage) break;
+    // Only an empty page ends the shelf: some shops serve 248 on a full page (Decorating Centre Online).
     n++;
+  }
+  } catch (e) {
+    if (!(e instanceof Cap)) throw e;
+    console.log(`\nproducts.json stops at 25,000. Reading the rest collection by collection.`);
+    await byCollection(seen);
   }
 
   const { products, variants } = await finish();

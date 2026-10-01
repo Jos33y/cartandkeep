@@ -5,6 +5,7 @@ import { Card, CardHead } from '@components/ui/portal/primitives';
 import { Breakdown } from '@components/ui/portal/Breakdown';
 import { Icon } from '@components/ui/icons';
 import { useFinance, CHANNEL_LABEL } from '@hooks/useFinance';
+import { FAULT, moneyBack } from '@lib/refunds';
 import { loadTenant } from '@lib/tenant';
 import { formatGbp } from '@utils/formatGbp';
 import { portalPath } from '@utils/constants';
@@ -28,7 +29,7 @@ export function FinancePage() {
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
   const {
-    status, months, showing, setMonth, byChannel, totals, products, series, costs, saveCosts, saveProductCost, reload,
+    status, months, showing, setMonth, byChannel, totals, products, series, refunds, costs, saveCosts, saveProductCost, reload,
     pullEbay, pulling, pulled,
   } = useFinance(tenant?.id);
   const [pullError, setPullError] = useState(null);
@@ -303,7 +304,7 @@ export function FinancePage() {
         })}
       </div>
 
-      <Card flush>
+      <Card>
         <div className={styles.tableHead}>
           <CardHead title="By product" note={`${period}, most taken first`} />
         </div>
@@ -381,8 +382,79 @@ export function FinancePage() {
         </div>
       </Card>
 
+      {refunds.rows.length > 0 && <Refunded r={refunds} period={period} sold={totals.units} />}
+
       <Setup tenantId={tenant?.id} costs={costs} onSave={saveCosts} onImported={reload} />
     </div>
+  );
+}
+
+/*
+ * Money that went back: each refunded order, why, and whose doing it was. Products that keep coming back are named
+ * first, so she sees them before listing them again.
+ */
+function Refunded({ r, period, sold }) {
+  const share = r.units + sold ? r.units / (r.units + sold) : 0;
+  return (
+    <Card>
+      <div className={styles.tableHead}>
+        <CardHead title="Refunded"
+          note={`${period}: ${r.units} ${r.units === 1 ? 'unit' : 'units'} in ${r.orders} ${r.orders === 1 ? 'order' : 'orders'} refunded in full, ${formatGbp(r.back)} back${r.partOrders ? `, ${r.partOrders} part ${r.partOrders === 1 ? 'refund' : 'refunds'}` : ''}. ${Math.round(share * 100)}% of units sold.`} />
+      </div>
+
+      {r.comesBack.length > 0 && (
+        <div className={styles.comesBack}>
+          <Icon name="IconFlag" className={styles.comesIcon} />
+          <div>
+            <p className={styles.comesHead}>Keeps coming back. Find out why before listing {r.comesBack.length === 1 ? 'it' : 'them'} again.</p>
+            <ul className={styles.comesList}>
+              {r.comesBack.map((p) => (
+                <li key={p.key}>
+                  <b>{p.title}</b>: {p.units} of {p.units + p.sold} refunded{p.reasons.length ? `, ${p.reasons.join(', ').toLowerCase()}` : ''}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {r.hers > 0 && (
+        <p className={styles.hersNote}>
+          {r.hers} {r.hers === 1 ? 'was a cancellation' : 'were cancellations'} by you. {FAULT.her.note}
+        </p>
+      )}
+
+      <div className={`${styles.table} ${styles.refundTable}`}>
+        <div className={styles.headRow}>
+          <span>Product</span>
+          <span>Why</span>
+          <span className={styles.num}>Units</span>
+          <span className={styles.num}>Back</span>
+        </div>
+        {r.rows.map((x) => (
+          <div key={`${x.external_ref}-${x.line_no}`} className={styles.row}>
+            <span className={styles.product}>
+              <span className={styles.productName}>{x.title}</span>
+              <span className={styles.refundWhen}>
+                {new Date(x.sold_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}, order {x.external_ref}
+                {x.status === 'paid' ? ', part refund, still a sale' : x.status === 'cancelled' ? ', cancelled' : ''}
+              </span>
+            </span>
+            <span className={styles.refundWhy}>
+              <span>{x.refund_reason ?? 'No reason from eBay'}</span>
+              {x.refund_fault && <span className={`${styles.tag} ${styles[`fault_${x.refund_fault}`]}`}>{FAULT[x.refund_fault].label}</span>}
+            </span>
+            <span className={styles.cell} data-num>{x.status === 'paid' ? '--' : x.qty}</span>
+            <span className={styles.cell} data-num>{formatGbp(moneyBack(x))}</span>
+          </div>
+        ))}
+      </div>
+      {r.unexplained > 0 && (
+        <p className={styles.refundFoot}>
+          eBay gave no reason for {r.unexplained === 1 ? 'one' : r.unexplained}. The reason is on the order in Seller Hub, under Returns or Cancellations.
+        </p>
+      )}
+    </Card>
   );
 }
 

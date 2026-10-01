@@ -1,7 +1,7 @@
 // Pulls eBay orders into channel_sales, with eBay's actual fees.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { lineGross, statusOf } from '../_shared/ebay/orders.ts';
+import { cancelReasonOf, faultOf, lineGross, reasonText, refundedAtOf, refundedOf, statusOf } from '../_shared/ebay/orders.ts';
 
 const EBAY = 'https://api.ebay.com';
 
@@ -87,6 +87,33 @@ async function orders(access: string, since: string) {
   }
 
   return all;
+}
+
+/*
+ * Why a refunded order came back: its return, or its item-not-received case, from the Post-Order API. eBay has
+ * taken this call with both header forms over the years, so the OAuth form is tried first and the older one after.
+ * Nothing here can fail the pull: no answer is a null reason, said as such on the page.
+ */
+async function postOrder(access: string, path: string) {
+  for (const auth of [`IAF ${access}`, `Bearer ${access}`]) {
+    const res = await fetch(`${EBAY}/post-order/v2/${path}`, {
+      headers: { authorization: auth, 'content-type': 'application/json', 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_GB' },
+    }).catch(() => null);
+    if (!res) return null;
+    if (res.status === 401 || res.status === 403) continue;
+    if (!res.ok) return null;
+    return await res.json().catch(() => null);
+  }
+  return null;
+}
+
+async function returnReason(access: string, orderId: string): Promise<{ code: string | null; by: string | null }> {
+  const r = await postOrder(access, `return/search?order_id=${encodeURIComponent(orderId)}`);
+  const m = (r?.members ?? [])[0];
+  if (m?.creationInfo?.reason) return { code: m.creationInfo.reason, by: 'BUYER' };
+  const q = await postOrder(access, `inquiry/search?order_id=${encodeURIComponent(orderId)}`);
+  if ((q?.members ?? []).length) return { code: 'ITEM_NOT_RECEIVED', by: 'BUYER' };
+  return { code: null, by: null };
 }
 
 // Same length and every character compared, so the time taken says nothing about how close a guess was.
@@ -190,12 +217,22 @@ Deno.serve(async (req) => {
 
     const rows: Record<string, unknown>[] = [];
     const refs: string[] = [];
+    let lookups = 0;
 
     for (const o of list) {
       const lines = (o.lineItems ?? []) as Array<Record<string, never>>;
       if (!lines.length) continue;
 
       const orderGross = lines.reduce((s, l) => s + money(l.lineItemCost), 0);
+      // Money back: how much, when, and why. The reason from the cancellation when there is one; a return or
+      // item-not-received case otherwise, looked up for at most 40 orders a run.
+      const refunded = refundedOf(o);
+      const refundedAt = refundedAtOf(o);
+      let why = cancelReasonOf(o);
+      if (!why.code && (refunded > 0 || statusOf(o) !== 'paid') && lookups < 40) {
+        lookups += 1;
+        why = await returnReason(access, o.orderId as string).catch(() => ({ code: null, by: null }));
+      }
       const orderFee = money(o.totalMarketplaceFee as { value?: string });
       const haveFee = o.totalMarketplaceFee != null;
       const status = statusOf(o);
@@ -228,6 +265,11 @@ Deno.serve(async (req) => {
           fees: haveFee ? round(orderGross ? orderFee * (before / orderGross) : orderFee / lines.length) : null,
           fees_estimated: !haveFee,
           status,
+          // The order's refund, shared across its lines as the fee is.
+          refunded: refunded > 0 ? round(orderGross ? refunded * (before / orderGross) : refunded / lines.length) : null,
+          refunded_at: refunded > 0 || status !== 'paid' ? refundedAt : null,
+          refund_reason: refunded > 0 || status !== 'paid' ? reasonText(why.code) : null,
+          refund_fault: refunded > 0 || status !== 'paid' ? faultOf(why.code, why.by) : null,
           source_file: 'ebay-api',
           imported_at: new Date().toISOString(),
         });
@@ -256,6 +298,8 @@ Deno.serve(async (req) => {
       orders: refs.length,
       lines: rows.length,
       matched: rows.filter((r) => r.product_id).length,
+      refunds: rows.filter((r) => r.refunded != null || r.status !== 'paid').length,
+      reasons_found: rows.filter((r) => r.refund_reason).length,
       since,
       days: span,
       // Said rather than silently returned short, so a thin month is not read

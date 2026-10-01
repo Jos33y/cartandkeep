@@ -235,7 +235,7 @@ export function EbayTrafficPage() {
   const [tenant, setTenant] = useState(undefined);
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
-  const { status, total, listings, days, sales, error, pulling, pull, onShop, bringToShop } = useEbayTraffic(tenant?.id);
+  const { status, total, listings, days, sales, refunds, error, pulling, pull, onShop, bringToShop } = useEbayTraffic(tenant?.id);
   const keeper = useKeeper(tenant?.id);
   const agent = tenant?.store?.agent?.name || 'Your assistant';
   const names = useCategoryNames(tenant?.id);
@@ -300,6 +300,21 @@ export function EbayTrafficPage() {
     return map;
   }, [sales]);
 
+  // Units refunded in full per listing, by its item number, or by title for an order eBay filed without one.
+  const backBy = useMemo(() => {
+    const squash = (t) => String(t ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const map = new Map();
+    for (const r of refunds ?? []) {
+      for (const k of [r.external_sku && `id:${r.external_sku}`, `t:${squash(r.title)}`].filter(Boolean)) {
+        const at = map.get(k) ?? { units: 0, reasons: new Set() };
+        at.units += Number(r.qty ?? 1);
+        if (r.refund_reason) at.reasons.add(r.refund_reason);
+        map.set(k, at);
+      }
+    }
+    return (row) => map.get(`id:${row.listing_id}`) ?? map.get(`t:${squash(row.title)}`) ?? null;
+  }, [refunds]);
+
   const withStake = useMemo(
     () => listings.map((r) => {
       const orders = ordersBy.get(r.listing_id) ?? [];
@@ -312,6 +327,7 @@ export function EbayTrafficPage() {
       return {
         ...row,
         ended: Boolean(r.ended_at),
+        back: backBy(r),
         // An ended listing cannot convert any more, so nothing is at stake on it.
         stake: r.ended_at ? 0 : atStake(row, benchmark),
         verdict: diagnose(row),
@@ -320,7 +336,7 @@ export function EbayTrafficPage() {
         last: lastSoldAt ? Date.parse(lastSoldAt) : (sold ? 1 : 0),
       };
     }),
-    [listings, benchmark, ordersBy, total],
+    [listings, benchmark, ordersBy, total, backBy],
   );
 
   const endedCount = withStake.filter((r) => r.ended).length;
@@ -525,6 +541,12 @@ export function EbayTrafficPage() {
                       </span>
                     ) : (
                       <span className={`${styles.tag} ${styles[r.verdict]}`}>{VERDICTS[r.verdict].label}</span>
+                    )}
+                    {r.back && (
+                      <span className={`${styles.tag} ${styles.backTag}`}
+                        title={r.back.reasons.size ? [...r.back.reasons].join(', ') : 'No reason from eBay'}>
+                        {r.back.units} refunded
+                      </span>
                     )}
                     {r.price != null && <span data-num>{gbp(r.price, r.currency ?? 'GBP')}</span>}
                     {r.ended
