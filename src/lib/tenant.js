@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from './supabase.js';
 
 export const TENANT_SLUG = import.meta.env.VITE_TENANT_SLUG || 'cart-and-keep';
 

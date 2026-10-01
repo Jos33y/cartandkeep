@@ -5,7 +5,7 @@
  * and is safe: the functions hold the service role themselves and the anon key
  * grants nothing beyond calling them.
  */
-import { TENANT_SLUG } from './tenant';
+import { TENANT_SLUG } from './tenant.js';
 
 const BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;

@@ -1,4 +1,4 @@
-import { loadTenant } from './tenant';
+import { loadTenant } from './tenant.js';
 
 /*
  * Everything about a shop that is not its catalogue.

@@ -1,4 +1,4 @@
-import { chosenEntry, listingOf, swappedTo } from './product';
+import { chosenEntry, listingOf, swappedTo } from './product.js';
 import {
   PROFIT, breakEvenFor, cheapestCost, dropshipCosts, ebayCosts, floorFor, goodsToList, isPackCheck, keepAt as keepFor, listFor, marketAllows, positionOf, profitAt, storeCosts,
 } from './pricing.js';

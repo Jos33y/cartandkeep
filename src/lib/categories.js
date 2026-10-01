@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from './supabase.js';
 
 /*
  * Google's product taxonomy as the Candidates screen reads it. Cards store category ids; names are for display and

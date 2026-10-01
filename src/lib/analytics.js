@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from './supabase.js';
 
 /*
  * What people do in the shop, recorded without touching their device.

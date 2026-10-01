@@ -1,6 +1,6 @@
 import { SHOP_NAME_LIST, channelsOf, shopName } from './assess.js';
 import { freshChecks, isHers, noShopPhotos, pageOf, passedPhotos, sourceOf } from './photos.js';
-import { listingOf, swappedTo } from './product';
+import { listingOf, swappedTo } from './product.js';
 
 /*
  * What stands between an approved card and going live, per channel. One place, so the row, the checklist, the

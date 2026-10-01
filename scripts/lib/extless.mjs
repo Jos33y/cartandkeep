@@ -1,0 +1,3 @@
+// node --import ./scripts/lib/extless.mjs scripts/store/import-store.mjs ...
+import { register } from 'node:module';
+register('./extless-hooks.mjs', import.meta.url);

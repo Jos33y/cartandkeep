@@ -6,7 +6,7 @@
  * the barcode (eBay only). Anything else is refused, including the eBay seller's photo the research found.
  */
 
-import { listingOf, productKey, swappedTo } from './product';
+import { listingOf, productKey, swappedTo } from './product.js';
 
 // Her folder holds her uploads and, under shop/, our copies of shop photos Keepr passed. Only the first are hers.
 export const isHers = (url, draft = {}) =>
