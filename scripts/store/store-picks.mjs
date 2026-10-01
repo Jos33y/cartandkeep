@@ -15,7 +15,7 @@ import path from 'node:path';
 import { parseCsv } from '../lib/sources.js';
 import { digits, modelsIn, needOf, queryOf, sameProduct, seasonOf, squash, wordCounts } from './match.mjs';
 import { loadShelves, normShop, titleGrams } from './shelf.mjs';
-import { postCheckOf, stopOf } from './rules/index.mjs';
+import { linesOf, postCheckOf, stopOf } from './rules/index.mjs';
 import { PROFIT, floorFor, storeBandFor, storeCosts } from '../../src/lib/pricing.js';
 
 const arg = (k, d = null) => process.argv.slice(2).find((a) => a.startsWith(`--${k}=`))?.split('=').slice(1).join('=') ?? d;
@@ -68,12 +68,25 @@ for (const g of google) {
   wanted.push({ ...g, min, max: Number(g['Price Range Max']) || min, gtins: String(g.GTINs ?? '').split(/\s+/).map(digits).filter(Boolean), brand: squash(g.Brand), models: modelsIn(g.Title) });
 }
 
+// The ranges a best seller is also searched under: its maker's ranges named in its title (Epoch: Sylvanian
+// Families), or, with no brand at all, any best-seller brand its title opens with or names (rules/categories LINES).
+const gramsIn = (t) => { const w = t.split(' '); const out = new Set(); for (let n = 1; n <= 4; n += 1) for (let i = 0; i + n <= w.length; i += 1) out.add(w.slice(i, i + n).join(' ')); return out; };
+for (const g of wanted) {
+  const t = gramsIn(squash(g.Title));
+  const lines = (linesOf(g.category)[g.brand] ?? []).map(squash);
+  // A one-word brand that is also an everyday title word (Wooden, Classic, Magnetic) is not taken from a title:
+  // it must name its own best sellers more than it names other products.
+  const brandWord = (b) => b.includes(' ') || (b.length >= 5 && (ctx.df.get(b) ?? 0) <= 3 * (brandCount.get(b) ?? 0) + 5);
+  const named = g.brand ? lines.filter((l) => t.has(l)) : [...ctx.brands].filter((b) => t.has(b) && brandWord(b));
+  g.lines = [...new Set(named)].filter((l) => l !== g.brand);
+}
+
 // Only shelf products that could match a wanted best seller are kept: its barcode, or its brand's key.
 const shelf = loadShelves({
   dir: shelfDir,
   wantGtins: new Set(wanted.flatMap((g) => g.gtins)),
-  wantKeys: new Set(wanted.flatMap((g) => [g.brand, g.brand.split(' ')[0]]).filter(Boolean)),
-  wantBrands: new Set(wanted.map((g) => g.brand).filter(Boolean)),
+  wantKeys: new Set(wanted.flatMap((g) => [g.brand, g.brand.split(' ')[0], ...g.lines]).filter(Boolean)),
+  wantBrands: new Set(wanted.flatMap((g) => [g.brand, ...g.lines]).filter(Boolean)),
   skipShops,
 });
 const { byGtin, byBrand, weighed } = shelf;
@@ -96,10 +109,20 @@ for (const g of wanted) {
   const hits = [];
   for (const code of g.gtins) for (const s of byGtin.get(code) ?? []) hits.push({ s, via: 'barcode' });
   if (!hits.length) {
-    for (const s of byBrand.get(g.brand) ?? byBrand.get(g.brand.split(' ')[0]) ?? []) {
+    // The brand's own shelf rows; failing that, rows filed under its first word, kept only when they name the
+    // whole brand or the shop's brand column is that word. "The Witcher" fell back to every shop product opening
+    // with "The", "Days of Wonder" to "Days", "Kitchen Corner" to KitchenCraft: 2,215 matches to check, mostly junk.
+    const firstWord = g.brand.split(' ')[0];
+    const own = byBrand.get(g.brand);
+    const pools = [[own ?? (byBrand.get(firstWord) ?? []).filter((s) => (s.brand && s.brand === firstWord) || ` ${squash(s.name)} `.includes(` ${g.brand} `)), g.Brand]];
+    for (const l of g.lines) pools.push([byBrand.get(l) ?? [], l]);
+    const looked = new Set();
+    for (const [pool, brandAs] of pools) for (const s of pool) {
+      if (looked.has(s)) continue;
+      looked.add(s);
       const model = g.models.find((m) => squash(s.name).split(' ').includes(m));
       if (model) { hits.push({ s, via: `model ${model}` }); continue; }
-      const v = sameProduct(g.Title, g.Brand, s.name, ctx);
+      const v = sameProduct(g.Title, brandAs, s.name, ctx);
       if (v.startsWith('confirmed')) hits.push({ s, via: 'name' });
       else if (v.startsWith('unsure')) hits.push({ s, via: 'name, check it' });
     }

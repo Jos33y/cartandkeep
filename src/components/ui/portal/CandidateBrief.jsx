@@ -3,6 +3,7 @@ import { Icon } from '@components/ui/icons';
 import { REF_WORD } from './GapRail';
 import { formatGbp } from '@utils/formatGbp';
 import { PACK_RATIO, READY_MIN_SOLD, shopName } from '@lib/assess';
+import { ebayItemUrl, ebaySearchUrl } from '@lib/product';
 import { SellerGauge } from './SellerGauge';
 import { REJECTION_REASONS } from '@utils/constants';
 import styles from '@styles/ui/portal/candidate-brief.module.css';
@@ -241,15 +242,17 @@ function Marked({ text }) {
 
 // packOf reads grams and millilitres as one scale, so the unit says both.
 const packWord = (p) => (p ? (p.kind === 'weight' ? (p.n >= 1000 ? `${p.n / 1000}kg/L` : `${p.n}g/ml`) : `${p.n}`) : null);
-const itm = (id) => `https://www.ebay.co.uk/itm/${String(id).split('|')[1] ?? id}`;
 const big = (url) => (url ? url.replace(/\/s-l\d+\./, '/s-l500.') : null);
 
 /*
  * Confirm the pack: the listing that proves the market beside the shelf that sets the cost, sizes marked in both
  * titles, and how far apart the prices are. The shop's photo is never kept, so the shelf side is its label.
  */
-export function ComparePanel({ base, image }) {
+export function ComparePanel({ base, image, query = null }) {
   const e = base.entry ?? {};
+  // No listing kept for this card: eBay's search for the card's query stands in, and says it is a search.
+  const listingUrl = ebayItemUrl(e.item_id);
+  const searchUrl = listingUrl ? null : ebaySearchUrl(query);
   const shelf = base.m?.shelf ?? {};
   const match = base.match ?? base.m?.match ?? null;
   const shop = shopName(shelf.shop) ?? 'The shop';
@@ -275,16 +278,21 @@ export function ComparePanel({ base, image }) {
           <span className={styles.sideKicker}>On eBay, the small seller</span>
           <div className={styles.sideBody}>
             {photo
-              ? <a className={styles.photo} href={e.item_id ? itm(e.item_id) : undefined} target="_blank" rel="noreferrer noopener"><img src={photo} alt="" loading="lazy" /></a>
+              ? <a className={styles.photo} href={listingUrl ?? undefined} target="_blank" rel="noreferrer noopener"><img src={photo} alt="" loading="lazy" /></a>
               : <span className={`${styles.photo} ${styles.photoNone}`} aria-hidden="true" />}
             <div className={styles.sideText}>
               <p className={styles.sideTitle}>
                 {e.title ? <Marked text={e.title} /> : <span className={styles.missing}>The listing&apos;s title was not kept for this card. The photo decides.</span>}
               </p>
               <p className={styles.sidePrice} data-num>{e.price != null ? n(e.price) : 'No price'}</p>
-              {e.item_id && (
-                <a className={styles.sideLink} href={itm(e.item_id)} target="_blank" rel="noreferrer noopener">
+              {listingUrl && (
+                <a className={styles.sideLink} href={listingUrl} target="_blank" rel="noreferrer noopener">
                   Open listing <Icon name="IconOut" className={styles.sideLinkIcon} />
+                </a>
+              )}
+              {searchUrl && (
+                <a className={styles.sideLink} href={searchUrl} target="_blank" rel="noreferrer noopener">
+                  Search eBay <Icon name="IconOut" className={styles.sideLinkIcon} />
                 </a>
               )}
             </div>

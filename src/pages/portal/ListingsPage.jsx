@@ -119,7 +119,7 @@ export function ListingsPage() {
   const [notice, setNotice] = useState(null);
 
   const list = useLiveListings(tenant?.id, { tab, show, find, sort: sort.by, dir: sort.dir });
-  const { rows, total, counts, sold, status } = list;
+  const { rows, total, counts, facets, sold, status } = list;
 
   // The tab and filter in the address, so the Overview can send her straight to a list and a reload keeps it.
   useEffect(() => {
@@ -298,6 +298,9 @@ export function ListingsPage() {
   const addable = [...picked.values()].filter((r) => r.on_ebay && !r.shop_state);
   const avg = averagesOf(counts);
   const filtered = Boolean(show || find.trim());
+  // Until the counts under the current choice arrive, the whole list's counts stand in only when nothing narrows it.
+  const tabCount = (t) => facets?.tab[t.id] ?? (filtered ? null : counts?.[t.count] ?? null);
+  const showCount = (s) => facets?.show[s.id] ?? (filtered || tab !== 'all' ? null : counts?.[s.count] ?? null);
 
   return (
     <div className={styles.page} ref={pageRef}>
@@ -322,7 +325,7 @@ export function ListingsPage() {
             <button key={t.id} type="button" role="tab" aria-selected={tab === t.id}
               className={`${styles.tab} ${tab === t.id ? styles.tabOn : ''}`} onClick={() => setTab(t.id)}>
               {t.label}
-              <span className={styles.tabCount} data-num>{counts ? n(counts[t.count]) : ''}</span>
+              <span className={styles.tabCount} data-num>{tabCount(t) != null ? n(tabCount(t)) : ''}</span>
             </button>
           ))}
         </div>
@@ -335,12 +338,12 @@ export function ListingsPage() {
 
       <div className={styles.filters} role="group" aria-label="Show only">
         {SHOWS.map((s) => {
-          const c = counts?.[s.count] ?? 0;
+          const c = showCount(s);
           return (
-            <button key={s.id} type="button" aria-pressed={show === s.id} disabled={!c && show !== s.id}
+            <button key={s.id} type="button" aria-pressed={show === s.id} disabled={c === 0 && show !== s.id}
               className={styles.filter} data-tone={s.tone} onClick={() => setShow((v) => (v === s.id ? null : s.id))}>
               {s.label}
-              <span className={styles.filterCount} data-num>{n(c)}</span>
+              <span className={styles.filterCount} data-num>{c != null ? n(c) : ''}</span>
             </button>
           );
         })}

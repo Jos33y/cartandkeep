@@ -260,6 +260,7 @@
 .filter[data-tone='negative'] .filterCount { color: var(--c-negative); }
 .filter[data-tone='warning'] .filterCount { color: var(--c-warning); }
 .filter[aria-pressed='true'] { border-color: var(--c-ink); background: var(--c-ink); color: var(--c-surface); }
+.filter[aria-pressed='true']:hover:not(:disabled) { border-color: var(--c-ink); background: color-mix(in srgb, var(--c-ink) 86%, var(--c-surface)); color: var(--c-surface); }
 .filter[aria-pressed='true'] .filterCount { color: color-mix(in srgb, var(--c-surface) 75%, transparent); }
 .clear { font-size: var(--t-caption); color: var(--c-action-text); text-decoration: underline; text-underline-offset: 3px; }
 

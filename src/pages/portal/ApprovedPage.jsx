@@ -1561,7 +1561,7 @@ function Pack({
 
               {packOpen && !draft.as_shelf && (
                 <div data-part="pack" className={styles.packPanel}>
-                  <ComparePanel base={eView} image={row.image_url} />
+                  <ComparePanel base={eView} image={whole.store ? null : row.image_url} query={row.external_ref} />
                   {pack && (
                     <div className={styles.packActions}>
                       <button type="button" className={styles.ghost} onClick={() => goTo('buy')}>

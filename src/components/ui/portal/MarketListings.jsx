@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Icon } from '@components/ui/icons';
 import { formatGbp } from '@utils/formatGbp';
-import { legacyId, sameListing } from '@lib/product';
+import { ebayItemUrl, sameListing } from '@lib/product';
 import styles from '@styles/ui/portal/market-listings.module.css';
 
 const SHOWN = 4;
@@ -11,7 +11,7 @@ const fbText = (n) => (n == null ? null : `${Number(n).toLocaleString('en-GB')} 
 const byText = (e) => (e?.by === 'keepr'
   ? `Keepr chose it${e.sure != null ? `, ${Math.round(e.sure * 100)}% sure` : ''}`
   : e?.by === 'her' ? 'You chose it' : null);
-const urlOf = (x) => x?.url ?? (x?.item_id ? `https://www.ebay.co.uk/itm/${legacyId(x.item_id)}` : null);
+const urlOf = (x) => x?.url ?? ebayItemUrl(x?.item_id);
 
 function Row({ x, tag, tone, meta, action, hot, onHot }) {
   const url = urlOf(x);

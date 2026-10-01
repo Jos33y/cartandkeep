@@ -3,8 +3,8 @@ import { supabase } from '@lib/supabase';
 
 /*
  * What is live, a page at a time, from the live_listings view (migration 0120): sorted, filtered and counted in the
- * database, so 5,000 listings cost the page what 60 do. The counts come from the same rows the list does, so a tab's
- * number and its list always agree.
+ * database, so 5,000 listings cost the page what 60 do. Each tab and filter number is counted with the same conditions
+ * as the list, inside the other choices made, so a number and the list it opens always agree.
  */
 export const PAGE = 60;
 
@@ -36,15 +36,26 @@ export function conditions({ tab = 'all', show = null, find = '' } = {}) {
   return out;
 }
 
+export const TAB_IDS = ['all', 'both', 'ebayOnly', 'shopOnly'];
+export const SHOW_IDS = ['selling', 'noShop', 'out', 'low', 'quiet', 'wanted'];
+
+function filtered(q, choice) {
+  for (const [op, col, val] of conditions(choice)) q = op === 'or' ? q.or(col) : q[op](col, val);
+  return q;
+}
+
 export function useLiveListings(tenantId, { tab, show, find, sort, dir }) {
   const [state, setState] = useState({ status: 'loading', rows: [], total: 0, error: null, more: false });
   const [counts, setCounts] = useState(null);
   const [sold, setSold] = useState(null);
+  const [facets, setFacets] = useState(null);
+  const [fresh, setFresh] = useState(0);
   const ask = useRef(0);
+  const facetAsk = useRef(0);
 
   const query = useCallback((from) => {
     let q = supabase.from('live_listings').select(COLUMNS, { count: from === 0 ? 'exact' : undefined }).eq('tenant_id', tenantId);
-    for (const [op, col, val] of conditions({ tab, show, find })) q = op === 'or' ? q.or(col) : q[op](col, val);
+    q = filtered(q, { tab, show, find });
     const column = SORTS[sort]?.column ?? 'sold';
     const ascending = dir === 'asc';
     q = q.order(column, { ascending, nullsFirst: false });
@@ -66,6 +77,30 @@ export function useLiveListings(tenantId, { tab, show, find, sort, dir }) {
     }, find ? 220 : 0);
     return () => clearTimeout(t);
   }, [tenantId, query, find]);
+
+  // What each tab holds under the filter and search, and each filter under the tab and search: counted, not fetched.
+  useEffect(() => {
+    if (!tenantId) return undefined;
+    const n = ++facetAsk.current;
+    const t = setTimeout(async () => {
+      const count = (choice) => filtered(
+        supabase.from('live_listings').select('key', { count: 'exact', head: true }).eq('tenant_id', tenantId), choice,
+      );
+      const res = await Promise.all([
+        ...TAB_IDS.map((id) => count({ tab: id, show, find })),
+        ...SHOW_IDS.map((id) => count({ tab, show: id, find })),
+      ]);
+      if (n !== facetAsk.current) return;
+      // A count that did not come back is not a zero: the page falls back rather than greying a filter out.
+      if (res.some((r) => r.error || r.count == null)) { setFacets(null); return; }
+      const at = (i) => res[i].count;
+      setFacets({
+        tab: Object.fromEntries(TAB_IDS.map((id, i) => [id, at(i)])),
+        show: Object.fromEntries(SHOW_IDS.map((id, i) => [id, at(TAB_IDS.length + i)])),
+      });
+    }, find ? 220 : 0);
+    return () => clearTimeout(t);
+  }, [tenantId, tab, show, find, fresh]);
 
   const loadMore = useCallback(async () => {
     if (state.status !== 'ready' || !state.more) return;
@@ -98,6 +133,7 @@ export function useLiveListings(tenantId, { tab, show, find, sort, dir }) {
 
   const reload = useCallback(() => {
     loadCounts();
+    setFresh((v) => v + 1);
     ask.current += 1;
     const n = ask.current;
     query(0).then(({ data, error, count }) => {
@@ -152,7 +188,7 @@ export function useLiveListings(tenantId, { tab, show, find, sort, dir }) {
     return data;
   }, [tenantId]);
 
-  return { ...state, counts, sold, loadMore, reload, addToShop, cardOf, updateOnEbay, readLive };
+  return { ...state, counts, facets, sold, loadMore, reload, addToShop, cardOf, updateOnEbay, readLive };
 }
 
 // Live counts alone, for the Overview: the same numbers the Listings page shows.

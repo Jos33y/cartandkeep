@@ -13,6 +13,7 @@ import { HOW_SET, categoryPath } from '@lib/categories';
 import { Icon } from '@components/ui/icons';
 import { formatGbp } from '@utils/formatGbp';
 import { READY_MIN_SOLD, assess, shopName } from '@lib/assess';
+import { ebayItemUrl, ebaySearchUrl } from '@lib/product';
 import { REJECTION_REASONS } from '@utils/constants';
 import styles from '@styles/ui/portal/candidate-row.module.css';
 
@@ -20,9 +21,6 @@ const VERDICT = { approve: 'Approved', reject: 'Rejected', defer: 'Later' };
 const TONE = { approve: 'positive', reject: 'negative', defer: 'warning' };
 
 const thumb = (url) => (url ? url.replace(/\/s-l\d+\./, '/s-l225.') : null);
-
-// eBay's composite id is v1|287502604374|0 and the /itm/ path wants the middle part.
-const itmUrl = (id) => `https://www.ebay.co.uk/itm/${String(id).split('|')[1] ?? id}`;
 
 // Known shops get their own search page; anything else a site-scoped Google search.
 const SHOP_SEARCH = {
@@ -250,7 +248,7 @@ export function CandidateRow({
     }
     if (base.lane === 'price' && base.entry?.item_id) {
       return (
-        <a className={styles.briefOut} href={itmUrl(base.entry.item_id)} target="_blank" rel="noreferrer noopener">
+        <a className={styles.briefOut} href={ebayItemUrl(base.entry.item_id)} target="_blank" rel="noreferrer noopener">
           Open their listing <Icon name="IconOut" className={styles.confirmIcon} />
         </a>
       );
@@ -259,7 +257,7 @@ export function CandidateRow({
     // outlined, since the pace is her call.
     if (base.lane === 'untested' && base.entry?.item_id) {
       return (
-        <a className={styles.briefOut} data-tone="slate" href={itmUrl(base.entry.item_id)} target="_blank" rel="noreferrer noopener">
+        <a className={styles.briefOut} data-tone="slate" href={ebayItemUrl(base.entry.item_id)} target="_blank" rel="noreferrer noopener">
           Open their listing <Icon name="IconOut" className={styles.confirmIcon} />
         </a>
       );
@@ -497,7 +495,17 @@ export function CandidateRow({
                       ghost={!a.trying && base.position && !base.position.inMarket && base.landsUnder != null
                         ? { price: base.position.ref, note: base.postedBy === 'you' && goodsUnder(base) > 0 ? `goods under ${formatGbp(goodsUnder(base))}` : `under ${formatGbp(base.landsUnder)} posted` }
                         : null} />
-                    {base.store ? <GoogleStrip base={base} /> : <SellerStrip base={base} c={c} />}
+                    {base.store ? (
+                      <>
+                        <GoogleStrip base={base} />
+                        {base.ebay && <EbayStrip ebay={base.ebay} query={c.external_ref} />}
+                        {/* The eBay listing beside the shop's name for it, unless the gate matched the pack. The shop's
+                            photo is never shown as eBay's. */}
+                        {base.ebay?.entry?.title && base.ebay.m?.shelf && base.ebay.match?.level !== 'same_product_same_pack' && (
+                          <ComparePanel base={base.ebay} query={c.external_ref} />
+                        )}
+                      </>
+                    ) : <SellerStrip base={base} c={c} />}
                     {(!['over', 'dear', 'short'].includes(base.lane) || decision) && (
                       <>
                         <div className={styles.tryRule} />
@@ -667,7 +675,32 @@ function GoogleStrip({ base }) {
         <span><b data-num>{g.months ?? '?'}</b> {g.months === 1 ? 'month' : 'months'} ranked</span>
         <span><b data-num>{base.shops.length}</b> UK {base.shops.length === 1 ? 'shop' : 'shops'}</span>
         <span>floor <b data-num>{base.floor != null ? formatGbp(base.floor) : '--'}</b></span>
-        {base.ebay && <span>on eBay <b data-num>{formatGbp(base.ebay.price)}</b>, keeps <b data-num>{formatGbp(base.ebay.keep)}</b></span>}
+      </span>
+    </div>
+  );
+}
+
+/*
+ * A store card the gate also passed: its own eBay price and keep, and the listing that proved the market there. With
+ * no listing kept, eBay's search for the card's query, named as a search.
+ */
+function EbayStrip({ ebay, query }) {
+  const e = ebay.entry;
+  const listing = ebayItemUrl(e?.item_id);
+  const href = listing ?? ebaySearchUrl(query);
+  return (
+    <div className={styles.strip}>
+      <span className={styles.stripLabel}><Icon name="IconTag" className={styles.stripIcon} />On eBay</span>
+      <span className={styles.stripFacts}>
+        <span>lists at <b data-num>{formatGbp(ebay.price)}</b></span>
+        <span>keeps <b data-num>{formatGbp(ebay.keep)}</b></span>
+        {e?.price != null && <span>{e.proved ? 'small seller' : 'smallest seller'} <b data-num>{formatGbp(e.price)}</b></span>}
+        {href && (
+          <a className={styles.out} href={href} target="_blank" rel="noreferrer noopener" title={listing ? e?.title ?? undefined : undefined}>
+            {listing ? 'See it on eBay' : 'Search eBay'} <Icon name="IconOut" className={styles.outIcon} />
+            <span className="visually-hidden"> (opens eBay in a new tab)</span>
+          </a>
+        )}
       </span>
     </div>
   );
@@ -702,7 +735,7 @@ function AlsoLook({ names, seen, label, q }) {
 
 function ListingLink({ id }) {
   return (
-    <a className={styles.out} href={itmUrl(id)} target="_blank" rel="noreferrer noopener">
+    <a className={styles.out} href={ebayItemUrl(id)} target="_blank" rel="noreferrer noopener">
       Open listing <Icon name="IconOut" className={styles.outIcon} />
     </a>
   );

@@ -71,6 +71,7 @@ function forCategory(category) {
     restricted: [...restrictedParts, ...(Array.isArray(extra.RESTRICTED) ? extra.RESTRICTED.map((s, i) => [`${k} ${i + 1}`, s]) : Object.entries(extra.RESTRICTED ?? {})).map(([n, s]) => [n, new RegExp(s, 'i')])],
     branded: extra.BRANDED ? new RegExp(extra.BRANDED, 'i') : null,
     ownTitle: extra.OWN_TITLE ? new RegExp(extra.OWN_TITLE, 'i') : null,
+    lines: extra.LINES ?? {},
     post: [...postParts, ...(extra.CANT_POST ?? []).map((s, i) => [`${k} ${i + 1}`, new RegExp(s, 'i')])],
   };
   cache.set(k, rules);
@@ -106,4 +107,9 @@ export function stopOf({ title, brand = '', category = '' }) {
 export function postCheckOf(title) {
   const t = String(title ?? '');
   return postChecks.filter(([, rx]) => rx.test(t)).map(([label]) => label).join('; ');
+}
+
+// A maker's ranges for a category (Epoch: Sylvanian Families), so store-picks searches the shops under the range too.
+export function linesOf(category) {
+  return forCategory(category).lines;
 }
