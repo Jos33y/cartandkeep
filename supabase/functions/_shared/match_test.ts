@@ -86,3 +86,12 @@ Deno.test('after a move to another product, the old shelf is not this product', 
   const paged = { ...c, draft: { ...c.draft, page: 'https://new.test/renpho' }, listing: { title: 'Renpho', source_url: 'https://new.test/renpho' } };
   assertEquals([listingOf(paged)?.title, pageUrlOf(paged)], ['Renpho', 'https://new.test/renpho']);
 });
+
+import { cleanAspects } from './ebay/item.ts';
+
+Deno.test('another seller\'s item details: a measurement needs a unit that fits it, unit pricing goes', () => {
+  assertEquals(cleanAspects({
+    'Item Width': '16', 'Item Length': '5 cm', 'Item Height': '1800ma', 'Unit Type': 'kg', 'Item Weight': '450 g',
+    Type: 'Massage Gun', Brand: 'Unbranded', 'Battery Capacity': '1800mAh', Size: 'Mini', 'Number of Speeds': '6',
+  }), { 'Item Length': '5 cm', 'Item Weight': '450 g', Type: 'Massage Gun', 'Battery Capacity': '1800mAh', Size: 'Mini', 'Number of Speeds': '6' });
+});

@@ -5,6 +5,7 @@ import { pageUrlOf, parseTitles, readShopPage } from '../_shared/shop-page.ts';
 import { askText } from '../_shared/claude.ts';
 import { backstageOut } from '../_shared/copy.ts';
 import { itemFactsOf, listingOf, productKey, swappedTo } from '../_shared/product.ts';
+import { cleanAspects } from '../_shared/ebay/item.ts';
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -48,8 +49,11 @@ function othersFacts(c: Record<string, any>): Array<[string, unknown]> {
   const pc = c.photo_checks;
   if (!pc || (pc.product ?? null) !== productKey(c)) return [];
   // deno-lint-ignore no-explicit-any
-  return ((pc.others ?? []) as any[]).filter((o) => o.ok).slice(0, 2).map((o) => [
-    `Another UK shop's page for the same product (${o.shop}, facts only, never its wording)`,
+  // Her supplier's page sent from her own browser comes first and is trusted first; other shops after it.
+  return ((pc.others ?? []) as any[]).filter((o) => o.ok).sort((a, b) => Number(Boolean(b.sent)) - Number(Boolean(a.sent))).slice(0, 2).map((o) => [
+    o.sent
+      ? `FROM HER SUPPLIER'S PAGE (${o.shop}, sent from her browser; the product she sends, trust this first; facts only, never its wording)`
+      : `Another UK shop's page for the same product (${o.shop}, facts only, never its wording)`,
     [o.title, o.description, (o.features ?? []).join('; ')].filter(Boolean).join('\n').slice(0, 1800),
   ]);
 }
@@ -62,8 +66,12 @@ function facts(c: Record<string, any>) {
   const l = listingOf(c) ?? {};
   const f = itemFactsOf(c) ?? {};
   const moved = Boolean(swappedTo(c));
-  const held = Object.entries(f.aspects ?? {}).map(([k, v]) => `${k}: ${v}`).join('; ');
+  // Cleaned again here, so details saved before the cleaning are read the same way.
+  const held = Object.entries(cleanAspects(f.aspects ?? {})).map(([k, v]) => `${k}: ${v}`).join('; ');
+  const supplier = String(c.draft?.supplier_text ?? '').trim();
   return [
+    // What her supplier's page says, pasted by her: the product she sends, so the strongest source there is.
+    ['FROM HER SUPPLIER (the product she sends; trust this first)', supplier ? supplier.slice(0, 3000) : null],
     ['Shop title', l.title],
     ['Brand', l.brand ?? f.brand],
     ['Category', l.shop_category ?? f.category],
@@ -73,11 +81,11 @@ function facts(c: Record<string, any>) {
     ['Pack size on the shelf', l.unit_price],
     ['Model', f.mpn],
     ['Barcode', f.gtin],
-    ['Item details eBay holds for this product', held || null],
-    ['What another seller says about this product (facts only, never their wording)', f.description],
+    ['ANOTHER EBAY SELLER\'S item details (typed by hand, often incomplete or wrong; use only what agrees with the rest)', held || null],
+    ['ANOTHER EBAY SELLER\'S description (same caution; facts only, never their wording)', f.description],
     ...othersFacts(c),
     ['Search this was found by', moved ? null : c.external_ref],
-    ['A competing listing that is selling', (c.draft?.entry ?? c.entry)?.title],
+    ['ANOTHER EBAY SELLER\'S listing title (same caution)', (c.draft?.entry ?? c.entry)?.title],
   ]
     .filter(([, v]) => v)
     .map(([k, v]) => `${k}: ${v}`)
@@ -95,9 +103,14 @@ Rules:
 - British spelling throughout: colour, flavour, fibre, litre.
 - The photographs are the manufacturer's packaging. A pack count or size printed
   clearly on them is a fact like any other.
-- If the text and the packaging disagree about quantity, size, weight or count,
-  write no titles. Reply with a single line starting CONFLICT: saying what
-  disagrees, for example "CONFLICT: title says 8 x 150g, the pack shows 4x".
+- If the trusted sources disagree about quantity, size, weight or count (her
+  supplier, the shop's page, the packaging in the photographs), write no titles.
+  Reply with a single line starting CONFLICT: saying what disagrees, for example
+  "CONFLICT: title says 8 x 150g, the pack shows 4x".
+- Anything marked ANOTHER EBAY SELLER is that seller's say-so and is often wrong.
+  Where it disagrees with a trusted source or makes no sense, leave it out; that
+  is never a conflict. A detail only that seller gives is used only if it is
+  plainly about this product and nothing contradicts it.
 
 Otherwise reply with JSON only, no preamble and no markdown fence: an array of 4 strings.`;
 
@@ -114,10 +127,16 @@ Rules:
 - The photographs are the manufacturer's packaging. Use printed text on them only
   where it is clearly legible, and treat it as a source like any other. Anything
   small, blurred or partly hidden is left out, not guessed.
-- If the sources disagree about quantity, size, weight, count or contents, do not
+- If the trusted sources (her supplier, the shop's page, the packaging in the
+  photographs) disagree about quantity, size, weight, count or contents, do not
   reconcile them and do not write a description. Reply with a single line that
   starts CONFLICT: and says what disagrees, for example
   "CONFLICT: title says 8 x 150g, the pack shows 4x".
+- Anything marked ANOTHER EBAY SELLER is that seller's say-so and is often wrong:
+  sizes with no units, a figure in the wrong box, a feature their title claims.
+  Leave out whatever makes no sense or disagrees with a trusted source; that is
+  never a conflict. Write the description from what is left, and keep it short
+  rather than guess.
 - Open with one sentence on what it is and who it is for.
 - Then a short list of what is in the pack and what matters about it.
 - No postage or returns copy: eBay shows those from the policies.
@@ -188,7 +207,7 @@ Deno.serve(async (req) => {
 
     // With no page at all, a title can still come from the search and the listing that sells; a
     // description cannot, because every line of it would be a guess.
-    const held = itemFactsOf(c);
+    const held = itemFactsOf(c) ?? (String(c.draft?.supplier_text ?? '').trim() ? {} : null);
     if (!c.listing && !held && kind === 'description') {
       return json({
         error: unread

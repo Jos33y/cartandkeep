@@ -13,6 +13,7 @@ import { assess, shopName } from '@lib/assess';
 import { STATE_WORD, goLive, ownMarket, parcelFor, parcelOf, viewsOf } from '@lib/golive';
 import { freshChecks, isHers, noShopPhotos, pageOf, photosToAdd, sourceOf } from '@lib/photos';
 import { PRODUCT_FIELDS, sameListing } from '@lib/product';
+import { bookmarkletFor, likelyCard, readSent } from '@lib/sendToCart';
 import { KeeprSuggestion } from '@components/ui/portal/MarketListings';
 import { ListingComposer } from '@components/ui/portal/ListingComposer';
 import { BulkBar, ListSheet } from '@components/ui/portal/BulkListing';
@@ -89,6 +90,49 @@ export function ApprovedPage() {
   // The cards eBay is checking before they are queued; the cards it held back, to look at next.
   const [sheetFor, setSheetFor] = useState(null);
   const [held, setHeld] = useState(null);
+  /*
+   * A supplier page sent from her browser by the Send to Cart & Keep button: read off the address once, then she
+   * picks the card it is for. Its details go in the card's supplier box; its photos go through the photo check.
+   */
+  const [sent, setSent] = useState(() => readSent(typeof window === 'undefined' ? '' : window.location.hash));
+  const [sentFor, setSentFor] = useState('');
+  const [sending, setSending] = useState(false);
+  useEffect(() => {
+    if (sent && window.location.hash) window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  }, [sent]);
+  useEffect(() => {
+    if (sent && !sentFor && rows.length) setSentFor(likelyCard(sent, rows) ?? '');
+  }, [sent, sentFor, rows]);
+  async function applySent() {
+    const row = rows.find((r) => r.id === sentFor);
+    if (!row) return;
+    setSending(true);
+    try {
+      await patchDraft(row.id, { supplier_text: sent.text, supplier_url: sent.url });
+      let added = 0;
+      let passed = 0;
+      if ((sent.images ?? []).length) {
+        const pc = await checkPhotos(row.id, { supplied: sent });
+        const mine = (pc.others ?? []).find((o) => o.url === sent.url);
+        passed = (mine?.images ?? []).filter((i) => i.ok).length;
+        const add = photosToAdd({ ...row, photo_checks: pc }, { ...(row.draft ?? {}), supplier_text: sent.text });
+        if (add?.images) { await patchDraft(row.id, add); added = add.images.length; }
+      }
+      setNotice({
+        title: `Sent from ${sent.shop || "your supplier's page"}`,
+        body: `${row.draft?.title || row.title}: the product details are in, and ${sent.images?.length ? `${passed} of ${sent.images.length} photos passed the check${added ? `, ${added} added` : ''}` : 'no photos came with it'}. Get it ready writes from them.`,
+        tone: 'positive',
+        actionLabel: 'Show the card',
+        onAction: () => { setHeld({ ids: new Set([row.id]), label: 'Just sent' }); setOnly('held'); setNotice(null); },
+      });
+      setSent(null);
+    } catch (e) {
+      setNotice({ title: 'Not added', body: e.message, tone: 'warning' });
+    } finally {
+      setSending(false);
+    }
+  }
+
   // Cards she has opened, or that are being written, stay in the list she is on until she changes it: an edit that
   // takes a card out of Ready should not make it vanish under her.
   const [stay, setStay] = useState(() => new Set());
@@ -406,6 +450,31 @@ export function ApprovedPage() {
         )}
         </div>
       </header>
+
+      {sent && (
+        <section className={styles.sent} aria-label="Sent from your browser">
+          {sent.images?.[0] && <img className={styles.sentShot} src={sent.images[0]} alt="" />}
+          <div className={styles.sentText}>
+            <p className={styles.sentHead}>From {sent.shop || "your supplier's page"}: {sent.title}</p>
+            <p className={styles.sentMeta}>
+              {[sent.bullets?.length && `${sent.bullets.length} bullet points`, sent.details?.length && `${sent.details.length} product details`, sent.images?.length && `${sent.images.length} photos`].filter(Boolean).join(', ') || 'Only the title came through'}
+            </p>
+            <label className={styles.sentPick}>
+              <span>Add it to</span>
+              <select value={sentFor} onChange={(e) => setSentFor(e.target.value)}>
+                <option value="">Choose the card</option>
+                {rows.map((r) => <option key={r.id} value={r.id}>{(r.draft?.title || r.draft?.entry?.title || r.title).slice(0, 90)}</option>)}
+              </select>
+            </label>
+          </div>
+          <span className={styles.sentActions}>
+            <button type="button" className={styles.primary} disabled={!sentFor || sending} onClick={applySent}>
+              {sending ? 'Checking the photos' : 'Add to this card'}
+            </button>
+            <button type="button" className={styles.revert} disabled={sending} onClick={() => setSent(null)}>Not now</button>
+          </span>
+        </section>
+      )}
 
       {/* The state of the queue, and the way into it. At four rows it is a
           summary; at a hundred it is the only way to find anything. */}
@@ -917,6 +986,7 @@ function Pack({
   // Her supplier's page for the listing, or back to the card's own. What was written from the other product goes;
   // her own photos stay.
   const [pendingPage, setPendingPage] = useState(null);
+  const [pasting, setPasting] = useState(false);
   function usePage(url) {
     change({
       page: url,
@@ -1476,12 +1546,37 @@ function Pack({
                           <button type="button" className={styles.revert} onClick={() => setPendingPage(null)}>Cancel</button>
                         </span>
                       </span>
-                    ) : pageChoices.map((src) => (
+                    ) : pageChoices.map((src) => (unreadable(src.url) ? (
+                      // Amazon refuses to be read by a machine: writing from its page would fail, so paste instead.
+                      <button key={src.url} type="button" className={styles.goFix} onClick={() => setPasting(true)}>
+                        Paste {possessive(src.supplier || host(src.url))} product details
+                      </button>
+                    ) : (
                       <button key={src.url} type="button" className={styles.goFix} onClick={() => setPendingPage({ url: src.url, label: src.supplier || host(src.url) })}>
                         Write it from {possessive(src.supplier || host(src.url))} page
                       </button>
-                    ))}
+                    )))}
                   </div>
+                )}
+                {/*
+                  * What her supplier's page says, pasted by her. Some suppliers (Amazon Business) cannot be read by
+                  * a machine, and without it the writing falls back on another eBay seller's details, which are
+                  * often wrong. Pasted, it is the first source the title, description and item details trust.
+                  */}
+                {pasting || (draft.supplier_text ?? '').trim() ? (
+                  <label className={styles.supplierText}>
+                    <span className={styles.supplierHead}>
+                      What your supplier's page says
+                      <span className={styles.supplierHint}>Pasted here, it is what the listing is written from first.</span>
+                    </span>
+                    <textarea rows={5} value={draft.supplier_text ?? ''} placeholder="Paste the title, the bullet points and the product details from the page you buy it from."
+                      onChange={(e) => change({ supplier_text: e.target.value })} />
+                    <SendButtonHint />
+                  </label>
+                ) : (
+                  <button type="button" className={styles.cheaper} onClick={() => setPasting(true)}>
+                    <Icon name="IconNote" className={styles.btnIcon} />Paste your supplier's product details
+                  </button>
                 )}
                 {alts.length > 0 && (
                   <p className={styles.alts}>
@@ -1556,6 +1651,27 @@ function Pack({
 // The go-live checklist: one column per channel the card is meant for. A channel already started says so; one
 // still to do lists its checks, green when met, amber when it is hers to weigh, red when it holds the button, each
 // with the one thing that fixes it.
+/*
+ * The Send to Cart & Keep bookmark, offered where she would otherwise paste. React will not render a javascript:
+ * address, so it is set on the element after it mounts.
+ */
+function SendButtonHint() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const path = window.location.pathname.replace(/\/$/, '') + window.location.search;
+    ref.current?.setAttribute('href', bookmarkletFor(window.location.origin, path));
+  }, []);
+  return (
+    <span className={styles.sendHint}>
+      Faster: drag <a ref={ref} className={styles.sendButton} onClick={(e) => e.preventDefault()} draggable="true">Send to Cart &amp; Keep</a> to
+      your bookmarks bar once. On the supplier's product page, press it: the details and photos come straight here.
+    </span>
+  );
+}
+
+// Pages that refuse to be read by a machine. Writing from one would fail; her pasted details stand in for it.
+const unreadable = (url) => /(^|\.)amazon\.[a-z.]+$/i.test((() => { try { return new URL(url).hostname; } catch { return ''; } })());
+
 function GoLiveList({ gl, row, onGo, parcel, onParcel, onWrite, writing, onPrice, eView, onFind, finding, onShowBoth, onCheckEbay, checkingEbay }) {
   return (
     <section className={styles.golive} aria-label="Going live">

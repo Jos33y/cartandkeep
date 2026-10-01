@@ -132,6 +132,8 @@ async function byCollection(seen) {
       fresh.forEach((p) => seen.add(p.id));
       added += fresh.length;
       if (fresh.length) await appendFile(outFile, fresh.flatMap(rows).map((r) => JSON.stringify(r)).join('\n') + '\n');
+      // Collections are small; a short page is taken as the last, which halves the requests across thousands.
+      if (products.length < perPage) break;
     }
     if (added) console.log(`collection ${i + 1}/${handles.length}  ${h}: ${added} new, ${seen.size} total`);
   }
@@ -143,6 +145,13 @@ async function sitemapCount() {
 }
 
 await mkdir(dir, { recursive: true });
+
+// Ctrl+C still writes the csv from everything collected so far, so a long run can be stopped and used.
+process.on('SIGINT', async () => {
+  const { products } = await finish();
+  console.log(`\nStopped by hand. ${products} products written to ${csvFile}.`);
+  process.exit(130);
+});
 
 try {
   if (args.sample) {

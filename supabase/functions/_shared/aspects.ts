@@ -2,6 +2,7 @@
 // own list come back exactly as eBay spells them; a value the facts do not support is left for her.
 
 import { itemFactsOf, listingOf, swappedTo } from './product.ts';
+import { cleanAspects } from './ebay/item.ts';
 import { askTool } from './claude.ts';
 
 type Json = Record<string, any>;
@@ -61,9 +62,11 @@ export function keepValid(answer: Array<{ name?: string; value?: string }>, want
 export function aspectFacts(c: Json, draft: Json = {}, category: string | null = null) {
   const l = listingOf({ ...c, draft: { ...(c.draft ?? {}), ...draft } }) ?? {};
   const f = itemFactsOf({ ...c, draft: { ...(c.draft ?? {}), ...draft } }) ?? {};
-  const held = Object.entries(f.aspects ?? {}).map(([k, v]) => `${k}=${v}`).join('; ');
+  const held = Object.entries(cleanAspects(f.aspects ?? {})).map(([k, v]) => `${k}=${v}`).join('; ');
+  const supplier = String({ ...(c.draft ?? {}), ...draft }.supplier_text ?? '').trim();
   return [
     ['eBay category', category],
+    ['From her supplier (the product she sends; trust this first)', supplier ? supplier.slice(0, 2000) : null],
     ['Her title', draft.title],
     ['Her description', draft.description],
     ['Shop title', l.title],
@@ -74,7 +77,7 @@ export function aspectFacts(c: Json, draft: Json = {}, category: string | null =
     ['Shop description', l.description],
     ['Features', Array.isArray(l.features) ? l.features.join('; ') : null],
     // The eBay listing the card was moved to: what eBay holds for that product.
-    ['Item details eBay holds for this product', held || null],
+    ['Another eBay seller\'s item details (often wrong; use only what agrees with the rest)', held || null],
     // Once moved to another product, the research's title is the old one.
     ['Research title', swappedTo({ ...c, draft: { ...(c.draft ?? {}), ...draft } }) ? null : c.title],
   ].filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join('\n');

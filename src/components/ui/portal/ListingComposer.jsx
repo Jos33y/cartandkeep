@@ -292,7 +292,9 @@ export function ListingComposer({
           <div className={styles.refShots} data-part="other-shops">
             <span className={styles.refHead}>
               <span className={styles.refLabel}>
-                {matched.length
+                {matched.length && matched.every((o) => o.sent)
+                  ? 'From your supplier\'s page, sent from your browser'
+                  : matched.length
                   ? `From ${matched.length === 1 ? 'another UK shop' : `${matched.length} other UK shops`}, matched to this product`
                   : checks.others_for ? 'No other UK shop was a certain match' : 'Other UK shops, not looked at yet'}
               </span>
@@ -305,7 +307,7 @@ export function ListingComposer({
             {matched.map((o) => (
               <div key={o.url} className={styles.otherShop}>
                 <a className={styles.otherLink} href={o.url} target="_blank" rel="noreferrer noopener">{o.shop}</a>
-                <span className={styles.otherVia}>matched by {o.via}</span>
+                <span className={styles.otherVia}>{o.sent ? 'sent from your browser, photos checked' : `matched by ${o.via}`}</span>
                 {(o.images ?? []).length > 0 ? (
                   <ul className={styles.refGrid}>
                     {o.images.map((i) => {

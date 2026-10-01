@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    const { tenant_id: tenantId, candidate_id: candidateId, again, wider = false } = await req.json();
+    const { tenant_id: tenantId, candidate_id: candidateId, again, wider = false, supplied = null } = await req.json();
     if (!tenantId || !candidateId) return json({ error: 'tenant_id and candidate_id are required' }, 400);
     if (!(await allowed(req, tenantId))) return json({ error: 'Not authorised. Sign in to the portal and try again.' }, 401);
 
@@ -164,6 +164,35 @@ Deno.serve(async (req) => {
         out.push({ url, ...verdict, copy, width: g?.size?.width ?? null, height: g?.size?.height ?? null });
       }
       return out;
+    }
+
+    /*
+     * A supplier page she sent from her own browser (the Send to Cart & Keep button): Amazon and other shops that
+     * refuse to be read by a server are read by her browser, on the page she is looking at. Its photos are checked
+     * like any shop's, and kept beside the others; the rest of the check is left as it was.
+     */
+    if (supplied && Array.isArray(supplied.images)) {
+      const from = (() => { try { return new URL(String(supplied.url)).hostname.replace(/^www\./, ''); } catch { return 'your supplier'; } })();
+      const pics = [...new Set((supplied.images as unknown[]).map(String).filter((u) => /^https:\/\//.test(u)))].slice(0, MAX_PHOTOS);
+      const checked = rule ? [] : await checkPhotos(pics, from, (i) => `s${i + 1}`);
+      const prev = c.photo_checks && (c.photo_checks.product ?? null) === productKey(c) && (c.photo_checks.version ?? 1) >= READER ? c.photo_checks : null;
+      const entry = {
+        url: String(supplied.url ?? ''), shop: String(supplied.shop ?? from).slice(0, 60), title: String(supplied.title ?? '').slice(0, 200),
+        ok: true, via: 'sent from your browser', sent: true,
+        description: String(supplied.text ?? '').slice(0, 2000) || null,
+        features: Array.isArray(supplied.bullets) ? (supplied.bullets as unknown[]).map(String).slice(0, 12) : [],
+        images: checked,
+      };
+      const kept = {
+        version: READER, checked_at: new Date().toISOString(), page: prev?.page ?? page, product: productKey(c),
+        shop: prev?.shop ?? null, brand: prev?.brand ?? brand, brand_rule: rule ? rule.rule : null, gtin: prev?.gtin ?? null,
+        catalogue: prev?.catalogue ?? null, catalogue_error: prev?.catalogue_error ?? null, images: prev?.images ?? [],
+        others: [entry, ...((prev?.others ?? []) as Array<Record<string, unknown>>).filter((o) => o.url !== entry.url)],
+        others_for: prev?.others_for ?? null, others_error: prev?.others_error ?? null, searches: prev?.searches ?? 0,
+      };
+      const { error: sentErr } = await client.from('candidates').update({ photo_checks: kept }).eq('id', c.id).eq('tenant_id', tenantId);
+      if (sentErr) return json({ error: sentErr.message }, 500);
+      return json({ photo_checks: kept, read: null });
     }
 
     // The shop's photos, first few. A brand on the list is not looked at: its shop photos are not used either way.

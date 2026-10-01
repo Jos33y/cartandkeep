@@ -119,8 +119,10 @@ for (const g of wanted) {
   const weight = (() => {
     // The surest match's weight, not the heaviest of every name match (one wrong 27kg row sank a wrist brace).
     const shelfG = real.find((h) => h.s.grams && !badWeights.has(h.s.shop))?.s.grams;
-    if (shelfG) return { grams: shelfG, weight_from: 'shop' };
     const t = titleGrams(g.Title);
+    // A title that says 10L or 25kg outweighs a shop's placeholder (Decorating Centre Online lists most tins at 1kg).
+    if (shelfG && t && t > shelfG) return { grams: t, weight_from: 'title' };
+    if (shelfG) return { grams: shelfG, weight_from: 'shop' };
     return t ? { grams: t, weight_from: 'title' } : { grams: '', weight_from: '' };
   })();
   const seenPrice = first.s.price ?? null;

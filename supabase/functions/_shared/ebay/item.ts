@@ -30,6 +30,29 @@ export const legacyId = (id: unknown) => {
   return s.split('|')[1] ?? s.replace(/\D/g, '');
 };
 
+/*
+ * Another seller's item details, with what cannot be right taken out. Sellers type these by hand: a battery rating
+ * in a height box, a size with no unit, "kg" as a unit type for unit pricing. A measurement is kept only with a
+ * unit that fits it; unit-pricing fields are dropped. What stays is still another seller's say-so, and is labelled so.
+ */
+const MEASURE = /(width|length|height|depth|weight|thickness|diameter|dimension|size)/i;
+const LENGTH_UNIT = /\d\s*(mm|cm|m|in|inch|inches|"|ft)\b/i;
+const WEIGHT_UNIT = /\d\s*(mg|g|kg|lb|lbs|oz)\b/i;
+const DROP = /^(unit type|unit quantity|custom bundle|modified item|non-domestic product|california prop 65 warning|mpn)$/i;
+export function cleanAspects(aspects: Record<string, string> = {}) {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(aspects)) {
+    const value = String(v ?? '').trim();
+    if (!value || DROP.test(k.trim()) || /^(does not apply|n\/a|na|unbranded|-)$/i.test(value)) continue;
+    if (MEASURE.test(k) && !/size$/i.test(k.trim()) || /^item (width|length|height|depth|weight)$/i.test(k.trim())) {
+      const fits = /weight/i.test(k) ? WEIGHT_UNIT.test(value) : LENGTH_UNIT.test(value);
+      if (!fits) continue;
+    }
+    out[k] = value;
+  }
+  return out;
+}
+
 // The Browse answer as the card keeps it. `now` is passed so the age is testable.
 export function fromBrowse(it: Json, now = Date.now()) {
   const price = Number(it.price?.value ?? 0);
@@ -46,6 +69,7 @@ export function fromBrowse(it: Json, now = Date.now()) {
   for (const a of (it.localizedAspects ?? []) as Json[]) {
     if (a?.name && a?.value && Object.keys(aspects).length < 30) aspects[String(a.name)] = String(a.value).slice(0, 120);
   }
+  const kept = cleanAspects(aspects);
   const gtin = String(it.gtin ?? '').replace(/\D/g, '') || null;
 
   return {
@@ -71,7 +95,7 @@ export function fromBrowse(it: Json, now = Date.now()) {
       epid: it.epid ?? null,
       category: it.categoryPath ?? null,
       category_id: it.categoryId ?? null,
-      aspects,
+      aspects: kept,
       // Facts to write from, cut short: a description is another seller's wording and only its facts are used.
       description: plain(it.shortDescription ?? it.description ?? '').slice(0, 1500) || null,
     },

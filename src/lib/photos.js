@@ -66,6 +66,12 @@ export function noShopPhotos(row, draft = row.draft ?? {}) {
   const wider = (pc.others ?? []).filter((o) => o.ok).length;
   if (!all.length) {
     if (wider) return 'Neither the shop nor the other shops found had photos to check';
+    // No page at all (a supplier that cannot be read, such as Amazon) is not a page with no photos.
+    if (!pc.page) {
+      return pc.others_for
+        ? 'No supplier page to take photos from, and no other UK shop sells it. Save the photos from where you buy it and add them'
+        : 'No supplier page to take photos from. Save the photos from where you buy it and add them';
+    }
     return pc.others_for ? 'The shop page had no photos to check, and no other UK shop was a certain match' : 'The shop page had no photos to check';
   }
   if (passedPhotos(row, draft).length) return null;

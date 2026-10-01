@@ -213,8 +213,9 @@ export function useApproved(tenantId) {
   // Keepr's photo check: eBay's catalogue for the barcode, and each of the shop's photos looked at. The answer is
   // kept on the card; nothing of hers changes until she, or a bulk action she starts, uses what passed.
   // `wider` looks in other UK shops for the same product even when the first shop's photos were enough.
-  const checkPhotos = useCallback(async (candidateId, { again = false, wider = false } = {}) => {
-    const data = await invoke('photo-check', { tenant_id: tenantId, candidate_id: candidateId, again, wider });
+  // `supplied` is a supplier page sent from her browser (the Send to Cart & Keep button): its photos are checked.
+  const checkPhotos = useCallback(async (candidateId, { again = false, wider = false, supplied = null } = {}) => {
+    const data = await invoke('photo-check', { tenant_id: tenantId, candidate_id: candidateId, again, wider, ...(supplied ? { supplied } : {}) });
     setState((s) => ({
       ...s,
       rows: s.rows.map((r) => (r.id === candidateId

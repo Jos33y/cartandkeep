@@ -789,3 +789,28 @@
 
 /* Which channel the Ready cards are ready for, beside the count. */
 .stateDetail { font-size: var(--t-micro); color: var(--c-ink-faint); white-space: nowrap; }
+
+/* Her supplier's product details, pasted: the first source the listing is written from. */
+.supplierText { display: flex; flex-direction: column; gap: var(--s-2); }
+.supplierHead { display: flex; flex-direction: column; gap: 2px; font-size: var(--t-caption); font-weight: 600; color: var(--c-ink); }
+.supplierHint { font-size: var(--t-micro); font-weight: 400; color: var(--c-ink-faint); }
+.supplierText textarea { width: 100%; min-height: 110px; padding: var(--s-2) var(--s-3); border: 1px solid var(--c-line-mid); border-radius: var(--r-md); background: var(--c-surface); font-size: var(--t-caption); line-height: var(--lh-snug); color: var(--c-ink); resize: vertical; }
+.supplierText textarea:focus { outline: none; border-color: var(--c-control); }
+
+/* A supplier page sent from her browser, waiting for her to pick its card. */
+.sent { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--s-3) var(--s-4); margin-bottom: var(--s-4); padding: var(--s-3) var(--s-4); border: 1px solid color-mix(in srgb, var(--c-action) 35%, transparent); border-radius: var(--r-lg); background: var(--c-action-wash); }
+.sentShot { width: 64px; height: 64px; border-radius: var(--r-md); background: #fff; object-fit: contain; border: 1px solid var(--c-line); }
+.sentText { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sentHead { font-size: var(--t-label); font-weight: 600; color: var(--c-ink); overflow-wrap: anywhere; }
+.sentMeta { font-size: var(--t-micro); color: var(--c-ink-soft); }
+.sentPick { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); font-size: var(--t-caption); color: var(--c-ink-soft); }
+.sentPick select { min-height: 34px; max-width: 100%; padding: 0 var(--s-2); border: 1px solid var(--c-line-mid); border-radius: var(--r-md); background: var(--c-surface); font-size: var(--t-caption); color: var(--c-ink); }
+.sentActions { display: flex; flex-wrap: wrap; gap: var(--s-2); justify-content: flex-end; }
+@media (max-width: 640px) {
+  .sent { grid-template-columns: auto minmax(0, 1fr); }
+  .sentActions { grid-column: 1 / -1; justify-content: flex-start; }
+}
+
+/* The bookmark to drag, shown as the thing it is: a button-shaped link. */
+.sendHint { font-size: var(--t-micro); line-height: var(--lh-snug); color: var(--c-ink-faint); }
+.sendButton { display: inline-flex; align-items: center; padding: 1px var(--s-2); border: 1px solid var(--c-action); border-radius: var(--r-sm); background: var(--c-action-wash); color: var(--c-action-text); font-weight: 600; cursor: grab; text-decoration: none; }

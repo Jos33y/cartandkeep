@@ -79,6 +79,12 @@ export function useDraft(candidate, tenantId, { onSaved, onRead } = {}) {
   }, [save]);
 
   const generate = useCallback(async (kind) => {
+    // The writing reads the card as saved: anything typed in the last 700ms (pasted supplier details) goes first.
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+      await save(latest.current);
+    }
     const { data, error } = await supabase.functions.invoke('ebay-compose', {
       body: { tenant_id: tenantId, candidate_id: candidate.id, kind },
     });
@@ -88,7 +94,7 @@ export function useDraft(candidate, tenantId, { onSaved, onRead } = {}) {
     if (error || data?.error) throw new Error(said?.error ?? data?.error ?? error.message);
     if (data?.conflict) throw new Error(`The sources disagree: ${data.conflict}. Check the product before listing.`);
     return kind === 'title' ? data.titles : data.description;
-  }, [candidate?.id, tenantId]);
+  }, [candidate?.id, tenantId, save]);
 
   // Stored under the tenant's folder so the storage policy can scope writes.
   const upload = useCallback(async (file) => {
