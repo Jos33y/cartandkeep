@@ -18,7 +18,7 @@ const TITLE_MAX = 80;
  */
 export function ListingComposer({
   listing, draft, onChange, onGenerate, onUpload, judge = () => ({ ok: true, source: 'hers' }),
-  checks = null, onCheck, checking = false,
+  checks = null, onCheck, checking = false, onWider = null,
 }) {
   const title = draft.title ?? '';
   const description = draft.description ?? '';
@@ -31,7 +31,13 @@ export function ListingComposer({
     : [...new Set(listing?.images ?? [])].slice(0, 6).map((url) => ({ url, use: url, ok: false, why: null, checked: false }));
   // What goes in the draft is our copy of a passed photo, so "in use" is judged by it.
   const inUse = (x) => images.includes(x.use) || images.includes(x.url);
-  const usable = shopShots.filter((x) => x.ok && !inUse(x));
+  // Other UK shops matched to the same product, each with its photos as Keepr judged them; and the ones turned down.
+  const matched = (checks?.others ?? []).filter((o) => o.ok);
+  const refused = (checks?.others ?? []).filter((o) => !o.ok);
+  const widerShots = checks?.brand_rule ? [] : matched.flatMap((o) => (o.images ?? []).map((i) => ({
+    url: i.url, use: i.copy ?? i.url, ok: i.ok, why: i.reasons?.[0] ?? null, checked: true, shop: o.shop,
+  })));
+  const usable = [...shopShots, ...widerShots].filter((x) => x.ok && !inUse(x));
   const [uploading, setUploading] = useState(false);
 
   const [busy, setBusy] = useState(null);
@@ -237,7 +243,7 @@ export function ListingComposer({
         </ol>
         {!images.length && (
           <p className={styles.reference}>
-            {usable.length ? `No photos yet. ${usable.length === 1 ? 'One of the shop\'s passed' : `${usable.length} of the shop's passed`} the check.`
+            {usable.length ? `No photos yet. ${usable.length === 1 ? 'One photo passed' : `${usable.length} photos passed`} the check.`
               : checks ? 'No photos yet. Add your own.'
                 : 'No photos yet. Check the shop\'s, or add your own.'}
           </p>
@@ -280,6 +286,51 @@ export function ListingComposer({
                 })}
               </ul>
             ) : checks && !checks.brand_rule && <p className={styles.reference}>The shop page had no photos to check.</p>}
+          </div>
+        )}
+        {checks && !checks.brand_rule && (matched.length > 0 || refused.length > 0 || onWider) && (
+          <div className={styles.refShots} data-part="other-shops">
+            <span className={styles.refHead}>
+              <span className={styles.refLabel}>
+                {matched.length
+                  ? `From ${matched.length === 1 ? 'another UK shop' : `${matched.length} other UK shops`}, matched to this product`
+                  : checks.others_for ? 'No other UK shop was a certain match' : 'Other UK shops, not looked at yet'}
+              </span>
+              {onWider && (
+                <button type="button" className={styles.referenceUse} disabled={checking} onClick={onWider}>
+                  {checking ? 'Looking' : checks.others_for ? 'Look again' : 'Look in other shops'}
+                </button>
+              )}
+            </span>
+            {matched.map((o) => (
+              <div key={o.url} className={styles.otherShop}>
+                <a className={styles.otherLink} href={o.url} target="_blank" rel="noreferrer noopener">{o.shop}</a>
+                <span className={styles.otherVia}>matched by {o.via}</span>
+                {(o.images ?? []).length > 0 ? (
+                  <ul className={styles.refGrid}>
+                    {o.images.map((i) => {
+                      const x = { url: i.url, use: i.copy ?? i.url, ok: i.ok, why: i.reasons?.[0] ?? null };
+                      const inDraft = inUse(x);
+                      return (
+                        <li key={i.url} className={styles.refShot} data-state={x.ok ? 'passed' : 'failed'}>
+                          <img src={i.url} alt="" loading="lazy" />
+                          <span className={styles.refVerdict} title={x.why ?? undefined}>{x.ok ? (inDraft ? 'In use' : 'Passed') : x.why ?? 'Not used'}</span>
+                          {x.ok && !inDraft && images.length < 12 && (
+                            <button type="button" className={styles.refUse} onClick={() => use([x.use])}>Use</button>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : <span className={styles.otherVia}>No photos on its page.</span>}
+              </div>
+            ))}
+            {refused.length > 0 && (
+              <p className={styles.reference}>
+                Not used: {refused.map((o) => `${o.shop} (${o.via})`).join(', ')}.
+              </p>
+            )}
+            {checks.others_error && <p className={styles.reference}>The search did not finish: {checks.others_error}</p>}
           </div>
         )}
       </Field>

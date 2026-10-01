@@ -3,9 +3,9 @@
 export const digits = (s) => String(s ?? '').replace(/\D/g, '').replace(/^0+/, '');
 // Accents folded first, so Estée is estee, not "est e".
 export const squash = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim();
-const UNIT = /^\d+(\.\d+)?(w|v|l|ml|cl|g|kg|mm|cm|m|in|pk|pcs?|x|mah|gb|tb|hz|oz|tog|lm|in1|pack|tier|mg|mcg|ug|iu|hr|hrs|caps?|tabs?|softgels?|servings?|days?|months?)$/i;
+const UNIT = /^\d+(\.\d+)?(w|v|l|ml|cl|g|kg|mm|cm|m|in|pk|pcs?|x|mah|gb|tb|hz|oz|tog|lm|in1|pack|tier|ltrs?|litres?|liters?|mg|mcg|ug|iu|hr|hrs|caps?|tabs?|softgels?|servings?|days?|months?)$|^\d{1,3}(\.\d+)?(a|ax|ma|ka|ah|amps?)$/i;
 // Specs that read like model numbers but are shared by hundreds of products: IP65, GU10, 3in1, 750lm, 5000 series.
-const SPEC = /^(ip\d{2}|gu\d{1,2}|mr\d{2}|e\d{2}|b\d{2}|g\d{1,2}|t\d{1,2}|\d+in\d+|\d+lm|\d+k|\d+cct|spf\d+|\d+-\d+v|a\d{2}|gr\d+q|r7s|g\d+q)$/i;
+const SPEC = /^(ip\d{2}|gu\d{1,2}|mr\d{2}|e\d{2}|b\d{2}|g\d{1,2}|t\d{1,2}|\d+in\d+|\d+lm|\d+k|\d+cct|spf\d+|\d+-\d+v|\d+-\d+w|\d+-?(?:way|gang|pole)|\d+-[a-z]+|dx\d{2,3}|pk\d+|gen\d|a\d{2}|gr\d+q|r7s|g\d+q)$/i;
 export function modelsIn(title) {
   return [...new Set(String(title).split(/[\s,()/|]+/).map((t) => t.replace(/[^a-z0-9-]/gi, '').toLowerCase())
     .filter((t) => t.length >= 4 && /\d/.test(t) && !UNIT.test(t) && !SPEC.test(t) && !/^(19|20)\d{2}$/.test(t)
@@ -181,7 +181,8 @@ function isShortModel(w) {
 const KINDS_OF = new Set(['foundation', 'concealer', 'powder', 'primer', 'serum', 'shampoo', 'conditioner', 'mascara',
   'lipstick', 'gloss', 'eyeliner', 'bronzer', 'blusher', 'highlighter', 'palette', 'cleanser', 'toner', 'moisturiser',
   'moisturizer', 'makeup', 'tint', 'stick', 'fluid', 'gel', 'balm', 'mask', 'gummies', 'drops', 'capsules', 'tablets',
-  'softgels', 'spray', 'refill', 'trimmer', 'razor', 'shaver', 'blades', 'bundle', 'set', 'kit']);
+  'softgels', 'spray', 'refill', 'trimmer', 'razor', 'shaver', 'blades', 'bundle', 'set', 'kit', 'usb', 'dimmer',
+  'thumbturn']);
 // Initials joined by "&" stay one word, as shops and eBay write them: A&D, B&Q, M&S (not "a d").
 const initials = (brand) => { const m = String(brand ?? '').trim().match(/^([a-z])\s*&\s*([a-z])$/i); return m ? `${m[1]}&${m[2]}`.toLowerCase() : null; };
 
@@ -190,16 +191,22 @@ export function queryOf(title, brand) {
   const b = initials(brand) ?? squash(brand).split(' ').filter((w) => w !== 'the' && w !== 'and').slice(0, 2).join(' ');
   const bw = new Set(squash(brand).split(' '));
   // A size range, an "x in 1" or the brand's own name is not a model: 40-50cm, 6-in-1, Ion8.
-  const model = modelsIn(title).find((m) => /[a-z]/.test(m.replace(/in/g, '')) && !/^[\d.-]+(cm|mm|m|kg|g|l|ml|db|mah|lm)$/.test(m) && !bw.has(squash(m)))
-    ?? shortModelAfterBrand(title, brand);
-  if (model) return `${b} ${squash(model)}`.trim();
+  const long = modelsIn(title).find((m) => /[a-z]/.test(m.replace(/in/g, '')) && !/^[\d.-]+(cm|mm|m|kg|g|l|ml|db|mah|lm)$/.test(m) && !bw.has(squash(m)));
+  const model = long ?? shortModelAfterBrand(title, brand);
+  // A short model is a range, not one product, when a capacity sets the item: Milwaukee M18 2.0Ah and 5.0Ah.
+  const ah = !long && String(title).match(/\b(\d+)(?:\.(\d))?\s*ah\b/i);
+  if (model) return `${b} ${squash(model)}${ah ? ` ${ah[1]}${ah[2] ?? ''}ah` : ''}`.trim();
   const skip = new Set([...QUERY_SKIP, 'with', ...bw]);
   // The name before the first dash, bar, comma, bracket, colon or "with": what follows describes it.
   const head = String(title).split(/\s[-\u2013|]\s|[|,(:\u2013]|\swith\s/i)[0];
   // Words with digits are sizes and codes and are dropped, but a vitamin name is the product: D3, K2, B12, Q10.
-  const take = (s) => squash(s).split(' ').filter((w) => w && !skip.has(w) && (!/\d/.test(w) || /^(b(?:[1-9]|1[0-2])|d[23]|k[12]|q10)$/.test(w)));
+  // So is a count that makes it another product: 1 gang or 2 gang, 2 way, 4 socket, a 2.0Ah or 5.0Ah battery.
+  const counted = (s) => String(s).replace(/\b([1-6])g\b(?=.*\b(?:switch|socket|dimmer|plate)\b)/gi, '$1gang').replace(/\b(\d+)\s*-?\s*(gang|way|sockets?|pole|slice|door|tier|light|speed|drawer|section|pin|spray|burner|ring|seater|shelf|zone)s?\b/gi, '$1$2').replace(/\b(\d+)\.(\d)\s*ah\b/gi, '$1$2ah');
+  const take = (s) => squash(counted(s)).split(' ').filter((w) => w && !skip.has(w) && (!/\d/.test(w) || /^(b(?:[1-9]|1[0-2])|d[23]|k[12]|q10|\d+(?:gang|way|sockets?|pole|slice|door|tier|light|speed|drawer|section|pin|spray|burner|ring|seater|shelf|zone)|\d+ah|\d{1,3}t|(?!13a$)\d{1,2}a)$/.test(w)));
   // A range number the name depends on: Braun Series 7, not Series 5 (the number alone is dropped as a size).
-  const series = String(title).match(/\b(series|gen|generation|mk|mark|version)\s*(\d{1,4})\b/i);
+  const seriesHit = String(title).match(/\b(series|gen|generation|mk|mark|version)\s*(\d{1,4})\b/i);
+  // "MK 2-Pole" is the brand MK, not a mark 2.
+  const series = seriesHit && !bw.has(seriesHit[1].toLowerCase()) ? seriesHit : null;
   let rest = take(head);
   // A name that is all brand ("Magic Hose 40m") is searched as the brand; only a bare word reaches for the rest.
   if ([...b.split(' ').filter(Boolean), ...rest].length < 2) rest = take(title);
@@ -208,7 +215,7 @@ export function queryOf(title, brand) {
   const first = rest.slice(0, 3);
   const later = rest.slice(3);
   const extra = [
-    ...later.filter((w) => /^(b(?:[1-9]|1[0-2])|d[23]|k[12]|q10)$/.test(w)),
+    ...later.filter((w) => /^(b(?:[1-9]|1[0-2])|d[23]|k[12]|q10|\d{1,3}t|(?!13a$)\d{1,2}a|\d+ah)$/.test(w)),
     ...(first.some((w) => KINDS_OF.has(w)) ? [] : later.filter((w) => KINDS_OF.has(w)).slice(0, 1)),
   ];
   return [b, ...first, ...[...new Set(extra)].filter((w) => !first.includes(w)), ...(series && !first.includes(series[2]) ? [series[2]] : [])].filter(Boolean).join(' ').trim();

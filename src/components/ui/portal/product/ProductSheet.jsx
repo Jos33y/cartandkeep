@@ -8,8 +8,10 @@ import { Icon } from '@components/ui/icons';
 import { formatGbp } from '@utils/formatGbp';
 import { visibleSpecs, hiddenSpecs } from '@utils/specs';
 import {
-  blockers, isLive, isArchived, isBlocked, isNeedsYou, marginFor, checksFor, money, whole, needsLabel, CATEGORY_MIN, PRICE_FLOOR,
+  blockers, isLive, isArchived, isBlocked, isNeedsYou, marginFor, checksFor, money, whole, needsLabel, rulesUnchecked, CATEGORY_MIN, PRICE_FLOOR,
 } from '@hooks/useCatalogue';
+
+const RETURNS_WORD = { standard: 'standard returns', sealed: 'returns only while sealed', none: 'no returns' };
 import { stepsFor } from '@lib/readiness';
 import row from '@styles/ui/portal/product-row.module.css';
 import styles from '@styles/ui/portal/product-sheet.module.css';
@@ -19,6 +21,12 @@ const asText = (v) => (v === null || v === undefined ? '' : String(v));
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
 const NEW_SECTION = '__new';
+
+// The GB CLP hazard symbols, by the code printed beside them on a safety data sheet.
+const PICTOGRAMS = [
+  ['GHS01', 'Exploding bomb'], ['GHS02', 'Flame'], ['GHS03', 'Flame over circle'], ['GHS04', 'Gas cylinder'], ['GHS05', 'Corrosion'],
+  ['GHS06', 'Skull and crossbones'], ['GHS07', 'Exclamation mark'], ['GHS08', 'Health hazard'], ['GHS09', 'Environment'],
+];
 
 const HEAD_LABEL = { archived: 'Archived', live: 'Live', blocked: 'Blocked', question: 'Needs you', ready: 'Ready' };
 
@@ -42,7 +50,9 @@ function initialForm(product, draft) {
   const fresh = draft?.version === 2 && !draft.applied_at ? draft : null;
   const unconfirmedReturns = Boolean(product.derived_fields?.returns_class);
   const specs = visibleSpecs(product.specifications, { max: 0 }).map(([key, value]) => ({ key, value }));
+  // Her saved label first; else what Keepr read off the shop page or the photographs, for her to check and save.
   const hazard = product.hazard ?? null;
+  const read = !hazard && product.derived_fields?.hazard_draft ? product.derived_fields.hazard_draft : null;
 
   const form = {
     title: product.title ?? '',
@@ -60,13 +70,16 @@ function initialForm(product, draft) {
     stock: asText(product.stock),
     availability: product.availability ?? 'in_stock',
     hazardNone: false,
-    signal: hazard?.signal ?? '',
-    statements: (hazard?.h ?? []).join('\n'),
+    signal: hazard?.signal ?? read?.signal ?? '',
+    statements: (hazard?.h ?? read?.h ?? []).join('\n'),
+    precautions: (hazard?.p ?? read?.p ?? []).join('\n'),
+    pictograms: hazard?.pictograms ?? read?.pictograms ?? [],
     sds: product.safety_data_sheet_url ?? '',
-    biocide: product.biocide_reg_no ?? '',
+    biocide: product.biocide_reg_no ?? read?.biocide_reg_no ?? '',
     answers: {},
   };
   const suggested = {};
+  if (read) suggested.hazard = true;
   if (!fresh) return { form, suggested };
 
   const fill = (key, value) => {
@@ -82,7 +95,8 @@ function initialForm(product, draft) {
   if (!form.inTheBox) fill('inTheBox', fresh.in_the_box);
   if (fresh.details?.length) fill('specs', fresh.details.map((d) => ({ key: d.name, value: d.value })));
   if (!product.section && fresh.section) fill('section', fresh.section);
-  if (unconfirmedReturns) fill('returnsClass', fresh.returns_class);
+  // Keepr's returns check outranks the drafting pass's guess: it is the one the release guard waits on.
+  if (unconfirmedReturns && !product.derived_fields?.rules) fill('returnsClass', fresh.returns_class);
   return { form, suggested };
 }
 
@@ -130,14 +144,19 @@ function buildPatch(product, form, checks, draft) {
   set('availability', form.availability, product.availability ?? 'in_stock');
 
   const derived = { ...(product.derived_fields ?? {}) };
-  // Saving the sheet is her approval of the returns class shown in it.
-  delete derived.returns_class;
+  // Saving the sheet is her approval of the returns class shown in it, and from then on Keepr leaves it alone.
+  if (derived.returns_class || patch.returns_class) {
+    delete derived.returns_class;
+    derived.returns_by = 'her';
+  }
 
   if (needsLabel(product) && (form.hazardNone || form.signal)) {
     delete derived.hazard_suspect;
+    delete derived.hazard_draft;
     derived.hazard_checked = true;
+    const lines = (t) => t.split('\n').map((l) => l.trim()).filter(Boolean);
     patch.hazard = form.hazardNone ? null : {
-      signal: form.signal, h: form.statements.split('\n').map((l) => l.trim()).filter(Boolean), p: [],
+      signal: form.signal, h: lines(form.statements), p: lines(form.precautions), pictograms: form.pictograms,
     };
     patch.safety_data_sheet_url = form.sds.trim() || null;
     patch.biocide_reg_no = form.biocide.trim() || null;
@@ -256,6 +275,42 @@ export function ProductSheet({
     setAskFailed(null);
     try { await keeper.ask([product.id], sections, { quiet: true }); } catch (e) { setAskFailed(e?.message ?? 'That did not start.'); }
   }
+
+  // Keepr's returns and label check, for a draft that came from an approved card and has not been checked.
+  const rules = product.derived_fields?.rules ?? null;
+  const rulesWaiting = rulesUnchecked(product);
+  const [checkingRules, setCheckingRules] = useState(false);
+  const [rulesFailed, setRulesFailed] = useState(null);
+  async function checkRules() {
+    setCheckingRules(true);
+    setRulesFailed(null);
+    try { await catalogue.checkRules([product.id]); } catch (e) { setRulesFailed(`The check did not finish: ${e?.message ?? 'try again'}.`); } finally { setCheckingRules(false); }
+  }
+  // A check that lands while the sheet is open fills the label boxes she has not touched, as a draft does.
+  const rulesStamp = rules?.at ?? null;
+  const seenRules = useRef(rulesStamp);
+  useEffect(() => {
+    if (rulesStamp === seenRules.current) return;
+    seenRules.current = rulesStamp;
+    const fresh = initialForm(product, draft).form;
+    const keys = ['signal', 'statements', 'precautions', 'pictograms', 'biocide', 'returnsClass'].filter((k) => !touched.current.has(k));
+    setForm((f) => {
+      const next = { ...f };
+      for (const k of keys) next[k] = fresh[k];
+      return next;
+    });
+    setArrived(new Set(keys));
+    const t = setTimeout(() => setArrived(new Set()), 1800);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rulesStamp]);
+  const askedRules = useRef(false);
+  useEffect(() => {
+    if (askedRules.current || !rulesWaiting || !catalogue.checkRules) return;
+    askedRules.current = true;
+    checkRules();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rulesWaiting]);
 
   // The agent reads each product once, on first open, so the sheet arrives filled in.
   const asked = useRef(false);
@@ -555,8 +610,20 @@ export function ProductSheet({
       items: [
         { key: 'returns', title: 'Returns', body: (
           <div className={row.panel}>
-            {by('returnsClass') && draft?.returns_reason && <p className={row.guessed}>{draft.returns_reason}</p>}
-            {by('returnsClass') && <span className={row.label}>Suggested{by('returnsClass')}</span>}
+            {by('returnsClass') && draft?.returns_reason && !rules && <p className={row.guessed}>{draft.returns_reason}</p>}
+            {by('returnsClass') && !rules && <span className={row.label}>Suggested{by('returnsClass')}</span>}
+            {rules && product.derived_fields?.returns_class && (
+              <p className={row.guessed}>{agent} suggests {RETURNS_WORD[rules.returns]}: {rules.returns_reason} Choose and save to confirm it.</p>
+            )}
+            {rules && !product.derived_fields?.returns_class && product.derived_fields?.returns_by !== 'her' && (
+              <p className={row.hint}>{agent} checked it: {rules.returns_reason} Standard returns apply, so nothing to confirm.</p>
+            )}
+            {rulesWaiting && (
+              <p className={row.guessed}>
+                {checkingRules ? `${agent} is checking the returns and any label warning.` : rulesFailed ?? `${agent} has not checked the returns or the label yet.`}
+                {!checkingRules && <> <button type="button" className={row.link} onClick={checkRules}>Check now</button></>}
+              </p>
+            )}
             <div className={row.choices} role="radiogroup" aria-label="Returns" {...fx('returnsClass')}>
               {returns.map((r) => (
                 <label key={r.value} className={row.choice} data-on={form.returnsClass === r.value || undefined}>
@@ -579,8 +646,12 @@ export function ProductSheet({
         needsLabel(product) && { key: 'hazard', title: 'Label warning', body: (
           <div className={row.panel}>
             <p className={row.guessed}>
-              If the bottle has a warning label, the shop has to show the same warning next to the price. Copy across what is printed on it.
+              If the bottle has a warning label, the shop has to show the same warning next to the price.
+              {product.derived_fields?.hazard_draft && !product.hazard
+                ? ` ${agent} read this from ${product.derived_fields?.hazard_draft?.read_from ?? 'the product facts'}. Check it against the bottle, then save.`
+                : ' Copy across what is printed on it.'}
             </p>
+            {rules?.chemical_reason && <p className={row.hint}>{rules.chemical_reason}</p>}
             <label className={row.check}>
               <input type="checkbox" checked={form.hazardNone} onChange={(e) => change('hazardNone', e.target.checked)} />
               <span>No warning label on this bottle. I have checked.</span>
@@ -595,10 +666,27 @@ export function ProductSheet({
                     <option value="Danger">Danger</option>
                   </select>
                 </label>
+                <div className={row.field}>
+                  <span className={row.label}>Symbols on the label</span>
+                  <div className={row.symbols} role="group" aria-label="Symbols on the label">
+                    {PICTOGRAMS.map(([code, name]) => (
+                      <label key={code} className={row.check}>
+                        <input type="checkbox" checked={form.pictograms.includes(code)}
+                          onChange={(e) => change('pictograms', e.target.checked ? [...form.pictograms, code] : form.pictograms.filter((c) => c !== code))} />
+                        <span>{name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
                 <label className={row.field}>
                   <span className={row.label}>Warnings, one per line</span>
                   <textarea className={row.textarea} rows={4} value={form.statements}
                     onChange={(e) => change('statements', e.target.value)} placeholder="H315 Causes skin irritation" />
+                </label>
+                <label className={row.field}>
+                  <span className={row.label}>Precautions, one per line</span>
+                  <textarea className={row.textarea} rows={3} value={form.precautions}
+                    onChange={(e) => change('precautions', e.target.value)} placeholder="P102 Keep out of reach of children." />
                 </label>
                 <div className={row.pair}>
                   <label className={row.field}>

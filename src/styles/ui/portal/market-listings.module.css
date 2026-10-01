@@ -1,0 +1,125 @@
+/* The listings behind the chart's dots, as rows she can open and choose from. */
+.wrap { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; padding-top: var(--s-3); border-top: 1px solid var(--c-line); }
+
+.head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-3); }
+.heading { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.heading b { font-size: var(--t-caption); font-weight: 600; color: var(--c-ink); }
+.heading span { font-size: var(--t-micro); line-height: var(--lh-snug); color: var(--c-ink-faint); }
+
+.ask {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  color: var(--c-ink);
+  white-space: nowrap;
+}
+.ask:hover:not(:disabled) { border-color: var(--c-control); background: var(--c-raised); }
+.askIcon { width: 14px; height: 14px; color: var(--c-action-strong); }
+
+.rows { display: flex; flex-direction: column; list-style: none; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-surface); overflow: hidden; }
+
+.row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 2px var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-top: 1px solid var(--c-line);
+  transition: background var(--dur) var(--ease);
+}
+.row:first-child { border-top: none; }
+.row[data-hot] { background: var(--c-brand-wash); }
+.row[data-tone='current'] { background: color-mix(in srgb, var(--c-positive-wash) 70%, var(--c-surface)); }
+.row[data-tone='current'][data-hot] { background: var(--c-positive-wash); }
+.row[data-tone='replaced'] .title { color: var(--c-ink-faint); text-decoration: line-through; text-decoration-color: var(--c-line-strong); }
+
+/* The same mark as the chart's dot: filled when it has sold. */
+.mark { align-self: start; margin-top: 5px; width: 9px; height: 9px; border: 1.5px solid var(--c-brand-strong); border-radius: var(--r-full); background: var(--c-surface); }
+.mark[data-sold] { background: var(--c-brand-strong); }
+.row[data-tone='current'] .mark { border-color: var(--c-positive); background: var(--c-positive); }
+.row[data-tone='replaced'] .mark { border-color: var(--c-line-strong); background: var(--c-surface); }
+
+.what { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tag { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-ink-faint); }
+.row[data-tone='current'] .tag { color: var(--c-positive); }
+
+/* A link that reads as one: the action colour, an underline, the open-elsewhere mark. */
+.link {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 5px;
+  max-width: 100%;
+  color: var(--c-action-text, var(--c-action-strong));
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 3px;
+}
+.link:hover { text-decoration-color: currentColor; }
+.link:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; border-radius: 2px; }
+/* Two lines before it stops: on a phone one line left only the brand of most titles. */
+.title { display: -webkit-box; overflow: hidden; font-size: var(--t-caption); line-height: var(--lh-snug); -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.out { flex-shrink: 0; width: 12px; height: 12px; transform: translateY(2px); }
+.meta { font-size: var(--t-micro); line-height: var(--lh-snug); color: var(--c-ink-faint); }
+
+.price { font-family: var(--font-data); font-size: var(--t-caption); color: var(--c-ink); white-space: nowrap; }
+.act { display: flex; justify-content: flex-end; }
+
+.use, .quiet {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-md);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.use { border: 1px solid var(--c-control); background: var(--c-surface); color: var(--c-ink); }
+.use:hover:not(:disabled) { border-color: var(--c-ink); background: var(--c-raised); }
+.quiet { color: var(--c-ink-soft); }
+.quiet:hover:not(:disabled) { background: var(--c-sunk); color: var(--c-ink); }
+.use:disabled, .quiet:disabled, .ask:disabled { opacity: 0.5; cursor: not-allowed; }
+.use:focus-visible, .quiet:focus-visible, .ask:focus-visible, .more:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+.btnIcon { width: 13px; height: 13px; }
+
+.more { align-self: flex-start; min-height: 32px; padding: 0 var(--s-2); font-size: var(--t-micro); font-weight: 600; color: var(--c-ink-soft); border-radius: var(--r-sm); }
+.more:hover { background: var(--c-sunk); color: var(--c-ink); }
+
+/* Keepr's match under 95%: for her to take or turn down. */
+.suggest {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--s-2) var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid color-mix(in srgb, var(--c-action) 30%, transparent);
+  border-radius: var(--r-md);
+  background: var(--c-action-wash);
+}
+.suggestIcon { width: 16px; height: 16px; margin-top: 2px; color: var(--c-action-strong); }
+.suggestText { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: var(--t-caption); color: var(--c-ink); }
+.suggestText > b { font-weight: 600; }
+.suggestActions { display: flex; flex-wrap: wrap; gap: var(--s-2); justify-content: flex-end; }
+
+@container (max-width: 520px) {
+  .row { grid-template-columns: 10px minmax(0, 1fr) auto; }
+  .act { grid-column: 2 / 4; justify-content: flex-start; }
+  .act:empty { display: none; }
+  .suggest { grid-template-columns: auto minmax(0, 1fr); }
+  .suggestActions { grid-column: 2; justify-content: flex-start; }
+}
+@media (max-width: 520px) {
+  .row { grid-template-columns: 10px minmax(0, 1fr) auto; }
+  .act { grid-column: 2 / 4; justify-content: flex-start; }
+  .act:empty { display: none; }
+  .suggest { grid-template-columns: auto minmax(0, 1fr); }
+  .suggestActions { grid-column: 2; justify-content: flex-start; }
+}

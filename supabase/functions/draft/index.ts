@@ -42,7 +42,112 @@ const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY')!;
 
-const MODEL = Deno.env.get('DRAFT_MODEL') ?? 'claude-sonnet-5';
+const MODEL = Deno.env.get('DRAFT_MODEL') ?? 'claude-sonnet-5-5';
+
+// ---- Calls to Claude: a copy of _shared/claude.ts (this folder deploys alone). Change both together. ----
+// deno-lint-ignore no-explicit-any
+type Json = Record<string, any>;
+
+const THINKING = { type: 'between_tools' };
+
+// Keywords strict schemas do not take. What they said moves into the description, where the model still reads it.
+const UNSUPPORTED = ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'minLength', 'maxLength', 'minItems', 'maxItems', 'pattern', 'multipleOf'];
+
+/*
+ * A schema strict tool use accepts: every object closed (additionalProperties false) and every property required,
+ * so no optional parameters count against the limit of 24. Answers that may be empty are empty strings or arrays.
+ */
+function strictSchema(s: Json): Json {
+  if (!s || typeof s !== 'object') return s;
+  if (Array.isArray(s)) return s.map(strictSchema);
+  const out: Json = {};
+  const notes: string[] = [];
+  for (const [k, v] of Object.entries(s)) {
+    if (UNSUPPORTED.includes(k)) { notes.push(`${k} ${v}`); continue; }
+    if (k === 'properties') out.properties = Object.fromEntries(Object.entries(v as Json).map(([p, sub]) => [p, strictSchema(sub as Json)]));
+    else if (k === 'items') out.items = strictSchema(v as Json);
+    else out[k] = v;
+  }
+  if (notes.length) out.description = [out.description, `(${notes.join(', ')})`].filter(Boolean).join(' ');
+  if (out.type === 'object' && out.properties) {
+    out.additionalProperties = false;
+    out.required = Object.keys(out.properties);
+  }
+  return out;
+}
+
+const strictTool = (tool: Json): Json => ({ ...tool, strict: true, input_schema: strictSchema(tool.input_schema) });
+
+type Content = string | Json[];
+const withAsk = (content: Content, ask: string): Json[] => (
+  typeof content === 'string' ? [{ type: 'text', text: `${content}\n\n${ask}` }] : [...content, { type: 'text', text: ask }]
+);
+
+async function post(key: string, body: Json) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify(body),
+  });
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const e = new Error(payload?.error?.message ?? `Anthropic returned ${res.status}`) as Error & { status?: number };
+    e.status = res.status;
+    throw e;
+  }
+  return payload as Json;
+}
+
+// The request body every call sends: the model, thinking kept low, the system as cached blocks.
+function bodyFor({ system, content, maxTokens, tools, model = MODEL }: { system: string | Json[]; content: Content; maxTokens: number; tools?: Json[]; model?: string }) {
+  const sys = typeof system === 'string' ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }] : system;
+  return {
+    model,
+    max_tokens: maxTokens,
+    thinking: THINKING,
+    system: sys,
+    ...(tools ? { tools, tool_choice: { type: 'auto' } } : {}),
+    messages: [{ role: 'user', content }],
+  };
+}
+
+// A plain answer in text: titles, descriptions, the photo check.
+async function askText(key: string, opts: { system: string | Json[]; content: Content; maxTokens: number }) {
+  const payload = await post(key, bodyFor(opts));
+  return ((payload.content ?? []) as Json[]).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+}
+
+/*
+ * An answer through one tool. Offered, not forced; the prompt asks for it, and once more if the first reply came
+ * back as prose. A schema eBay-style limits cannot compile is sent again unstrict rather than failing the job.
+ */
+async function askTool(key: string, opts: { system: string | Json[]; content: Content; maxTokens: number; tool: Json }): Promise<{ input: Json; payload: Json }> {
+  const ask = `Answer with the ${opts.tool.name} tool.`;
+  let tool: Json = strictTool(opts.tool);
+  const once = async (content: Content) => {
+    try {
+      return await post(key, bodyFor({ ...opts, content, tools: [tool] }));
+    } catch (e) {
+      if ((e as { status?: number }).status === 400 && /strict|schema|grammar/i.test((e as Error).message)) {
+        tool = { ...opts.tool };
+        return post(key, bodyFor({ ...opts, content, tools: [tool] }));
+      }
+      throw e;
+    }
+  };
+  let payload = await once(withAsk(opts.content, ask));
+  let call = ((payload.content ?? []) as Json[]).find((b) => b.type === 'tool_use');
+  if (!call && payload.stop_reason !== 'max_tokens') {
+    payload = await once(withAsk(opts.content, `${ask} Use it now; do not reply in prose.`));
+    call = ((payload.content ?? []) as Json[]).find((b) => b.type === 'tool_use');
+  }
+  if (!call) {
+    throw new Error(payload.stop_reason === 'max_tokens' ? 'The answer was cut off before it finished. Try again.' : 'The answer came back empty. Try again.');
+  }
+  return { input: (call.input ?? {}) as Json, payload };
+}
+// ---- end of the copy ----
+
 
 const db = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
@@ -375,39 +480,19 @@ async function draftFor(product: Record<string, any>, sections: Section[]) {
     text: `${image ? 'The photograph above is the product.\n\n' : 'There is no photograph.\n\n'}${JSON.stringify(facts)}`,
   });
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': ANTHROPIC_KEY,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 3000,
-      // The rules and the tool are the same on every call, and her sections the same through a run: both are
-      // cached, so each product after the first pays a tenth for them.
-      system: [
-        { type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } },
-        { type: 'text', text: `The sections to choose from, as path and name:\n${sectionList}`, cache_control: { type: 'ephemeral' } },
-      ],
-      tools: [DRAFT_TOOL],
-      tool_choice: { type: 'tool', name: 'draft' },
-      messages: [{ role: 'user', content }],
-    }),
+  // The rules and the tool are the same on every call, and her sections the same through a run: both are cached,
+  // so each product after the first pays a tenth for them.
+  const { input: drafted, payload } = await askTool(ANTHROPIC_KEY, {
+    system: [
+      { type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } },
+      { type: 'text', text: `The sections to choose from, as path and name:\n${sectionList}`, cache_control: { type: 'ephemeral' } },
+    ],
+    content,
+    maxTokens: 3000,
+    tool: DRAFT_TOOL,
   });
 
-  const payload = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(payload?.error?.message ?? `Anthropic ${res.status}`);
-
-  const call = (payload.content ?? []).find((b: any) => b.type === 'tool_use');
-  if (!call) {
-    console.error('[draft] no tool call', JSON.stringify(payload).slice(0, 800));
-    if (payload.stop_reason === 'max_tokens') throw new Error('The draft was cut off before it finished. Try again.');
-    throw new Error('The draft came back empty. Try again.');
-  }
-
-  const parsed = call.input ?? {};
+  const parsed = drafted ?? {};
   const titles = parsed.titles ?? {};
   const brandName = emptyish(clip(parsed.brand?.name, 60));
   const paths = new Set(sections.map((s) => s.path));
@@ -539,19 +624,8 @@ async function sortShop(tenantId: string) {
     coming_from_ebay: coming,
   };
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: MODEL, max_tokens: 8000, system: SORT_SYSTEM, tools: [SORT_TOOL],
-      tool_choice: { type: 'tool', name: 'sort' },
-      messages: [{ role: 'user', content: JSON.stringify(facts) }],
-    }),
-  });
-  const payload = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(payload?.error?.message ?? `Anthropic ${res.status}`);
-  const call = (payload.content ?? []).find((b: any) => b.type === 'tool_use');
-  if (!call) throw new Error('The sort came back empty. Try again.');
+  const { input: sorted, payload } = await askTool(ANTHROPIC_KEY, { system: SORT_SYSTEM, content: JSON.stringify(facts), maxTokens: 8000, tool: SORT_TOOL });
+  const call = { input: sorted };
 
   const sections: Array<{ name: string; why: string }> = [];
   for (const sec of (call.input?.sections ?? []) as Array<Record<string, unknown>>) {

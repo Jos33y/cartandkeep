@@ -42,6 +42,7 @@ function domainOf(market, points) {
 export function MarketBand({
   market, entry, price, keep, breakEven, floor, target, ghost = null, scale = null, listings = [], medianListed = null,
   sellsLabel = 'Where it sells', bodyLabel = 'half of all listed', medianLabel = 'median of those selling',
+  hot = null, onHot = null,
 }) {
   const { lo, hi } = domainOf(market, [...(scale ?? [entry?.price]), price, ghost?.price]);
   const at = (v) => Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100));
@@ -63,10 +64,13 @@ export function MarketBand({
           )}
           {listings.map((l, i) => (
             <a key={l.item_id ?? i} className={styles.dot} data-sold={Number(l.sold) > 0 || undefined}
+              data-hot={(hot != null && l.item_id != null && String(hot) === String(l.item_id)) || undefined}
               href={l.url} target="_blank" rel="noreferrer noopener"
               style={{ left: `${at(Number(l.price))}%` }}
-              title={`${formatGbp(l.price)}${Number(l.sold) > 0 ? `, ${l.sold} sold` : ', none sold'}${l.title ? `: ${l.title}` : ''}`}
-              aria-label={`Listing at ${formatGbp(l.price)}`} />
+              onMouseEnter={onHot ? () => onHot(l.item_id ?? null) : undefined}
+              onMouseLeave={onHot ? () => onHot(null) : undefined}
+              title={`Open on eBay: ${formatGbp(l.price)}${l.sold == null ? '' : Number(l.sold) > 0 ? `, ${l.sold} sold` : ', none sold'}${l.title ? `, ${l.title}` : ''}`}
+              aria-label={`Open the listing at ${formatGbp(l.price)} on eBay${l.title ? `: ${l.title}` : ''}`} />
           ))}
           {market?.median != null && (
             <span className={styles.median} style={{ left: `${at(market.median)}%` }}
@@ -128,8 +132,8 @@ export function MarketBand({
       </div>
 
       {/*
-       * Three lines at most: the market, the seller who proves it, and where it pays. Each listing dot carries its own
-       * price and sales on hover, so the dots need no line of their own.
+       * The market, the listings behind the dots, the seller who proves it, and where it pays. The dots are links, so
+       * the key says so: they were easy to miss as marks on a bar.
        */}
       <figcaption className={styles.key}>
         {market?.p25 != null && market?.p75 != null && (
@@ -137,6 +141,11 @@ export function MarketBand({
             <i className={styles.keyBody} />{bodyLabel} <b data-num>{formatGbp(market.p25)}</b> to <b data-num>{formatGbp(market.p75)}</b>
             {market?.median != null && <>, <i className={styles.keyMedian} />{medianLabel} <b data-num>{formatGbp(market.median)}</b></>}
             {medianListed != null && <span className={styles.clipped}> (all listed <span data-num>{formatGbp(medianListed)}</span>)</span>}
+          </span>
+        )}
+        {listings.length > 0 && (
+          <span className={styles.keyItem}>
+            <i className={styles.keyListing} />{listings.length === 1 ? 'a listing, press it to open on eBay' : `${listings.length} listings, press one to open it on eBay`}
           </span>
         )}
         {entry?.price != null && (

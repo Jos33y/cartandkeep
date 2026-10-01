@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { MarketBand } from './MarketBand';
+import { MarketListings } from './MarketListings';
 import { formatGbp } from '@utils/formatGbp';
 import styles from '@styles/ui/portal/price-setter.module.css';
 
@@ -10,7 +11,10 @@ const r2 = (v) => Math.round(v * 100) / 100;
  * rails as she types, and what she keeps moves with it. The scale is fixed on the figures it opened with, so the rails
  * stay put and only the tag travels.
  */
-export function PriceSetter({ a, market, listings = [], medianLabel, onChange }) {
+// With `choose` (onUse, onSwitchBack, onAsk and their states), the listings behind the dots are listed under the
+// chart, each one to open on eBay or to price the card from.
+export function PriceSetter({ a, market, listings = [], medianLabel, onChange, choose = null }) {
+  const [hot, setHot] = useState(null);
   const store = Boolean(a.store);
   const entry = store ? null : a.entry;
   const g = a.g ?? {};
@@ -79,7 +83,12 @@ export function PriceSetter({ a, market, listings = [], medianLabel, onChange })
         bodyLabel={store ? "Google's price range" : 'half of all listed'}
         medianLabel={medianLabel}
         price={a.price} keep={a.keep} breakEven={a.breakEven} floor={a.floor} target={a.target}
-        scale={scale} />
+        scale={scale} hot={hot} onHot={choose ? setHot : null} />
+
+      {choose && !store && (
+        <MarketListings listings={listings} entry={entry} chosen={a.chosen} replaced={a.replaced}
+          hot={hot} onHot={setHot} {...choose} />
+      )}
     </div>
   );
 }

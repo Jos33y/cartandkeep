@@ -168,6 +168,8 @@ for (const r of results) {
   // Not sure enough to repoint: the lead goes on the card as a note, and she decides.
   if (r.status === 'found, check it') {
     const body = `Review ${date}: another shop may have it: ${r.shop}, ${r.page_name || r.url}${r.price ? `, £${Number(r.price).toFixed(2)}` : ''} (${r.url}). ${r.notes || 'Check it is the same item before using it.'}`;
+    const { data: have } = await db.from('candidate_notes').select('id').eq('candidate_id', c.id).eq('body', body).limit(1);
+    if (have?.length) { tally.left_to_check += 1; continue; }
     const { error: e } = await db.from('candidate_notes').insert({ tenant_id: tenant.id, candidate_id: c.id, body });
     if (e) { tally.failed += 1; console.error(`  ${c.title}: note not added, ${e.message}`); } else tally.left_to_check += 1;
     continue;

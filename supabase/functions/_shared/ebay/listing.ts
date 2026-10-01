@@ -4,6 +4,7 @@
 // The rule it enforces: her title and her description, never the shop's. Photos are hers, eBay's own catalogue
 // for the barcode, or the shop's once Keepr has passed them (_shared/photos.ts); never another eBay seller's.
 
+import { itemFactsOf, listingOf, swappedTo } from '../product.ts';
 import { photoSource, sourceOf } from '../photos.ts';
 
 export const EBAY = 'https://api.ebay.com';
@@ -119,9 +120,11 @@ export function validGtin(v: unknown): string | null {
 export function gtinOf(c: Json): string | null {
   const m = c.margin ?? {};
   const l = c.listing ?? {};
-  // Once the listing is written from her supplier's page, only that page's barcode is this product's.
-  const moved = Boolean(c.draft?.page);
-  const from = moved ? (l.source_url === c.draft.page ? [l.gtin, l.ean] : []) : [m.shelf?.gtin, m.cost_from?.gtin, m.gtin, l.gtin, l.ean];
+  // Once the listing is written from her supplier's page, only that page's barcode is this product's. Moved to
+  // another product's eBay listing, the barcode eBay holds for that listing counts too.
+  const moved = Boolean(c.draft?.page) || Boolean(swappedTo(c));
+  const page = c.draft?.page && l.source_url === c.draft.page ? [l.gtin, l.ean] : [];
+  const from = moved ? [...page, itemFactsOf(c)?.gtin] : [m.shelf?.gtin, m.cost_from?.gtin, m.gtin, l.gtin, l.ean];
   for (const v of from) {
     const g = validGtin(v);
     if (g) return g;
@@ -130,7 +133,13 @@ export function gtinOf(c: Json): string | null {
 }
 
 // The category the proving listing sat in, from the research. The last part of its path is its name.
+// Moved to another product's listing, the category that listing sits in.
 export function cardCategory(c: Json) {
+  const held = itemFactsOf(c);
+  if (swappedTo(c)) {
+    if (!held?.category_id) return null;
+    return { id: String(held.category_id), name: String(held.category ?? '').split(/\s*[>|/]\s*/).filter(Boolean).at(-1) ?? null };
+  }
   const id = c.ebay_category_id ? String(c.ebay_category_id) : null;
   if (!id) return null;
   const path = String(c.ebay_category_path ?? '');
@@ -194,6 +203,40 @@ export async function catalogueFor(gtin: string, tokens: { user?: string; app?: 
     if (a.localizedName && (a.localizedValues ?? []).length) aspects[a.localizedName] = a.localizedValues;
   }
   return { epid: String(p.epid), title: p.title ?? '', images, aspects, brand: p.brand, mpn: p.mpn };
+}
+
+// eBay's catalogue entry by its own id: what an eBay listing the card moved to is filed under, when no barcode is
+// known. Same tokens rule as by barcode.
+export async function catalogueByEpid(epid: string, tokens: { user?: string; app?: () => Promise<string> }): Promise<Catalogue | null> {
+  const path = `/commerce/catalog/v1_beta/product/${encodeURIComponent(epid)}`;
+  const tries: Array<() => Promise<string>> = [];
+  if (tokens.user) tries.push(async () => tokens.user as string);
+  if (tokens.app) tries.push(tokens.app);
+  let last: unknown = null;
+  for (const get of tries) {
+    try {
+      const p = await call(path, await get());
+      if (!p?.epid) return null;
+      const images = [p.image?.imageUrl, ...((p.additionalImages ?? []) as Json[]).map((i) => i.imageUrl)].filter(Boolean);
+      const aspects: Record<string, string[]> = {};
+      for (const a of (p.aspects ?? []) as Json[]) {
+        if (a.localizedName && (a.localizedValues ?? []).length) aspects[a.localizedName] = a.localizedValues;
+      }
+      return { epid: String(p.epid), title: p.title ?? '', images, aspects, brand: p.brand, mpn: p.mpn };
+    } catch (e) {
+      last = e;
+      if (e instanceof EbayError && e.status === 404) return null;
+    }
+  }
+  throw last ?? new Error('The catalogue could not be read.');
+}
+
+// The card's catalogue entry: by barcode, or by the catalogue id eBay holds for the listing the card moved to.
+export function catalogueOfCard(c: Json, tokens: { user?: string; app?: () => Promise<string> }) {
+  const gtin = gtinOf(c);
+  if (gtin) return catalogueFor(gtin, tokens);
+  const epid = itemFactsOf(c)?.epid;
+  return epid ? catalogueByEpid(String(epid), tokens) : Promise.resolve(null);
 }
 
 const norm = (s: string) => s.trim().toLowerCase();
@@ -274,7 +317,9 @@ export async function prepare(
   { revising = false, settings = null as Json | null } = {},
 ): Promise<Preview> {
   const d = c.draft ?? {};
-  const l = c.listing ?? {};
+  // The page read for this product: after a move to another product's listing, the old shelf page is not it.
+  const l = listingOf(c) ?? {};
+  const held = itemFactsOf(c) ?? {};
   const problems: string[] = [];
 
   // A listing already live that went up before this rule is revised with what it went up with, so a price change
@@ -313,9 +358,9 @@ export async function prepare(
   let catalogue: Catalogue | null = null;
   let catalogueError: string | null = null;
   const wantsCatalogue = req.use_catalogue ?? Boolean(d.catalogue?.epid);
-  if (gtin && (wantsCatalogue || !mine.length)) {
+  if ((gtin || itemFactsOf(c)?.epid) && (wantsCatalogue || !mine.length)) {
     try {
-      catalogue = await catalogueFor(gtin, { user: tokens.user, app: () => tokens.app() });
+      catalogue = await catalogueOfCard(c, { user: tokens.user, app: () => tokens.app() });
     } catch (e) {
       catalogueError = e instanceof Error ? e.message : String(e);
     }
@@ -347,8 +392,8 @@ export async function prepare(
     }
   }
 
-  const brand = catalogue?.brand ?? l.brand ?? null;
-  const mpn = catalogue?.mpn ?? l.mpn ?? null;
+  const brand = catalogue?.brand ?? l.brand ?? held.brand ?? null;
+  const mpn = catalogue?.mpn ?? l.mpn ?? held.mpn ?? null;
   const aspects = mergeAspects(
     { Brand: brand ?? 'Unbranded', MPN: mpn ?? 'Does not apply' },
     useCatalogue ? catalogue!.aspects : null,

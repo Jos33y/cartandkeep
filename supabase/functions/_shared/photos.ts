@@ -8,6 +8,8 @@
 // Anything else is refused, including the eBay seller's photo the research found: copying another eBay seller's
 // photos is what gets listings reported.
 
+import { listingOf, productKey } from './product.ts';
+
 type Json = Record<string, any>;
 
 // eBay's rule: at least 500 pixels on the longest side.
@@ -26,20 +28,23 @@ export const isHers = (url: string, draft: Json = {}) =>
 export function sourceOf(url: string, c: Json, channel: 'ebay' | 'shop' = 'ebay') {
   const d = c.draft ?? {};
   if (isHers(url, d)) return { url, source: 'hers', ok: true } as const;
-  const pc = c.photo_checks ?? {};
+  // A check made for another product (before the card moved to another listing) passes nothing for this one.
+  const pc = (c.photo_checks?.product ?? null) === productKey(c) ? c.photo_checks ?? {} : {};
   if ((pc.catalogue?.images ?? []).includes(url) || (d.catalogue?.images ?? []).includes(url)) {
     return channel === 'ebay'
       ? { url, source: 'catalogue', ok: true } as const
       : { url, source: 'catalogue', ok: false, why: 'eBay\'s catalogue photos are for eBay only' } as const;
   }
-  const seen = (pc.images ?? []).find((i: Json) => i.url === url || i.copy === url);
+  // The first shop's photos, then those of other UK shops matched to the same product.
+  const checked = [...(pc.images ?? []), ...((pc.others ?? []) as Json[]).filter((o) => o.ok).flatMap((o) => o.images ?? [])];
+  const seen = checked.find((i: Json) => i.url === url || i.copy === url);
   if (seen) {
     if (pc.brand_rule) return { url, source: 'shop', ok: false, why: `${pc.brand} photos come from eBay's catalogue or yours, not the shop's` } as const;
     return seen.ok
       ? { url, source: 'shop', ok: true } as const
       : { url, source: 'shop', ok: false, why: (seen.reasons ?? [])[0] ?? 'failed the photo check' } as const;
   }
-  const shops = new Set([...(c.listing?.images ?? [])]);
+  const shops = new Set([...(listingOf(c)?.images ?? [])]);
   if (shops.has(url)) return { url, source: 'shop', ok: false, why: 'not checked yet' } as const;
   return { url, source: 'other', ok: false, why: 'not hers, not checked, and not from the catalogue' } as const;
 }

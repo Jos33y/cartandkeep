@@ -56,6 +56,7 @@ export async function marketFor(title: string, app: string, { brand = null }: { 
       const ship = it.shippingOptions?.[0];
       const postage = ship?.shippingCostType === 'CALCULATED' ? null : Number(ship?.shippingCost?.value ?? 0);
       return {
+        item_id: it.itemId ?? null,
         title: String(it.title ?? ''),
         price,
         postage,
@@ -63,6 +64,7 @@ export async function marketFor(title: string, app: string, { brand = null }: { 
         url: it.itemWebUrl ?? null,
         image: it.image?.imageUrl ?? null,
         feedback: it.seller?.feedbackScore ?? null,
+        brand: it.brand ?? null,
       };
     })
     // The same product only: its brand and model code in the title.

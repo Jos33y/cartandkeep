@@ -189,6 +189,12 @@ export function useApproved(tenantId) {
   const saveAspects = useCallback((candidateId, aspects) => patchDraft(candidateId, { aspects }), [patchDraft]);
 
   // The shelf product's own market on eBay: what new listings of it ask now. Read only.
+  // The eBay listing that sells what she sources: the one she chose read in full, or Keepr's best match with how
+  // sure it is. Nothing is saved by the function; the card puts it in her draft.
+  const matchListing = useCallback(async (candidateId, itemId = null) => invoke('ebay-match', {
+    tenant_id: tenantId, candidate_id: candidateId, ...(itemId ? { item_id: itemId } : {}),
+  }), [tenantId]);
+
   const marketCheck = useCallback(async (candidateId, query = null) => {
     const data = await invoke('ebay-list', { tenant_id: tenantId, candidate_id: candidateId, market: true, ...(query ? { query } : {}) });
     return data.market;
@@ -206,8 +212,9 @@ export function useApproved(tenantId) {
 
   // Keepr's photo check: eBay's catalogue for the barcode, and each of the shop's photos looked at. The answer is
   // kept on the card; nothing of hers changes until she, or a bulk action she starts, uses what passed.
-  const checkPhotos = useCallback(async (candidateId, { again = false } = {}) => {
-    const data = await invoke('photo-check', { tenant_id: tenantId, candidate_id: candidateId, again });
+  // `wider` looks in other UK shops for the same product even when the first shop's photos were enough.
+  const checkPhotos = useCallback(async (candidateId, { again = false, wider = false } = {}) => {
+    const data = await invoke('photo-check', { tenant_id: tenantId, candidate_id: candidateId, again, wider });
     setState((s) => ({
       ...s,
       rows: s.rows.map((r) => (r.id === candidateId
@@ -289,6 +296,10 @@ export function useApproved(tenantId) {
 
       if (error) throw error;
 
+      // Keepr checks the returns and any label warning as it lands. Not waited on: a draft it has not checked yet
+      // says so in Products, with the check a press away.
+      invoke('shop-rules', { tenant_id: tenantId, product_ids: [data.id] }).catch(() => null);
+
       setState((s) => ({
         ...s,
         rows: s.rows.map((r) => (r.id === candidateId ? { ...r, store_products: [data] } : r))
@@ -299,5 +310,5 @@ export function useApproved(tenantId) {
     [tenantId],
   );
 
-  return { ...state, month, jobs, reload: load, addSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose, marketCheck };
+  return { ...state, month, jobs, reload: load, addSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose, marketCheck, matchListing };
 }

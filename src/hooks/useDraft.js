@@ -64,6 +64,13 @@ export function useDraft(candidate, tenantId, { onSaved, onRead } = {}) {
     }
   }, [save]);
 
+  // Saved now rather than in 700ms: for a server function that reads the draft from the card straight after.
+  const flush = useCallback(async () => {
+    clearTimeout(timer.current);
+    timer.current = null;
+    await save(latest.current);
+  }, [save]);
+
   const revert = useCallback(async () => {
     clearTimeout(timer.current);
     latest.current = {};
@@ -99,5 +106,5 @@ export function useDraft(candidate, tenantId, { onSaved, onRead } = {}) {
 
   const edited = Object.keys(draft).length > 0;
 
-  return { draft, change, revert, generate, upload, saving, failed, edited };
+  return { draft, change, flush, revert, generate, upload, saving, failed, edited };
 }

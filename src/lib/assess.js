@@ -1,3 +1,4 @@
+import { chosenEntry, listingOf, swappedTo } from './product';
 import {
   PROFIT, breakEvenFor, cheapestCost, dropshipCosts, ebayCosts, floorFor, goodsToList, isPackCheck, keepAt as keepFor, listFor, marketAllows, positionOf, profitAt, storeCosts,
 } from './pricing.js';
@@ -91,6 +92,18 @@ export const shopName = (tag) => {
 };
 
 // How the market figures were read, so a median from three selling listings says so.
+// The chosen product's own eBay market, in the shape the research gives a card's: the chart reads both the same.
+function marketOfEntry(e) {
+  const mk = e?.market;
+  if (!mk) return e?.price != null ? { median: e.price, listings: [] } : null;
+  return {
+    median: mk.median ?? null, p25: mk.p25 ?? null, p75: mk.p75 ?? null, low: mk.low ?? null, high: mk.high ?? null,
+    competitors: mk.n ?? null,
+    price_basis: 'listed',
+    listings: (mk.listings ?? []).map((x) => ({ item_id: x.item_id ?? null, title: x.title, price: x.total ?? x.price, sold: x.sold ?? null, url: x.url })),
+  };
+}
+
 function marketReadOf(comp) {
   if (!comp) return null;
   const listings = Array.isArray(comp.listings) ? comp.listings.filter((l) => Number(l.price) > 0) : [];
@@ -188,17 +201,22 @@ function assessStore(row, tryCost = null, holdPrice = false, tryPosted = 'suppli
 export function assess(row, { tryCost = null, tryPosted = 'supplier', holdPrice = false } = {}) {
   if (row.margin?.channel === 'store') return assessStore(row, tryCost, holdPrice, tryPosted);
   const m = row.margin ?? {};
-  const l = row.listing ?? null;
-  const entry = row.entry ?? null;
   const d = row.draft ?? {};
+  // A listing she or Keepr chose over the research's prices the card now. When it is another product, the shelf and
+  // the page the card was costed from are the old product's: only her supplier prices it, and its own market.
+  const chosen = chosenEntry(d);
+  const moved = swappedTo(row, d);
+  const l = listingOf(row, d);
+  const entry = chosen ?? row.entry ?? null;
+  const replaced = chosen ? row.entry ?? null : null;
 
-  const shelf = m.shelf ?? null;
+  const shelf = moved ? null : m.shelf ?? null;
   // The shelf is a confirmed cost when it is the proving seller's product and pack. When the pack is simply not
   // known it is still her cost, marked unconfirmed, so the card prices from something real. Only a match known to
   // be another product or pack leaves it out.
   // Same pack by the gate's match, or by her checking it herself.
   const shelfIsCost = m.match?.level === 'same_product_same_pack' || (row.sources ?? []).some(isPackCheck);
-  const shelfRuledOut = ['different_product', 'same_product_different_pack', 'different_barcode'].includes(m.match?.level);
+  const shelfRuledOut = Boolean(moved) || ['different_product', 'same_product_different_pack', 'different_barcode'].includes(m.match?.level);
   const cheapest = tried(tryCost, tryPosted) ?? cheapestCost({
     seen: shelfRuledOut ? null : shelf?.price ?? null,
     seenFrom: shopName(shelf?.shop) ?? 'the shelf',
@@ -216,7 +234,8 @@ export function assess(row, { tryCost = null, tryPosted = 'supplier', holdPrice 
   const c = posted === 'supplier' ? cDrop : cYou;
   const steps = PROFIT.ebay;
   // The market price she is measured against: the small seller converting when trusted, else the median.
-  const market = m.sale_price ?? row.avg_sold_price ?? null;
+  const competition = moved ? marketOfEntry(moved) : row.competition ?? null;
+  const market = moved ? competition?.median ?? moved.price ?? null : m.sale_price ?? row.avg_sold_price ?? null;
   // Forward from a real cost; with none, from the most the market price allows the goods to cost.
   const assumed = goods == null && modelled ? marketAllows(market, c) : null;
   const priced = !modelled ? null
@@ -237,7 +256,8 @@ export function assess(row, { tryCost = null, tryPosted = 'supplier', holdPrice 
     ? round(m.returns_allowance ?? 0)
     : round((m.postage ?? 0) + (m.packaging ?? 0) + (m.returns_allowance ?? 0));
 
-  const trusted = m.list_trusted === true;
+  // Her chosen listing is trusted as a price when it proves itself; the research's when the gate trusted it.
+  const trusted = chosen ? chosen.proved === true : m.list_trusted === true;
   const target = modelled ? profitAt(price, steps) : m.target_profit ?? null;
   const shelfPack = packOf(l?.title);
   const marketPack = packOf(entry?.title);
@@ -248,7 +268,8 @@ export function assess(row, { tryCost = null, tryPosted = 'supplier', holdPrice 
   const ref = entry?.price ?? price;
   const ratio = goods > 0 && ref != null ? Math.round((ref / goods) * 10) / 10 : null;
   // A shelf matched on brand and pack has already had its pack checked.
-  const packCheck = ratio != null && ratio > PACK_RATIO && !(shelfIsCost && !quoted) && cheapest?.basis !== 'try';
+  // Moved to the listing that matches what she buys: she, or Keepr at 95% or more, matched the product and pack.
+  const packCheck = !moved && ratio != null && ratio > PACK_RATIO && !(shelfIsCost && !quoted) && cheapest?.basis !== 'try';
 
   const entryLoses = Boolean(entry?.proved) && entryKeep != null && entryKeep <= 0;
   const ceiling = entry?.ceiling ?? CEILING;
@@ -264,7 +285,7 @@ export function assess(row, { tryCost = null, tryPosted = 'supplier', holdPrice 
       && `Shelf pack holds ${shelfPack}, the listing this price came from holds ${marketPack}.`,
     !trusted && d.price == null && priced?.onMarket && market != null && price === round(market)
       && (entry?.proved
-        ? `Priced at the median, ${gbpText(market)}. A small seller sells at ${gbpText(entry.price)}, outside the ${fieldText(row.competition)}this search found, so it is probably a different product. Open the listing to check.`
+        ? `Priced at the median, ${gbpText(market)}. A small seller sells at ${gbpText(entry.price)}, outside the ${fieldText(competition)}this search found, so it is probably a different product. Open the listing to check.`
         : 'Priced at the median, which no small seller has been paid.'),
     l?.in_stock === 'no' && 'Out of stock at the shop.',
     row.variation_count >= BLENDED && `Sold in ${row.variation_count} variations, so the price is an average.`,
@@ -277,12 +298,13 @@ export function assess(row, { tryCost = null, tryPosted = 'supplier', holdPrice 
   // Short of the profit is a fact about a real cost; a price built on the market's allowance keeps it by construction.
   const short = goods != null && keep != null && target != null && keep < target;
   // One reference for the price and the gap: the proving seller when the gate trusts that price, else the median.
-  const median = row.competition?.median ?? m.market_median ?? null;
+  const median = moved ? competition?.median ?? null : row.competition?.median ?? m.market_median ?? null;
   const position = positionOf(price, trusted && entry?.proved
     ? { median, entry: entry.price }
     : { median: market ?? median });
   const costConfirmed = Boolean(cheapest?.confirmed);
-  const sold = row.sold_30d ?? null;
+  // Another product's monthly sales are not known; the chosen seller's own rate is the floor of them.
+  const sold = moved ? (moved.per_day != null ? Math.round(moved.per_day * 30) : null) : row.sold_30d ?? null;
   const lane = short ? 'short'
     : !position?.inMarket ? 'over'
       : !entry?.proved ? 'untested'
@@ -297,7 +319,7 @@ export function assess(row, { tryCost = null, tryPosted = 'supplier', holdPrice 
     m, l, entry, d, best, goods, price, keep, fees, postage, modelled, trusted, warnings, position,
     costBasis, assumed, costFrom: cheapest, market,
     target, perMonth, entryKeep, entryLoses, entryThin, month, ratio, packCheck, shelfIsCost,
-    match: m.match ?? null,
+    match: moved ? null : m.match ?? null,
     ceiling,
     breakEven: breakEvenFor(goods ?? assumed, c),
     floor: priced?.floor ?? null,
@@ -313,10 +335,14 @@ export function assess(row, { tryCost = null, tryPosted = 'supplier', holdPrice 
     refProfit: position ? profitAt(position.ref, steps) : null,
     median,
     sold,
-    marketRead: marketReadOf(row.competition),
+    marketRead: marketReadOf(competition),
+    competition,
+    chosen,
+    moved,
+    replaced,
     costConfirmed,
     ready: warnings.length === 0 && entry?.proved === true && keep != null && keep > 0,
-    title: d.title ?? l?.title ?? row.title,
+    title: d.title ?? l?.title ?? moved?.title ?? row.title,
     images: d.images ?? l?.images ?? [],
     edited: Object.keys(d).length > 0,
   };

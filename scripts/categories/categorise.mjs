@@ -87,7 +87,7 @@ export async function categorise(db, tenantId, { batchIds = null, ids = null, dr
   const { result: ai, calls, cached } = await classify(
     // Early cards carry the query file's "# comment" in their title; the product is the part before it.
     need.map((p) => ({ key: p.card.id, title: String(p.card.title ?? p.card.external_ref).split('#')[0].trim(), withinTop: p.exportTop })),
-    { tax, taxonomyFile: TAXONOMY, apiKey: envKey('ANTHROPIC_API_KEY'), model: process.env.CLASSIFY_MODEL || 'claude-sonnet-5', log },
+    { tax, taxonomyFile: TAXONOMY, apiKey: envKey('ANTHROPIC_API_KEY'), model: process.env.CLASSIFY_MODEL || 'claude-sonnet-5-5', log },
   );
   for (const p of need) if (ai.get(p.card.id)) p.options.push({ id: ai.get(p.card.id), source: 'ai' });
 
@@ -118,7 +118,7 @@ export async function categorise(db, tenantId, { batchIds = null, ids = null, dr
     && careShop(p.card) && tax.level2Of(p.best.id) !== healthcare);
   const care = await classify(
     careAsk.map((p) => ({ key: p.card.id, title: cleanTitle(p.card), withinTop: 'care' })),
-    { tax, taxonomyFile: TAXONOMY, apiKey: envKey('ANTHROPIC_API_KEY'), model: process.env.CLASSIFY_MODEL || 'claude-sonnet-5', log },
+    { tax, taxonomyFile: TAXONOMY, apiKey: envKey('ANTHROPIC_API_KEY'), model: process.env.CLASSIFY_MODEL || 'claude-sonnet-5-5', log },
   );
   tally.ai_calls += care.calls;
   const careMoves = [];

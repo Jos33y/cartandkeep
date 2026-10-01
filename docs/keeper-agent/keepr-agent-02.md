@@ -1,6 +1,8 @@
 # Keepr Agent-02: store card reviewer
 
-Version 2, 30 September 2026. Cart & Keep, Brick Dev Commerce. Replaces version 1.
+Version 2.1, 30 September 2026. Cart & Keep, Brick Dev Commerce. Replaces version 1.
+
+Version 2.1 adds Part 8 (the eBay card review, as run by hand on 30 September) and Part 9 (how to make that review better).
 
 ## What changed from version 1
 
@@ -312,3 +314,107 @@ Keeps are listed in this order, not scored:
 - **Upstream, not in Keepr:** missed rule words go to the rules files; wrong matches go to match.mjs; bad shop data goes to the collector. Keepr stays a reviewer, not a second rule system.
 - **Per category:** thresholds and need words live in one config per category, so Health & Beauty and Home & Garden can differ.
 - **Her sales close the loop.** Products that sell raise their family, their shop and their category in the next review; products that sit for 60 to 90 days lower them.
+
+---
+
+## Part 8. The eBay card review, as run on 30 September
+
+Keepr's first job was store cards. On 30 September the same thinking was run by hand over her eBay cards: 628 cards, 571 open and 57 approved. This is the method, step by step, so Keepr can run it.
+
+### Step 1. Export
+
+`node scripts/export-ebay.mjs` writes every eBay card that is open or approved to `research/review/ebay-open-approved-<date>.csv`. Read-only. The columns Keepr uses:
+
+| Column | Meaning |
+|---|---|
+| sold_30d | the market's sales a month, from the listings the gate read |
+| entry_proved, entry_price, entry_feedback, entry_age_days | the small seller who proved the market |
+| ebay_list | what she would list at |
+| buy_under | the most she can pay for the goods and still make the target profit |
+| list_trusted, list_basis | the gate's own warning when the small seller's price sits outside the normal range, which usually means another product |
+| cost, cost_source | a real cost (shelf price matched to the pack, or the store card's cost), or none yet |
+| ebay_net | what she keeps at that cost; below zero means the shop is dearer than eBay allows |
+| shop, shop_product, shop_price, match | where the cost came from and how well it matches |
+| category_path, ebay_category | Google and eBay categories |
+
+### Step 2. Sort every card into one verdict
+
+In this order; the first that applies wins.
+
+| Verdict | Test | What it means |
+|---|---|---|
+| reject | illegal or restricted (NMN, medicines, nicotine) | not hers to sell |
+| check | the small seller's price and her list price are more than 2 times apart | the evidence is probably another pack or product (clone ink at £5.45 against the original's £30; a mount at £2.45 against a camera; brush heads against a toothbrush) |
+| check | two or more cards proved by the same eBay listing | only one of them is really proved |
+| find cheaper | a real cost above buy_under | good market, wrong supplier; not a reject |
+| weak | no small seller converting | demand not proved for a newcomer |
+| fine, needs cost | proved, but no cost matched to the pack | ready once a cost is found |
+| fine | proved, trusted, cost known and under buy_under | ready |
+
+Result on 30 September: 1 reject, 90 check, 48 find cheaper, 73 weak, 276 fine needing a cost, 140 fine.
+
+### Step 3. Pick the strongest
+
+A card qualifies only when all of these hold:
+
+1. verdict fine, or fine needing a cost;
+2. a small seller proved the market;
+3. the gate trusts the price;
+4. at least £3 of room to buy the goods (buy_under of £3 or more);
+5. at least 3 sold a month in the market;
+6. no known cost above buy_under.
+
+Then left out by judgement, with the reason written down:
+
+- products that tie up a lot of money for a small profit (a £110 laser level set for about £5);
+- counterfeit-prone products where the known cost already fails (Gillette Labs blades);
+- vague names that cannot be bought as they stand.
+
+Order, never a score: sales a month first, then the smallest proving seller. On 30 September this gave 155 qualifying cards; the first 50 became her eBay list (16 she had approved, 34 approved with her go-ahead).
+
+### Step 4. Write the note for her
+
+The note is for her, read on the card. It says why the card is there and what to check when buying, never who ran the review.
+
+- Default: "Approved in the 30 Sept eBay review: a small seller is selling it, the price is trusted, and there is room to buy."
+- Add the one check that matters, when there is one:
+  - "Check it is not Lakeland's own brand before buying." (airers and refills from an own-label shop)
+  - "Buy genuine only (CPC or Samsung parts); fakes are common." (filters, ink, blades)
+  - "Check the expiry date on the stock." (film, supplements, food)
+  - "Confirm the brand and pack from the photo." (vague names)
+
+### Step 5. Write, carefully
+
+- `node scripts/decide.js --id=<card id> --action=approve --note="..."` lists first; `--apply` records.
+- Pick cards by id, never by title: the portal shows the shop's product name, the card's own title comes from the query, and two cards can share a name (Fairy lemon and original).
+- `--override` changes a card she has already decided, and is used only with her go-ahead. The decisions history keeps her original decision.
+- Variants are not duplicates. Fairy Platinum lemon and original, and Pedigree Dentastix medium and large, stay as separate cards and become one listing with an option.
+
+---
+
+## Part 9. Making the eBay review better
+
+What the 30 September run did by hand, and what would make it sharper.
+
+### Sharper checks
+
+1. **Same listing by item id, not by look-alike numbers.** The run found shared listings by matching the seller's price, feedback and listing age. The gate knows the listing's item id; export it, and compare that.
+2. **Pack and size from the titles.** Read count, weight and volume from the card title, the shop product and the proving listing (19 washes against 85; 30ml against 50ml; 40 pouches against 80). A mismatch is named ("shop sells 19 washes, eBay seller sells 85"), not guessed from price.
+3. **Own label from the shop list.** Part 1 lists the own-label shops. When the only cost is from one of them, say so on the card, rather than asking her to check.
+4. **Counterfeit-prone list.** Filters, ink, blades, shaver heads, chargers, premium beauty, luxury fragrance, Stanley drinkware: always add the buy-genuine note, without waiting for a judgement call.
+5. **Weight against band.** A card costed at the 5kg rate whose product weighs more (Whiskas 80 pouches, about 7kg) gets its profit re-read at the right band before it is called strong.
+
+### Better choices
+
+6. **Money tied up.** Show stock cost for a first order (buy_under times a starter quantity, say 5) next to the profit per sale, so a £110 product making £5 is visible without a judgement call. Shown side by side, not combined into a score.
+7. **Her share, not the market's.** Sales a month is the whole market. Show alongside it how many sellers share that market, so "435 a month across 20 sellers" reads differently from "435 a month across 3".
+8. **Season.** Use the selling calendar (Part 3, check 8) and, once live, the Met Office and Trends signals: a heated airer in October moves up; a garden product in December waits.
+9. **Both channels.** A card that also passed as a store card (Google demand, confirmed UK shop) is stronger than eBay evidence alone. Show it.
+10. **Variants as one family.** Group Fairy lemon and original, and Dentastix medium and large, under one family in the list, so the strongest-N counts products, not cards.
+
+### Closing the loop
+
+11. **Track every approved card to the end:** approved, listed, first sale, sales in 30 days, returns. Keepr's strongest list is right only if those products sell.
+12. **Compare her picks with Keepr's.** Cards she approved that Keepr would not have, and the reverse, are the training set (Part 7).
+13. **Re-run after sourcing.** When she adds a supplier price, the card moves from "fine, needs cost" or "find cheaper" to fine, and may join the strongest list. Re-run weekly.
+14. **One file per run.** Keep each run's review and strongest-N files in `research/review/` with the date, so a later run can say what changed.

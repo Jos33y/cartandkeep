@@ -372,7 +372,7 @@ export function FinancePage() {
                   <span className={styles.cell} data-num>{c.units}</span>
                   <span className={styles.cell} data-num>{formatGbp(c.revenue)}</span>
                   <span className={`${styles.cell} ${c.net == null ? styles.unknown : ''}`} data-num>
-                    {c.net == null ? '—' : formatGbp(c.net)}
+                    {c.net == null ? '--' : formatGbp(c.net)}
                   </span>
                 </div>
               ))}

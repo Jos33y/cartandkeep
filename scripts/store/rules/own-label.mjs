@@ -9,6 +9,9 @@ export const OWN_LABEL = [
   'lakeland', 'wickes', 'halfords', 'ikea', 'next', 'george', 'argos', 'jysk', 'la redoute', 'oliver bonas',
   'living and home', 'livingandhome', 'cookology', 'asda', "sainsbury's", 'homebase', 'robert dyas', 'menkind',
   'laura ashley', 'lights4fun', 'monstershop', 't-mech', 'home discount', 'simmer eats',
+  // B&Q and Screwfix (Kingfisher) own brands, and the tile shops' own ranges
+  'goodhome', 'diall', 'mac allister', 'erbauer', 'titan', 'lap', 'no nonsense', 'porcelain superstore',
+  'tile mountain', 'topps tiles',
   // Fashion and general
   'h&m', 'shein', 'primark', 'very', 'debenhams', 'cotton traders', 'papier',
   // Print on demand

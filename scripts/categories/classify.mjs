@@ -92,6 +92,8 @@ export async function classify(items, { tax, taxonomyFile, apiKey, model, cacheF
       const body = {
         model,
         max_tokens: 2000,
+        // Sonnet 5.5 thinks unless told not to; filing a title is a lookup.
+        thinking: { type: 'between_tools' },
         system: [
           { type: 'text', text: 'You file products into Google\'s product taxonomy. Use only the categories in the list given. Choose the most specific category that describes what the product is (not where it is used or who buys it). Reply with one line per product and nothing else: the product number, a tab, the category ID. If no category in the list fits, give 0.' },
           { type: 'text', text: `${note}Categories:\n${list}`, cache_control: { type: 'ephemeral' } },

@@ -1,4 +1,4 @@
-import { checksFor, openDecisions, needsLabel, isLive } from '@hooks/useCatalogue';
+import { checksFor, openDecisions, needsLabel, isLive, rulesUnchecked } from '@hooks/useCatalogue';
 import { formatGbp } from '@utils/formatGbp';
 
 // Gate steps mirror blockers() in useCatalogue. Change both together.
@@ -43,6 +43,7 @@ function judge(key, p) {
         ? { state: 'done', note: formatGbp(p.price) }
         : { state: 'missing', note: 'No price.' };
     case 'returns':
+      if (rulesUnchecked(p)) return { state: 'wait', note: 'Not checked yet. Open it to check.' };
       return p.derived_fields?.returns_class
         ? { state: 'wait', note: `Suggested: ${RETURNS_LABEL[p.returns_class] ?? 'Standard'}. Confirm it.` }
         : { state: 'done', note: RETURNS_LABEL[p.returns_class] ?? 'Standard' };
@@ -60,7 +61,9 @@ function judge(key, p) {
       if (!needsLabel(p)) return { state: 'none', note: 'Not a chemical' };
       return p.hazard
         ? { state: 'done', note: `Label warning: ${p.hazard.signal}` }
-        : { state: 'missing', note: 'Looks like a chemical. Copy the label warning across.' };
+        : p.derived_fields?.hazard_draft
+          ? { state: 'wait', note: 'Label warning read for you. Check it against the bottle and save.' }
+          : { state: 'missing', note: 'Looks like a chemical. Copy the label warning across.' };
     case 'stock': {
       const why = unsellable(p);
       if (why) return { state: 'missing', note: why };

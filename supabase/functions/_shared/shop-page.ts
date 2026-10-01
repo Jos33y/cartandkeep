@@ -1,6 +1,8 @@
 // A shop's product page, read once into the card's `listing`: the facts her copy is written from, never copy that
 // goes up. Shared so every function reads a page the same way.
 
+import { swappedTo } from './product.ts';
+
 type Json = Record<string, any>;
 
 // Which way of reading a page made a card's listing. 2 reads the whole photo gallery (30 September 2026); a listing
@@ -39,8 +41,10 @@ const barcode = (v: unknown) => {
  */
 export function pageUrlOf(c: Json): string | null {
   const m = c.margin ?? {};
+  // Moved to another product's listing: only her supplier's page describes it. The shelf is the old product.
+  const pages = swappedTo(c) ? [c.draft?.page] : [c.draft?.page, m.shelf?.url, m.cost_from?.url];
   // Her supplier's page, when she chose it for the listing: the product she will actually send.
-  for (const u of [c.draft?.page, m.shelf?.url, m.cost_from?.url]) {
+  for (const u of pages) {
     if (typeof u === 'string' && /^https?:\/\//.test(u)) return u;
   }
   return null;

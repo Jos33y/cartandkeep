@@ -12,6 +12,8 @@ import { ShelfLabel, confirmSource } from '@components/ui/portal/CandidateRow';
 import { assess, shopName } from '@lib/assess';
 import { STATE_WORD, goLive, ownMarket, parcelFor, parcelOf, viewsOf } from '@lib/golive';
 import { freshChecks, isHers, noShopPhotos, pageOf, photosToAdd, sourceOf } from '@lib/photos';
+import { PRODUCT_FIELDS, sameListing } from '@lib/product';
+import { KeeprSuggestion } from '@components/ui/portal/MarketListings';
 import { ListingComposer } from '@components/ui/portal/ListingComposer';
 import { BulkBar, ListSheet } from '@components/ui/portal/BulkListing';
 import { ebayRequest, eligibility, fromEbayCheck, jobOpen, readyFor, shopProduct, startQuantity } from '@lib/bulk';
@@ -75,7 +77,7 @@ export function ApprovedPage() {
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
   const {
-    status, rows, month, jobs, addSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose, marketCheck,
+    status, rows, month, jobs, addSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose, marketCheck, matchListing,
   } = useApproved(tenant?.id);
   const { suppliers, remember } = useSuppliers(tenant?.id);
   const [find, setFind] = useState('');
@@ -87,6 +89,10 @@ export function ApprovedPage() {
   // The cards eBay is checking before they are queued; the cards it held back, to look at next.
   const [sheetFor, setSheetFor] = useState(null);
   const [held, setHeld] = useState(null);
+  // Cards she has opened, or that are being written, stay in the list she is on until she changes it: an edit that
+  // takes a card out of Ready should not make it vanish under her.
+  const [stay, setStay] = useState(() => new Set());
+  useEffect(() => { setStay(new Set()); }, [only]);
   // A bulk action running from the bar: adding to the shop, or finding photos. One at a time.
   const [busy, setBusy] = useState(null);
   const stopBusy = useRef(false);
@@ -180,7 +186,7 @@ export function ApprovedPage() {
     const added = done - failed.length;
     setNotice({
       title: added ? `${added} added to your shop as ${added === 1 ? 'a draft' : 'drafts'}` : 'Nothing added to your shop',
-      body: failed.length ? `${failed.length} did not save. ${failed[0]}` : 'Drafts go on sale from Products once returns and hazard details are confirmed.',
+      body: failed.length ? `${failed.length} did not save. ${failed[0]}` : 'Returns and label warnings are being checked. Anything for you to confirm waits in Products.',
       to: added ? portalPath('/products') : null,
       toLabel: 'Products',
       tone: failed.length ? 'warning' : 'positive',
@@ -193,6 +199,65 @@ export function ApprovedPage() {
    * description, and photos, only where the card has none. What the sources disagree about, or a card with no
    * usable photos, is left for her, and the cards are listed after.
    */
+  /*
+   * Everything one card needs written or found: a title, the description, photos, then eBay's category and item
+   * details. Only what is missing, never over what she has. Page level, so it finishes even when the card leaves
+   * the list it was in (a move to another product clears it out of Ready).
+   */
+  async function readyOne({ row, gl, a }) {
+    const d = row.draft ?? {};
+    const why = (r) => (r.reason instanceof Error ? r.reason.message : String(r.reason ?? 'did not finish'));
+    const want = { title: !(d.title ?? '').trim(), words: !(d.description ?? '').trim(), photos: photosFindable(gl) };
+    const [t, w, ph] = await Promise.allSettled([
+      want.title ? compose(row.id, 'title') : null,
+      want.words ? compose(row.id, 'description') : null,
+      want.photos ? (freshChecks(row, d) ?? checkPhotos(row.id)) : null,
+    ]);
+    const patch = {};
+    const done = [];
+    const short = [];
+    if (want.title) {
+      if (t.status === 'fulfilled' && t.value?.titles?.[0]) { patch.title = t.value.titles[0]; done.push('a title'); }
+      else short.push(t.status === 'fulfilled' && t.value?.conflict ? `the sources disagree: ${t.value.conflict}` : `no title: ${t.status === 'rejected' ? why(t) : 'none came back'}`);
+    }
+    if (want.words) {
+      if (w.status === 'fulfilled' && w.value?.description) { patch.description = w.value.description; done.push('the description'); }
+      else short.push(w.status === 'fulfilled' && w.value?.conflict ? `the sources disagree: ${w.value.conflict}` : `no description: ${w.status === 'rejected' ? why(w) : 'none came back'}`);
+    }
+    if (want.photos) {
+      const seen = ph.status === 'fulfilled' && ph.value ? { ...row, photo_checks: ph.value } : null;
+      const add = seen ? photosToAdd(seen, d) : null;
+      if (add) {
+        Object.assign(patch, add);
+        if (add.images) done.push(`${add.images.length} ${add.images.length === 1 ? 'photo' : 'photos'}`);
+        if (add.catalogue) done.push('eBay\'s catalogue');
+      } else short.push(seen ? (noShopPhotos(seen, d) ?? 'no photos to add, add your own') : `photos: ${why(ph)}`);
+    }
+    // eBay's category and the item details, once the title and words are in, for a card eBay is still to list.
+    if (gl.left.includes('ebay') && (detailsOpen(gl) || patch.title)) {
+      try {
+        const next = { ...d, ...patch };
+        const dry = await list({ candidateId: row.id, ...ebayRequest(a, next, { quantity: startQuantity(row) }), dry: true, fill: true });
+        const found = fromEbayCheck(dry, next);
+        if (found) {
+          Object.assign(patch, found);
+          done.push(`the eBay category (${found.ebay_category.name ?? found.ebay_category.id})`);
+          const have = new Set(Object.entries(found.aspects).filter(([, v]) => v).map(([k]) => k.toLowerCase()));
+          const still = found.ebay_category.required.filter((n) => !have.has(n.toLowerCase()));
+          if (still.length) short.push(`eBay needs ${still.join(', ')}`);
+        }
+      } catch (e) {
+        short.push(`eBay's check: ${e.message}`);
+      }
+    }
+    try {
+      if (Object.keys(patch).length) await patchDraft(row.id, patch);
+    } catch (e) {
+      short.push(`not saved: ${e.message}`);
+    }
+    return { patch, done, short };
+  }
+
   async function readyAll() {
     const items = needReady;
     stopBusy.current = false;
@@ -201,54 +266,10 @@ export function ApprovedPage() {
     let full = 0;
     let done = 0;
     let next = 0;
-    const why = (r) => (r.reason instanceof Error ? r.reason.message : String(r.reason ?? 'did not finish'));
     const worker = async () => {
       while (!stopBusy.current && next < items.length) {
-        const { row, gl, a } = items[next++];
-        const d = row.draft ?? {};
-        const want = { title: !(d.title ?? '').trim(), words: !(d.description ?? '').trim(), photos: photosFindable(gl) };
-        const [t, w, ph] = await Promise.allSettled([
-          want.title ? compose(row.id, 'title') : null,
-          want.words ? compose(row.id, 'description') : null,
-          want.photos ? (freshChecks(row) ?? checkPhotos(row.id)) : null,
-        ]);
-        const patch = {};
-        const short = [];
-        if (want.title) {
-          if (t.status === 'fulfilled' && t.value?.titles?.[0]) patch.title = t.value.titles[0];
-          else short.push(t.status === 'fulfilled' && t.value?.conflict ? `the sources disagree: ${t.value.conflict}` : `no title: ${t.status === 'rejected' ? why(t) : 'none came back'}`);
-        }
-        if (want.words) {
-          if (w.status === 'fulfilled' && w.value?.description) patch.description = w.value.description;
-          else short.push(w.status === 'fulfilled' && w.value?.conflict ? `the sources disagree: ${w.value.conflict}` : `no description: ${w.status === 'rejected' ? why(w) : 'none came back'}`);
-        }
-        if (want.photos) {
-          const seen = ph.status === 'fulfilled' && ph.value ? { ...row, photo_checks: ph.value } : null;
-          const add = seen ? photosToAdd(seen, d) : null;
-          if (add) Object.assign(patch, add);
-          else short.push(seen ? (noShopPhotos(seen) ?? 'no photos to add') : `photos: ${why(ph)}`);
-        }
-        // eBay's category and the item details, once the title and words are in, for a card eBay is still to list.
-        if (gl.left.includes('ebay') && (detailsOpen(gl) || patch.title)) {
-          try {
-            const next = { ...d, ...patch };
-            const dry = await list({ candidateId: row.id, ...ebayRequest(a, next, { quantity: startQuantity(row) }), dry: true, fill: true });
-            const found = fromEbayCheck(dry, next);
-            if (found) {
-              Object.assign(patch, found);
-              const have = new Set(Object.entries(found.aspects).filter(([, v]) => v).map(([k]) => k.toLowerCase()));
-              const still = found.ebay_category.required.filter((n) => !have.has(n.toLowerCase()));
-              if (still.length) short.push(`eBay needs ${still.join(', ')}`);
-            }
-          } catch (e) {
-            short.push(`eBay's check: ${e.message}`);
-          }
-        }
-        try {
-          if (Object.keys(patch).length) await patchDraft(row.id, patch);
-        } catch (e) {
-          short.push(`not saved: ${e.message}`);
-        }
+        const { short } = await readyOne(items[next++]);
+        const { row } = items[next - 1];
         if (short.length) needYou.set(row.id, short); else full += 1;
         done += 1;
         setBusy({ kind: 'ready', done, total: items.length });
@@ -266,6 +287,32 @@ export function ApprovedPage() {
       tone: ids.length ? 'warning' : 'positive',
       ...(ids.length ? { actionLabel: `Show the ${ids.length}`, onAction: () => { setHeld({ ids: new Set(ids), label: 'Need you' }); setOnly('held'); setNotice(null); } } : {}),
     });
+  }
+
+  /*
+   * A card moved to another product's eBay listing is written again for it. The draft is passed in as saved, so the
+   * work reads the card as it now is, not as the list last drew it. What it did lands on the card and in a notice.
+   */
+  const [rebuilding, setRebuilding] = useState(() => new Set());
+  const [rebuilt, setRebuilt] = useState({});
+  async function rebuild(row, draft, lead) {
+    const r = { ...row, draft };
+    const a = assess(r);
+    const item = { row: r, a, gl: goLive(viewsOf(a), r, draft) };
+    setRebuilding((x) => new Set(x).add(row.id));
+    setStay((x) => new Set(x).add(row.id));
+    try {
+      const out = await readyOne(item);
+      const note = { lead, done: out.done, short: out.short.map((x) => `${x.charAt(0).toUpperCase()}${x.slice(1)}.`), at: Date.now() };
+      setRebuilt((m) => ({ ...m, [row.id]: note }));
+      setNotice({
+        title: out.short.length ? 'Written for the new product, with gaps' : 'Written for the new product',
+        body: `${out.patch.title ?? draft.entry?.title ?? row.title}. ${out.short.length ? note.short[0] : 'Read it over before it goes live.'}`,
+        tone: out.short.length ? 'warning' : 'positive',
+      });
+    } finally {
+      setRebuilding((x) => { const n = new Set(x); n.delete(row.id); return n; });
+    }
   }
 
   async function queueAll(items) {
@@ -328,7 +375,7 @@ export function ApprovedPage() {
     }
   };
   const shown = assessed
-    .filter(match)
+    .filter((x) => match(x) || stay.has(x.row.id))
     .filter(({ a, row }) => !find.trim() || `${row.draft?.title ?? ''} ${a.title}`.toLowerCase().includes(find.trim().toLowerCase()));
   const shownIds = shown.map(({ row }) => row.id);
   const allShown = shown.length > 0 && shown.every(({ row }) => selected.has(row.id));
@@ -454,6 +501,11 @@ export function ApprovedPage() {
             onShop={(product) => addToShop({ candidateId: row.id, product })}
             onCheckPhotos={(opts) => checkPhotos(row.id, opts)}
             onMarket={() => marketCheck(row.id)}
+            onMatch={(itemId) => matchListing(row.id, itemId)}
+            onRebuild={(draft, lead) => rebuild(row, draft, lead)}
+            rebuilding={rebuilding.has(row.id)}
+            rebuilt={rebuilt[row.id] ?? null}
+            onStay={() => setStay((x) => (x.has(row.id) ? x : new Set(x).add(row.id)))}
             onShowIds={(ids, label) => { setHeld({ ids: new Set(ids), label }); setOnly('held'); }}
             onSource={async (fields) => {
               await addSource({ candidateId: row.id, tenantId: tenant.id, ...fields });
@@ -563,7 +615,8 @@ const joinFixes = (xs) => {
 
 function Pack({
   row, base, baseGl, job, selected, onSelect, onCancelJob, onRetryJob, onSaved, onRead,
-  tenantId, fees, suppliers, onSource, onList, onShop, onCheckPhotos, onShowIds, onMarket,
+  tenantId, fees, suppliers, onSource, onList, onShop, onCheckPhotos, onShowIds, onMarket, onMatch,
+  onRebuild, rebuilding = false, rebuilt = null, onStay,
 }) {
   const [open, setOpen] = useState(false);
   const [zoomed, setZoomed] = useState(false);
@@ -586,7 +639,7 @@ function Pack({
   const [qty, setQty] = useState(() => startQuantity(row));
   const [jobBusy, setJobBusy] = useState(false);
 
-  const { draft, change, revert, generate, upload, saving, edited } = useDraft(row, tenantId, { onSaved, onRead });
+  const { draft, change, flush, revert, generate, upload, saving, edited } = useDraft(row, tenantId, { onSaved, onRead });
 
   // Live while editing, from the same function the closed line uses. A cost she is trying holds her price and moves
   // what she keeps.
@@ -597,7 +650,8 @@ function Pack({
   const [view, setView] = useState('store');
   const a = both && view === 'ebay' ? whole.ebay : whole;
   const setPrice = (v) => change(both && view === 'ebay' ? { ebay_price: v } : { price: v });
-  const hero = (draft.images ?? [])[0] ?? row.image_url;
+  // Moved to another product, its listing's photo stands in on the row until she has her own: shown here only.
+  const hero = (draft.images ?? [])[0] ?? whole.moved?.image_url ?? row.image_url;
   // The closed row reads the saved draft; the open card reads the one she is typing.
   const gl = useMemo(() => (open ? goLive(viewsOf(whole), row, draft) : baseGl), [open, whole, row, draft, baseGl]);
   const status = gl.ready ? 'ready' : 'check';
@@ -701,15 +755,16 @@ function Pack({
       setCheckingEbay(false);
     }
   }
-  async function getReady() {
+  async function getReady(lead = null) {
+    if (typeof lead !== 'string') lead = null;
     setReadying(true);
     setProblem(null);
-    setReadyNote(null);
+    setReadyNote(lead ? { lead, done: [], short: [] } : null);
     const why = (r) => (r.reason instanceof Error ? r.reason.message : String(r.reason ?? 'did not finish'));
     const [t, d, ph] = await Promise.allSettled([
       missing.title ? generate('title') : null,
       missing.words ? generate('description') : null,
-      missing.photos ? (freshChecks(row) ?? onCheckPhotos()) : null,
+      missing.photos ? (freshChecks(row, draft) ?? onCheckPhotos()) : null,
     ]);
     const patch = {};
     const done = [];
@@ -728,7 +783,7 @@ function Pack({
           Object.assign(patch, add);
           if (add.images) done.push(`${add.images.length} ${add.images.length === 1 ? 'photo' : 'photos'}`);
           if (add.catalogue) done.push('eBay\'s catalogue');
-        } else short.push(`Photos: ${noShopPhotos(seen) ?? 'none to add'}. Add your own.`);
+        } else short.push(`Photos: ${noShopPhotos(seen, draft) ?? 'none to add'}. Add your own.`);
       } else short.push(`Photos: ${why(ph)}`);
     }
     // Last, with the title and words in place: eBay's category and the item details, filled by Keepr.
@@ -748,9 +803,94 @@ function Pack({
       }
     }
     if (Object.keys(patch).length) change(patch);
-    setReadyNote({ done, short });
+    setReadyNote({ lead, done, short });
     setReadying(false);
   }
+
+  /*
+   * The eBay listing the card prices from. She can choose any listing on the chart; Keepr can look for the one that
+   * sells what she buys, and moves the card itself when it is 95% sure or more, else suggests it. When the listing
+   * is another product, everything written or found for the old one goes (kept, for switching back) and the card
+   * is written again for the new one. Her uploads stay hers, ready to add back.
+   */
+  const [using, setUsing] = useState(null);
+  const [asking, setAsking] = useState(false);
+  async function moveTo(found) {
+    const other = Boolean(found.new_product);
+    const patch = {
+      entry: { ...found.entry, new_product: other, market: found.market ?? null, chosen_at: new Date().toISOString() },
+      item_facts: found.facts ?? null,
+      entry_suggestion: null,
+    };
+    if (other) {
+      Object.assign(patch, {
+        before: draft.before ?? Object.fromEntries(PRODUCT_FIELDS.map((k) => [k, draft[k] ?? null])),
+        // Her photos too: they show the old product. They stay among her uploads, and come back on switching back.
+        title: '', description: '', images: [],
+        catalogue: null, ebay_category: null, aspects: {}, package: null, price: null, ebay_price: null, as_shelf: false, market: null,
+      });
+    }
+    change(patch);
+    // Saved before Keepr writes: the writing reads the card as saved.
+    await flush();
+    setCategoryChoice(null);
+    setOwnMkt(null);
+    setConfirm(null);
+    return other ? { ...draft, ...patch } : null;
+  }
+  const pctOf = (sure) => (sure == null ? null : `${Math.round(sure * 100)}% sure`);
+  async function afterMove(found, lead) {
+    const moved = await moveTo(found);
+    if (moved) {
+      setReadyNote({ lead: 'Another product: writing the title, description and photos for it now.', done: [], short: [] });
+      await onRebuild(moved, `${lead} It is another product, so the listing was written again for it.`);
+    } else setReadyNote({ lead: `${lead} The same product, so your listing stays as it is.`, done: [], short: [] });
+  }
+  async function useListing(x) {
+    setUsing(x.item_id);
+    setProblem(null);
+    try {
+      const found = await onMatch(x.item_id);
+      await afterMove(found, `Now pricing from ${found.entry.title}, ${formatGbp(found.entry.price)}.`);
+    } catch (e) {
+      setProblem(`That listing could not be read: ${e.message}`);
+    } finally {
+      setUsing(null);
+    }
+  }
+  async function askKeepr({ quiet = false } = {}) {
+    setAsking(true);
+    if (!quiet) setProblem(null);
+    try {
+      const r = await onMatch(null);
+      const best = r.best;
+      const sure = best?.entry?.sure ?? 0;
+      if (!best) {
+        if (!quiet) setReadyNote({ done: [], short: [`Keepr looked at ${r.considered ?? 0} eBay listings and none sells ${r.product?.title ?? 'the product you buy'}.`] });
+      } else if (r.already) {
+        if (!quiet) setReadyNote({ lead: `Keepr agrees: the listing the card prices from is the product you buy, ${pctOf(sure)}.`, done: [], short: [] });
+      } else if ((draft.entry_dismissed ?? []).some((id) => sameListing(id, best.entry.item_id))) {
+        if (!quiet) setReadyNote({ done: [], short: [`Keepr's best match is ${best.entry.title}, which you turned down.`] });
+      } else if (sure >= (r.auto ?? 0.95)) {
+        await afterMove({ ...best, market: r.market }, `Keepr moved the card to ${best.entry.title}, ${pctOf(sure)}: ${best.entry.why ?? 'it matches what you buy'}`);
+      } else {
+        change({ entry_suggestion: { ...best, market: r.market ?? null, at: new Date().toISOString() } });
+      }
+    } catch (e) {
+      setReadyNote({ done: [], short: [`Keepr could not check the eBay listings: ${e.message}`] });
+    } finally {
+      setAsking(false);
+    }
+  }
+  function switchBack() {
+    change({ ...(draft.before ?? {}), entry: null, item_facts: null, entry_suggestion: null, before: null });
+    setCategoryChoice(null);
+    setReadyNote({ lead: `Back to the research's listing${row.entry?.title ? `, ${row.entry.title}` : ''}.`, done: [], short: [] });
+  }
+  // What the page wrote after a move, shown on the card when it lands.
+  useEffect(() => { if (rebuilt) setReadyNote(rebuilt); }, [rebuilt]);
+  // Open is a card she is working on: it stays in the list she is on.
+  useEffect(() => { if (open) onStay?.(); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The shelf product's own eBay market, for listing it as it is when it is not the product that proved the card.
   const [ownMkt, setOwnMkt] = useState(null);
@@ -790,20 +930,28 @@ function Pack({
     setCategoryChoice(null);
     setPendingPage(null);
     setReadyNote({ done: [], short: [`The listing now comes from ${url ? host(url) : 'the card\'s own page'}. Get it ready writes it from there.`] });
+    // Her supplier's product may not be the one the card prices from: Keepr checks, once the page is saved.
+    if (url) flush().then(() => askKeepr({ quiet: true }));
+  }
+
+  // A supplier with a link: Keepr checks the card prices from the eBay listing for that product.
+  async function addSupplier(fields) {
+    await onSource(fields);
+    if (/^https?:\/\//.test(fields?.url ?? '') && !draft.entry) askKeepr({ quiet: true });
   }
 
   // Keepr's photo check, then what passed into her draft, never over photos she already has: the shop's checked
   // photos, and eBay's catalogue entry for eBay. `again` looks afresh; otherwise an earlier check is used.
-  async function findPhotos({ again = false, apply = true } = {}) {
+  async function findPhotos({ again = false, apply = true, wider = false } = {}) {
     setFinding(true);
     setProblem(null);
     try {
-      const checks = !again && freshChecks(row) ? freshChecks(row) : await onCheckPhotos({ again });
+      const checks = !again && !wider && freshChecks(row, draft) ? freshChecks(row, draft) : await onCheckPhotos({ again, wider });
       if (!apply) return;
       const seen = { ...row, photo_checks: checks };
       const patch = photosToAdd(seen, draft);
       if (patch) change(patch);
-      else if (!(draft.images ?? []).length) setProblem(noShopPhotos(seen) ?? 'Nothing new to add. Add your own photos.');
+      else if (!(draft.images ?? []).length) setProblem(noShopPhotos(seen, draft) ?? 'Nothing new to add. Add your own photos.');
     } catch (e) {
       setProblem(e.message);
     } finally {
@@ -869,19 +1017,22 @@ function Pack({
 
   // Against the shelf product's own market once she chose to list it as it is, else the card's.
   const rowPos = ownMarket(a.price, draft) ?? a.position;
-  const packOpen = !eView.store && !(eView.costConfirmed && !eView.packCheck) && eView.m?.shelf && ebayLeft;
+  // Moved to another product's listing, the shelf is the old product's: nothing to compare it with.
+  const packOpen = !eView.store && !eView.moved && !(eView.costConfirmed && !eView.packCheck) && eView.m?.shelf && ebayLeft;
   const pack = packOpen ? confirmSource(row, eView) : null;
   const shelf = a.m?.shelf ?? null;
   const product = a.store ? a.m.cost_from?.product : a.costFrom?.basis === 'supplier' ? 'Your supplier' : shelf?.product;
   const labelState = a.costFrom?.basis === 'supplier' ? 'confirmed' : a.store ? 'page' : a.costConfirmed ? 'confirmed' : 'estimate';
-  const alts = [...new Set((a.shops ?? a.m.shops ?? []).map(shopName))]
+  // The shops that stock the research's product, not the one the card moved to.
+  const alts = whole.moved ? [] : [...new Set((a.shops ?? a.m.shops ?? []).map(shopName))]
     .filter((n) => n && n !== 'eBay' && n !== shopName(a.best?.supplier));
   const others = (row.sources ?? []).filter((src) => src.matched_on !== 'shelf');
   // The page the listing is written from, and her suppliers' pages she could write it from instead: the product
   // she will actually send, when it is not the one the card was costed from.
   const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
   const possessive = (n) => (/s$/i.test(n) ? `${n}'` : `${n}'s`);
-  const cardPage = row.margin?.shelf?.url ?? row.margin?.cost_from?.url ?? null;
+  // Moved to another product, the card's own page is the old product's: there is no going back to it for words.
+  const cardPage = whole.moved ? null : row.margin?.shelf?.url ?? row.margin?.cost_from?.url ?? null;
   const writtenFrom = pageOf(row, draft);
   const pageChoices = [...new Map(others.filter((src) => /^https?:\/\//.test(src.url ?? '') && src.url !== writtenFrom)
     .map((src) => [src.url, src])).values()].slice(0, 3);
@@ -991,8 +1142,8 @@ function Pack({
             action={!confirm && (
               <span className={styles.actions}>
                 {canReady && (
-                  <button type="button" className={styles.ghost} disabled={readying || busy || shopping} onClick={getReady}>
-                    <Icon name="IconSpark" className={styles.btnIcon} />{readying ? 'Getting it ready' : 'Get it ready'}
+                  <button type="button" className={styles.ghost} disabled={readying || rebuilding || busy || shopping} onClick={() => getReady()}>
+                    <Icon name="IconSpark" className={styles.btnIcon} />{rebuilding ? 'Writing it for the new product' : readying ? 'Getting it ready' : 'Get it ready'}
                   </button>
                 )}
                 {shopButton}
@@ -1001,7 +1152,7 @@ function Pack({
               </span>
             )}>
             {sentence}
-            {row.reference_url && <> <a className={styles.reference} href={row.reference_url} target="_blank" rel="noreferrer noopener">See the listing this came from</a></>}
+            {(base.chosen?.url ?? row.reference_url) && <> <a className={styles.reference} href={base.chosen?.url ?? row.reference_url} target="_blank" rel="noreferrer noopener">{base.chosen ? 'See the listing it prices from' : 'See the listing this came from'}</a></>}
           </BriefStrip>
 
           {(queued || refusedJob) && (
@@ -1033,10 +1184,11 @@ function Pack({
             onShowBoth={() => onShowIds([row.id, row.duplicate_of.id], 'Approved twice')}
             onCheckEbay={checkWithEbay} checkingEbay={checkingEbay} />
 
-          {readyNote && (readyNote.done.length > 0 || readyNote.short.length > 0) && (
+          {readyNote && (readyNote.lead || readyNote.done.length > 0 || readyNote.short.length > 0) && (
             <div className={styles.readyNote} role="status" data-tone={readyNote.short.length ? 'warning' : 'positive'}>
               <Icon name={readyNote.short.length ? 'IconInfo' : 'IconCheck'} className={styles.btnIcon} />
               <span>
+                {readyNote.lead && <span className={styles.readyShort}>{readyNote.lead}</span>}
                 {readyNote.done.length > 0 && <>Written and found: {readyNote.done.join(', ')}. Read them over before it goes live.</>}
                 {readyNote.short.map((x) => <span key={x} className={styles.readyShort}>{x}</span>)}
               </span>
@@ -1243,16 +1395,23 @@ function Pack({
                   <span className={styles.panelTitle}><Icon name="IconTag" className={styles.panelIcon} />Price</span>
                   <span className={styles.panelNote}>{a.store ? 'Against Google\'s prices, where buyers compare' : 'Against what is selling, not the middle of the field'}</span>
                 </header>
-                <PriceSetter a={a} market={row.competition} listings={a.marketRead?.listings ?? []}
+                {draft.entry_suggestion && !a.store && (
+                  <KeeprSuggestion s={draft.entry_suggestion} busy={Boolean(using) || asking || readying}
+                    onUse={() => afterMove(draft.entry_suggestion, `Now pricing from ${draft.entry_suggestion.entry.title}, ${formatGbp(draft.entry_suggestion.entry.price)}.`)}
+                    onDismiss={() => change({ entry_suggestion: null, entry_dismissed: [...(draft.entry_dismissed ?? []), draft.entry_suggestion.entry.item_id] })} />
+                )}
+                {/* Keyed on the listing it prices from: a move redraws the chart on the new product's market. */}
+                <PriceSetter key={a.entry?.item_id ?? 'none'} a={a} market={a.competition ?? row.competition} listings={a.marketRead?.listings ?? []}
                   medianLabel={a.marketRead?.basis === 'selling' && a.marketRead.sellingSeen ? `median of ${a.marketRead.sellingSeen} selling` : 'median'}
-                  onChange={setPrice} />
+                  onChange={setPrice}
+                  choose={{ onUse: useListing, onSwitchBack: switchBack, onAsk: () => askKeepr(), asking, using }} />
               </section>
 
               <section className={styles.panel} aria-label="The listing" data-part="listing">
                 <header className={styles.panelHead}>
                   <span className={styles.panelTitle}><Icon name="IconNote" className={styles.panelIcon} />The listing</span>
                   <span className={styles.panelNote}>
-                    {[a.l?.brand, breadcrumb(row.ebay_category_path) || a.l?.shop_category, band(a.m.headroom_band)].filter(Boolean).join(' · ')}
+                    {[a.l?.brand ?? (a.moved ? draft.item_facts?.brand : null), (a.moved ? draft.item_facts?.category?.split('|').join(' > ') : breadcrumb(row.ebay_category_path)) || a.l?.shop_category, band(a.m.headroom_band)].filter(Boolean).join(' · ')}
                     {edited && (
                       <span className={styles.draftState}>
                         {saving ? 'Saving' : 'Saved'}
@@ -1261,10 +1420,11 @@ function Pack({
                     )}
                   </span>
                 </header>
-                <ListingComposer listing={a.l ?? row.listing} draft={draft} onChange={change}
+                <ListingComposer listing={a.moved ? a.l : a.l ?? row.listing} draft={draft} onChange={change}
                   onGenerate={generate} onUpload={upload}
                   judge={(src) => sourceOf(src, row, draft, gl.left.includes('ebay') ? 'ebay' : 'shop')}
-                  checks={row.photo_checks ?? null} onCheck={() => findPhotos({ again: true, apply: false })} checking={finding} />
+                  checks={freshChecks(row, draft)} onCheck={() => findPhotos({ again: true, apply: false })} checking={finding}
+                  onWider={() => findPhotos({ wider: true, apply: false })} />
                 {draft.catalogue?.epid && (
                   <div className={styles.catalogue}>
                     {draft.catalogue.images?.[0] && <img src={draft.catalogue.images[0]} alt="" loading="lazy" />}
@@ -1337,7 +1497,7 @@ function Pack({
                 )}
                 {cheaper ? (
                   <div className={styles.tryIn}>
-                    <CostTry onTry={onTry} base={a} view={a} suppliers={suppliers} onSave={onSource} hideStep />
+                    <CostTry onTry={onTry} base={a} view={a} suppliers={suppliers} onSave={addSupplier} hideStep />
                   </div>
                 ) : (
                   <button type="button" className={styles.cheaper} onClick={() => setCheaper(true)}>
@@ -1369,7 +1529,7 @@ function Pack({
                         : 'no small seller converting'} />
                     <Proof icon="IconChart" value={a.month != null ? formatGbp(a.month) : 'Not proved'}
                       label="a month kept, at that seller's price and rate" />
-                    <Proof icon="IconLayers" value={row.active_listings ?? 'Unknown'}
+                    <Proof icon="IconLayers" value={(a.moved ? a.competition?.competitors : row.active_listings) ?? 'Unknown'}
                       label="listings competing on the same search" />
                   </div>
                 )}

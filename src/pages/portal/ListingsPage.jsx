@@ -241,8 +241,8 @@ function Listing({ item, fees, onShop, onUpdate, onRead }) {
         </div>
 
         <Fig label="Price" value={formatGbp(price)} />
-        <Fig label="Available" value={item.ebay?.quantity ?? '—'} />
-        <Fig label="Sold" value={t ? t.transactions ?? 0 : '—'}
+        <Fig label="Available" value={item.ebay?.quantity ?? '--'} />
+        <Fig label="Sold" value={t ? t.transactions ?? 0 : '--'}
           tone={t?.transactions > 0 ? 'positive' : null} />
 
         <span className={styles.caret} data-open={open || undefined} aria-hidden="true">

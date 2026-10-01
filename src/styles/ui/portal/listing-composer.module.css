@@ -284,3 +284,11 @@ ol.gallery { display: flex; gap: var(--s-2); overflow-x: auto; padding-bottom: v
 }
 .refUse:hover { border-color: var(--c-control); }
 .refUse:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 1px; }
+
+/* Another UK shop matched to the product: its name as a link to the page, how it was matched, its checked photos. */
+.otherShop { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-2); }
+.otherShop > .refGrid { flex-basis: 100%; }
+.otherLink { font-size: var(--t-caption); font-weight: 600; color: var(--c-action-text); text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; }
+.otherLink:hover { text-decoration-color: currentColor; }
+.otherLink:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; border-radius: 2px; }
+.otherVia { font-size: var(--t-micro); color: var(--c-ink-faint); }

@@ -1,8 +1,10 @@
 # Keepr Agent-01: store card reviewer
 
-Version 2, 30 September 2026. Cart & Keep, Brick Dev Commerce.
+Version 3, 1 October 2026. Cart & Keep, Brick Dev Commerce.
 
 Version 2 adds what the first two live reviews taught: Home & Garden (57 cards) and Health & Beauty (483 cards). These cover the working method, the flags that find problems fast, the patterns for a wrong match, the sourcing and legal lists, and the lessons that became pipeline rules.
+
+Version 3 adds VAT on shelf prices, how to read a re-source results file, generic titles, barcodes for eBay catalogue listing, and a watch list for each category still to run.
 
 ## What it is
 
@@ -56,6 +58,14 @@ Computed for every card before reading:
 
 A barcode match settles "right product" but not "right pack": Ordo brush heads matched by barcode at 19.99 against Google's 10 is the same product in a bigger pack, which is a note, not a resource.
 
+### Shelf price with or without VAT
+
+Some shops show a price without VAT, so the shelf cost looks lower than it is:
+- **without VAT:** Medisave;
+- **VAT relief** (the price a disabled buyer pays, not her price): Complete Care Shop, Manage at Home, Miller Care, Ability Superstore.
+
+Since 30 September, the pipeline adds 20% to these shops' costs and marks the card `vat_added`. Compare a lead from these shops only after VAT. Medisave's Omron M2 lead read £49.99 before the fix and £59.99 after. A new shop that says "ex VAT", "exc. VAT" or "VAT relief" next to its price goes on the list in `page.mjs` before its cards are trusted.
+
 ## The checks
 
 Checks 1 to 4 are the core. Checks 5 to 10 make it think like a buyer, not a filter.
@@ -82,6 +92,8 @@ Is the shop page the same product Google ranks, in the same pack?
 | different model family | Dreamland Revive Me heat pad against the Neck & Shoulder pad |
 
 - A brand name alone is not a match. "Ion8 bottle" against "Ion8 Pod bottle" is unsure.
+- **Generic title:** a title naming only a brand and a product type, with no model, shade, scent or size ("Nail Polish OPI", with 19 OPI products on file), is not one product. No search can match it, and she can't list it. Reject it with reason `other`: "no single product named".
+- **A version number on one side only** is another product: "Fitbit Versa" against a page for the Versa 2.
 - The shop's cost over twice Google's highest price usually means a bigger pack or another model. Flag it; don't just call it expensive.
 - The shop's cost under 40% of Google's lowest usually means a part, refill, cover or travel size.
 - Verdicts: `same`, `same, different pack`, `different product`, `unsure`, with the evidence in a few words ("page is the Omron M2+, Google ranks the M2 Essential").
@@ -177,6 +189,7 @@ Royal Mail Tracked 48, small or medium parcel, up to 20kg. (Checked against the 
 - **Brands known to enforce their listings on eBay** (VeRO: Apple, Dyson, some beauty brands): say so on any card that could also go to eBay.
 - **Counterfeit-prone products** (chargers, cables, premium beauty, designer fragrance, branded razor blades): source only from authorised shops or known wholesalers, and say which.
 - **Images:** the shop image is for recognition only and is never published. Note when she will need her own photo or the brand's press image.
+- **Barcode for eBay:** an eBay catalogue listing needs the product's barcode. A store card matched by barcode carries one and is ready. On 30 September, none of her 63 approved eBay cards had one. When a card is likely to go to eBay too, say whether its barcode is known.
 
 ### 9. Returns and customer risk
 
@@ -229,9 +242,20 @@ The review CSV, one row per card, same columns every time:
 node scripts/store/apply-review.mjs --review=research/review/<file>.csv            # list only
 node scripts/store/apply-review.mjs --review=research/review/<file>.csv --apply
 node scripts/store/resource.mjs --review=research/review/<file>.csv --google=research/google/<category>
-node scripts/store/resource.mjs --apply --from=research/review/resource-<date>.csv   # after checking the results file
+node scripts/store/resource.mjs --apply --from=research/review/resource-<category>-<date>.csv   # after checking the results file
 ```
-`--from` is only for a results file already made. A new search always takes `--review`.
+`--from` is only for a results file already made. A new search always takes `--review`. The results file is named after the review, so two categories reviewed on the same day never overwrite each other.
+
+**Reading a re-source results file** before `--apply`:
+
+| status | what apply does | what Keepr checks |
+|---|---|---|
+| found | repoints the card (barcode only) | nothing; the barcode settles it |
+| found, check it | adds the lead as a note (`left to check` in the summary) | the lead's price against Google's range, after VAT. Outside half to 1.8 times means another model or pack: Omron M2 at £59.99 against Google's £25 to £30; the Versa 2 for a Versa. Inside the range, with the model and size matching, it is a good lead (Omron M3 at £59.99 against £57 to £63). |
+| not found | adds a note, never a reject | generic titles and cards plainly wrong: reject by hand in a small follow-up file |
+| decided by her | nothing | her decision stands |
+
+Report the doubtful leads by name, so Joseey knows which notes not to trust.
 
 ## Rules it never breaks
 
@@ -260,6 +284,32 @@ node scripts/store/resource.mjs --apply --from=research/review/resource-<date>.c
    - the strongest keeps;
    - any pattern worth fixing upstream (a shop with bad weights, a matching rule that keeps failing, a rule that should have stopped a product before import).
 
+## Starting a new category
+
+Before store-picks, Keepr reads two read-only checks and fixes the rules first. Fixing a rule here is cheap; finding the problem after the page check costs a rerun.
+
+```
+node scripts/store/rules-check.mjs --google=research/google/<category>
+node scripts/store/key-check.mjs --google=research/google/<category>
+```
+
+- **rules-check:** for each stop, read its best-ranked examples. A part, accessory or small version stopped with its big product is a false stop (fridge filters stopped as fridges). A product that should stop but is missing from the list is a gap. Fix the false stops in the rule's `unless` list, and put a category-only rule in `rules/categories/<category>.mjs`.
+- **key-check:** lists keys that lump different models together (Omron M2 and M3 on one key). Each one gets fixed in `match.mjs` before store-picks, or the wrong shop page lands on both cards.
+- **Need words:** check that the category's needs file names what she sells there.
+
+**What to watch for in each category still to run:**
+
+| Category | Her ground | Watch for |
+|---|---|---|
+| Hardware (632) | plumbing parts, heating and ventilation, electrical accessories, locks, tool accessories, hand tools | trade-only work (consumer units, gas parts, anything needing Part P or a Gas Safe engineer); long or heavy items (pipe, cable drums, ladders); can't-post solvents, gas canisters, spray foam, flammable adhesives; power tools sold bare or with a battery (check the kit); UKCA marking on electricals |
+| Toys & Games (1239) | toys, games and puzzles for Christmas; list by mid November | UKCA or CE marking and age warnings; licensed characters and brands that enforce (LEGO, Disney, Pokémon) on eBay; small parts for under 3s; button batteries; Argos and Smyths own label; magnetic toys; projectiles |
+| Animals & Pet Supplies (1) | pet care, beds, feeders, grooming, pest control for pets | prescription diets and medicines (flea and wormer treatments marked POM-V, POM-VPS or NFA-VPS need a vet or SQP; AVM-GSL ones are fine); Pets at Home own label; heavy food sacks; live animals |
+| Electronics (222) | cables, batteries, chargers, ink and toner, big-button phones | counterfeit chargers and cables (authorised sources only); loose lithium batteries can't be posted; Apple and Samsung enforce on eBay; compatible ink is fine, fake branded ink is not |
+| Office Supplies (922) | label tape, ink, shredders, label printers | compatible against original consumables (say which); heavy paper boxes |
+| Sporting Goods (988) | care-adjacent fitness only (hand exercisers, resistance bands) | sized clothing and footwear; heavy weights; gas cylinders for camping stoves |
+| Baby & Toddler (537) | baby safety only (gates, monitors, corner guards) | infant formula; sleep products with safety claims; car seats (out); strict product-safety rules |
+| Vehicles & Parts (888) | car care only | parts for one vehicle; car batteries and aerosols can't post; screenwash and de-icer may be flammable |
+
 ## Lessons that became pipeline rules
 
 Every pattern Keepr rejected by hand twice was moved upstream, so the next batch arrives cleaner. As of 30 September (`scripts/store/rules/`, see `store-rules-2026-09-30.md`):
@@ -269,7 +319,8 @@ Every pattern Keepr rejected by hand twice was moved upstream, so the next batch
 - restricted: alcohol, shop-shelf medicines, infant formula, prescription pet diets, perfume dupes, injectables (Teosyal after the Health & Beauty review), tobacco;
 - not shelf: now stops the appliance, not its parts (fridge water filters, radiator valves and mattress toppers pass);
 - dated calendars and diaries for a past year;
-- postage notes for knives, perfume, toiletry aerosols and loose batteries, added to her card at import.
+- postage notes for knives, perfume, toiletry aerosols and loose batteries, added to her card at import;
+- VAT added to costs from shops that show prices without VAT or with VAT relief (79 cards re-costed on 30 September).
 
 When Keepr keeps finding the same problem, the fix belongs in a rule, not in the next review.
 

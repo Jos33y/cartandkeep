@@ -2,8 +2,9 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { pageUrlOf, parseTitles, readShopPage } from '../_shared/shop-page.ts';
-import { MODEL } from '../_shared/model.ts';
+import { askText } from '../_shared/claude.ts';
 import { backstageOut } from '../_shared/copy.ts';
+import { itemFactsOf, listingOf, productKey, swappedTo } from '../_shared/product.ts';
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -31,51 +32,52 @@ const db = () =>
   });
 
 async function claude(system: string, user: string, maxTokens = 1000, images: string[] = []) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': env('ANTHROPIC_API_KEY'),
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: maxTokens,
-      system,
-      messages: [{
-        role: 'user',
-        content: [
-          ...images.map((url) => ({ type: 'image', source: { type: 'url', url } })),
-          { type: 'text', text: user },
-        ],
-      }],
-    }),
+  return askText(env('ANTHROPIC_API_KEY'), {
+    system,
+    maxTokens,
+    content: [
+      ...images.map((url) => ({ type: 'image', source: { type: 'url', url } })),
+      { type: 'text', text: user },
+    ],
   });
-
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error?.message ?? `Anthropic returned ${res.status}`);
-
-  return (body.content ?? [])
-    .filter((b: { type: string }) => b.type === 'text')
-    .map((b: { text: string }) => b.text)
-    .join('')
-    .trim();
 }
 
-// The only facts the model may use.
+// Other UK shops' pages matched to this product: facts to write from, never their wording.
+// deno-lint-ignore no-explicit-any
+function othersFacts(c: Record<string, any>): Array<[string, unknown]> {
+  const pc = c.photo_checks;
+  if (!pc || (pc.product ?? null) !== productKey(c)) return [];
+  // deno-lint-ignore no-explicit-any
+  return ((pc.others ?? []) as any[]).filter((o) => o.ok).slice(0, 2).map((o) => [
+    `Another UK shop's page for the same product (${o.shop}, facts only, never its wording)`,
+    [o.title, o.description, (o.features ?? []).join('; ')].filter(Boolean).join('\n').slice(0, 1800),
+  ]);
+}
+
+// The only facts the model may use. Once the card moved to another product's eBay listing, what eBay holds for
+// that listing (brand, model, barcode, item details, its seller's description) is a source of facts; its wording
+// never is, and the research's search words are the old product's.
 // deno-lint-ignore no-explicit-any
 function facts(c: Record<string, any>) {
-  const l = c.listing ?? {};
+  const l = listingOf(c) ?? {};
+  const f = itemFactsOf(c) ?? {};
+  const moved = Boolean(swappedTo(c));
+  const held = Object.entries(f.aspects ?? {}).map(([k, v]) => `${k}: ${v}`).join('; ');
   return [
     ['Shop title', l.title],
-    ['Brand', l.brand],
-    ['Category', l.shop_category],
+    ['Brand', l.brand ?? f.brand],
+    ['Category', l.shop_category ?? f.category],
     ['Summary', l.summary],
     ['Description', l.description],
     ['Features', Array.isArray(l.features) ? (l.features as string[]).join('; ') : null],
     ['Pack size on the shelf', l.unit_price],
-    ['Search this was found by', c.external_ref],
-    ['A competing listing that is selling', c.entry?.title],
+    ['Model', f.mpn],
+    ['Barcode', f.gtin],
+    ['Item details eBay holds for this product', held || null],
+    ['What another seller says about this product (facts only, never their wording)', f.description],
+    ...othersFacts(c),
+    ['Search this was found by', moved ? null : c.external_ref],
+    ['A competing listing that is selling', (c.draft?.entry ?? c.entry)?.title],
   ]
     .filter(([, v]) => v)
     .map(([k, v]) => `${k}: ${v}`)
@@ -168,6 +170,8 @@ Deno.serve(async (req) => {
     let fresh: Record<string, unknown> | null = null;
     // Read again when the listing now comes from another page (her supplier's), or was never read.
     const moved = Boolean(c.listing && url && (c.listing as Record<string, unknown>).source_url && (c.listing as Record<string, unknown>).source_url !== url);
+    // Moved to another product with no page of its own: the old product's read is set aside, never written from.
+    if (swappedTo(c) && !listingOf(c) && !url) (c as Record<string, unknown>).listing = null;
     if ((!c.listing || moved) && url) {
       const read = await readShopPage(url).catch(() => null);
       if (read) {
@@ -184,14 +188,15 @@ Deno.serve(async (req) => {
 
     // With no page at all, a title can still come from the search and the listing that sells; a
     // description cannot, because every line of it would be a guess.
-    if (!c.listing && kind === 'description') {
+    const held = itemFactsOf(c);
+    if (!c.listing && !held && kind === 'description') {
       return json({
         error: unread
           ? `The page at ${shop} could not be read just now. Try again in a minute, or write the description by hand.`
           : 'There is no shop page on this card to write from, so the description needs writing by hand.',
       }, 400);
     }
-    if (!c.listing && !(c.entry as Record<string, unknown> | null)?.title) {
+    if (!c.listing && !held && !(c.entry as Record<string, unknown> | null)?.title) {
       return json({
         error: unread
           ? `The page at ${shop} could not be read just now, and there is no selling listing to go on. Try again in a minute, or write the title by hand.`
@@ -203,7 +208,13 @@ Deno.serve(async (req) => {
     // First four photos: enough to reach the back panel without paying for every angle.
     // Photos Keepr passed and we copied (a format we know) first, then the page's own. A photo the model cannot read
     // is dropped and the call made again without photos, rather than failing the whole piece of writing.
-    const passed = (((c as Record<string, any>).photo_checks?.images ?? []) as Array<{ ok?: boolean; copy?: string }>)
+    // Only a check of this product's page: one made before the card moved would show the old product.
+    // deno-lint-ignore no-explicit-any
+    const pc = (c as Record<string, any>).photo_checks;
+    const ours = pc && (pc.product ?? null) === productKey(c) && (!pc.page || pc.page === url);
+    // deno-lint-ignore no-explicit-any
+    const wider = ours ? ((pc.others ?? []) as any[]).filter((o) => o.ok).flatMap((o) => o.images ?? []) : [];
+    const passed = ((ours ? [...(pc.images ?? []), ...wider] : []) as Array<{ ok?: boolean; copy?: string }>)
       .filter((i) => i.ok && i.copy).map((i) => i.copy as string);
     const shots = (passed.length ? passed : ((c.listing as { images?: string[] } | null)?.images ?? [])).slice(0, 4);
     const write = async (system: string, max: number) => {

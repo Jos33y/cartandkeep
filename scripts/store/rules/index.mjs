@@ -17,9 +17,11 @@ import { NOT_SHELF as NOT, staleYear } from './not-shelf.mjs';
 import { RESTRICTED as RES, NOT_RESTRICTED } from './restricted.mjs';
 import { CANT_POST as POST, POST_CHECK, TOILETRY_AEROSOL } from './post.mjs';
 import * as healthBeauty from './categories/health-beauty.mjs';
+import * as hardware from './categories/hardware.mjs';
 
 const BY_CATEGORY = new Map([
   ['health and beauty', healthBeauty],
+  ['hardware', hardware],
 ]);
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

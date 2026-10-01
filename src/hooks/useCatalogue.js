@@ -89,7 +89,8 @@ export function missing(p) {
   if (!(Number(p.price) > 0)) out.push('No price');
   if (!p.image_url) out.push('No photograph');
 
-  if (needsLabel(p) && !p.hazard) out.push('Hazard data missing');
+  if (needsLabel(p) && !p.hazard && !labelToConfirm(p)) out.push('Hazard data missing');
+  if (rulesUnchecked(p)) out.push('Returns and label not checked yet');
 
   // An answer that means it cannot sell yet, such as a plug that is not UK, holds it with the reason named.
   for (const q of checksFor(p)?.decide ?? []) {
@@ -125,16 +126,25 @@ export function missing(p) {
   return out;
 }
 
+// A draft from an approved card that Keepr has not yet checked for returns and a label warning. Until it has, nobody
+// has looked, so it cannot go on sale: the 0036 rule against a blanket "no hazard".
+export const rulesUnchecked = (p) => p.source_kind === 'candidate' && !isLive(p) && !p.derived_fields?.rules;
+
+// A label warning read for her off the shop page or the photographs: hers to check against the bottle and save, so
+// a question for her rather than a gap.
+export const labelToConfirm = (p) => needsLabel(p) && !p.hazard && Boolean(p.derived_fields?.hazard_draft);
+
 // A returns class suggested and not yet approved: one tap for her, so it is a question, not a gap.
 export const returnsToConfirm = (p) => Boolean(p.derived_fields?.returns_class);
 
 // Everything she is asked for: open questions, and a returns class to approve.
-export const forHer = (p) => openDecisions(p) + (returnsToConfirm(p) ? 1 : 0);
+export const forHer = (p) => openDecisions(p) + (returnsToConfirm(p) ? 1 : 0) + (labelToConfirm(p) ? 1 : 0);
 
 // The release guard: what is missing, then what is waiting on her.
 export function blockers(p) {
   const out = missing(p);
   if (returnsToConfirm(p)) out.push('Returns to confirm');
+  if (labelToConfirm(p)) out.push('Label warning to confirm');
   const open = openDecisions(p);
   if (open) out.push(`${open} to decide`);
   return out;
@@ -519,8 +529,27 @@ export function useCatalogue(tenantId) {
     archived: state.rows.filter(isArchived).length,
   }), [state.rows]);
 
+  /*
+   * Keepr's returns and label check on drafts from approved cards. Suggestions land in derived_fields; the rows are
+   * read back quietly, so an open sheet stays open and fills in.
+   */
+  const checkRules = useCallback(async (ids) => {
+    const { data, error } = await supabase.functions.invoke('shop-rules', { body: { tenant_id: tenantId, product_ids: ids } });
+    if (error) {
+      const said = await error.context?.json?.().catch(() => null);
+      throw new Error(said?.error ?? error.message);
+    }
+    if (data?.error) throw new Error(data.error);
+    const { data: fresh } = await supabase.from('store_products').select(SELECT).in('id', ids);
+    if (fresh?.length) {
+      setState((s) => ({ ...s, rows: s.rows.map((r) => fresh.find((f) => f.id === r.id) ?? r) }));
+    }
+    if (data?.failed?.length && !data?.done?.length) throw new Error(data.failed[0].error);
+    return data;
+  }, [tenantId]);
+
   return {
-    ...state, counts, reload: load,
+    ...state, counts, reload: load, checkRules,
     publish, unpublish, saveSheet, saveImages, removeImage, create,
     addVariant, saveVariant, removeVariant,
     archive, unarchive,

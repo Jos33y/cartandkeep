@@ -5,12 +5,14 @@
 // hers is changed here: the portal puts passed photos in her draft when she asks.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { appToken, catalogueFor, env, gtinOf, userToken } from '../_shared/ebay/listing.ts';
+import { appToken, catalogueOfCard, env, gtinOf, userToken } from '../_shared/ebay/listing.ts';
 import { READER, pageUrlOf, readShopPage } from '../_shared/shop-page.ts';
+import { listingOf, productKey, swappedTo } from '../_shared/product.ts';
 import {
   MAX_BYTES, MAX_PHOTOS, PHOTO_SYSTEM, brandRuleFor, imageSize, judge, parseSeen, smaller, toBase64,
 } from '../_shared/photos.ts';
-import { MODEL } from '../_shared/model.ts';
+import { askText } from '../_shared/claude.ts';
+import { ENOUGH_PHOTOS, PHOTOS_PER_PAGE, findPages, samePage } from '../_shared/other-shops.ts';
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -54,41 +56,31 @@ async function fetchImage(url: string) {
 }
 
 async function look(photos: Array<{ type: string; data: string }>, context: string) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-api-key': env('ANTHROPIC_API_KEY'), 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 1200,
-      system: PHOTO_SYSTEM,
-      messages: [{
-        role: 'user',
-        content: [
-          ...photos.flatMap((p, i) => [
-            { type: 'text', text: `Photo ${i + 1}:` },
-            { type: 'image', source: { type: 'base64', media_type: p.type, data: p.data } },
-          ]),
-          { type: 'text', text: context },
-        ],
-      }],
-    }),
+  const text = await askText(env('ANTHROPIC_API_KEY'), {
+    system: PHOTO_SYSTEM,
+    maxTokens: 1200,
+    content: [
+      ...photos.flatMap((p, i) => [
+        { type: 'text', text: `Photo ${i + 1}:` },
+        { type: 'image', source: { type: 'base64', media_type: p.type, data: p.data } },
+      ]),
+      { type: 'text', text: context },
+    ],
   });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error?.message ?? `Anthropic returned ${res.status}`);
-  return parseSeen((body.content ?? []).filter((b: { type: string }) => b.type === 'text').map((b: { text: string }) => b.text).join(''));
+  return parseSeen(text);
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    const { tenant_id: tenantId, candidate_id: candidateId, again } = await req.json();
+    const { tenant_id: tenantId, candidate_id: candidateId, again, wider = false } = await req.json();
     if (!tenantId || !candidateId) return json({ error: 'tenant_id and candidate_id are required' }, 400);
     if (!(await allowed(req, tenantId))) return json({ error: 'Not authorised. Sign in to the portal and try again.' }, 401);
 
     const client = db();
     const { data: c, error } = await client.from('candidates')
-      .select('id, title, margin, listing, draft, image_url')
+      .select('id, title, margin, listing, draft, image_url, photo_checks')
       .eq('id', candidateId).eq('tenant_id', tenantId).maybeSingle();
     if (error) return json({ error: error.message }, 500);
     if (!c) return json({ error: 'Candidate not found' }, 404);
@@ -96,6 +88,8 @@ Deno.serve(async (req) => {
     // The page first, if it has never been read: its photos are what is checked.
     const page = pageUrlOf(c);
     let fresh: Record<string, unknown> | null = null;
+    // Moved to another product with no page of its own: the old product's page and photos are not looked at.
+    if (swappedTo(c) && !page) c.listing = null;
     // Read again when asked, when the page is another one now, or when it was read before the whole gallery was.
     const stale = c.listing && (again || (c.listing.reader ?? 1) < READER || (c.listing.source_url && c.listing.source_url !== page));
     if ((!c.listing || stale) && page) {
@@ -108,46 +102,48 @@ Deno.serve(async (req) => {
         await client.from('candidates').update({ listing: merged }).eq('id', c.id);
       }
     }
-    const l = c.listing ?? {};
+    const l = listingOf(c) ?? {};
+    const moved = swappedTo(c);
     const shop = page ? new URL(page).hostname.replace(/^www\./, '') : null;
-    const brand = l.brand ?? null;
+    const brand = l.brand ?? c.draft?.item_facts?.brand ?? null;
 
     const { data: rules } = await client.from('photo_brand_rules').select('brand, rule, tenant_id')
       .or(`tenant_id.is.null,tenant_id.eq.${tenantId}`);
-    const rule = brandRuleFor(rules ?? [], brand, l.title ?? c.title);
+    const rule = brandRuleFor(rules ?? [], brand, l.title ?? moved?.title ?? c.title);
 
     // eBay's catalogue for the barcode, with her eBay connection when there is one.
     const gtin = gtinOf(c);
     let catalogue: Record<string, unknown> | null = null;
     let catalogueError: string | null = null;
-    if (gtin) {
+    if (gtin || moved?.item_id && c.draft?.item_facts?.epid) {
       const { data: cred } = await client.from('tenant_credentials').select('refresh_token')
         .eq('tenant_id', tenantId).eq('provider', 'ebay').maybeSingle();
       try {
         const user = cred?.refresh_token ? await userToken(cred.refresh_token).catch(() => undefined) : undefined;
-        const found = await catalogueFor(gtin, { user, app: () => appToken('https://api.ebay.com/oauth/api_scope/commerce.catalog.readonly') });
+        const found = await catalogueOfCard(c, { user, app: () => appToken('https://api.ebay.com/oauth/api_scope/commerce.catalog.readonly') });
         catalogue = found ? { epid: found.epid, title: found.title, images: found.images } : null;
       } catch (e) {
         catalogueError = e instanceof Error ? e.message : String(e);
       }
     }
 
-    // The shop's photos, first few. A brand on the list is not looked at: its shop photos are not used either way.
-    const urls = [...new Set((l.images ?? []) as string[])].filter((u) => /^https?:\/\//.test(u)).slice(0, MAX_PHOTOS);
-    const images: Array<Record<string, unknown>> = [];
-    if (!rule && urls.length) {
+    // What the photos should show, for Keepr's look: this product, from whichever shop.
+    const expectedFor = (from: string | null) => [
+      `Expected product: ${c.draft?.title || l.title || moved?.title || c.title}`,
+      !moved && c.margin?.shelf?.product && `Shelf product it was costed from: ${c.margin.shelf.product}`,
+      !moved && c.margin?.cost_from?.product && `Shop product it was costed from: ${c.margin.cost_from.product}`,
+      brand && `Brand: ${brand}`,
+      from && `The shop these photos are from: ${from}`,
+    ].filter(Boolean).join('\n');
+
+    // Each photo looked at and judged; a passed one copied into her folder (under shop/, so it is never taken for hers).
+    async function checkPhotos(urls: string[], from: string | null, name: (i: number) => string) {
+      const out: Array<Record<string, unknown>> = [];
+      if (!urls.length) return out;
       const got = await Promise.all(urls.map((u) => fetchImage(u).catch(() => null)));
-      const sendable = urls.map((url, i) => ({ url, got: got[i] }))
-        .filter((x) => x.got && !x.got.heavy && x.got.size);
-      const expected = [
-        `Expected product: ${c.draft?.title || l.title || c.title}`,
-        c.margin?.shelf?.product && `Shelf product it was costed from: ${c.margin.shelf.product}`,
-        c.margin?.cost_from?.product && `Shop product it was costed from: ${c.margin.cost_from.product}`,
-        brand && `Brand: ${brand}`,
-        shop && `The shop these photos are from: ${shop}`,
-      ].filter(Boolean).join('\n');
+      const sendable = urls.map((url, i) => ({ url, got: got[i] })).filter((x) => x.got && !x.got.heavy && x.got.size);
       const seen = sendable.length
-        ? await look(sendable.map((x) => ({ type: x.got!.size!.type, data: toBase64(x.got!.bytes) })), expected).catch(() => null)
+        ? await look(sendable.map((x) => ({ type: x.got!.size!.type, data: toBase64(x.got!.bytes) })), expectedFor(from)).catch(() => null)
         : null;
       for (const [i, url] of urls.entries()) {
         const g = got[i];
@@ -156,17 +152,62 @@ Deno.serve(async (req) => {
           ? { ok: false, reasons: ['Could not be downloaded'] }
           : g.heavy ? { ok: false, reasons: ['Too large to check'] }
             : !g.size ? { ok: false, reasons: ['An image format that could not be read'] }
-              : judge(seen?.[k] ?? null, g.size, shop);
-        // Passed: kept as our own copy, the one that goes up.
+              : judge(seen?.[k] ?? null, g.size, from);
         let copy: string | null = null;
         if (verdict.ok && g?.size) {
           const ext = g.size.type.split('/')[1] === 'jpeg' ? 'jpg' : g.size.type.split('/')[1];
-          const path = `${tenantId}/${c.id}/shop/${i + 1}.${ext}`;
+          const path = `${tenantId}/${c.id}/shop/${name(i)}.${ext}`;
           const { error: upErr } = await client.storage.from('listing-images')
             .upload(path, g.bytes, { contentType: g.size.type, upsert: true });
           if (!upErr) copy = client.storage.from('listing-images').getPublicUrl(path).data.publicUrl;
         }
-        images.push({ url, ...verdict, copy, width: g?.size?.width ?? null, height: g?.size?.height ?? null });
+        out.push({ url, ...verdict, copy, width: g?.size?.width ?? null, height: g?.size?.height ?? null });
+      }
+      return out;
+    }
+
+    // The shop's photos, first few. A brand on the list is not looked at: its shop photos are not used either way.
+    const urls = [...new Set((l.images ?? []) as string[])].filter((u) => /^https?:\/\//.test(u)).slice(0, MAX_PHOTOS);
+    const images = rule ? [] : await checkPhotos(urls, shop, (i) => String(i + 1));
+
+    /*
+     * Too few passed: other UK shops that sell the same product, found by web search and held to a strict match
+     * (barcode, or brand with model or nearly the whole name and the pack). Their photos are checked the same way;
+     * their facts are kept for the writing. An earlier search for this product and page is reused unless she asks
+     * again, so a search is paid for once.
+     */
+    const identity = `${productKey(c) ?? ''}|${page ?? ''}`;
+    const before = c.photo_checks?.others && c.photo_checks.others_for === identity ? c.photo_checks : null;
+    let others: Array<Record<string, unknown>> = before?.others ?? [];
+    let othersError: string | null = null;
+    let searches = 0;
+    const passedHere = images.filter((i) => i.ok).length;
+    if (!rule && (wider || (!before && passedHere < ENOUGH_PHOTOS))) {
+      try {
+        const product = {
+          title: c.draft?.title || l.title || moved?.title || c.title, brand, gtin, mpn: l.product_code ?? c.draft?.item_facts?.mpn ?? null,
+          used: [page].filter(Boolean),
+        };
+        const found = await findPages(env('ANTHROPIC_API_KEY'), product);
+        searches = found.searches;
+        const reads = await Promise.all(found.pages.map((p) => readShopPage(p.url).catch(() => null)));
+        others = [];
+        for (const [n, p] of found.pages.entries()) {
+          const read = reads[n];
+          if (!read) { others.push({ url: p.url, shop: p.shop, ok: false, via: 'the page could not be read', images: [] }); continue; }
+          const same = samePage(product, read);
+          if (!same.ok) { others.push({ url: p.url, shop: p.shop, title: read.title, ok: false, via: same.via, images: [] }); continue; }
+          const pics = [...new Set((read.images ?? []) as string[])].filter((u) => /^https?:\/\//.test(u)).slice(0, PHOTOS_PER_PAGE);
+          others.push({
+            url: p.url, shop: p.shop, title: read.title, ok: true, via: same.via, gtin: read.gtin ?? null,
+            description: read.description ? String(read.description).slice(0, 2000) : null,
+            features: (read.features ?? []).slice(0, 12),
+            images: await checkPhotos(pics, new URL(p.url).hostname.replace(/^www\./, ''), (i) => `o${n + 1}-${i + 1}`),
+          });
+        }
+      } catch (e) {
+        othersError = e instanceof Error ? e.message : String(e);
+        others = before?.others ?? [];
       }
     }
 
@@ -174,6 +215,8 @@ Deno.serve(async (req) => {
       version: READER,
       checked_at: new Date().toISOString(),
       page,
+      // The listing the card had moved to when this was checked; null for the card's own product.
+      product: productKey(c),
       shop,
       brand,
       brand_rule: rule ? rule.rule : null,
@@ -181,6 +224,11 @@ Deno.serve(async (req) => {
       catalogue,
       catalogue_error: catalogueError,
       images,
+      // Other UK shops for the same product, and what they were looked for.
+      others,
+      others_for: others.length || before || wider || passedHere < ENOUGH_PHOTOS ? identity : null,
+      others_error: othersError,
+      searches,
     };
     const { error: saveErr } = await client.from('candidates').update({ photo_checks: checks }).eq('id', c.id).eq('tenant_id', tenantId);
     if (saveErr) return json({ error: saveErr.message }, 500);

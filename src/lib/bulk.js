@@ -42,7 +42,8 @@ export function shopProduct(row, whole, draft) {
     price: whole.price,
     image_url: (draft.images ?? [])[0] ?? null,
     images: draft.images ?? [],
-    brand: whole.l?.brand ?? row.listing?.brand ?? null,
+    // Moved to another product's listing, the brand eBay holds for it; the shelf's is the old product's.
+    brand: whole.l?.brand ?? (whole.moved ? draft.item_facts?.brand : row.listing?.brand) ?? null,
     category: whole.l?.shop_category ?? null,
     postage_band: whole.store ? whole.m.postage_band?.key ?? null : whole.m.headroom_band ?? null,
     landed_cost: whole.goods,

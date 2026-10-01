@@ -22,7 +22,7 @@ const BIG_APPLIANCE = String.raw`integrated|freestanding|free standing|built[- ]
 export const NOT_SHELF = [
   // Made to order and print on demand
   ['blinds?', null, String.raw`brackets?|cords?|chains?|cleaner|fittings?|clips?|springs?|parts?|wands?`],
-  ['made to measure'], ['personali[sz]ed'], ['photo ?book'], ['poster'], ['wallpaper'], ['mural'],
+  ['made to measure'], ['personali[sz]ed'], ['photo ?book'], ['poster'], ['wallpaper', null, String.raw`cover[- ]up|strippers?|steamers?|paste|adhesive|scrapers?|scorers?|primer|remover|smoothers?|brush(?:es)?|cutters?|tools?|kit`], ['mural'],
   // "Print" only as a picture: leopard print and bow print bedding pass.
   [String.raw`(?:art|framed|photo|canvas|giclee|fine art|wall) prints?|prints? (?:a[1-5]|framed|unframed)`],
   ['prints?', String.raw`wall art|posters?|framed|unframed|a[1-5]|canvas|giclee|wall decor`],
@@ -32,7 +32,7 @@ export const NOT_SHELF = [
   ['bulbs? for planting'], ['bare roots?'],
   // Furniture and garden buildings
   // A shed's own parts: a "double door pent shed" is still a shed.
-  ['shed', null, String.raw`felt|shed base|paint|treatment|locks?|hasps?|hinges?|shelving|shel(?:f|ves)|roof(?:ing)?|repair|stain|anchors?|lights?|alarm|guttering|storage bags?|grid`], ['sofa', null, PARTS], ['bed frame', null, PARTS],
+  ['shed', null, String.raw`felt|shed base|paint|treatment|locks?|hasps?|hinges?|shelving|shel(?:f|ves)|roof(?:ing)?|repair|stain|anchors?|lights?|alarm|guttering|storage bags?|grid|protectors?|preserver|fence|wood ?care`], ['sofa', null, PARTS], ['bed frame', null, PARTS],
   ['wardrobe', null, String.raw`${PARTS}|portable|fabric|canvas|stackable|foldable|rails?`],
   ['mattress', null, PARTS],
   // Large appliances: only the appliance itself

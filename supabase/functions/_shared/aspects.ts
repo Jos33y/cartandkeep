@@ -1,7 +1,8 @@
 // eBay's item details (Type, Brand, Colour), filled from the facts on the card, never guessed. Choices from eBay's
 // own list come back exactly as eBay spells them; a value the facts do not support is left for her.
 
-import { MODEL } from './model.ts';
+import { itemFactsOf, listingOf, swappedTo } from './product.ts';
+import { askTool } from './claude.ts';
 
 type Json = Record<string, any>;
 export type Wanted = { name: string; mode: string; values: string[]; required: boolean };
@@ -58,37 +59,30 @@ export function keepValid(answer: Array<{ name?: string; value?: string }>, want
 
 // The facts the model may use, in one block.
 export function aspectFacts(c: Json, draft: Json = {}, category: string | null = null) {
-  const l = c.listing ?? {};
+  const l = listingOf({ ...c, draft: { ...(c.draft ?? {}), ...draft } }) ?? {};
+  const f = itemFactsOf({ ...c, draft: { ...(c.draft ?? {}), ...draft } }) ?? {};
+  const held = Object.entries(f.aspects ?? {}).map(([k, v]) => `${k}=${v}`).join('; ');
   return [
     ['eBay category', category],
     ['Her title', draft.title],
     ['Her description', draft.description],
     ['Shop title', l.title],
-    ['Brand', l.brand],
+    ['Brand', l.brand ?? f.brand],
+    ['Model', f.mpn],
+    ['Barcode', f.gtin],
     ['Shop category', l.shop_category],
     ['Shop description', l.description],
     ['Features', Array.isArray(l.features) ? l.features.join('; ') : null],
-    ['Research title', c.title],
+    // The eBay listing the card was moved to: what eBay holds for that product.
+    ['Item details eBay holds for this product', held || null],
+    // Once moved to another product, the research's title is the old one.
+    ['Research title', swappedTo({ ...c, draft: { ...(c.draft ?? {}), ...draft } }) ? null : c.title],
   ].filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join('\n');
 }
 
 export async function fillAspects(key: string, facts: string, wanted: Wanted[]): Promise<Record<string, string>> {
   if (!wanted.length || !facts) return {};
   const list = wanted.map((w) => `- ${w.name}${w.required ? ' (required)' : ''}${w.values.length ? `: ${w.mode === 'SELECTION_ONLY' ? 'one of' : 'for example'} ${w.values.join(' | ')}` : ''}`).join('\n');
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 800,
-      system: ASPECT_SYSTEM,
-      tools: [TOOL],
-      tool_choice: { type: 'tool', name: 'fill' },
-      messages: [{ role: 'user', content: `Facts:\n${facts}\n\nItem specifics to fill:\n${list}` }],
-    }),
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error?.message ?? `Anthropic returned ${res.status}`);
-  const call = (body.content ?? []).find((b: Json) => b.type === 'tool_use');
-  return keepValid(call?.input?.values ?? [], wanted);
+  const { input } = await askTool(key, { system: ASPECT_SYSTEM, content: `Facts:\n${facts}\n\nItem specifics to fill:\n${list}`, maxTokens: 800, tool: TOOL });
+  return keepValid(input?.values ?? [], wanted);
 }

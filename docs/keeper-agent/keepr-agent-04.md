@@ -200,11 +200,15 @@ The Overview counts every card in the live batches, read in pages. Before 30 Sep
 - write notes on cards, through apply-review with `--apply` after a list-only run;
 - flag a card for the checks it fails, in the page's words ("No parcel weight yet", "Names Home Bargains", "£1.33 over the market at £8.66");
 - suggest the order to list in, strongest first, within her selling limit;
-- report patterns upstream: a shop whose copy keeps leaking into drafts, a band that keeps mis-costing parcels.
+- report patterns upstream: a shop whose copy keeps leaking into drafts, a band that keeps mis-costing parcels;
+- move a card to the eBay listing that sells the product she buys, when it is 95% sure or more (Part 11), and write the listing again for it; under 95%, suggest the listing for her to take or turn down;
+- check a shop draft's returns and label warning (Part 12): confirm standard returns, suggest sealed only or no return, and flag a chemical with the label elements it read.
 
 **May not:**
 - approve, reject, confirm a pack, publish to eBay, add to the shop, or take a draft live;
-- change a price, a title, a photo or a description;
+- change a price, a title, a photo or a description, except by moving a card to another listing as Part 11 allows: a move she can always undo with Switch back;
+- move a card through a barcode, model number or pack size that disagrees, or to a listing she turned down;
+- write a product's hazard record, mark a product "no warning label", or change a returns class she has saved;
 - requeue a refused card, take a card out of the queue, or tick cards for a bulk action;
 - count the "Kept" figure on Overview as her profit.
 
@@ -222,3 +226,45 @@ Plain British English, no em dashes, no emojis, no filler. Notes are for her, no
 - **Descriptions:** a photo the model cannot read no longer fails the writing; doubt and backstage sentences ("please check the photographs", "not confirmed") are removed from buyer copy.
 
 Keepr, reading a card: a card priced from another product's market (pack "not confirmed" at a large ratio, titles naming different models) is flagged to her with the shelf product's own market, never listed at the other product's price.
+
+
+---
+
+## Part 11. Moving a card to the listing she sources (built, 1 October)
+
+The research proves a market with one eBay listing. The product she can actually buy may be a different listing on the same chart, or another product altogether.
+
+- **The chart:** each dot on "Where it sells" is a listing and opens it on eBay. The key says so, and the listings are listed under the chart: the one the card prices from first, the research's under it as "Replaced" once moved, then the rest, each with "Use this listing".
+- **Use this listing:** the listing is read in full from eBay (price with postage, sold, age, seller feedback, and the proof rule the research uses). Price, keep, the market and the checks are worked out from it.
+- **Another product:** when the listing is not the product the card is written for, the title, description, photos, category, item details, parcel and price are set aside (kept for Switch back), and the listing is written again from what eBay holds for that product: brand, model, barcode, item details, and its seller's description as facts only, never its wording. Photos come from her supplier's checked page, eBay's catalogue (by barcode or the listing's catalogue id), or her own. The other seller's photos never go up. The old shelf, its page and its stockists no longer price or describe the card.
+- **Switch back:** returns the card to the research's listing with everything that was set aside.
+- **Keepr's match:** her supplier's product (its page read, or the words in its web address when it cannot be read, as with Amazon) against the chart's listings and an eBay search. A shared barcode is certain; another barcode, model number or pack size rules a listing out whatever else agrees. Otherwise Keepr judges from the text and photos and says how sure it is. At 95% or more it moves the card and says so, with the reason; under 95% it shows the listing with how sure it is and why, and she uses it or turns it down. Keepr looks when she adds a supplier with a link, when she writes the listing from a supplier's page, and when she presses "Ask Keepr to match".
+- **What it costs:** one eBay search, up to four listings read, and one Sonnet 5 judgement with photos per look.
+
+
+---
+
+## Part 12. Returns and label warnings for shop drafts (built, 1 October)
+
+Drafts from the Approved page used to land as standard returns with no hazard check at all. Now Keepr checks each one as it lands (`shop-rules`, migration 0115), and a draft nobody has checked cannot go on sale ("Returns and label not checked yet"; opening it in Products runs the check).
+
+- **Returns:** standard is the default the law already gives, so it is confirmed as it lands, with Keepr's one-line reason shown. Sealed only and no return take a right away from the customer, so they wait for her to choose and save, as before. Once she saves a returns class, Keepr never changes it.
+- **Chemicals:** a cleaner, drain unblocker, glue, paint, pest killer and the like is flagged for the label. The signal word, hazard and precaution statements with their codes, the GHS symbols and any HSE number are filled in only when printed in the facts or legible on a photograph, and say where they were read. A statement without its code is dropped. Nothing is guessed: with no readable label the boxes stay empty for her to copy from the bottle.
+- **Hers to confirm:** a label read for her counts as a question for her, not a gap. Saving the sheet makes it the product's hazard record. "No warning label on this bottle" is only ever her tick.
+- **On sale already:** never touched.
+
+Keepr, reading the shop: a flagged chemical with an empty label is reported as needing the bottle in hand; a sealed or no-return suggestion is reported with its reason, never confirmed for her.
+
+---
+
+## Part 13. Sonnet 5.5, and other UK shops (built, 1 October)
+
+**Model.** Every function and script uses Claude Sonnet 5.5 (`claude-sonnet-5-5`), at the same price as Sonnet 5. Calls go through `_shared/claude.ts` (copied into `draft`): a tool is offered rather than forced, marked strict, and asked for in the prompt; thinking is kept to its lowest setting; no sampling settings are sent.
+
+**Other UK shops.** When fewer than three of the first shop's photos pass, or she presses "Look in other shops", Keepr searches the web for up to four other UK shops selling the same product. Amazon, eBay and other marketplaces are never used. Each page is read and must match on its own: a shared barcode, or the brand with the model number, or nearly the whole name with the same pack. A different barcode, model or pack rules a page out. Pages that did not match are listed with the reason.
+
+- Their photos go through the same check as the first shop's, and passed ones are copied into her folder.
+- Their facts go to Keepr's writing as facts, never as wording.
+- One search per card is kept and reused; "Look again" searches afresh. Each search costs about a cent.
+
+Keepr, reading a card: photos from another shop are as usable as the first shop's once passed. A card with no certain match anywhere needs her own photos or eBay's catalogue.

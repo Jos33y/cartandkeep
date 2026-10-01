@@ -125,3 +125,50 @@ Each entry is now `[word, only, unless]`:
 - **Nicotine brands added:** NiQuitin, Nicorette, Nicotinell.
 - **Shop-shelf medicines added:** Fybogel, Acnecide, Duac, benzoyl peroxide, Olbas, Echinaforce, and "traditional herbal medicinal" (licensed herbal medicines).
 - **Health & Beauty diagnostics:** `categories/health-beauty.mjs` stops test strips, reagent strips and test kits in that category only. Meters and monitors pass, and pool test strips in Home & Garden pass.
+
+## Hardware rules (1 October)
+
+Tested on the Hardware export for August 2026: 19,123 products. 13,744 pass the rules, and 5,660 of those are inside the £8 to £60 window.
+
+**New file `rules/categories/hardware.mjs`.** Building materials are not shelf products for her. They're sold by length, area or tonne, they're too long or heavy for a parcel, and people buy them from a builders' merchant. The file stops:
+- timber, sheet materials and mouldings;
+- fencing, decking, paving and aggregates;
+- cement and bricks;
+- flooring, carpet, tiles and wall panels;
+- doors, windows and roofing sheets;
+- baths, shower trays, basins and worktops;
+- slab and roll insulation;
+- anything over 20kg or sold in 3m lengths;
+- consumer units, RCBOs, MCBs and RCDs, which an electrician fits under Part P. Plug-in RCD adaptors pass.
+
+Their fixings, tools, adhesives, fillers, handles and repair products all pass.
+
+**Own label added:**
+- B&Q and Screwfix brands: GoodHome, Diall, Mac Allister, Erbauer, Titan, LAP, No Nonsense;
+- tile shops: Porcelain Superstore, Tile Mountain, Topps Tiles.
+
+**False stops fixed:**
+- "Tobacco" as a colour on carpet and laminate;
+- Rennie Tools drill bits;
+- shed and fence protector;
+- wallpaper primer;
+- drain rods and drain machines (only the chemical is corrosive);
+- a "CR1306" socket read as a coin battery;
+- knife-grade glue;
+- battery chargers.
+
+**Can't post added:** Calor and Flogas gas, and propane, butane and MAPP gas.
+
+**New postage note:** paint, varnish and wood stain can go by post only when water-based. Solvent-based is flammable, and the title rarely says which (779 products).
+
+**Query keys (`match.mjs`):**
+- electrical ratings (30mA, 6kA, 13A, 100A) are no longer read as models;
+- counts are kept: 1 gang or 2 gang, 2 way, 2 socket;
+- a short model keeps its battery capacity, so a Milwaukee M18 2.0Ah and a 5.0Ah get separate keys.
+
+Lumped keys on Hardware fell from 21 to 5. On the Home & Garden export, 17 of 19,828 keys changed, all for the better. The import matches cards by title, so no card is duplicated.
+
+**Watch in the Hardware review:**
+- **Loose tool batteries** (Makita, DeWalt, Milwaukee): Royal Mail will not carry lithium batteries on their own, so these need a courier. A drill kit with its batteries posts.
+- **Paint:** a big share of the category. A 5L tin weighs about 7kg and must be packed leakproof.
+- **Bare power tools:** a big brand at a high price. Check the kit against Google's.

@@ -35,19 +35,30 @@
   background: var(--c-brand-mid);
 }
 
+/* Each dot is a listing and opens it on eBay: big enough to aim at, with a ring that says it can be pressed. */
 .dot {
   position: absolute;
   top: 50%;
-  width: 7px;
-  height: 7px;
-  margin: -3.5px 0 0 -3.5px;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
   border-radius: var(--r-full);
   border: 1.5px solid var(--c-brand-strong);
   background: var(--c-surface);
+  box-shadow: 0 0 0 2px var(--c-surface);
+  cursor: pointer;
   z-index: 1;
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
+/* A larger target than the mark itself. */
+.dot::after { content: ''; position: absolute; inset: -7px; border-radius: var(--r-full); }
 .dot[data-sold] { background: var(--c-brand-strong); }
-.dot:hover, .dot:focus-visible { transform: scale(1.6); outline: none; }
+.dot:hover, .dot:focus-visible, .dot[data-hot] {
+  z-index: 3;
+  transform: scale(1.35);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--c-surface), 0 0 0 4px var(--c-action);
+}
 
 .median {
   position: absolute;
@@ -195,6 +206,7 @@
 }
 
 .keyDot.sellerProved { border-color: var(--c-positive); }
+.keyListing { display: inline-block; width: 9px; height: 9px; border: 1.5px solid var(--c-brand-strong); border-radius: var(--r-full); background: var(--c-brand-strong); box-shadow: 0 0 0 2px var(--c-surface), 0 0 0 3.5px var(--c-action); }
 .clipped { color: var(--c-ink-faint); font-family: var(--font-ui); }
 
 @media (max-width: 640px) {

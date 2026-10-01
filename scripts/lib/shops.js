@@ -38,8 +38,10 @@ ${titles.map((t) => `- ${t}`).join('\n')}`;
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: process.env.SHOPS_MODEL || 'claude-sonnet-5',
+        model: process.env.SHOPS_MODEL || 'claude-sonnet-5-5',
         max_tokens: 4000,
+        // Sonnet 5.5 thinks unless told not to; this is a list, not a puzzle.
+        thinking: { type: 'between_tools' },
         messages: [{ role: 'user', content: prompt }],
       }),
     });

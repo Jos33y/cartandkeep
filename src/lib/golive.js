@@ -1,5 +1,6 @@
 import { SHOP_NAME_LIST, channelsOf, shopName } from './assess.js';
-import { freshChecks, isHers, noShopPhotos, passedPhotos, sourceOf } from './photos.js';
+import { freshChecks, isHers, noShopPhotos, pageOf, passedPhotos, sourceOf } from './photos.js';
+import { listingOf, swappedTo } from './product';
 
 /*
  * What stands between an approved card and going live, per channel. One place, so the row, the checklist, the
@@ -107,9 +108,12 @@ export function validGtin(v) {
 export function gtinOf(row) {
   const m = row.margin ?? {};
   const l = row.listing ?? {};
-  // Once the listing is written from her supplier's page, only that page's barcode is this product's.
-  const moved = Boolean(row.draft?.page);
-  const from = moved ? (l.source_url === row.draft.page ? [l.gtin, l.ean] : []) : [m.shelf?.gtin, m.cost_from?.gtin, m.gtin, l.gtin, l.ean];
+  // Once the listing is written from her supplier's page, only that page's barcode is this product's. Moved to
+  // another product's eBay listing, the barcode eBay holds for it counts too.
+  const swapped = swappedTo(row);
+  const moved = Boolean(row.draft?.page) || Boolean(swapped);
+  const page = row.draft?.page && l.source_url === row.draft.page ? [l.gtin, l.ean] : [];
+  const from = moved ? [...page, swapped ? row.draft?.item_facts?.gtin : null] : [m.shelf?.gtin, m.cost_from?.gtin, m.gtin, l.gtin, l.ean];
   for (const v of from) {
     const g = validGtin(v);
     if (g) return g;
@@ -152,7 +156,8 @@ export function checksFor(channel, a, row, draft) {
     }
     // None yet: find them if nobody has looked, use what passed, or say why the shop's cannot help.
     const usable = passedPhotos(row, draft);
-    if (!freshChecks(row, draft) && ((row.listing?.images ?? []).length || draft.page || row.margin?.shelf?.url || row.margin?.cost_from?.url || gtinOf(row))) {
+    if (!freshChecks(row, draft) && ((listingOf(row, draft)?.images ?? []).length || pageOf(row, draft) || gtinOf({ ...row, draft })
+      || (swappedTo(row, draft) && draft.item_facts?.epid))) {
       return { ok: false, text: 'No photos yet', fix: 'Find photos', find: true };
     }
     if (usable.length) return { ok: false, text: `${usable.length} checked ${usable.length === 1 ? 'photo' : 'photos'} from the shop to use`, fix: `Use ${usable.length === 1 ? 'it' : 'them'}`, find: true };
@@ -184,7 +189,10 @@ export function checksFor(channel, a, row, draft) {
         : a.target != null && a.keep < a.target
           ? { key: 'profit', hard: false, ok: false, text: `Keeps £${a.keep.toFixed(2)}, under your £${a.target.toFixed(2)}`, fix: 'Find it cheaper', to: 'buy' }
           : { key: 'profit', hard: false, ok: true, text: `Keeps £${a.keep.toFixed(2)}`, to: 'price' });
-    if (!a.store && draft.as_shelf) {
+    if (!a.store && a.moved) {
+      const by = a.moved.by === 'keepr' ? `Keepr matched it${a.moved.sure != null ? `, ${Math.round(a.moved.sure * 100)}% sure` : ''}` : 'You matched it';
+      out.push({ key: 'pack', hard: false, ok: true, text: `${by} to the eBay listing it prices from`, to: 'pack' });
+    } else if (!a.store && draft.as_shelf) {
       out.push({ key: 'pack', hard: false, ok: true, text: 'Listed as the shelf product itself, priced from its own market', to: 'pack' });
     } else if (!a.store) {
       const packOk = a.costConfirmed && !a.packCheck;
