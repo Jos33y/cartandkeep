@@ -3,9 +3,9 @@
 export const digits = (s) => String(s ?? '').replace(/\D/g, '').replace(/^0+/, '');
 // Accents folded first, so Estée is estee, not "est e".
 export const squash = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim();
-const UNIT = /^\d+(\.\d+)?(w|v|l|ml|cl|g|kg|mm|cm|m|in|pk|pcs?|x|mah|gb|tb|hz|oz|tog|lm|in1|pack|tier|ltrs?|litres?|liters?|mg|mcg|ug|iu|hr|hrs|caps?|tabs?|softgels?|servings?|days?|months?)$|^\d{1,3}(\.\d+)?(a|ax|ma|ka|ah|amps?)$/i;
+const UNIT = /^\d+(\.\d+)?(w|v|l|ml|cl|g|kg|mm|cm|m|in|pk|pcs?|x|mah|gb|tb|hz|oz|tog|lm|in1|pack|tier|ltrs?|litres?|liters?|ft|feet|mg|mcg|ug|iu|hr|hrs|caps?|tabs?|softgels?|servings?|days?|months?)$|^\d{1,3}(\.\d+)?(a|ax|ma|ka|ah|amps?)$/i;
 // Specs that read like model numbers but are shared by hundreds of products: IP65, GU10, 3in1, 750lm, 5000 series.
-const SPEC = /^(ip\d{2}|gu\d{1,2}|mr\d{2}|e\d{2}|b\d{2}|g\d{1,2}|t\d{1,2}|\d+in\d+|\d+lm|\d+k|\d+cct|spf\d+|\d+-\d+v|\d+-\d+w|\d+-?(?:way|gang|pole)|\d+-[a-z]+|dx\d{2,3}|pk\d+|gen\d|a\d{2}|gr\d+q|r7s|g\d+q)$/i;
+const SPEC = /^(ip\d{2}|gu\d{1,2}|mr\d{2}|e\d{2}|b\d{2}|g\d{1,2}|t\d{1,2}|\d+in\d+|\d+lm|\d+k|\d+cct|spf\d+|\d+-\d+v|\d+-\d+w|\d+-?(?:way|gang|pole)|\d+-[a-z]+|dx\d{2,3}|pk\d+|gen\d|a15|b125|c250|d400|e600|f900|a\d{2}|gr\d+q|r7s|g\d+q)$/i;
 export function modelsIn(title) {
   return [...new Set(String(title).split(/[\s,()/|]+/).map((t) => t.replace(/[^a-z0-9-]/gi, '').toLowerCase())
     .filter((t) => t.length >= 4 && /\d/.test(t) && !UNIT.test(t) && !SPEC.test(t) && !/^(19|20)\d{2}$/.test(t)
@@ -182,7 +182,7 @@ const KINDS_OF = new Set(['foundation', 'concealer', 'powder', 'primer', 'serum'
   'lipstick', 'gloss', 'eyeliner', 'bronzer', 'blusher', 'highlighter', 'palette', 'cleanser', 'toner', 'moisturiser',
   'moisturizer', 'makeup', 'tint', 'stick', 'fluid', 'gel', 'balm', 'mask', 'gummies', 'drops', 'capsules', 'tablets',
   'softgels', 'spray', 'refill', 'trimmer', 'razor', 'shaver', 'blades', 'bundle', 'set', 'kit', 'usb', 'dimmer',
-  'thumbturn']);
+  'thumbturn', 'emulsion', 'stain', 'varnish', 'eggshell', 'masonry', 'undercoat']);
 // Initials joined by "&" stay one word, as shops and eBay write them: A&D, B&Q, M&S (not "a d").
 const initials = (brand) => { const m = String(brand ?? '').trim().match(/^([a-z])\s*&\s*([a-z])$/i); return m ? `${m[1]}&${m[2]}`.toLowerCase() : null; };
 

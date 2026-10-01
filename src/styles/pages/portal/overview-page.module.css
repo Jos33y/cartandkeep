@@ -216,3 +216,12 @@
   .stage, .task, .taskCaret { transition: none; }
   .reasonFill { animation: none; }
 }
+
+/* Words in a figure's place ("Costs missing"): the warning colour, the figure's weight, no chip behind it. */
+.miniValue.warning { background: none; font-size: var(--t-label); font-family: var(--font-ui); font-weight: 600; line-height: var(--lh-snug); }
+.mini > .more { margin-top: 2px; font-size: var(--t-micro); font-weight: 600; }
+
+/* The chart's dates: where the 90 days start and end, and what the marks are. */
+.sparkAxis { display: flex; justify-content: space-between; gap: var(--s-2); margin-top: 4px; font-size: var(--t-micro); color: var(--c-ink-faint); }
+.sparkAxis > span:nth-child(2) { text-align: center; }
+@media (max-width: 420px) { .sparkAxis > span:nth-child(2) { display: none; } }

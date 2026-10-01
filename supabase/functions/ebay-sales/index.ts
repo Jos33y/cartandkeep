@@ -1,6 +1,7 @@
 // Pulls eBay orders into channel_sales, with eBay's actual fees.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { lineGross, statusOf } from '../_shared/ebay/orders.ts';
 
 const EBAY = 'https://api.ebay.com';
 
@@ -86,14 +87,6 @@ async function orders(access: string, since: string) {
   }
 
   return all;
-}
-
-function statusOf(o: Record<string, never>) {
-  const cancel = (o.cancelStatus as { cancelState?: string })?.cancelState;
-  if (cancel === 'CANCELED') return 'cancelled';
-  const refunds = ((o.paymentSummary as { refunds?: unknown[] })?.refunds ?? []).length;
-  // The table allows paid, refunded and cancelled.
-  return refunds ? 'refunded' : 'paid';
 }
 
 // Same length and every character compared, so the time taken says nothing about how close a guess was.
@@ -211,7 +204,9 @@ Deno.serve(async (req) => {
 
       lines.forEach((l, i) => {
         const qty = Number(l.quantity ?? 1);
-        const gross = money(l.lineItemCost);
+        // A part refund comes off the takings; the units still sold.
+        const before = money(l.lineItemCost);
+        const gross = lineGross(o, before, orderGross);
         const legacy = String(l.legacyItemId ?? '');
         const sku = (l.sku as string) ?? null;
         const candidate = sku ? candidateBySku.get(sku) : null;
@@ -230,7 +225,7 @@ Deno.serve(async (req) => {
           gross: round(gross),
           postage_charged: round(money((l.deliveryCost as { shippingCost?: { value?: string } })?.shippingCost)),
           // eBay reports the fee once per order, so each line takes its share.
-          fees: haveFee ? round(orderGross ? orderFee * (gross / orderGross) : orderFee / lines.length) : null,
+          fees: haveFee ? round(orderGross ? orderFee * (before / orderGross) : orderFee / lines.length) : null,
           fees_estimated: !haveFee,
           status,
           source_file: 'ebay-api',

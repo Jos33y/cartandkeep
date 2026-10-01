@@ -6,7 +6,7 @@
  *   node scripts/store/store-picks.mjs --google=research/google --skip-shops=lakeland
  *
  * One export, or a folder of them: a product in several months is one row, with every month it ranked in.
- * Writes research/picks/<export name>.csv, or research/picks/all.csv for a folder. cost_seen is the price where
+ * Writes research/picks/<export name>.csv, or research/picks/<folder>/all.csv for a category folder. cost_seen is the price where
  * it was seen and store_floor the lowest store price that pays her profit on it, from src/lib/pricing.js, the
  * same figures the import and her card use.
  */
@@ -145,7 +145,11 @@ for (const g of wanted) {
 // Where she can win first: searched for by need, then brands the big shops do not all carry, then steadiest, then rank.
 picks.sort((a, b) => (!a.need) - (!b.need) || (a.big_brand === 'yes') - (b.big_brand === 'yes') || b.months - a.months || a.rank - b.rank);
 
-const outDir = arg('out-dir', 'research/picks');
+// A category folder (research/google/hardware) gets its own picks folder (research/picks/hardware), so one
+// category's picks, checks and coverage never overwrite another's.
+const isDir = fs.statSync(googlePath).isDirectory();
+const category = isDir ? path.basename(path.resolve(googlePath)) : null;
+const outDir = arg('out-dir', category && category !== 'google' ? path.join('research/picks', category) : 'research/picks');
 fs.mkdirSync(outDir, { recursive: true });
 const out = path.join(outDir, fs.statSync(googlePath).isDirectory() ? 'all.csv' : path.basename(googlePath));
 const cols = Object.keys(picks[0] ?? { rank: 0 });
@@ -155,7 +159,7 @@ fs.writeFileSync(out, [cols.join(','), ...picks.map((p) => cols.map((c) => cell(
 // The same picks as an eBay query file, one line per product, so scan and gate can say which also work on eBay.
 const qDir = arg('queries-dir', 'research/queries');
 fs.mkdirSync(qDir, { recursive: true });
-const qOut = path.join(qDir, `queries-store-${path.basename(out, '.csv')}.txt`);
+const qOut = path.join(qDir, `queries-store-${category && category !== 'google' ? category : path.basename(out, '.csv')}.txt`);
 
 const seenQ = new Set();
 const qLines = [];

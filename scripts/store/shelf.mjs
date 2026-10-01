@@ -36,7 +36,22 @@ export function titleGrams(title) {
     const g = Number(m[2]) * (m[3].toLowerCase() === 'kg' ? 1000 : 1);
     if (g > 0 && (best == null || g > best)) best = g;
   }
-  return best;
+  return best ?? liquidGrams(title);
+}
+
+// A liquid sold by volume (paint, varnish, sealant, cleaner) weighs about 1.2kg a litre plus its tin: a 10L tub of
+// emulsion is a 12kg parcel, not a small one. A container's own capacity (a 20L cooler, a 200L water butt) is not
+// its weight, so those titles are left alone.
+const HOLDS = /\b(buckets?|tubs? (?:only|empty)|box(?:es)?|bins?|butts?|tanks?|containers?|coolers?|cool ?box|kettles?|bags?|backpacks?|rucksacks?|storage|sprayers?|watering|cans? empty|empty|vac(?:uum)?s?|dehumidifiers?|fryers?|cookers?|bottles?|flasks?|jugs?|pots?|pans?|trays?|trugs?|planters?|baskets?|dispensers?|jerry ?cans?|reservoirs?|steamers?|humidifiers?|pumps?)\b/i;
+function liquidGrams(title) {
+  const t = String(title);
+  if (HOLDS.test(t)) return null;
+  let litres = 0;
+  for (const m of t.matchAll(/\b(\d+(?:\.\d+)?)\s?(l|ltrs?|litres?|liters?|ml)\b/gi)) {
+    const l = Number(m[1]) / (m[2].toLowerCase() === 'ml' ? 1000 : 1);
+    if (l > litres) litres = l;
+  }
+  return litres >= 0.5 ? Math.round(litres * 1200 + 200) : null;
 }
 
 const OWN_SHOP_BRAND = /^(b and m|home bargains|savers|poundland|the works|home discount|monstershop)$/;

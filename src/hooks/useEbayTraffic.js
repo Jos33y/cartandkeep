@@ -135,7 +135,7 @@ export function useEbayTraffic(tenantId) {
 
     const { data, error } = await supabase
       .from('ebay_traffic')
-      .select('listing_id, title, image_url, price, currency, impressions, views, click_rate, transactions, conversion_rate, window_start, window_end, fetched_at')
+      .select('listing_id, title, image_url, price, currency, impressions, views, click_rate, transactions, conversion_rate, window_start, window_end, fetched_at, ended_at, quantity_sold')
       .eq('tenant_id', tenantId)
       .eq('window_start', recent.window_start)
       .eq('window_end', recent.window_end)
@@ -177,10 +177,11 @@ export function useEbayTraffic(tenantId) {
     const { data, error } = await supabase.functions.invoke('ebay-traffic', {
       body: { tenant_id: tenantId, days },
     });
-    // Recent orders too, so what sold since the last pull shows here without a trip to Finance.
+    // Every order eBay still holds (two years), all pages: sales from July on were missing because this asked for
+    // 30 days and the morning run for 60, so an order that aged past both never came in unless an export did.
     const sales = error || data?.error
       ? null
-      : await supabase.functions.invoke('ebay-sales', { body: { tenant_id: tenantId, days: 30 } });
+      : await supabase.functions.invoke('ebay-sales', { body: { tenant_id: tenantId } });
     setPulling(false);
     if (error || data?.error) {
       setState((s) => ({ ...s, error: data?.error ?? error.message }));

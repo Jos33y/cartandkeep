@@ -53,9 +53,23 @@ export function OverviewPage() {
   const onEbay = l.items.filter((i) => i.listingId).length;
   const onShop = l.items.filter((i) => i.shop?.status === 'live').length;
   const ebayOnly = l.items.filter((i) => i.listingId && !i.shop).length;
-  // The last stage counts what came through the stages before it: sales on the
-  // listings that are live now, not every sale on the account in 90 days.
-  const sold = l.items.reduce((s, i) => s + (i.traffic?.transactions ?? 0), 0);
+  // eBay listings with a shop draft that never went live: on eBay, not yet on her shop.
+  const shopDrafts = l.items.filter((i) => i.listingId && i.shop && i.shop.status !== 'live').length;
+  /*
+   * Sold is every unit from her orders, on every channel, since the first sale. It used to add up the traffic of
+   * the listings live today over 90 days, so a listing that sold out and ended took its sales with it, and anything
+   * older than 90 days was gone: 26 shown against the 30 and more she had sold.
+   */
+  const sold = f.totals.units;
+  const firstMonth = f.months.length ? f.months[f.months.length - 1] : null;
+  const since = firstMonth
+    ? new Date(`${String(firstMonth).slice(0, 7)}-01T00:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    : null;
+  const channels = [...f.byChannel].sort((a, b) => b.units - a.units)
+    .map((c) => (c.channel === 'ebay' ? 'eBay' : c.channel === 'store' ? 'your shop' : c.channel));
+  // Products sold with no cost recorded: the profit on them is not known, so it is not shown as a figure.
+  const sold$ = f.products ?? [];
+  const uncosted = sold$.filter((p) => !p.costed).length;
 
   // What needs her, in the order it costs money to leave it.
   const tasks = [
@@ -68,14 +82,6 @@ export function OverviewPage() {
       to: portalPath('/approved'),
       cta: 'List them',
     },
-    o.counts.pending > 0 && {
-      icon: 'IconLayers',
-      count: o.counts.pending,
-      title: `${n(o.counts.pending)} to review`,
-      body: 'Candidates the gate passed, waiting for a yes or no.',
-      to: portalPath('/candidates'),
-      cta: 'Open the queue',
-    },
     approved.waiting - approved.ready > 0 && {
       icon: 'IconInfo',
       tone: 'warning',
@@ -84,6 +90,22 @@ export function OverviewPage() {
       body: 'Photos, a description, a parcel or a price to settle before they go up.',
       to: portalPath('/approved'),
       cta: 'Check them',
+    },
+    o.counts.pending > 0 && {
+      icon: 'IconLayers',
+      count: o.counts.pending,
+      title: `${n(o.counts.pending)} to review`,
+      body: 'Candidates the gate passed, waiting for a yes or no.',
+      to: portalPath('/candidates'),
+      cta: 'Open the queue',
+    },
+    shopDrafts > 0 && {
+      icon: 'IconShop',
+      count: shopDrafts,
+      title: `${n(shopDrafts)} on eBay, waiting in Products for your shop`,
+      body: 'Already drafted on your shop from your eBay listings. Confirm them to sell at the same price with no eBay fee.',
+      to: portalPath('/products'),
+      cta: 'Open Products',
     },
     ebayOnly > 0 && {
       icon: 'IconShop',
@@ -103,8 +125,8 @@ export function OverviewPage() {
         : null },
     { label: 'Live', value: onEbay, to: portalPath('/listings'), icon: 'IconTag',
       foot: onShop ? `${onShop} ${plural(onShop, 'is', 'are')} also on your shop` : 'on eBay' },
-    { label: 'Sold', value: sold, to: portalPath('/listings'), icon: 'IconBought', tone: sold > 0 ? 'positive' : null,
-      foot: o.traffic ? `from ${plural(onEbay, 'that one', `those ${onEbay}`)}, last 90 days` : 'no traffic pulled yet' },
+    { label: 'Sold', value: sold, to: portalPath('/finance'), icon: 'IconBought', tone: sold > 0 ? 'positive' : null,
+      foot: since ? `units since ${since}, ${channels.join(' and ')}` : 'no sales recorded yet' },
   ];
 
   const nothingYet = o.batches.length === 0 && onEbay === 0;
@@ -191,11 +213,15 @@ export function OverviewPage() {
             {f.totals.lines ? (
               <div className={styles.funnel}>
                 <Mini icon="IconChart" label="Taken" value={formatGbp(f.totals.revenue)} />
-                <Mini icon="IconCheck" label="Kept"
-                  value={f.totals.net == null ? 'Unknown' : formatGbp(f.totals.net)}
-                  foot={f.totals.net == null ? 'no costs recorded'
-                    : f.totals.uncosted ? `on ${f.totals.covered} of ${f.totals.lines} sales, ${f.totals.uncosted} with no cost yet` : null}
-                  tone={f.totals.net > 0 && !f.totals.uncosted ? 'positive' : null} />
+                {/* A profit over some products is not her profit. With costs missing it says so, not a figure. */}
+                {uncosted ? (
+                  <Mini icon="IconCheck" label="Kept" value="Costs missing" tone="warning"
+                    foot={`${uncosted} of ${sold$.length} products sold have no cost yet${f.totals.net != null ? `. ${formatGbp(f.totals.net)} on the rest` : ''}.`}
+                    to={portalPath('/finance')} cta="Add costs" />
+                ) : (
+                  <Mini icon="IconCheck" label="Kept" value={f.totals.net == null ? 'Unknown' : formatGbp(f.totals.net)}
+                    tone={f.totals.net > 0 ? 'positive' : null} />
+                )}
                 <Mini icon="IconBought" label="Units" value={n(f.totals.units)} />
               </div>
             ) : (
@@ -215,9 +241,16 @@ export function OverviewPage() {
                 <div className={styles.funnel}>
                   <Mini icon="IconImpression" label="Shown" value={n(o.traffic.impressions)} />
                   <Mini icon="IconOpened" label="Opened" value={n(o.traffic.views)} foot={pct(o.traffic.click_rate)} />
-                  <Mini icon="IconBought" label="Sold" value={n(o.traffic.transactions)} foot={pct(o.traffic.conversion_rate)} tone="positive" />
+                  <Mini icon="IconBought" label="Orders" value={n(o.traffic.transactions)} foot={pct(o.traffic.conversion_rate)} tone="positive" />
                 </div>
                 <Spark days={o.days} />
+                {o.days.length > 1 && (
+                  <p className={styles.sparkAxis}>
+                    <span>{fmt(new Date(`${o.days[0].day}T12:00:00Z`), { day: 'numeric', month: 'short' })}</span>
+                    <span>a mark on each day with an order</span>
+                    <span>{fmt(new Date(`${o.days[o.days.length - 1].day}T12:00:00Z`), { day: 'numeric', month: 'short' })}</span>
+                  </p>
+                )}
               </>
             ) : (
               <p className={styles.empty}>Pull traffic once from the Traffic page and this fills in.</p>
@@ -261,12 +294,13 @@ function Step({ icon, title, body }) {
   );
 }
 
-function Mini({ icon, label, value, foot, tone }) {
+function Mini({ icon, label, value, foot, tone, to = null, cta = null }) {
   return (
     <div className={styles.mini}>
       <span className={styles.miniHead}><Icon name={icon} className={styles.miniIcon} />{label}</span>
       <span className={`figure ${styles.miniValue} ${tone ? styles[tone] : ''}`}>{value}</span>
       {foot && <span className={styles.miniFoot}>{foot}</span>}
+      {to && cta && <Link to={to} className={styles.more}>{cta}</Link>}
     </div>
   );
 }
@@ -292,8 +326,9 @@ function Spark({ days }) {
       </defs>
       <path d={`${line} L${w} ${h} L0 ${h} Z`} fill="url(#ovFill)" />
       <path d={line} fill="none" stroke="var(--c-ink-soft)" strokeWidth="1.25" vectorEffect="non-scaling-stroke" />
+      {/* Ticks, not dots: the chart stretches to its box, and a circle stretched becomes a dash. */}
       {days.map((d, i) => (d.transactions > 0
-        ? <circle key={d.day} cx={x(i)} cy={h - 3} r="2.2" fill="var(--c-positive)" />
+        ? <line key={d.day} x1={x(i)} x2={x(i)} y1={h - 7} y2={h} stroke="var(--c-positive)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
         : null))}
     </svg>
   );

@@ -58,7 +58,7 @@ function Info({ children }) {
  * 158,223 and 2,632 and 30 set at the same size made the collapse invisible,
  * which is the one thing this measures. The bars are the numbers.
  */
-function Funnel({ total, benchmark, count, latest }) {
+function Funnel({ total, benchmark, count, latest, units = null }) {
   /*
    * Each bar is its share of the step before it, not of impressions.
    *
@@ -86,16 +86,21 @@ function Funnel({ total, benchmark, count, latest }) {
       lostWord: 'scrolled past',
       tip: 'Times somebody clicked into the listing. What they saw first was the photograph, the title and the price.',
     },
+    /*
+     * Units, from her orders. eBay's own figure counts purchases: three of one thing in one go is one, so it
+     * undercounts what she sold. The rate stays eBay's, purchases per open, because that is the share of people.
+     */
     {
       icon: 'IconBought',
       label: 'Bought',
-      value: total.transactions,
+      value: units != null && units >= (total.transactions ?? 0) ? units : total.transactions,
       rate: total.conversion_rate,
       fill: total.conversion_rate ?? 0,
       lost: (total.views ?? 0) - (total.transactions ?? 0),
       lostWord: 'left without buying',
       strong: true,
-      tip: 'Units paid for. Anyone who got this far had already read the whole listing.',
+      purchases: units != null && units > (total.transactions ?? 0) ? total.transactions : null,
+      tip: 'Units paid for, from your orders. eBay counts a purchase of three as one; this counts it as three. The rate is purchases per open.',
     },
   ];
 
@@ -117,7 +122,7 @@ function Funnel({ total, benchmark, count, latest }) {
 
           <p className={styles.stepRate}>
             {s.rate != null
-              ? <><span data-num>{pct(s.rate)}</span> carried through, <span data-num>{n(s.lost)}</span> {s.lostWord}</>
+              ? <>{s.purchases != null && <><span data-num>{n(s.purchases)}</span> purchases, </>}<span data-num>{pct(s.rate)}</span> carried through, <span data-num>{n(s.lost)}</span> {s.lostWord}</>
               : s.foot}
           </p>
 
@@ -248,6 +253,8 @@ export function EbayTrafficPage() {
     await keeper.adopt();
   }
   const [only, setOnly] = useState(null);
+  // Live, ended, or both. Ended is a listing that sold out or ran out inside the window: its traffic and sales stay.
+  const [life, setLife] = useState('all');
   const [sort, setSort] = useState({ key: 'stake', dir: -1 });
   const [find, setFind] = useState('');
 
@@ -304,7 +311,9 @@ export function EbayTrafficPage() {
       const lastSoldAt = orders[0]?.sold_at ?? null;
       return {
         ...row,
-        stake: atStake(row, benchmark),
+        ended: Boolean(r.ended_at),
+        // An ended listing cannot convert any more, so nothing is at stake on it.
+        stake: r.ended_at ? 0 : atStake(row, benchmark),
         verdict: diagnose(row),
         lastSoldAt,
         afterWindow: Boolean(lastSoldAt && total && lastSoldAt.slice(0, 10) > total.window_end),
@@ -314,28 +323,40 @@ export function EbayTrafficPage() {
     [listings, benchmark, ordersBy, total],
   );
 
+  const endedCount = withStake.filter((r) => r.ended).length;
+  const inLife = useMemo(
+    () => withStake.filter((r) => life === 'all' || (life === 'ended' ? r.ended : !r.ended)),
+    [withStake, life],
+  );
+
   const groups = useMemo(() => {
     const map = { unseen: [], ignored: [], unconvincing: [], selling: [] };
-    for (const r of withStake) map[r.verdict].push(r);
+    for (const r of inLife) map[r.verdict].push(r);
     return map;
-  }, [withStake]);
+  }, [inLife]);
 
   const shown = useMemo(() => {
-    let rows = only ? groups[only] : withStake;
+    let rows = only ? groups[only] : inLife;
     if (find.trim()) {
       const q = find.trim().toLowerCase();
       rows = rows.filter((r) => (r.title ?? '').toLowerCase().includes(q));
     }
     return [...rows].sort((a, b) => ((a[sort.key] ?? 0) - (b[sort.key] ?? 0)) * sort.dir);
-  }, [groups, withStake, only, sort, find]);
+  }, [groups, inLife, only, sort, find]);
 
   const lost = groups.unconvincing.reduce((a, r) => a + r.stake, 0);
+  // Units sold in the window, from her orders: what the headline counts, so a purchase of three reads as three.
+  const unitsInWindow = total && sales?.length
+    ? sales.filter((o) => o.sold_at.slice(0, 10) >= total.window_start && o.sold_at.slice(0, 10) <= total.window_end)
+      .reduce((a, o) => a + (Number(o.qty) || 1), 0)
+    : null;
 
   if (tenant === undefined || status === 'loading') return <PageSkeleton rows={8} />;
 
   const click = (key) => setSort((s) => (s.key === key ? { key, dir: -s.dir } : { key, dir: -1 }));
-  const filtered = only || find.trim();
-  const notYet = shown.filter((r) => !onShop.has(String(r.listing_id)));
+  const filtered = only || find.trim() || life !== 'all';
+  // Only a live listing can be brought to the shop from here; an ended one has nothing on eBay to copy from.
+  const notYet = shown.filter((r) => !r.ended && !onShop.has(String(r.listing_id)));
   const skippedWhy = brought?.skipped?.length
     ? `${brought.skipped.length} not added: ${brought.skipped[0].reason}${brought.skipped.length > 1 ? ', and others' : ''}.` : null;
 
@@ -376,7 +397,7 @@ export function EbayTrafficPage() {
           headline. */}
       {total && (
         <section className="card">
-          <Funnel total={total} benchmark={benchmark} count={listings.length} latest={latest} />
+          <Funnel total={total} benchmark={benchmark} count={listings.length} latest={latest} units={unitsInWindow} />
           {days?.length > 1 && <Trend days={days} soldOn={soldOn} />}
         </section>
       )}
@@ -426,6 +447,16 @@ export function EbayTrafficPage() {
           )}
 
           <div className={styles.tools}>
+            {endedCount > 0 && (
+              <div className={styles.life} role="group" aria-label="Live or ended">
+                {[['all', 'All', withStake.length], ['live', 'Live', withStake.length - endedCount], ['ended', 'Ended', endedCount]].map(([key, label, count]) => (
+                  <button key={key} type="button" aria-pressed={life === key} className={styles.lifeOption}
+                    onClick={() => { setLife(key); setOnly(null); }}>
+                    {label} <span data-num>{count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <span className={styles.findWrap}>
               <Icon name="IconSearch" className={styles.findIcon} />
               <input className={styles.find} value={find} placeholder="Find a listing"
@@ -443,7 +474,7 @@ export function EbayTrafficPage() {
 
             {filtered ? (
               <button type="button" className={styles.chip}
-                onClick={() => { setOnly(null); setFind(''); }}>
+                onClick={() => { setOnly(null); setFind(''); setLife('all'); }}>
                 <Icon name="IconFilter" className={styles.chipIcon} />
                 <span data-num>{shown.length}</span> of <span data-num>{listings.length}</span>
                 <Icon name="IconX" className={styles.chipX} />
@@ -477,7 +508,7 @@ export function EbayTrafficPage() {
             {pulling && Array.from({ length: 6 }, (_, i) => <RowSkeleton key={`s${i}`} i={i} />)}
 
             {!pulling && shown.map((r, i) => (
-              <div key={r.listing_id} className={`${styles.row} ${i < 3 && r.stake > 0 ? styles.urgent : ''}`}>
+              <div key={r.listing_id} className={`${styles.row} ${i < 3 && r.stake > 0 ? styles.urgent : ''}`} data-ended={r.ended || undefined}>
                 {r.image_url
                   ? <img className={styles.thumb} src={r.image_url} alt="" loading="lazy" />
                   : <span className={`${styles.thumb} ${styles.thumbEmpty}`} aria-hidden="true" />}
@@ -488,10 +519,18 @@ export function EbayTrafficPage() {
                     <Icon name="IconOut" className={styles.out} />
                   </a>
                   <span className={styles.sub}>
-                    <span className={`${styles.tag} ${styles[r.verdict]}`}>{VERDICTS[r.verdict].label}</span>
+                    {r.ended ? (
+                      <span className={`${styles.tag} ${styles.endedTag}`} title={`Ended ${dayName(r.ended_at)}`}>
+                        {Number(r.quantity_sold) > 0 ? `Ended, ${r.quantity_sold} sold` : 'Ended, none sold'}
+                      </span>
+                    ) : (
+                      <span className={`${styles.tag} ${styles[r.verdict]}`}>{VERDICTS[r.verdict].label}</span>
+                    )}
                     {r.price != null && <span data-num>{gbp(r.price, r.currency ?? 'GBP')}</span>}
-                    <ShopMark item={onShop.get(String(r.listing_id))} disabled={Boolean(bringing)}
-                      onAdd={() => bring([String(r.listing_id)])} />
+                    {r.ended
+                      ? <span className={styles.endedOn}>ended <span data-num>{dayName(r.ended_at)}</span></span>
+                      : <ShopMark item={onShop.get(String(r.listing_id))} disabled={Boolean(bringing)}
+                        onAdd={() => bring([String(r.listing_id)])} />}
                     {r.lastSoldAt && (
                       <span className={styles.won}>
                         sold <span data-num>{dayName(r.lastSoldAt)}</span>{r.afterWindow ? ', after this window' : ''}

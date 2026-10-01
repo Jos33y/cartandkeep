@@ -1,4 +1,5 @@
-// Every active listing's traffic, not the 200 the report returns unasked.
+// Every listing's traffic, not the 200 the report returns unasked: the active ones, and since 1 October the ones
+// that ended inside the window, so a listing that sold out and ended keeps its views and sales on the page.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -63,7 +64,10 @@ const tag = (xml: string, name: string) => {
   return m ? decode(m[1].trim()) : null;
 };
 
-type Active = { id: string; title: string | null; image: string | null; price: number | null; available: number | null };
+type Active = {
+  id: string; title: string | null; image: string | null; price: number | null; available: number | null;
+  ended_at?: string | null; sold?: number | null;
+};
 
 // The selling list sees every listing; the Inventory API only its own.
 async function activeListings(access: string) {
@@ -115,6 +119,63 @@ async function activeListings(access: string) {
   return all;
 }
 
+/*
+ * Listings that ended inside the window: sold out, ended by her, or run out of time. GetSellerList by end time,
+ * which takes up to 120 days, so the 90-day window fits. A GTC listing still live has its end ahead of now and is
+ * not in it.
+ */
+async function endedListings(access: string, from: Date, active: Set<string>) {
+  const all: Active[] = [];
+  let page = 1;
+  let pages = 1;
+  const to = new Date();
+
+  do {
+    const res = await fetch(`${EBAY}/ws/api.dll`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'text/xml',
+        'X-EBAY-API-CALL-NAME': 'GetSellerList',
+        'X-EBAY-API-SITEID': SITE,
+        'X-EBAY-API-COMPATIBILITY-LEVEL': '1193',
+        'X-EBAY-API-IAF-TOKEN': access,
+      },
+      body: `<?xml version="1.0" encoding="utf-8"?>
+<GetSellerListRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+  <EndTimeFrom>${from.toISOString()}</EndTimeFrom>
+  <EndTimeTo>${to.toISOString()}</EndTimeTo>
+  <GranularityLevel>Fine</GranularityLevel>
+  <Pagination><EntriesPerPage>200</EntriesPerPage><PageNumber>${page}</PageNumber></Pagination>
+</GetSellerListRequest>`,
+    });
+
+    const xml = await res.text();
+    if (tag(xml, 'Ack') === 'Failure' || !res.ok) {
+      throw new Error(`eBay refused the ended listings: ${tag(xml, 'LongMessage') ?? tag(xml, 'ShortMessage') ?? res.status}`);
+    }
+    pages = Number(tag(tag(xml, 'PaginationResult') ?? '', 'TotalNumberOfPages') ?? 1);
+
+    for (const block of (tag(xml, 'ItemArray') ?? '').match(/<Item>[\s\S]*?<\/Item>/g) ?? []) {
+      const id = tag(block, 'ItemID');
+      const status = tag(tag(block, 'SellingStatus') ?? '', 'ListingStatus');
+      if (!id || active.has(id) || status === 'Active') continue;
+      const selling = tag(block, 'SellingStatus') ?? '';
+      all.push({
+        id,
+        title: tag(block, 'Title'),
+        image: tag(tag(block, 'PictureDetails') ?? '', 'GalleryURL') ?? tag(tag(block, 'PictureDetails') ?? '', 'PictureURL'),
+        price: num(tag(selling, 'CurrentPrice')),
+        available: 0,
+        ended_at: tag(tag(block, 'ListingDetails') ?? '', 'EndTime'),
+        sold: num(tag(selling, 'QuantitySold')),
+      });
+    }
+    page += 1;
+  } while (page <= pages && page <= 50);
+
+  return all;
+}
+
 async function report(access: string, params: Record<string, string>) {
   const url = new URL(`${EBAY}/sell/analytics/v1/traffic_report`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
@@ -133,7 +194,8 @@ async function report(access: string, params: Record<string, string>) {
 
   // Values arrive positionally, so the column order is read rather than assumed.
   const headers: string[] = (body.header?.metrics ?? []).map((m: { key: string }) => m.key);
-  return (body.records ?? []).map((r: Record<string, never>) => {
+  // deno-lint-ignore no-explicit-any
+  return (body.records ?? []).map((r: Record<string, any>) => {
     const out: Record<string, unknown> = {};
     headers.forEach((key, i) => { out[key] = (r.metricValues?.[i] as { value: unknown })?.value ?? null; });
     out._dimension = (r.dimensionValues ?? []).map((d: { value: string }) => d.value);
@@ -234,18 +296,36 @@ Deno.serve(async (req) => {
 
     if (days$.length) await client.from('ebay_traffic_daily').upsert(days$, { onConflict: 'tenant_id,day' });
 
-    const listings = await activeListings(access);
+    const active = await activeListings(access);
+    // Ended ones too. A failure here costs only the ended rows, never the pull: they are said in the result.
+    let ended: Active[] = [];
+    let endedError: string | null = null;
+    try {
+      ended = await endedListings(access, start, new Set(active.map((l) => l.id)));
+    } catch (e) {
+      endedError = e instanceof Error ? e.message : String(e);
+    }
+    const listings = [...active, ...ended];
 
-    // Asked for by id, 200 at a time: unasked, the report stops at 200.
+    // Asked for by id, 200 at a time: unasked, the report stops at 200. Ended listings in their own batches, so one
+    // eBay will not report on does not take the active ones with it.
     const traffic = new Map<string, Record<string, unknown>>();
-    for (let i = 0; i < listings.length; i += 200) {
-      const ids = listings.slice(i, i + 200).map((l) => l.id).join('|');
-      const rows = await report(access, {
-        filter: `marketplace_ids:{EBAY_GB},listing_ids:{${ids}},${range}`,
-        metric,
-        dimension: 'LISTING',
-      });
-      for (const r of rows) traffic.set(String((r._dimension as string[])?.[0]), r);
+    const ask = async (list: Active[]) => {
+      for (let i = 0; i < list.length; i += 200) {
+        const ids = list.slice(i, i + 200).map((l) => l.id).join('|');
+        const rows = await report(access, {
+          filter: `marketplace_ids:{EBAY_GB},listing_ids:{${ids}},${range}`,
+          metric,
+          dimension: 'LISTING',
+        });
+        for (const r of rows) traffic.set(String((r._dimension as string[])?.[0]), r);
+      }
+    };
+    await ask(active);
+    try {
+      await ask(ended);
+    } catch (e) {
+      endedError = endedError ?? (e instanceof Error ? e.message : String(e));
     }
 
     const sum = (key: string) => daily.reduce((a, r) => a + (num(r[key]) ?? 0), 0);
@@ -270,6 +350,8 @@ Deno.serve(async (req) => {
         click_rate: impressions ? views / impressions : null,
         transactions,
         conversion_rate: views ? transactions / views : null,
+        ended_at: null,
+        quantity_sold: null,
         fetched_at: now,
       },
       // A listing eBay reports nothing for was shown to nobody in the window.
@@ -288,6 +370,8 @@ Deno.serve(async (req) => {
           click_rate: t ? num(t.CLICK_THROUGH_RATE) : 0,
           transactions: t ? num(t.TRANSACTION) : 0,
           conversion_rate: t ? num(t.SALES_CONVERSION_RATE) : 0,
+          ended_at: l.ended_at ?? null,
+          quantity_sold: l.sold ?? null,
           fetched_at: now,
         };
       }),
@@ -313,6 +397,9 @@ Deno.serve(async (req) => {
     const result = {
       ...window,
       listings: listings.length,
+      active: active.length,
+      ended: ended.length,
+      ended_error: endedError,
       reported: traffic.size,
       days: days$.length,
       impressions,

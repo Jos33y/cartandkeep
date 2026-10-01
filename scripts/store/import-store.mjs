@@ -30,7 +30,8 @@ const args = process.argv.slice(2);
 const arg = (k, d = null) => args.find((a) => a.startsWith(`--${k}=`))?.split('=').slice(1).join('=') ?? d;
 const dry = args.includes('--dry');
 
-const picksPath = arg('picks', fs.existsSync('research/picks/checked.csv') ? 'research/picks/checked.csv' : 'research/picks/all.csv');
+const picksDir = arg('category') ? path.join('research/picks', arg('category')) : 'research/picks';
+const picksPath = arg('picks', fs.existsSync(path.join(picksDir, 'checked.csv')) ? path.join(picksDir, 'checked.csv') : path.join(picksDir, 'all.csv'));
 const label = arg('label');
 const term = arg('term', label ? `store-${squash(label).replace(/ /g, '-')}` : null);
 const slug = arg('tenant', 'cart-and-keep');

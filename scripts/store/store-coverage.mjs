@@ -15,7 +15,9 @@ const slug = arg('tenant', 'cart-and-keep');
 const apply = args.includes('--apply');
 if (!label) { console.error('\n  Pass --label= the category the batch was imported under, e.g. --label="Home & Garden".\n'); process.exit(1); }
 const term = arg('term', `store-${squash(label).replace(/ /g, '-')}`);
-const { rows, checked } = readCoverageFiles(arg('coverage', 'research/picks/coverage.csv'), arg('checked', 'research/picks/checked.csv'));
+// --category=hardware reads research/picks/hardware/coverage.csv and checked.csv.
+const covDir = arg('category') ? `research/picks/${arg('category')}` : 'research/picks';
+const { rows, checked } = readCoverageFiles(arg('coverage', `${covDir}/coverage.csv`), arg('checked', `${covDir}/checked.csv`));
 
 const { connect } = await import('../../pipeline/lib/db.js');
 const { db } = await connect();

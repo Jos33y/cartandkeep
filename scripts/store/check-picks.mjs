@@ -25,11 +25,14 @@ import { barcodeVerdict, digits, overlap, sameProduct, squash, wordCounts } from
 import { decode, fetchPage, paidPrice } from './page.mjs';
 
 const arg = (k, d = null) => process.argv.slice(2).find((a) => a.startsWith(`--${k}=`))?.split('=').slice(1).join('=') ?? d;
-const picksPath = arg('picks', 'research/picks/all.csv');
-const out = arg('out', 'research/picks/checked.csv');
+// --category=hardware reads research/picks/hardware/all.csv and that category's Google exports.
+const category = arg('category');
+const picksDir = category ? path.join('research/picks', category) : 'research/picks';
+const picksPath = arg('picks', path.join(picksDir, 'all.csv'));
+const out = arg('out', path.join(path.dirname(picksPath), 'checked.csv'));
 const top = arg('top', '100') === 'all' ? Infinity : Number(arg('top', 100));
 const pause = Number(arg('pause', 1500));
-const googleDir = arg('google', 'research/google');
+const googleDir = arg('google', category ? path.join('research/google', category) : 'research/google');
 const recheck = process.argv.includes('--recheck');
 const refetch = process.argv.includes('--refetch');
 // A big brand that is not a need is held back at import anyway, so its page is not read unless asked.

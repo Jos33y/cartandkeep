@@ -556,3 +556,17 @@ a.name:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset
   .bring { margin-left: 0; flex-basis: 100%; }
   .tools { flex-wrap: wrap; }
 }
+
+/* Live or ended: one segmented control, beside the search. */
+.tools { flex-wrap: wrap; }
+.life { display: inline-flex; padding: 2px; border: 1px solid var(--c-line-mid); border-radius: var(--r-md); background: var(--c-sunk); }
+.lifeOption { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 var(--s-3); border-radius: calc(var(--r-md) - 2px); font-size: var(--t-caption); color: var(--c-ink-soft); white-space: nowrap; }
+.lifeOption [data-num] { font-family: var(--font-data); color: var(--c-ink-faint); }
+.lifeOption[aria-pressed='true'] { background: var(--c-surface); color: var(--c-ink); font-weight: 600; box-shadow: var(--e-1); }
+.lifeOption:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 1px; }
+
+/* An ended listing: its figures stay, the row reads as history. */
+.endedTag { background: var(--c-sunk); color: var(--c-ink-soft); border: 1px solid var(--c-line-mid); }
+.endedOn { font-size: var(--t-micro); color: var(--c-ink-faint); }
+.row[data-ended] .thumb { filter: grayscale(0.6); opacity: 0.8; }
+.findWrap { min-width: 170px; }
