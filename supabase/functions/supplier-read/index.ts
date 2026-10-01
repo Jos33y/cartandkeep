@@ -1,0 +1,163 @@
+// Her Amazon supplier's page read through Apify, for two callers:
+//   the portal  reads the cards it names (when she adds an Amazon link, or before Get it ready writes from it);
+//   the schedule  reads every card with an Amazon supplier once a day, 20 at a time, for the price and stock check.
+// The reading goes on the card (candidates.supplier_read) and into the history (supplier_checks). Her draft is never
+// written here: the portal puts the facts and photos in her draft, the way the Send button does.
+// Needs APIFY_TOKEN in the function secrets.
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { env } from '../_shared/ebay/listing.ts';
+import { BATCH, failedRead, londonDay, nextRead, runAxesso, supplierPageOf } from '../_shared/amazon.ts';
+
+type Json = Record<string, any>;
+
+const CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': 'authorization, content-type, apikey, x-client-info, x-supabase-api-version, x-scheduler-secret',
+  'access-control-allow-methods': 'POST, OPTIONS',
+};
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...CORS, 'content-type': 'application/json' } });
+const db = () => createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } });
+
+// A reading this recent is used again when the portal asks, rather than paying Apify twice for the same page.
+const FRESH_HOURS = 6;
+// The most cards one shop is read for in a day, whatever the list grows to. About £0.35 a day at Apify's price.
+const DAILY_MAX = 240;
+
+function sameSecret(a: string, b: string) {
+  if (!a || !b || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+async function callerOf(req: Request, tenantId: string): Promise<'schedule' | 'portal' | null> {
+  const sent = req.headers.get('x-scheduler-secret');
+  if (sent) {
+    const { data } = await db().from('app_config').select('value').eq('key', 'scheduler_secret').maybeSingle();
+    return sameSecret(sent, data?.value ?? '') ? 'schedule' : null;
+  }
+  const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
+  if (!token) return null;
+  const asUser = createClient(env('SUPABASE_URL'), env('SUPABASE_ANON_KEY'), {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false },
+  });
+  const { data, error } = await asUser.rpc('has_tenant', { t: tenantId });
+  return !error && data === true ? 'portal' : null;
+}
+
+const SOURCE_FIELDS = 'id, candidate_id, url, unit_cost, landed_unit_cost';
+
+// Approved cards with an Amazon supplier link, on her supplier list or sent from her browser.
+async function cardsWithAmazon(client: ReturnType<typeof db>, tenantId: string) {
+  const [{ data: src, error: e1 }, { data: sent, error: e2 }] = await Promise.all([
+    client.from('candidate_sources').select('candidate_id').eq('tenant_id', tenantId).ilike('url', '%amazon.%').limit(2000),
+    client.from('candidates').select('id').eq('tenant_id', tenantId).ilike('draft->>supplier_url', '%amazon.%').limit(2000),
+  ]);
+  if (e1 || e2) throw new Error((e1 ?? e2)!.message);
+  return [...new Set([...(src ?? []).map((s) => s.candidate_id), ...(sent ?? []).map((c) => c.id)])];
+}
+
+async function load(client: ReturnType<typeof db>, tenantId: string, ids: string[]) {
+  const cards: Json[] = [];
+  const sources: Json[] = [];
+  for (let i = 0; i < ids.length; i += 200) {
+    const part = ids.slice(i, i + 200);
+    const [{ data: c, error: e1 }, { data: s, error: e2 }] = await Promise.all([
+      client.from('candidates').select('id, draft, supplier_read, decisions!inner ( action )')
+        .eq('tenant_id', tenantId).eq('decisions.action', 'approve').in('id', part),
+      client.from('candidate_sources').select(SOURCE_FIELDS).eq('tenant_id', tenantId).in('candidate_id', part),
+    ]);
+    if (e1 || e2) throw new Error((e1 ?? e2)!.message);
+    cards.push(...(c ?? []));
+    sources.push(...(s ?? []));
+  }
+  return cards.map((c) => {
+    const mine = sources.filter((s) => s.candidate_id === c.id);
+    return { c, sources: mine, page: supplierPageOf(c, mine) };
+  });
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+  try {
+    const body = await req.json();
+    const { tenant_id: tenantId, candidate_ids: asked = [], url: override = null, again = false, daily = false } = body;
+    if (!tenantId) return json({ error: 'tenant_id is required' }, 400);
+    const caller = await callerOf(req, tenantId);
+    if (!caller) return json({ error: 'Not authorised. Sign in to the portal and try again.' }, 401);
+    if (daily && caller !== 'schedule') return json({ error: 'The daily check runs on its own schedule.' }, 400);
+    const token = Deno.env.get('APIFY_TOKEN');
+    if (!token) return json({ error: 'Amazon pages cannot be read yet: APIFY_TOKEN is not set on this function.' }, 503);
+
+    const client = db();
+    const now = new Date().toISOString();
+    const today = londonDay(now);
+    // deno-lint-ignore no-explicit-any
+    let todo: Array<{ c: Json; page: any }>;
+    const skipped: Record<string, string> = {};
+
+    if (daily) {
+      const all = await load(client, tenantId, await cardsWithAmazon(client, tenantId));
+      const { count } = await client.from('supplier_checks').select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId).eq('started_by', 'schedule').gte('checked_at', new Date(Date.now() - 20 * 3600 * 1000).toISOString());
+      const room = Math.max(0, DAILY_MAX - (count ?? 0));
+      const tried = (c: Json) => c.supplier_read?.tried_at ?? c.supplier_read?.read_at ?? null;
+      todo = all.filter(({ c, page }) => page.asin && londonDay(tried(c)) !== today)
+        .sort((a, b) => String(tried(a.c) ?? '').localeCompare(String(tried(b.c) ?? '')))
+        .slice(0, Math.min(BATCH, room));
+      if (!todo.length) return json({ read: 0, left: 0 });
+    } else {
+      const ids = (Array.isArray(asked) ? asked : []).map(String).slice(0, BATCH);
+      if (!ids.length) return json({ error: 'candidate_ids is required' }, 400);
+      const loaded = await load(client, tenantId, ids);
+      // A link she has just added: read before it is saved on the card, costed from her supplier with the same ASIN.
+      if (override && ids.length === 1 && loaded[0]) loaded[0].page = supplierPageOf({ draft: { supplier_url: override } }, loaded[0].sources);
+      todo = [];
+      for (const x of loaded) {
+        const r = x.c.supplier_read;
+        const fresh = !again && r?.asin === x.page.asin && r?.found && r?.read_at && Date.now() - Date.parse(r.read_at) < FRESH_HOURS * 3600 * 1000;
+        if (!x.page.asin) skipped[x.c.id] = x.page.reason === 'not_uk' ? 'Only amazon.co.uk pages are read: another Amazon prices in another currency.' : 'No Amazon link on this card.';
+        else if (!fresh) todo.push(x);
+      }
+      for (const id of ids) if (!loaded.some((x) => x.c.id === id)) skipped[id] = 'Not an approved card.';
+    }
+
+    const { reads, failed } = todo.length ? await runAxesso(todo.map((x) => x.page.url), token) : { reads: new Map(), failed: [] as string[] };
+
+    const out: Record<string, Json> = {};
+    const history: Json[] = [];
+    for (const { c, page } of todo) {
+      const r = reads.get(page.asin);
+      const next = r ? nextRead(c.supplier_read, r, page) : failedRead(c.supplier_read, page, failed.includes(page.asin) ? 'Apify did not return this page.' : 'Not read.', now);
+      const { error } = await client.from('candidates').update({ supplier_read: next }).eq('id', c.id).eq('tenant_id', tenantId);
+      if (error) throw new Error(error.message);
+      out[c.id] = next;
+      history.push({
+        tenant_id: tenantId, candidate_id: c.id, asin: page.asin, url: page.url, started_by: caller, checked_at: r?.read_at ?? now,
+        found: r ? r.found : false, price: r?.offer.price ?? null, was: r?.offer.was ?? null, deal: r?.offer.deal ?? false,
+        shipping: r?.offer.shipping ?? null, stock: r ? r.offer.stock : 'unknown', stock_text: r?.offer.stock_text ?? null,
+        sold_by: r?.offer.sold_by ?? null, costed: page.costed, error: r ? null : next.error,
+      });
+    }
+    if (history.length) {
+      const { error } = await client.from('supplier_checks').insert(history);
+      if (error) console.error('[supplier-read] history not written', error.message);
+    }
+
+    // The cards that were fresh enough come back as they are.
+    if (!daily) {
+      for (const id of (asked as string[]).slice(0, BATCH)) {
+        if (!out[id] && !skipped[id]) {
+          const { data } = await client.from('candidates').select('supplier_read').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+          if (data?.supplier_read) out[id] = data.supplier_read;
+        }
+      }
+    }
+    return json({ read: reads.size, failed: failed.length, reads: out, skipped });
+  } catch (err) {
+    return json({ error: err instanceof Error ? err.message : String(err) }, 500);
+  }
+});

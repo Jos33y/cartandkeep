@@ -4,6 +4,7 @@ import { useOverview, nextMonday } from '@hooks/useOverview';
 import { useListings } from '@hooks/useListings';
 import { useFinance } from '@hooks/useFinance';
 import { useApproved } from '@hooks/useApproved';
+import { useSupplierWatch } from '@hooks/useSupplierWatch';
 import { assess } from '@lib/assess';
 import { goLive, viewsOf } from '@lib/golive';
 import { PageSkeleton } from '@components/ui/portal/Skeleton';
@@ -32,6 +33,7 @@ export function OverviewPage() {
   const l = useListings(tenant?.id);
   const f = useFinance(tenant?.id);
   const ap = useApproved(tenant?.id);
+  const sw = useSupplierWatch(tenant?.id);
   const monday = useMemo(() => nextMonday(), []);
 
   // Approved, not yet listed, read by the same assess() as the Approved page, so "ready" here is the Approved page's
@@ -71,8 +73,21 @@ export function OverviewPage() {
   const sold$ = f.products ?? [];
   const uncosted = sold$.filter((p) => !p.costed).length;
 
+  // Her Amazon suppliers this morning: out of stock or dearer than costed comes before anything else, because a
+  // live listing keeps selling what she may not be able to buy at that price.
+  const supStop = sw.items.filter((x) => x.warnings[0].level === 'stop').length;
+
   // What needs her, in the order it costs money to leave it.
   const tasks = [
+    sw.items.length > 0 && {
+      icon: 'IconFlag',
+      tone: supStop ? 'negative' : 'warning',
+      count: sw.items.length,
+      title: `${n(sw.items.length)} Amazon ${plural(sw.items.length, 'supplier needs', 'suppliers need')} a look`,
+      body: `${sw.items[0].title}: ${sw.items[0].warnings[0].text}${sw.items.length > 1 ? ` And ${sw.items.length - 1} more.` : ''}`,
+      anchor: 'suppliers',
+      cta: 'See them',
+    },
     approved.ready > 0 && {
       icon: 'IconTag',
       tone: 'action',
@@ -175,7 +190,7 @@ export function OverviewPage() {
               <ul className={styles.taskList}>
                 {tasks.map((t) => (
                   <li key={t.title}>
-                    <Link to={t.to} className={styles.task}>
+                    <TaskLink t={t} className={styles.task}>
                       <span className={`${styles.taskIcon} ${t.tone ? styles[t.tone] : ''}`}>
                         <Icon name={t.icon} className={styles.taskGlyph} />
                       </span>
@@ -187,7 +202,7 @@ export function OverviewPage() {
                         {t.cta}
                         <Icon name="IconCaret" className={styles.taskCaret} />
                       </span>
-                    </Link>
+                    </TaskLink>
                   </li>
                 ))}
               </ul>
@@ -198,6 +213,24 @@ export function OverviewPage() {
               </p>
             )}
           </Card>
+
+          {sw.items.length > 0 && (
+            <Card className={styles.suppliers} id="suppliers">
+              <CardHead title="Amazon suppliers today"
+                note={sw.checked ? `Checked ${fmt(new Date(sw.checked), { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s(am|pm)$/i, '$1')}` : undefined} />
+              <ul className={styles.supList}>
+                {sw.items.map((x) => (
+                  <li key={x.id} className={styles.supItem} data-level={x.warnings[0].level}>
+                    <span className={styles.supText}>
+                      <span className={styles.supTitle}>{x.title}</span>
+                      {x.warnings.map((w) => <span key={w.text} className={styles.supWarn}>{w.text}</span>)}
+                    </span>
+                    {x.url && <a className={styles.more} href={x.url} target="_blank" rel="noreferrer">Amazon</a>}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
 
           <Card>
             <CardHead
@@ -331,5 +364,18 @@ function Spark({ days }) {
         ? <line key={d.day} x1={x(i)} x2={x(i)} y1={h - 7} y2={h} stroke="var(--c-positive)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
         : null))}
     </svg>
+  );
+}
+
+// A task opens a page, or scrolls to a card on this one.
+function TaskLink({ t, className, children }) {
+  if (!t.anchor) return <Link to={t.to} className={className}>{children}</Link>;
+  return (
+    <a href={`#${t.anchor}`} className={className} onClick={(e) => {
+      e.preventDefault();
+      document.getElementById(t.anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }}>
+      {children}
+    </a>
   );
 }

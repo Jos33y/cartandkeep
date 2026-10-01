@@ -95,7 +95,7 @@ export function useApproved(tenantId) {
         image_url, ebay_category_id, ebay_category_path, variation_count,
         score, breakdown, margin, headroom, hold, same_sku_sellers, bulky,
         entry, monthly_headroom, active_listings,
-        listing, draft, ebay, competition, photo_checks,
+        listing, draft, ebay, competition, photo_checks, supplier_read,
         store_products ( id, status, slug ),
         sold_30d, avg_sold_price, window_start, window_series,
         recommended_channels,
@@ -194,6 +194,19 @@ export function useApproved(tenantId) {
   const matchListing = useCallback(async (candidateId, itemId = null) => invoke('ebay-match', {
     tenant_id: tenantId, candidate_id: candidateId, ...(itemId ? { item_id: itemId } : {}),
   }), [tenantId]);
+
+  /*
+   * Her Amazon supplier's page read through Apify, for up to 20 cards at once. The reading lands on each card as
+   * `supplier_read`; nothing of hers changes here. `url` reads a link she has just added, before it is on the card.
+   */
+  const readSupplier = useCallback(async (candidateIds, { url = null, again = false } = {}) => {
+    const data = await invoke('supplier-read', { tenant_id: tenantId, candidate_ids: candidateIds, ...(url ? { url } : {}), again });
+    const reads = data?.reads ?? {};
+    if (Object.keys(reads).length) {
+      setState((s) => ({ ...s, rows: s.rows.map((r) => (reads[r.id] ? { ...r, supplier_read: reads[r.id] } : r)) }));
+    }
+    return { reads, skipped: data?.skipped ?? {} };
+  }, [tenantId]);
 
   const marketCheck = useCallback(async (candidateId, query = null) => {
     const data = await invoke('ebay-list', { tenant_id: tenantId, candidate_id: candidateId, market: true, ...(query ? { query } : {}) });
@@ -311,5 +324,5 @@ export function useApproved(tenantId) {
     [tenantId],
   );
 
-  return { ...state, month, jobs, reload: load, addSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose, marketCheck, matchListing };
+  return { ...state, month, jobs, reload: load, addSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose, marketCheck, matchListing, readSupplier };
 }

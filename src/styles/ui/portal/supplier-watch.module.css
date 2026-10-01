@@ -1,0 +1,36 @@
+/* Her Amazon supplier on the card: today's price and stock, what changed, and what buyers complain about. */
+.watch { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-3); border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-surface); font-size: var(--t-caption); line-height: var(--lh-snug); color: var(--c-ink-soft); }
+
+.head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-1) var(--s-3); }
+.title { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-2); min-width: 0; font-weight: 600; color: var(--c-ink); }
+.icon { width: 14px; height: 14px; align-self: center; color: var(--c-ink-faint); }
+.today { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--s-2); font-weight: 400; color: var(--c-ink-soft); }
+.today b { font-weight: 600; color: var(--c-ink); overflow-wrap: anywhere; }
+.was { font-size: var(--t-micro); color: var(--c-ink-faint); }
+.side { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-3); }
+.when { font-size: var(--t-micro); color: var(--c-ink-faint); }
+.again, .open { font-size: var(--t-micro); color: var(--c-action-text); text-decoration: underline; text-underline-offset: 3px; }
+.again { min-height: 24px; }
+.again:disabled { color: var(--c-ink-faint); text-decoration: none; cursor: progress; }
+.again:focus-visible, .open:focus-visible { outline: 2px solid var(--c-control); outline-offset: 2px; border-radius: 2px; }
+
+.note { margin: 0; font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+.warnings { display: flex; flex-direction: column; gap: var(--s-1); margin: 0; padding: 0; list-style: none; }
+.warnings li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: var(--s-2); padding: var(--s-1) var(--s-2); border-radius: var(--r-sm, 6px); color: var(--c-ink); }
+.warnings li i { width: 7px; height: 7px; border-radius: 50%; transform: translateY(-1px); background: var(--c-ink-faint); }
+.warnings li[data-level='stop'] { background: var(--c-negative-wash); }
+.warnings li[data-level='stop'] i { background: var(--c-negative); }
+.warnings li[data-level='warn'] { background: var(--c-warning-wash); }
+.warnings li[data-level='warn'] i { background: var(--c-warning); }
+.warnings li[data-level='note'] { padding-block: 0; color: var(--c-ink-soft); }
+
+.risk { display: flex; flex-direction: column; gap: var(--s-1); padding-top: var(--s-2); border-top: 1px dashed var(--c-line-mid); }
+.riskHead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--s-2); font-weight: 600; color: var(--c-ink); }
+.riskHint { font-size: var(--t-micro); font-weight: 400; color: var(--c-ink-faint); }
+.riskLine { color: var(--c-ink-soft); }
+.concern { color: var(--c-ink-soft); }
+.concern b { font-weight: 600; color: var(--c-ink); }
+.quote { display: block; margin-top: 2px; font-style: italic; color: var(--c-ink-faint); overflow-wrap: anywhere; }
+.quote::before { content: '\201C'; }
+.quote::after { content: '\201D'; }

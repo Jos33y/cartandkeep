@@ -111,6 +111,12 @@ Rules:
   Where it disagrees with a trusted source or makes no sense, leave it out; that
   is never a conflict. A detail only that seller gives is used only if it is
   plainly about this product and nothing contradicts it.
+- Her supplier's page can disagree with itself: a weight, a size or a battery
+  time in the seller's bullet points that differs from Amazon's product details
+  table. Use the table's figure and leave the other out; that is not a conflict.
+  A disagreement about pack count, quantity or contents still is.
+- Never put a health or medical claim in a title: pain relief, therapy,
+  circulation, recovery, healing, treats or prevents, even when a source says it.
 
 Otherwise reply with JSON only, no preamble and no markdown fence: an array of 4 strings.`;
 
@@ -137,6 +143,14 @@ Rules:
   Leave out whatever makes no sense or disagrees with a trusted source; that is
   never a conflict. Write the description from what is left, and keep it short
   rather than guess.
+- Her supplier's page can disagree with itself: a weight, a size or a battery
+  time in the seller's bullet points that differs from Amazon's product details
+  table. Use the table's figure and leave the other out; that is not a conflict.
+  A disagreement about pack count, quantity or contents still is.
+- Never make a health or medical claim, even when a source makes it: not "relieves
+  pain", "muscle therapy", "improves circulation", "speeds recovery", "heals",
+  "treats" or "prevents". Say what the product does as a thing (percussion
+  massage, 6 speeds, 4 heads), never what it does for the body's health.
 - Open with one sentence on what it is and who it is for.
 - Then a short list of what is in the pack and what matters about it.
 - No postage or returns copy: eBay shows those from the policies.

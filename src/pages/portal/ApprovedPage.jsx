@@ -14,6 +14,8 @@ import { STATE_WORD, goLive, ownMarket, parcelFor, parcelOf, viewsOf } from '@li
 import { freshChecks, isHers, noShopPhotos, pageOf, photosToAdd, sourceOf } from '@lib/photos';
 import { PRODUCT_FIELDS, sameListing } from '@lib/product';
 import { bookmarkletFor, likelyCard, readSent } from '@lib/sendToCart';
+import { amazonPageOf, isAmazonUk, needsRead, readOf, sentOf, supplierPatch, supplierWarnings } from '@lib/supplierWatch';
+import { SupplierWatch } from '@components/ui/portal/SupplierWatch';
 import { KeeprSuggestion } from '@components/ui/portal/MarketListings';
 import { ListingComposer } from '@components/ui/portal/ListingComposer';
 import { BulkBar, ListSheet } from '@components/ui/portal/BulkListing';
@@ -78,7 +80,7 @@ export function ApprovedPage() {
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
   const {
-    status, rows, month, jobs, addSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose, marketCheck, matchListing,
+    status, rows, month, jobs, addSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose, marketCheck, matchListing, readSupplier,
   } = useApproved(tenant?.id);
   const { suppliers, remember } = useSuppliers(tenant?.id);
   const [find, setFind] = useState('');
@@ -239,6 +241,18 @@ export function ApprovedPage() {
 
 
   /*
+   * Her Amazon supplier's page, read through Apify for one card. What came back is on the card as supplier_read;
+   * an answer with no facts is said as the reason, so the card can show it.
+   */
+  async function amazonRead(row, { url = null, again = false } = {}) {
+    const { reads, skipped } = await readSupplier([row.id], { url, again });
+    const r = reads[row.id];
+    if (!r) throw new Error(skipped[row.id] ?? 'Amazon did not answer. Try again in a minute.');
+    if (!r.facts) throw new Error(r.found === false ? 'The Amazon page has gone.' : (r.error ?? 'Amazon did not answer. Try again in a minute.'));
+    return r;
+  }
+
+  /*
    * Get it ready for every ticked card that needs it, three at a time: a title (the first suggestion), the
    * description, and photos, only where the card has none. What the sources disagree about, or a card with no
    * usable photos, is left for her, and the cards are listed after.
@@ -248,18 +262,31 @@ export function ApprovedPage() {
    * details. Only what is missing, never over what she has. Page level, so it finishes even when the card leaves
    * the list it was in (a move to another product clears it out of Ready).
    */
-  async function readyOne({ row, gl, a }) {
-    const d = row.draft ?? {};
+  // `pre` is her Amazon page already read for this card in a batch, or what stopped it; undefined reads it here.
+  async function readyOne({ row, gl, a }, pre = undefined) {
+    let d = row.draft ?? {};
     const why = (r) => (r.reason instanceof Error ? r.reason.message : String(r.reason ?? 'did not finish'));
     const want = { title: !(d.title ?? '').trim(), words: !(d.description ?? '').trim(), photos: photosFindable(gl) };
-    const [t, w, ph] = await Promise.allSettled([
-      want.title ? compose(row.id, 'title') : null,
-      want.words ? compose(row.id, 'description') : null,
-      want.photos ? (freshChecks(row, d) ?? checkPhotos(row.id)) : null,
-    ]);
     const patch = {};
     const done = [];
     const short = [];
+    // Her Amazon supplier first: the product she sends is what the title, the words and the photos come from.
+    let supplied = null;
+    if (needsRead(row)) {
+      const got = pre !== undefined ? pre : await amazonRead(row).catch((e) => ({ error: e.message }));
+      if (got?.facts) {
+        supplied = sentOf(got);
+        const fill = supplierPatch(d, got);
+        if (fill) {
+          try { d = await patchDraft(row.id, fill); done.push('Amazon\'s product details'); } catch (e) { short.push(`Amazon's details not saved: ${e.message}`); }
+        }
+      } else short.push(`Amazon's page: ${got?.error ?? 'not read'}`);
+    } else if (readOf(row)?.facts) supplied = sentOf(readOf(row));
+    const [t, w, ph] = await Promise.allSettled([
+      want.title ? compose(row.id, 'title') : null,
+      want.words ? compose(row.id, 'description') : null,
+      want.photos ? (unchecked(row, supplied) ? checkPhotos(row.id, { supplied }) : (freshChecks(row, d) ?? checkPhotos(row.id))) : null,
+    ]);
     if (want.title) {
       if (t.status === 'fulfilled' && t.value?.titles?.[0]) { patch.title = t.value.titles[0]; done.push('a title'); }
       else short.push(t.status === 'fulfilled' && t.value?.conflict ? `the sources disagree: ${t.value.conflict}` : `no title: ${t.status === 'rejected' ? why(t) : 'none came back'}`);
@@ -306,14 +333,30 @@ export function ApprovedPage() {
     const items = needReady;
     stopBusy.current = false;
     setBusy({ kind: 'ready', done: 0, total: items.length });
+    // Every Amazon page first, 20 to a run: one Apify call reads them all, rather than one call a card.
+    const pre = {};
+    const toRead = items.filter(({ row }) => needsRead(row)).map(({ row }) => row.id);
+    for (let i = 0; i < toRead.length && !stopBusy.current; i += 20) {
+      const part = toRead.slice(i, i + 20);
+      try {
+        const { reads, skipped } = await readSupplier(part);
+        for (const id of part) {
+          const r = reads[id];
+          pre[id] = r?.facts ? r : { error: skipped[id] ?? r?.error ?? (r?.found === false ? 'the page has gone' : 'not read') };
+        }
+      } catch (e) {
+        for (const id of part) pre[id] = { error: e.message };
+      }
+    }
     const needYou = new Map();
     let full = 0;
     let done = 0;
     let next = 0;
     const worker = async () => {
       while (!stopBusy.current && next < items.length) {
-        const { short } = await readyOne(items[next++]);
-        const { row } = items[next - 1];
+        const item = items[next++];
+        const { short } = await readyOne(item, item.row.id in pre ? pre[item.row.id] : undefined);
+        const { row } = item;
         if (short.length) needYou.set(row.id, short); else full += 1;
         done += 1;
         setBusy({ kind: 'ready', done, total: items.length });
@@ -569,6 +612,7 @@ export function ApprovedPage() {
             }}
             onShop={(product) => addToShop({ candidateId: row.id, product })}
             onCheckPhotos={(opts) => checkPhotos(row.id, opts)}
+            onAmazon={(opts) => amazonRead(row, opts)}
             onMarket={() => marketCheck(row.id)}
             onMatch={(itemId) => matchListing(row.id, itemId)}
             onRebuild={(draft, lead) => rebuild(row, draft, lead)}
@@ -684,7 +728,7 @@ const joinFixes = (xs) => {
 
 function Pack({
   row, base, baseGl, job, selected, onSelect, onCancelJob, onRetryJob, onSaved, onRead,
-  tenantId, fees, suppliers, onSource, onList, onShop, onCheckPhotos, onShowIds, onMarket, onMatch,
+  tenantId, fees, suppliers, onSource, onList, onShop, onCheckPhotos, onAmazon, onShowIds, onMarket, onMatch,
   onRebuild, rebuilding = false, rebuilt = null, onStay,
 }) {
   const [open, setOpen] = useState(false);
@@ -802,6 +846,10 @@ function Pack({
     details: Boolean(gl.checks.ebay?.find((x) => x.key === 'details' && !x.ok)),
   };
   const canReady = missing.title || missing.words || missing.photos || missing.details;
+  // Her Amazon supplier: the page the card is checked against, and what it said when last read.
+  const amazonPage = amazonPageOf({ ...row, draft });
+  const amazonRead = readOf({ ...row, draft });
+  const supplierFlag = useMemo(() => supplierWarnings(readOf(row)).find((w) => w.level !== 'note') ?? null, [row]);
 
   // eBay's check with Keepr filling the item details: the category it settles on and the values go on her draft.
   // `over` is the draft as it will be, so a title just written is the one eBay files by.
@@ -830,14 +878,25 @@ function Pack({
     setProblem(null);
     setReadyNote(lead ? { lead, done: [], short: [] } : null);
     const why = (r) => (r.reason instanceof Error ? r.reason.message : String(r.reason ?? 'did not finish'));
-    const [t, d, ph] = await Promise.allSettled([
-      missing.title ? generate('title') : null,
-      missing.words ? generate('description') : null,
-      missing.photos ? (freshChecks(row, draft) ?? onCheckPhotos()) : null,
-    ]);
     const patch = {};
     const done = [];
     const short = [];
+    // Her Amazon supplier's page first, so the title, the words and the photos are written from what she sends.
+    let supplied = null;
+    if (needsRead({ ...row, draft })) {
+      try {
+        const got = await fromAmazon({ photos: false });
+        supplied = sentOf(got.r);
+        if (got.filled) done.push('Amazon\'s product details');
+      } catch (e) {
+        short.push(`Amazon's page: ${e.message}`);
+      }
+    } else if (amazonRead?.facts) supplied = sentOf(amazonRead);
+    const [t, d, ph] = await Promise.allSettled([
+      missing.title ? generate('title') : null,
+      missing.words ? generate('description') : null,
+      missing.photos ? (unchecked(row, supplied) ? onCheckPhotos({ supplied }) : (freshChecks(row, draft) ?? onCheckPhotos())) : null,
+    ]);
     if (missing.title) {
       if (t.status === 'fulfilled' && t.value?.[0]) { patch.title = t.value[0]; done.push('a title'); } else short.push(`Title: ${t.status === 'rejected' ? why(t) : 'no suggestion came back'}`);
     }
@@ -1004,10 +1063,58 @@ function Pack({
     if (url) flush().then(() => askKeepr({ quiet: true }));
   }
 
-  // A supplier with a link: Keepr checks the card prices from the eBay listing for that product.
+  // A supplier with a link: Keepr checks the card prices from the eBay listing for that product. An Amazon UK link
+  // is read first, so Keepr matches on its barcode and the listing is written from it.
   async function addSupplier(fields) {
     await onSource(fields);
-    if (/^https?:\/\//.test(fields?.url ?? '') && !draft.entry) askKeepr({ quiet: true });
+    const url = fields?.url ?? '';
+    if (isAmazonUk(url)) {
+      try {
+        const got = await fromAmazon({ url });
+        setReadyNote({ done: [], short: [got.filled
+          ? `Amazon's product details are in${got.added ? `, with ${got.added} ${got.added === 1 ? 'photo' : 'photos'}` : ''}. Get it ready writes from them.`
+          : 'Amazon\'s page is read. Your own supplier details stay as you wrote them.'] });
+      } catch (e) {
+        setProblem(`Amazon's page: ${e.message}`);
+      }
+    }
+    if (/^https?:\/\//.test(url) && !draft.entry) askKeepr({ quiet: true });
+  }
+
+  /*
+   * Her Amazon supplier's page, read and put to use: its facts into her supplier box (never over words of hers),
+   * its photos through the photo check and into her draft where she has none. `photos` false leaves the photos for
+   * Get it ready, which checks them alongside the writing.
+   */
+  const [readingAmazon, setReadingAmazon] = useState(false);
+  async function fromAmazon({ url = null, again = false, photos = missing.photos } = {}) {
+    setReadingAmazon(true);
+    try {
+      const r = await onAmazon({ url, again });
+      const fill = supplierPatch(draft, r);
+      if (fill) { change(fill); await flush(); }
+      let added = 0;
+      const sent = sentOf(r);
+      if (photos && sent?.images?.length) {
+        const pc = await onCheckPhotos({ supplied: sent });
+        const add = photosToAdd({ ...row, photo_checks: pc }, { ...draft, ...(fill ?? {}) });
+        if (add) { change(add); added = add.images?.length ?? 0; }
+      }
+      return { r, filled: Boolean(fill), added };
+    } finally {
+      setReadingAmazon(false);
+    }
+  }
+  async function readAmazon(url = null) {
+    setProblem(null);
+    try {
+      const got = await fromAmazon({ url, again: true });
+      setReadyNote({ done: [], short: [got.filled
+        ? `Amazon's product details are in${got.added ? `, with ${got.added} ${got.added === 1 ? 'photo' : 'photos'}` : ''}. Get it ready writes from them.`
+        : 'Amazon\'s page is read again. Your own supplier details stay as you wrote them.'] });
+    } catch (e) {
+      setProblem(`Amazon's page: ${e.message}`);
+    }
   }
 
   // Keepr's photo check, then what passed into her draft, never over photos she already has: the shop's checked
@@ -1104,7 +1211,8 @@ function Pack({
   // Moved to another product, the card's own page is the old product's: there is no going back to it for words.
   const cardPage = whole.moved ? null : row.margin?.shelf?.url ?? row.margin?.cost_from?.url ?? null;
   const writtenFrom = pageOf(row, draft);
-  const pageChoices = [...new Map(others.filter((src) => /^https?:\/\//.test(src.url ?? '') && src.url !== writtenFrom)
+  // An Amazon UK page is read in the supplier box below (SupplierWatch), not offered here.
+  const pageChoices = [...new Map(others.filter((src) => /^https?:\/\//.test(src.url ?? '') && src.url !== writtenFrom && !isAmazonUk(src.url))
     .map((src) => [src.url, src])).values()].slice(0, 3);
 
   return (
@@ -1145,6 +1253,12 @@ function Pack({
           </p>
           <span className={styles.flags}>
             <ChannelStates gl={gl} working={working} queued={queued} />
+            {/* Her Amazon supplier this morning: first when she could not buy it at the price she costed. */}
+            {supplierFlag && (
+              <span className={styles.flag} data-tone={supplierFlag.level === 'stop' ? 'block' : 'warning'} title={`Amazon: ${supplierFlag.text}`}>
+                <Icon name="IconFlag" className={styles.flagIcon} />Amazon: {supplierFlag.short}
+              </span>
+            )}
             {refusedJob ? (
               <span className={styles.flag} data-tone="block" title={`eBay: ${refusedJob.error ?? 'refused'}`}>
                 <Icon name="IconFlag" className={styles.flagIcon} />eBay refused it: {refusedJob.error ?? 'no reason given'}
@@ -1547,7 +1661,7 @@ function Pack({
                         </span>
                       </span>
                     ) : pageChoices.map((src) => (unreadable(src.url) ? (
-                      // Amazon refuses to be read by a machine: writing from its page would fail, so paste instead.
+                      // Another Amazon is not read: it prices in another currency. Paste instead.
                       <button key={src.url} type="button" className={styles.goFix} onClick={() => setPasting(true)}>
                         Paste {possessive(src.supplier || host(src.url))} product details
                       </button>
@@ -1557,6 +1671,10 @@ function Pack({
                       </button>
                     )))}
                   </div>
+                )}
+                {amazonPage && (
+                  <SupplierWatch page={amazonPage} read={amazonRead} costed={amazonRead?.costed ?? null}
+                    reading={readingAmazon} onRead={() => readAmazon(amazonPage.uk ? null : amazonPage.url)} />
                 )}
                 {/*
                   * What her supplier's page says, pasted by her. Some suppliers (Amazon Business) cannot be read by
@@ -1670,6 +1788,8 @@ function SendButtonHint() {
 }
 
 // Pages that refuse to be read by a machine. Writing from one would fail; her pasted details stand in for it.
+// Photos from her Amazon page not looked at yet: the photo check is asked to look at them.
+const unchecked = (row, sent) => Boolean(sent?.images?.length) && !(row.photo_checks?.others ?? []).some((o) => o.sent && o.url === sent.url);
 const unreadable = (url) => /(^|\.)amazon\.[a-z.]+$/i.test((() => { try { return new URL(url).hostname; } catch { return ''; } })());
 
 function GoLiveList({ gl, row, onGo, parcel, onParcel, onWrite, writing, onPrice, eView, onFind, finding, onShowBoth, onCheckEbay, checkingEbay }) {

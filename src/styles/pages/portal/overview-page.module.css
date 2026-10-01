@@ -72,6 +72,7 @@
 .positive { color: var(--c-positive); }
 .action { background: var(--c-action-wash); color: var(--c-action-text); }
 .warning { background: var(--c-warning-wash); color: var(--c-warning); }
+.negative { background: var(--c-negative-wash); color: var(--c-negative); }
 
 .grid {
   display: grid;
@@ -225,3 +226,12 @@
 .sparkAxis { display: flex; justify-content: space-between; gap: var(--s-2); margin-top: 4px; font-size: var(--t-micro); color: var(--c-ink-faint); }
 .sparkAxis > span:nth-child(2) { text-align: center; }
 @media (max-width: 420px) { .sparkAxis > span:nth-child(2) { display: none; } }
+
+/* Her Amazon suppliers this morning: each card with what changed, worst first. */
+.suppliers { scroll-margin-top: 88px; }
+.supList { display: flex; flex-direction: column; gap: var(--s-2); margin: 0; padding: 0; list-style: none; }
+.supItem { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: var(--s-3); padding: var(--s-2) var(--s-3); border-left: 3px solid var(--c-warning); border-radius: var(--r-sm); background: var(--c-warning-wash); }
+.supItem[data-level='stop'] { border-left-color: var(--c-negative); background: var(--c-negative-wash); }
+.supText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.supTitle { font-size: var(--t-caption); font-weight: 600; color: var(--c-ink); overflow-wrap: anywhere; }
+.supWarn { font-size: var(--t-micro); line-height: var(--lh-snug); color: var(--c-ink-soft); }

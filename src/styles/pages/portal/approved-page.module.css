@@ -814,3 +814,8 @@
 /* The bookmark to drag, shown as the thing it is: a button-shaped link. */
 .sendHint { font-size: var(--t-micro); line-height: var(--lh-snug); color: var(--c-ink-faint); }
 .sendButton { display: inline-flex; align-items: center; padding: 1px var(--s-2); border: 1px solid var(--c-action); border-radius: var(--r-sm); background: var(--c-action-wash); color: var(--c-action-text); font-weight: 600; cursor: grab; text-decoration: none; }
+
+/* Tablet and small laptop widths: the name column is narrow, so flags wrap rather than clip a warning. */
+@media (min-width: 641px) and (max-width: 1100px) {
+  .flags { flex-wrap: wrap; row-gap: 4px; }
+}

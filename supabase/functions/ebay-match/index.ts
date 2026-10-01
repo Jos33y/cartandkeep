@@ -11,6 +11,7 @@ import { marketFor } from '../_shared/ebay/market.ts';
 import { matchScore } from '../_shared/match.ts';
 import { listingOf } from '../_shared/product.ts';
 import { readShopPage } from '../_shared/shop-page.ts';
+import { asinOf, isAmazon } from '../_shared/amazon.ts';
 import { AUTO_SWAP, judgeSame, settle, titleFromUrl } from '../_shared/same-product.ts';
 
 type Json = Record<string, any>;
@@ -37,9 +38,17 @@ async function allowed(req: Request, tenantId: string) {
 }
 
 // The product the card's copy describes now, to tell a better listing of the same product from another product.
+// Her Amazon supplier's facts, when the page read is the one the card is checked against: a barcode settles a match.
+const amazonFacts = (c: Json) => (c.supplier_read?.found ? c.supplier_read.facts ?? null : null);
+
 function cardProduct(c: Json) {
   const l = listingOf(c) ?? {};
-  return { title: c.draft?.title || c.draft?.item_facts?.title || l.title || c.title, brand: c.draft?.item_facts?.brand ?? l.brand ?? null, gtin: gtinOf(c) };
+  const a = amazonFacts(c) ?? {};
+  return {
+    title: c.draft?.title || c.draft?.item_facts?.title || l.title || a.title || c.title,
+    brand: c.draft?.item_facts?.brand ?? l.brand ?? a.brand ?? null,
+    gtin: gtinOf(c) ?? a.barcode ?? null,
+  };
 }
 
 // Another product unless the listing reads as the same one the card is written for.
@@ -69,7 +78,7 @@ Deno.serve(async (req) => {
 
     const client = db();
     const { data: c, error } = await client.from('candidates')
-      .select('id, title, external_ref, listing, entry, margin, draft, competition')
+      .select('id, title, external_ref, listing, entry, margin, draft, competition, supplier_read')
       .eq('id', candidateId).eq('tenant_id', tenantId).maybeSingle();
     if (error) return json({ error: error.message }, 500);
     if (!c) return json({ error: 'Candidate not found' }, 404);
@@ -92,8 +101,12 @@ Deno.serve(async (req) => {
       .eq('candidate_id', c.id).not('url', 'is', null).order('created_at', { ascending: false }).limit(1);
     const page: string | null = body.product_url ?? c.draft?.page ?? sources?.[0]?.url ?? null;
     if (!page) return json({ error: 'Keepr needs the page of the product you buy. Add your supplier\'s link first.' }, 400);
-    const read = c.listing?.source_url === page ? c.listing : await readShopPage(page).catch(() => null);
-    const product = read
+    // Amazon cannot be read here; its page read through Apify is used when it is the same product.
+    const az = isAmazon(page) && asinOf(page) && asinOf(page) === c.supplier_read?.asin ? amazonFacts(c) : null;
+    const read = az ? null : c.listing?.source_url === page ? c.listing : isAmazon(page) ? null : await readShopPage(page).catch(() => null);
+    const product = az
+      ? { title: az.title, brand: az.brand, gtin: az.barcode, mpn: az.model, description: az.details.join('; '), image: az.images?.[0] ?? null }
+      : read
       ? { title: read.title, brand: read.brand, gtin: read.gtin, mpn: read.product_code, description: read.description, image: read.images?.[0] ?? null }
       : { title: titleFromUrl(page), brand: null, gtin: null, mpn: null, description: null, image: null };
     if (!product.title) {
