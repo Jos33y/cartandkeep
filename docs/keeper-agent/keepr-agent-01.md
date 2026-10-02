@@ -1,10 +1,10 @@
 # Keepr Agent-01: store card reviewer
 
-Version 3.1, 1 October 2026. Cart & Keep, Brick Dev Commerce.
+Version 3.2, 2 October 2026. Cart & Keep, Brick Dev Commerce.
 
 Version 2 adds what the first two live reviews taught: Home & Garden (57 cards) and Health & Beauty (483 cards). These cover the working method, the flags that find problems fast, the patterns for a wrong match, the sourcing and legal lists, and the lessons that became pipeline rules.
 
-Version 3 adds VAT on shelf prices, how to read a re-source results file, generic titles, barcodes for eBay catalogue listing, and a watch list for each category still to run. Version 3.1 adds the Hardware review (752 cards, 1 October).
+Version 3 adds VAT on shelf prices, how to read a re-source results file, generic titles, barcodes for eBay catalogue listing, and a watch list for each category still to run. Version 3.1 adds the Hardware review (752 cards, 1 October). Version 3.2 adds the Toys & Games review (1,026 cards, 2 October).
 
 ## What it is
 
@@ -302,12 +302,12 @@ node scripts/store/key-check.mjs --google=research/google/<category>
 | Category | Her ground | Watch for |
 |---|---|---|
 | Hardware (632) | plumbing parts, heating and ventilation, electrical accessories, locks, tool accessories, hand tools | trade-only work (consumer units, gas parts, anything needing Part P or a Gas Safe engineer); long or heavy items (pipe, cable drums, ladders); can't-post solvents, gas canisters, spray foam, flammable adhesives; power tools sold bare or with a battery (check the kit); UKCA marking on electricals |
-| Toys & Games (1239) | toys, games and puzzles for Christmas; list by mid November | UKCA or CE marking and age warnings; licensed characters and brands that enforce (LEGO, Disney, Pokémon) on eBay; small parts for under 3s; button batteries; Argos and Smyths own label; magnetic toys; projectiles |
+| Toys & Games | done 2 October, see below | |
 | Animals & Pet Supplies (1) | pet care, beds, feeders, grooming, pest control for pets | prescription diets and medicines (flea and wormer treatments marked POM-V, POM-VPS or NFA-VPS need a vet or SQP; AVM-GSL ones are fine); Pets at Home own label; heavy food sacks; live animals |
 | Electronics (222) | cables, batteries, chargers, ink and toner, big-button phones | counterfeit chargers and cables (authorised sources only); loose lithium batteries can't be posted; Apple and Samsung enforce on eBay; compatible ink is fine, fake branded ink is not |
 | Office Supplies (922) | label tape, ink, shredders, label printers | compatible against original consumables (say which); heavy paper boxes |
 | Sporting Goods (988) | care-adjacent fitness only (hand exercisers, resistance bands) | sized clothing and footwear; heavy weights; gas cylinders for camping stoves |
-| Baby & Toddler (537) | baby safety only (gates, monitors, corner guards) | infant formula; sleep products with safety claims; car seats (out); strict product-safety rules |
+| Baby & Toddler (537) | baby safety (gates, monitors, corner guards), plus baby toys and gifts now that Toys is in | infant formula; sleep products with safety claims (sleep positioners, nests, weighted sleep bags); car seats (out); cot mattresses (bulky); teething gels with lidocaine or benzocaine (medicines); prams and pushchairs (bulky, courier); Mamas & Papas own label |
 | Vehicles & Parts (888) | car care only | parts for one vehicle; car batteries and aerosols can't post; screenwash and de-icer may be flammable |
 
 ## Lessons that became pipeline rules
@@ -332,6 +332,21 @@ Every pattern Keepr rejected by hand twice was moved upstream, so the next batch
 - **Several Google titles on one shop page.** Six manhole cover titles all landed on one Clark-Drain page. Check identical page names first; one card keeps the page and the rest are duplicates or need re-sourcing.
 - **Loose lithium tool batteries** are big sellers but courier-only. Royal Mail carries lithium only inside a device or packed with it.
 - **Rigid lengths over 61cm** (copper pipe, tile trim, conduit, channel drains) don't fit a Royal Mail medium parcel: courier note.
+
+**Toys & Games review patterns (2 October), 1,026 cards: 967 keep, 27 re-source, 24 notes, 8 rejects:**
+- **Barcode matches were clean** (626 of them). All the fixes were on name matches, so spend the time there.
+- **Sister products on one name.** LEGO and Jellycat titles match loosely: "LEGO Cute Animals" lands on any Creator 3 in 1 set, "Jellycat Heart Dragon" on the Heart Bunny, Toy Story Jessie on Woody, Peppa's Medic Play Centre on the Play Case, Monopoly Pokemon on Monopoly South Park.
+- **Bundles read as one set.** B&M sells LEGO bundles (Rustic Charm, Bohemian) whose page carries the single set's number. Cost at twice Google or more on a LEGO card means a bundle.
+- **Singles against sets.** One opened minifigure, one Ballers capsule, one blind ball: a cost far under Google's lowest is a single from a series or multipack.
+- **Food on a toy title.** "Harry Potter's Wand" matched a Jelly Belly chocolate wand at Halfords.
+- **Bulky toys** (slides, see saws, garden kitchens, workbenches, trampolines, ride-ons, hobby horses, large garages): too big for a Royal Mail parcel, so a courier note.
+- **Retired LEGO sets:** buy only against an order.
+- **Re-source leads repeat the same mistake.** The search found the same bundle, the same single minifigure and the same blind ball again, plus a Pets at Home dog toy for a Stitch toy. Read every "found, check it" lead and turn the bad ones into "not found" in the results file before `--apply` (the status column is what apply reads).
+- **Price:** 994 of 1,024 cards sit above Google's lowest. Toy shelves are full retail prices, so Toys is supplier work for her, not a reason to reject.
+
+**Upstream fixes from the Toys run** (see the Toys section of `store-rules-2026-09-30.md`): maker-to-range lines (Epoch to Sylvanian Families and so on), the first-word fallback guard in store-picks, big brands read and imported for toys, and The Entertainer and Studio prices in `page.mjs`.
+
+**Watch on eBay cards: the postage band.** On 2 October a Sika jointing compound eBay card (15kg tub on the shelf, 14kg on eBay) was costed at "Evri to 5kg, £2.62". A heavy product priced in the small band makes "You keep" look like profit when it is a loss. On any eBay card, read the weight in the title or pack chip ("Shelf 15000, eBay 14000" means 15kg against 14kg: the chip's numbers are grams or millilitres) against the postage line on the receipt.
 
 When Keepr keeps finding the same problem, the fix belongs in a rule, not in the next review.
 

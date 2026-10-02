@@ -174,9 +174,10 @@ function productFrom(item: string, listingId: string, tenantId: string) {
     source_description: plainText(tag(item, 'Description')),
     stock: variations.length ? null : NEW_LISTING_STOCK,
     availability: 'in_stock',
+    // Standard is what the law gives, so it is not a question for her; Keeper's check (queued below) raises sealed
+    // or no return where the goods call for it.
     returns_class: 'standard',
-    // A returns class nobody has confirmed, and where it came from, so the sheet asks rather than assumes.
-    derived_fields: { returns_class: 'standard', imported: { from: 'ebay', listing_id: listingId, at: new Date().toISOString() } },
+    derived_fields: { imported: { from: 'ebay', listing_id: listingId, at: new Date().toISOString() } },
   };
 
   const variants: Variant[] = variations.map((v) => ({ label: v.label, price: v.price === price ? null : v.price, sku: v.sku }));
@@ -236,8 +237,12 @@ Deno.serve(async (req) => {
           if (error) console.error('[ebay-import] variants', id, error.message);
         }
 
-        const { error: jErr } = await client.from('keeper_jobs').insert({ tenant_id: tenantId, product_id: row.id, sections });
-        if (jErr) console.error('[ebay-import] job', id, jErr.message);
+        // Keeper writes the draft, then checks it: returns, label and the shop title. The check waits for the writing.
+        const { error: jErr } = await client.from('keeper_jobs').insert([
+          { tenant_id: tenantId, product_id: row.id, sections },
+          { tenant_id: tenantId, product_id: row.id, kind: 'shop_check' },
+        ]);
+        if (jErr) console.error('[ebay-import] jobs', id, jErr.message);
 
         added.push({ listing_id: id, product_id: row.id });
       } catch (err) {

@@ -172,3 +172,41 @@ Lumped keys on Hardware fell from 21 to 5. On the Home & Garden export, 17 of 19
 - **Loose tool batteries** (Makita, DeWalt, Milwaukee): Royal Mail will not carry lithium batteries on their own, so these need a courier. A drill kit with its batteries posts.
 - **Paint:** a big share of the category. A 5L tin weighs about 7kg and must be packed leakproof.
 - **Bare power tools:** a big brand at a high price. Check the kit against Google's.
+
+## Toys & Games (2 October)
+
+Six exports (October to December 2025, July to September 2026), 43,860 products. 4,950 sit inside the £8 to £60 window after the rules. 1,005 new cards went to her queue, plus 19 eBay cards that gained the Shop label.
+
+**Rules, `rules/categories/toys-games.mjs`:**
+- `OWN_TITLE` stops a shop's own range named in the title, even when the Brand column names the maker: Chad Valley (Argos), Early Learning Centre and Happyland.
+- `BRANDED` lists real makers (LEGO, Pokemon, Barbie, Jellycat, Bluey and so on). A title naming one passes own label even when Google's Brand column names a shop (Wilko's Pokemon).
+- `LINES` maps a maker to its ranges: Epoch to Sylvanian Families, Jazwares to Squishmallows, Zapf to Baby Born, Games Workshop to Warhammer, and about 25 more. Google files toys under the maker, but shops name the range, so store-picks searches under both.
+- Own label added: Chad Valley, Addo, Hamleys, The Entertainer, Smyths, ELC, Harrods, Decathlon brands, Ryman, TTS, the museum shops, Mamas & Papas, Sweeek.
+
+**store-picks:** when a brand had no shelf rows, it used to fall back to every row under the brand's first word ("The Witcher" to everything opening "The"). A first-word row now counts only if it names the whole brand, or the shop's brand column is that word. A best seller with no brand is searched under any best-seller brand its title names; everyday words like Wooden or Classic are skipped.
+
+**Big brands:** 89% of toy picks are big brands (LEGO 608, Mattel 261, Jellycat 234). The page check and import hold big brands back by default, which removed the category. Toys run with `--with-big-brands` and `--big-brands`. Cards still carry `big_brand`.
+
+**Shops added:**
+- The Entertainer, names from the sitemap (5,021);
+- The Kid Collective (2,433) and Wigwam Toys (969), both Shopify;
+- Zatu, 96,841 names. board-game.co.uk is now Zatu: filter the sitemap to `^https://zatu\.com/products/` or the five locale copies come in too;
+- Element Games, 91,491 names. Use `--maps=products`, or the category pages come in as products.
+
+**Skipped:** Smyths serves Imperva's "Pardon Our Interruption" page even for its sitemaps. Magic Madhouse's products.json returns 404.
+
+**Page reader (`page.mjs`):**
+- The Entertainer has no product data: price from `data-pricePDP`, stock from `data-productavailable`.
+- Studio: price from the analytics "detail" block, never a related-products list.
+- A `<title>` loses its " | Shop name" ending.
+- `save-page.mjs` saves a page exactly as the checker reads it. curl gets refused by The Entertainer's Akamai.
+
+**Page check:** 1,099 confirmed (637 by barcode), 713 wrong (668 by barcode). The barcode gate caught loose name matches such as a Jellycat Amuseable pointed at a Bartholomew Bear page.
+
+**Price:** 994 of 1,024 sit above Google's lowest. The cost is a shop's retail price, so post, fees and profit put the floor over Google. Toys is mostly supplier work for her: work it by Google rank and months ranked.
+
+**Watch in the Toys review:**
+- LEGO and Jellycat titles match loosely by name: "LEGO Cute Animals" or "Jellycat Heart Dragon" can land on a sister set.
+- Bundles: B&M sells LEGO bundles (Rustic Charm, Bohemian) that read as the single set.
+- Bulky toys (slides, see saws, garden kitchens, trampolines, ride-ons, hobby horses) are too big for a Royal Mail parcel: courier only.
+- Retired LEGO sets: buy only against an order.

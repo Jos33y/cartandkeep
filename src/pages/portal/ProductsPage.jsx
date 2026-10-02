@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { NewProduct } from '@components/ui/portal/NewProduct';
 import { ProductRow } from '@components/ui/portal/ProductRow';
 import { ProductSheet } from '@components/ui/portal/product/ProductSheet';
@@ -16,6 +16,9 @@ import { stepsFor, columnsFor, isOpen } from '@lib/readiness';
 import { useCategoryNames } from '@hooks/useCategoryNames';
 import { sectionOf } from '@utils/categories';
 import { loadTenant } from '@lib/tenant';
+import { supabase } from '@lib/supabase';
+import { unchecked } from '@lib/keeper';
+import { portalPath } from '@utils/constants';
 import styles from '@styles/pages/portal/products-page.module.css';
 
 const FILTERS = [
@@ -77,6 +80,16 @@ export function ProductsPage() {
   const agentName = tenant?.store?.agent?.name || 'Your assistant';
   const { status, rows, counts, reload, publish, unpublish, create } = catalogue;
   const keeper = useKeeper(tenant?.id, { onFinished: reload });
+
+  // Drafts Keeper has not checked, and a check already going: the way into Keeper's office.
+  const uncheckedCount = useMemo(() => rows.filter(unchecked).length, [rows]);
+  const [keeperRun, setKeeperRun] = useState(null);
+  useEffect(() => {
+    if (!tenant?.id) return;
+    supabase.from('keeper_runs').select('id, state, total').eq('tenant_id', tenant.id).in('state', ['running', 'paused'])
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+      .then(({ data }) => setKeeperRun(data ?? null), () => setKeeperRun(null));
+  }, [tenant?.id]);
 
   const setView = (next) => {
     const merged = { filter, gap: gapKey, ...next };
@@ -326,9 +339,23 @@ export function ProductsPage() {
                 </strong>{' '}
                 {gapCopy.body}
               </p>
-              <button type="button" className={styles.go} onClick={() => openSheet(gap.go, gap.key)}>
-                {gapCopy.go} {shortName(rows.find((r) => r.id === gap.go)?.title)}
-              </button>
+              {(uncheckedCount > 0 || keeperRun) && (
+                <p className={styles.nextBody}>
+                  {keeperRun
+                    ? `${agentName} is checking your drafts now.`
+                    : `${agentName} can check the returns, labels and titles of ${plural(uncheckedCount, 'draft')} in one go, while you watch.`}
+                </p>
+              )}
+              <div className={styles.nextActions}>
+                {(uncheckedCount > 0 || keeperRun) && (
+                  <Link className={styles.go} to={portalPath('/keeper')}>
+                    {keeperRun ? `See ${agentName} at work` : `Let ${agentName} check ${plural(uncheckedCount, 'draft')}`}
+                  </Link>
+                )}
+                <button type="button" className={uncheckedCount > 0 || keeperRun ? styles.quiet : styles.go} onClick={() => openSheet(gap.go, gap.key)}>
+                  {gapCopy.go} {shortName(rows.find((r) => r.id === gap.go)?.title)}
+                </button>
+              </div>
             </div>
           )}
         </section>

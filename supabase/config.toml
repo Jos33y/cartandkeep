@@ -64,3 +64,11 @@ verify_jwt = true
 
 [functions.ebay-import]
 verify_jwt = true
+
+# The portal with her session, and kick_keeper with the service key.
+[functions.keeper-run]
+verify_jwt = true
+
+# The product sheet's "Check now", with her session.
+[functions.shop-rules]
+verify_jwt = true

@@ -89,7 +89,8 @@ function initialForm(product, draft) {
   };
 
   // On sale already: a new title is offered, never swapped in quietly.
-  if (product.status !== 'live') fill('title', fresh.titles?.search);
+  // A title Keeper's check set, or one she saved, is not swapped for the earlier draft's suggestion.
+  if (product.status !== 'live' && !product.derived_fields?.title_by) fill('title', fresh.titles?.search);
   if (!form.description.trim()) fill('description', fresh.description);
   if (!form.brand && fresh.brand?.real) fill('brand', fresh.brand.name);
   if (!form.inTheBox) fill('inTheBox', fresh.in_the_box);
@@ -144,6 +145,8 @@ function buildPatch(product, form, checks, draft) {
   set('availability', form.availability, product.availability ?? 'in_stock');
 
   const derived = { ...(product.derived_fields ?? {}) };
+  // A title she saved is hers, and Keeper's check never changes it again.
+  if ('title' in patch) derived.title_by = 'her';
   // Saving the sheet is her approval of the returns class shown in it, and from then on Keepr leaves it alone.
   if (derived.returns_class || patch.returns_class) {
     delete derived.returns_class;
@@ -406,8 +409,29 @@ export function ProductSheet({
   const titles = draft?.version === 2
     ? TITLE_KINDS.map((k) => ({ ...k, text: draft.titles?.[k.key] })).filter((t) => t.text)
     : [];
-  const titleChoices = [...titles, { key: 'current', hint: 'As it is now', text: product.title }]
+  // The title from before Keeper's check, so going back is one press.
+  const before = product.derived_fields?.title_by === 'keeper' ? product.derived_fields?.title_before : null;
+  const titleChoices = [...titles, { key: 'current', hint: 'As it is now', text: product.title },
+    ...(before ? [{ key: 'before', hint: `Before ${agent}`, text: before }] : [])]
     .filter((t, i, all) => all.findIndex((x) => x.text === t.text) === i);
+
+  // What Keeper's check left for her on this product, in a line each.
+  const check = product.derived_fields?.check ?? null;
+  const checkNotes = [
+    check?.suggested_title && form.title !== check.suggested_title && {
+      key: 'title', use: check.suggested_title,
+      text: `${agent} suggests "${check.suggested_title}", but it needs you: ${(check.title_problems ?? []).join(', ')}.`,
+    },
+    check?.duplicate_of?.length > 0 && {
+      key: 'dup', text: `${agent} thinks this is the same product as ${check.duplicate_of.length === 1 ? 'another draft' : `${check.duplicate_of.length} other drafts`}. Keep one, archive the other.`,
+    },
+    check?.brand_is_seller && product.brand && {
+      key: 'brand', text: `"${product.brand}" looks like a seller's name rather than a brand. Google is told it is the brand, so clear it under Details if it is not.`,
+    },
+    check?.corrections?.length > 0 && {
+      key: 'fix', text: `${agent} corrected its own description: ${check.corrections.map((c) => `${c.says} is ${c.facts}`).join('; ')}.`,
+    },
+  ].filter(Boolean);
 
   const openAnswers = (checks?.decide ?? []).filter((q) => !(form.answers[q.id] ?? q.answer)).length;
   const labelOf = (path) => (categories ?? []).find((c) => c.path === path)?.label ?? null;
@@ -452,6 +476,16 @@ export function ProductSheet({
               <textarea className={row.textarea} rows={2} value={form.title} onChange={(e) => change('title', e.target.value)} />
             </label>
             <p className={row.slug} data-num>/p/{product.slug}</p>
+            {checkNotes.length > 0 && (
+              <ul className={row.notes}>
+                {checkNotes.map((n) => (
+                  <li key={n.key} className={row.guessed}>
+                    {n.text}
+                    {n.use && <> <button type="button" className={row.link} onClick={() => change('title', n.use)}>Use it</button></>}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         ) },
         { key: 'description', title: 'Description', body: (
@@ -651,7 +685,11 @@ export function ProductSheet({
                 ? ` ${agent} read this from ${product.derived_fields?.hazard_draft?.read_from ?? 'the product facts'}. Check it against the bottle, then save.`
                 : ' Copy across what is printed on it.'}
             </p>
-            {rules?.chemical_reason && <p className={row.hint}>{rules.chemical_reason}</p>}
+            {rules?.chemical_reason && (
+              <p className={row.hint}>
+                {rules.chemical === false ? `${agent} checked it: not a chemical. ${rules.chemical_reason} If the bottle carries no warning, tick below.` : rules.chemical_reason}
+              </p>
+            )}
             <label className={row.check}>
               <input type="checkbox" checked={form.hazardNone} onChange={(e) => change('hazardNone', e.target.checked)} />
               <span>No warning label on this bottle. I have checked.</span>

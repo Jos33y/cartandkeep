@@ -40,6 +40,11 @@ const metaPrice = (html) => (
   ?? html.match(/data-price-type=["']finalPrice["'][^>]*data-price-amount=["']([\d.]+)/i)?.[1]
   ?? html.match(/data-price-amount=["']([\d.]+)["'][^>]*data-price-type=["']finalPrice/i)?.[1]
   ?? html.match(/"(?:price|salePrice|currentPrice)"\s*:\s*"?(\d+(?:\.\d{1,2})?)"?\s*,\s*"(?:currency|priceCurrency|currencyCode)"\s*:\s*"GBP"/i)?.[1]
+  // The Entertainer: no Product data at all, the price sits on the price block ("data-pricePDP="50.0"").
+  ?? html.match(/data-pricePDP=["']([\d.]+)/i)?.[1]
+  // Studio: the analytics "detail" block names the product being viewed ("detail":{...,"products":[{...,"price":"22.99"}).
+  // Only the detail block, never a list of other products on the page.
+  ?? html.match(/"detail"\s*:\s*\{\s*"actionField"\s*:\s*\{[^}]*\}\s*,\s*"products"\s*:\s*\[\s*\{[^\]]*?"price"\s*:\s*"?(\d+(?:\.\d{1,2})?)/i)?.[1]
   ?? ''
 ).replace(/,/g, '');
 
@@ -51,6 +56,12 @@ const metaGtin = (html) => String(
   ?? html.match(/"(?:gtin13|gtin|ean|barcode)"\s*:\s*"(\d{8,14})"/i)?.[1]
   ?? '',
 );
+
+// Stock outside the structured data: The Entertainer marks the product data-productavailable="true|false".
+const metaStock = (html) => {
+  const m = html.match(/data-productavailable=["'](true|false)["']/i)?.[1];
+  return m == null ? '' : m.toLowerCase() === 'true' ? 'InStock' : 'OutOfStock';
+};
 
 // The product as the page states it: structured data first, then meta tags and the page title.
 export function readPage(html) {
@@ -75,7 +86,8 @@ export function readPage(html) {
   }
   const og = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)/i)?.[1];
   const title = html.match(/<title[^>]*>([^<]+)/i)?.[1];
-  return { name: decode(og ?? title ?? ''), price: metaPrice(html), exVat: false, stock: '', brand: '', gtin: metaGtin(html), image: ogImage(html) };
+  // A <title> carries the shop's name after a bar ("Catan 6th Edition Game | The Entertainer"); og:title does not.
+  return { name: decode(og ?? String(title ?? '').replace(/\s+\|\s+[^|]+$/, '')), price: metaPrice(html), exVat: false, stock: metaStock(html), brand: '', gtin: metaGtin(html), image: ogImage(html) };
 }
 
 // The price she would pay, VAT in. Null when the page gives none.

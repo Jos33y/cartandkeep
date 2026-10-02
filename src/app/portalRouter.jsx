@@ -21,6 +21,8 @@ const RequestsPage = lazy(() => import('@pages/portal/RequestsPage').then((m) =>
 const SubscribersPage = lazy(() => import('@pages/portal/SubscribersPage').then((m) => ({ default: m.SubscribersPage })));
 const CategoriesPage = lazy(() => import('@pages/portal/CategoriesPage').then((m) => ({ default: m.CategoriesPage })));
 const ProductsPage = lazy(() => import('@pages/portal/ProductsPage').then((m) => ({ default: m.ProductsPage })));
+// Keeper's office: reached from Products, not the nav, since the agent's name is the shop's own.
+const KeeperPage = lazy(() => import('@pages/portal/KeeperPage').then((m) => ({ default: m.KeeperPage })));
 const InterestPage = lazy(() => import('@pages/portal/InterestPage').then((m) => ({ default: m.InterestPage })));
 const BeingFoundPage = lazy(() => import('@pages/portal/BeingFoundPage').then((m) => ({ default: m.BeingFoundPage })));
 const FinancePage = lazy(() => import('@pages/portal/FinancePage').then((m) => ({ default: m.FinancePage })));
@@ -64,6 +66,7 @@ export const portalRouter = createBrowserRouter([
       { path: 'listings', element: deferred(<ListingsPage />) },
       { path: 'shop', element: deferred(<ShopPage />) },
       { path: 'products', element: deferred(<ProductsPage />) },
+      { path: 'keeper', element: deferred(<KeeperPage />) },
       { path: 'sections', element: deferred(<CategoriesPage />) },
       { path: 'reviews', element: deferred(<ReviewsPage />) },
       { path: 'customers', element: deferred(<CustomersPage />) },

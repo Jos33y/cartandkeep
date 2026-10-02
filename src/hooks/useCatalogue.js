@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@lib/supabase';
 import { deleteProductImage } from '@lib/productImages';
+import { mergeDerived, overridesFor } from '@lib/keeper';
 
 /*
  * The catalogue, and what stops a product going public.
@@ -400,8 +401,18 @@ export function useCatalogue(tenantId) {
       next.is_sample = false;
     }
 
+    // Keeper may have checked this product while the sheet was open: keep its keys, and only hers from her copy.
+    if (next.derived_fields) {
+      const { data: now } = await supabase.from('store_products').select('derived_fields').eq('id', id).maybeSingle();
+      if (now) next.derived_fields = mergeDerived(row.derived_fields, next.derived_fields, now.derived_fields);
+    }
+
     const { error } = await supabase.from('store_products').update(next).eq('id', id);
     if (error) throw error;
+
+    // Where she changed Keeper's work, Keeper reads it before its next run. Never holds up her save.
+    const changed = overridesFor(row, patch);
+    if (changed.length) supabase.from('keeper_overrides').insert(changed).then(() => {}, () => {});
     await load();
   }, [state.rows, load]);
 
