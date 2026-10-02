@@ -191,12 +191,18 @@ const SLUG_DROP = new Set(['a', 'an', 'and', 'the', 'of', 'with', 'for', 'in', '
 const SLUG_WORDS = 6;
 const SLUG_MAX = 50;
 export function slugFor(title: string) {
-  const words = String(title ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/&/g, ' and ')
-    .split(/[\s,/|]+/).map((w) => w.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')).filter((w) => w && !SLUG_DROP.has(w) && !/^\d+(pcs|pc|pk|x)$/.test(w));
+  // Split on spaces, commas and bars, not slashes, so "In/Out" stays one word: "in-out".
+  const words = String(title ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/&/g, ' and ')
+    .split(/[\s,|]+/).map((w) => w.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')).filter((w) => w && !SLUG_DROP.has(w) && !/^\d+(pcs|pc|pk|x)$/.test(w));
   const out: string[] = [];
+  const stems = new Set<string>();
   for (const w of words) {
+    // A word already in the address, or its plural, adds nothing: "refills" then "refill".
+    const stem = w.replace(/s$/, '');
+    if (stems.has(stem)) continue;
     if (out.length >= SLUG_WORDS || [...out, w].join('-').length > SLUG_MAX) break;
     out.push(w);
+    stems.add(stem);
   }
   return out.join('-') || 'product';
 }

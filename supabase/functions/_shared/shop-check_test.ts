@@ -35,6 +35,8 @@ Deno.test('a shop title is plain, true to the facts and free of eBay habits', ()
 Deno.test('the address is six words at most, short, with no listing number', () => {
   eq(slugFor('Blind Valance Clips, 2.5 Inch, Pack of 10'), 'blind-valance-clips-2-5-inch-pack');
   eq(slugFor('Pots & Pans Café Set'), 'pots-pans-cafe-set');
+  eq(slugFor('Behringer UCA222 USB Interface with RCA In/Out'), 'behringer-uca222-usb-interface-rca-in-out');
+  eq(slugFor('Vicloon 24 Pcs Flash Duster Refills, Refill Duster for Cleaning, Disposable'), 'vicloon-24-flash-duster-refills-cleaning');
   eq(slugFor('Bed Assist Rail with Storage Pouch Non-Slip Handle Black'), 'bed-assist-rail-storage-pouch-non-slip');
   ok(slugFor('Extraordinarily Long Words Everywhere Throughout Particularly Unnecessarily').length <= 50, 'too long');
   eq(slugNeedsWork('bed-rails-for-elderly-adults-adjustable-bed-assist-rail-safe-318720407192'), true);
@@ -86,7 +88,7 @@ Deno.test('a title that breaks a rule is left as a suggestion, and does not hold
   eq(r.title, null);
   eq(r.patch.check.suggested_title, 'Blind Valance Clips, 5 Inch, Pack of 10');
   eq(r.patch.check.title_problems, ['5 is not in the facts']);
-  eq(r.slug, 'blind-valance-clips-2-5-window-blinds');
+  eq(r.slug, 'blind-valance-clips-2-5-window-hidden');
 });
 
 Deno.test('her title, and a title from the Approved page, are never changed', () => {
