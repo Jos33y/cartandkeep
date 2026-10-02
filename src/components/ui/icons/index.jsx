@@ -339,7 +339,17 @@ const IconUndo = (p) => (
   </svg>
 );
 
+// The shop's assistant: a stamp with a K, the mark its office uses.
+const IconKeeper = (p) => (
+  <svg {...base} {...p}>
+    <circle cx="10" cy="10" r="7.25" />
+    <circle cx="10" cy="10" r="5" strokeWidth="0.9" />
+    <path d="M8 6.6v6.8M12.4 6.6L8.5 10.2M9.8 9.1l2.8 4.3" />
+  </svg>
+);
+
 export const ICONS = {
+  IconKeeper,
   IconGrid,
   IconGauge,
   IconStar,

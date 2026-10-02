@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router';
-import { PORTAL_NAV_SECTIONS, portalPath } from '@utils/constants';
+import { PORTAL_NAV_SECTIONS, navLabel, portalPath } from '@utils/constants';
 import { Icon } from '@components/ui/icons';
 import { ScrollToTop } from '@components/layout/shared/ScrollToTop';
 import { PortalTopbar } from '@components/layout/portal/PortalTopbar';
@@ -34,7 +34,10 @@ export function PortalShell({ children }) {
   useNoIndex();
 
   const [tenantId, setTenantId] = useState(null);
-  useEffect(() => { loadTenant().then((t) => setTenantId(t?.id ?? null)); }, []);
+  const [agentName, setAgentName] = useState(null);
+  useEffect(() => {
+    loadTenant().then((t) => { setTenantId(t?.id ?? null); setAgentName(t?.store?.agent?.name || null); });
+  }, []);
   const badges = { awaiting: useAwaitingCount(tenantId) };
   const previousAt = useRecordVisit(tenantId, pathname);
 
@@ -128,7 +131,7 @@ export function PortalShell({ children }) {
                   onClick={() => setDrawerOpen(false)}
                 >
                   <Icon name={item.icon} className={styles.icon} />
-                  <span>{item.label}</span>
+                  <span>{navLabel(item, agentName)}</span>
                   {/* Absent at zero: a nought beside Messages every day stops being read. */}
                   {item.badge && badges[item.badge] > 0 && (
                     <span className={styles.badge} data-num>
@@ -156,7 +159,7 @@ export function PortalShell({ children }) {
 
       <div className={styles.body}>
         <PortalTopbar
-          crumb={crumbFor(pathname)}
+          crumb={crumbFor(pathname, agentName)}
           account={account}
           tenantId={tenantId}
           previousAt={previousAt}
@@ -171,17 +174,17 @@ export function PortalShell({ children }) {
         </main>
       </div>
 
-      <CommandPalette open={searchOpen} onClose={closeSearch} />
+      <CommandPalette open={searchOpen} onClose={closeSearch} agentName={agentName} />
     </div>
   );
 }
 
 // From the nav, not the path: /ebay/traffic is "Traffic" and /orders/AB12/slip is "Orders".
-function crumbFor(pathname) {
+function crumbFor(pathname, agentName) {
   const screen = screenFor(pathname);
   for (const s of PORTAL_NAV_SECTIONS) {
     const item = s.items.find((i) => i.route === screen);
-    if (item) return { section: s.label, page: item.label };
+    if (item) return { section: s.label, page: navLabel(item, agentName), icon: item.agent ? item.icon : null };
   }
   const last = pathname.split('/').filter(Boolean).pop();
   return { section: null, page: last ? last.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase()) : 'Overview' };

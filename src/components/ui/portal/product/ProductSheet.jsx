@@ -803,7 +803,7 @@ export function ProductSheet({
                 </span>
                 <span className={styles.where}>{shelfLabel}</span>
                 {!archived && !reading && keeper && (
-                  <button type="button" className={styles.again} onClick={askAgent}>Ask {agent} again</button>
+                  <button type="button" className={styles.again} onClick={askAgent}><Icon name="IconKeeper" width="16" height="16" />Ask {agent} again</button>
                 )}
               </p>
               {readFailed && !reading && <p className={styles.failedLine}>{agent} could not fill it in: {readFailed}</p>}

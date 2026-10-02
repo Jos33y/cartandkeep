@@ -237,7 +237,10 @@ export function PortalTopbar({ crumb, account, tenantId, previousAt, onOpenMenu,
       <p className={styles.crumb}>
         {crumb.section && <span className={styles.crumbSection}>{crumb.section}</span>}
         {crumb.section && <span className={styles.crumbSep} aria-hidden="true">/</span>}
-        <span className={styles.crumbPage}>{crumb.page}</span>
+        <span className={styles.crumbPage}>
+          {crumb.icon && <Icon name={crumb.icon} className={styles.crumbIcon} />}
+          {crumb.page}
+        </span>
       </p>
 
       <div className={styles.tools}>

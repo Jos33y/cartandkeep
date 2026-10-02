@@ -309,6 +309,8 @@ export function ProductsPage() {
       {status === 'ready' && tally.total > 0 && (
         <section className={styles.summary} aria-label="How complete the catalogue is">
           <div className={styles.progress}>
+            <p className="micro">Your catalogue</p>
+            <div className={styles.progressBody}>
             <p className={styles.progressLine}>
               <span className={styles.progressFigure} data-num>{tally.done}<small> of {tally.total}</small></span>
               <span className={styles.progressLabel}>steps done across the catalogue</span>
@@ -326,9 +328,25 @@ export function ProductsPage() {
               {tally.check > 0 && <li><StepMark state="check" size="sm" /><b data-num>{tally.check}</b> to read</li>}
               <li><StepMark state="missing" size="sm" /><b data-num>{tally.missing}</b> missing</li>
             </ul>
+            </div>
           </div>
 
-          {gap && gapCopy && (
+          {(uncheckedCount > 0 || keeperRun) ? (
+            // The assistant can clear most of the gap in one go, so it is the one thing offered.
+            <div className={styles.next} data-agent>
+              <p className={styles.agentKicker}><Icon name="IconKeeper" className={styles.agentIcon} />{agentName}</p>
+              <p className={styles.agentLine}>
+                {keeperRun ? `${agentName} is checking your drafts now.` : <><b data-num>{uncheckedCount.toLocaleString('en-GB')}</b> {uncheckedCount === 1 ? 'draft' : 'drafts'} to check</>}
+              </p>
+              <p className={styles.nextBody}>Returns, label warnings, a clean title and a short address for each, while you watch.</p>
+              <div className={styles.nextActions}>
+                <Link className={styles.go} to={portalPath('/keeper')}>
+                  <Icon name="IconKeeper" className={styles.agentIcon} />
+                  {keeperRun ? `See ${agentName} at work` : `Let ${agentName} check them`}
+                </Link>
+              </div>
+            </div>
+          ) : gap && gapCopy && (
             <div className={styles.next}>
               <p className="micro">Biggest gap</p>
               <p className={styles.nextBody}>
@@ -339,20 +357,8 @@ export function ProductsPage() {
                 </strong>{' '}
                 {gapCopy.body}
               </p>
-              {(uncheckedCount > 0 || keeperRun) && (
-                <p className={styles.nextBody}>
-                  {keeperRun
-                    ? `${agentName} is checking your drafts now.`
-                    : `${agentName} can check the returns, labels and titles of ${plural(uncheckedCount, 'draft')} in one go, while you watch.`}
-                </p>
-              )}
               <div className={styles.nextActions}>
-                {(uncheckedCount > 0 || keeperRun) && (
-                  <Link className={styles.go} to={portalPath('/keeper')}>
-                    {keeperRun ? `See ${agentName} at work` : `Let ${agentName} check ${plural(uncheckedCount, 'draft')}`}
-                  </Link>
-                )}
-                <button type="button" className={uncheckedCount > 0 || keeperRun ? styles.quiet : styles.go} onClick={() => openSheet(gap.go, gap.key)}>
+                <button type="button" className={styles.go} onClick={() => openSheet(gap.go, gap.key)}>
                   {gapCopy.go} {shortName(rows.find((r) => r.id === gap.go)?.title)}
                 </button>
               </div>

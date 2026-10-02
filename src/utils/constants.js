@@ -56,6 +56,8 @@ export const PORTAL_ROUTES = {
   APPROVED: '/approved',
   LISTINGS: '/listings',
   PRODUCTS: '/products',
+  // The shop's assistant at work. Its name is the shop's own (tenants.store.agent.name).
+  KEEPER: '/keeper',
   INTEREST: '/interest',
   FOUND: '/being-found',
   FINANCE: '/finance',
@@ -77,6 +79,9 @@ export const PORTAL_ROUTES = {
 };
 
 // Dev serves all three hosts from one document, so portal links carry ?portal.
+// A nav item's label, with the shop's name for its assistant where the item stands for it.
+export const navLabel = (item, agentName) => (item.agent && agentName ? agentName : item.label);
+
 export function portalPath(path) {
   if (!import.meta.env.DEV) return path;
   return `${path}${path.includes('?') ? '&' : '?'}portal`;
@@ -128,6 +133,8 @@ export const PORTAL_NAV_SECTIONS = [
     items: [
       { route: PORTAL_ROUTES.SHOP, label: 'Dashboard', icon: 'IconGauge' },
       { route: PORTAL_ROUTES.PRODUCTS, label: 'Products', icon: 'IconShop' },
+      // Labelled with the shop's own name for its assistant; 'Assistant' until the shop has one.
+      { route: PORTAL_ROUTES.KEEPER, label: 'Assistant', icon: 'IconKeeper', agent: true },
       { route: PORTAL_ROUTES.CATEGORIES, label: 'Sections', icon: 'IconShelves' },
       { route: PORTAL_ROUTES.ORDERS, label: 'Orders', icon: 'IconBox' },
       { route: PORTAL_ROUTES.MESSAGES, label: 'Messages', icon: 'IconSpeech', badge: 'awaiting' },

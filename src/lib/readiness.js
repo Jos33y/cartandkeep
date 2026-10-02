@@ -58,12 +58,11 @@ function judge(key, p) {
         : { state: 'wait', note: `${open} to decide before it sells` };
     }
     case 'hazard':
+      if (p.hazard) return { state: 'done', note: `Label warning: ${p.hazard.signal}` };
       if (!needsLabel(p)) return { state: 'none', note: 'Not a chemical' };
-      return p.hazard
-        ? { state: 'done', note: `Label warning: ${p.hazard.signal}` }
-        : p.derived_fields?.hazard_draft
-          ? { state: 'wait', note: 'Label warning read for you. Check it against the bottle and save.' }
-          : { state: 'missing', note: 'Looks like a chemical. Copy the label warning across.' };
+      return p.derived_fields?.hazard_draft
+        ? { state: 'wait', note: 'Label warning read for you. Look it over and save.' }
+        : { state: 'missing', note: 'Looks like a chemical. Add its label warning when you have it.' };
     case 'stock': {
       const why = unsellable(p);
       if (why) return { state: 'missing', note: why };

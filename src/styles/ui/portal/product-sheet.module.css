@@ -354,6 +354,9 @@
 }
 
 .again {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   min-height: 32px;
   padding: 0 var(--s-2);
   border-radius: var(--r-sm);

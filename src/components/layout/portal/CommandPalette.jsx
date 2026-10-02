@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
-import { PORTAL_NAV_SECTIONS, portalPath } from '@utils/constants';
+import { PORTAL_NAV_SECTIONS, navLabel, portalPath } from '@utils/constants';
 import { Icon } from '@components/ui/icons';
 import styles from '@styles/layout/portal/command-palette.module.css';
 
@@ -26,7 +26,7 @@ function rank(entry, q) {
   return 2;
 }
 
-export function CommandPalette({ open, onClose }) {
+export function CommandPalette({ open, onClose, agentName }) {
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef(null);
@@ -35,8 +35,8 @@ export function CommandPalette({ open, onClose }) {
   const listId = useId();
 
   const results = useMemo(
-    () => ENTRIES.filter((e) => matches(e, q)).sort((a, b) => rank(a, q) - rank(b, q)),
-    [q],
+    () => ENTRIES.map((e) => ({ ...e, label: navLabel(e, agentName) })).filter((e) => matches(e, q)).sort((a, b) => rank(a, q) - rank(b, q)),
+    [q, agentName],
   );
 
   useEffect(() => {

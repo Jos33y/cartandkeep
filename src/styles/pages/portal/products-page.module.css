@@ -83,6 +83,17 @@
 .legend b { font-weight: 500; color: var(--c-ink); }
 
 .next { padding-left: var(--s-6); border-left: 1px solid var(--c-line); }
+
+/* The catalogue's figure sits at the foot of its column, level with the button opposite; the kicker at the top. */
+.summary { align-items: stretch; }
+.progress { display: flex; flex-direction: column; justify-content: space-between; gap: var(--s-4); }
+
+/* The shop's assistant, when it can clear the gap: its mark, the count, one press. Office blue, as in its office. */
+.next[data-agent] { --agent-ink: #2d5592; }
+.agentKicker { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-micro); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--agent-ink); }
+.agentIcon { width: 18px; height: 18px; flex: none; }
+.agentLine { margin-top: var(--s-2); font-size: var(--t-lead); font-weight: 500; color: var(--c-ink); }
+.agentLine b { font-size: var(--t-figure); font-weight: 500; color: var(--agent-ink); }
 .nextBody { margin: var(--s-2) 0 var(--s-4); font-size: var(--t-label); line-height: var(--lh-snug); color: var(--c-ink-soft); }
 .nextBody strong { font-weight: 560; color: var(--c-ink); }
 .nextActions { display: flex; flex-wrap: wrap; gap: var(--s-2); }

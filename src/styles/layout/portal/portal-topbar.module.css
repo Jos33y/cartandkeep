@@ -40,11 +40,16 @@
 .crumbSep { color: var(--c-line-mid); }
 
 .crumbPage {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--c-ink);
   font-weight: 560;
 }
+
+.crumbIcon { width: 16px; height: 16px; flex: none; color: var(--c-action-strong); }
 
 .tools {
   display: flex;

@@ -13,7 +13,7 @@ const OPEN = new Set(['running', 'paused']);
  * Keeper's latest shop check for this shop: the run, its jobs and the products they are for, read every two seconds
  * while it is open. The work is on the server (keeper-run, 0123), so closing the page loses nothing.
  */
-export function useKeeperRun(tenantId) {
+export function useKeeperRun(tenantId, { followPace = false } = {}) {
   const [run, setRun] = useState(undefined);
   const [jobs, setJobs] = useState([]);
   const [products, setProducts] = useState(() => new Map());
@@ -95,10 +95,11 @@ export function useKeeperRun(tenantId) {
   // Finished: one last read of what is waiting, for the next run.
   useEffect(() => { if (run && !open) countWaiting(); }, [run, open, countWaiting]);
 
-  const start = useCallback(async ({ pace = 'watch', capPence = 500, rehearsal = false, limit = null } = {}) => {
+  // A rehearsal takes the next drafts nobody has rehearsed (pick 'next'), or the last rehearsal's again ('again').
+  const start = useCallback(async ({ pace = 'watch', capPence = 500, rehearsal = false, limit = null, pick = 'next' } = {}) => {
     setError(null);
     const { error: e } = await supabase.rpc('start_keeper_run', {
-      p_tenant: tenantId, p_task: TASK, p_pace: pace, p_cap_pence: capPence, p_rehearsal: rehearsal, p_limit: limit,
+      p_tenant: tenantId, p_task: TASK, p_pace: pace, p_cap_pence: capPence, p_rehearsal: rehearsal, p_limit: limit, p_pick: pick,
     });
     if (e) { setError(e.message); throw new Error(e.message); }
     await read();
@@ -112,6 +113,30 @@ export function useKeeperRun(tenantId) {
     await read();
     if (change.state === 'running') kick();
   }, [run, read, kick]);
+
+  /*
+   * Her pace follows the page: one at a time while she watches, the full pace once she has gone, so 194 drafts are
+   * not held to the watching speed with nobody watching. The studio sets the pace by hand, so this is hers only.
+   * Keyed on the run's id, not the run, so the two-second reads do not set it again and again.
+   */
+  const pace = useRef(null);
+  pace.current = run?.pace ?? null;
+  const runId = open ? run?.id : null;
+  useEffect(() => {
+    if (!followPace || !runId) return undefined;
+    const want = (p) => {
+      if (pace.current === p) return;
+      pace.current = p;
+      supabase.rpc('set_keeper_run', { p_run: runId, p_state: null, p_pace: p });
+    };
+    const onVisibility = () => want(document.visibilityState === 'visible' ? 'watch' : 'normal');
+    onVisibility();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      want('normal');
+    };
+  }, [followPace, runId]);
 
   const totals = useMemo(() => summarise(jobs), [jobs]);
 

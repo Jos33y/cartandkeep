@@ -771,7 +771,7 @@ const FIX = {
   price: 'Set a price',
   returns: 'Confirm returns',
   checks: 'Answer',
-  hazard: 'Copy the label',
+  hazard: 'Add the warning',
   stock: 'Set stock',
 };
 
