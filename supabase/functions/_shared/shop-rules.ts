@@ -10,8 +10,8 @@ export const RULES_SYSTEM = `You check a product for a small UK online shop befo
 
 RETURNS. Which UK cancellation rules apply to these goods.
 standard  The default. Almost everything. The customer can send it back for any reason.
-sealed    Goods not suitable for return once unsealed, for health or hygiene reasons: cosmetics, toiletries, underwear, incontinence and continence products, anything applied to the body, anything that goes in the mouth.
-none      Consumables and perishables: food, drink, supplements. Anything made to order or personalised.
+sealed    Goods not suitable for return once unsealed, for health or hygiene reasons: cosmetics, toiletries, underwear, incontinence and continence products, anything applied to the body, anything that goes in the mouth, and packaged food, drink and supplements. They can still come back while the seal is unbroken.
+none      Only goods that go off quickly (fresh food, cut flowers) and anything made to order or personalised. Packaged food, drink and supplements that keep are sealed, not none.
 Choose standard unless the goods clearly fall in an exception. Wrongly refusing a return denies a customer a right they have in law, which is the worse error, so when the goods are ambiguous the answer is standard. Judge the goods, not the packaging. Cleaning chemicals are ordinary goods, so they are standard.
 
 CHEMICAL. Is it a chemical product that may carry a GB CLP hazard label: cleaners, bleach, descalers, drain unblockers, disinfectants, pest and weed killers, glues and sealants, paints, varnishes, oils and solvents, fuels, lamp oil, aerosols, battery acid, pool and garden chemicals, dishwasher and laundry products. Tools, appliances, furniture, clothing, food and ordinary cosmetics are not. Say true when it is such a product, even if the facts give no label, because its warnings belong on the shop page when they can be found.

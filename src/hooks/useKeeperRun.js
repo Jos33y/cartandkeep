@@ -78,7 +78,9 @@ export function useKeeperRun(tenantId, { followPace = false, includeRehearsals =
   const kick = useCallback(() => {
     if (!tenantId) return;
     lastMove.current = Date.now();
-    // Not awaited: the call returns when its share is done; the reads report progress meanwhile.
+    // Not awaited: the calls return when their share is done; the reads report progress meanwhile. The writer goes
+    // too, since a run writes a draft first where nothing has been written (0128).
+    supabase.functions.invoke('draft', { body: { queue: true, tenant_id: tenantId } }).catch(() => {});
     supabase.functions.invoke('keeper-run', { body: { queue: true, tenant_id: tenantId } }).catch(() => {});
   }, [tenantId]);
 

@@ -362,12 +362,31 @@ export function settle(p: Json, words: Json, label: Json | null, facts: string, 
     const banned = [...new Set((`${current} ${saved || ownDescription || ''}`.match(BIOCIDE_BANNED) ?? []).map((w) => w.toLowerCase()))];
     if (banned.length) notes.push(`Says ${banned.map((w) => `"${w}"`).join(' and ')}, which an insect or weed killer's advert may not. Worth taking out.`);
   }
-  if (own && ownDescription !== own.description) patch.draft = { ...own, description: ownDescription, corrected_at: at, ...(fixDescription ? { corrections: errors } : {}) };
+
+  /*
+   * The writer's draft, applied where the box is empty, so the product is finished without her opening it: the
+   * description (as corrected, with the safety line), the brand when it is a real one, what is in the box, and the
+   * section when it is one of hers. A brand new section stays a suggestion for her. The draft is then marked
+   * applied, so the product sheet does not offer it again.
+   */
+  const fill: Json = {};
+  const savedDescription = String(p?.description ?? '').trim();
+  if (own) {
+    if (!savedDescription && ownDescription) fill.description = ownDescription;
+    if (!String(p?.brand ?? '').trim() && own.brand?.real && own.brand?.name) fill.brand = clip(own.brand.name, 80);
+    if (!String(p?.in_the_box ?? '').trim() && own.in_the_box) fill.in_the_box = clip(own.in_the_box, 600);
+    if (!String(p?.section ?? '').trim() && own.section) fill.section = String(own.section);
+    patch.draft = { ...own, description: ownDescription, applied_at: at, applied_by: 'keeper', ...(fixDescription ? { corrected_at: at, corrections: errors } : {}) };
+  }
 
   // Questions an earlier pass left: Keeper answers each as the seller would. A disputed detail is left out.
   const checks = checksOf(p);
   const given = new Map((Array.isArray(words?.answers) ? words.answers : []).map((a: Json) => [String(a?.id), String(a?.answer ?? '').trim()]));
-  let specs: Json | null = null;
+  // The writer's details join the saved ones; the questions below then settle or leave out what is disputed.
+  const drafted = own && Array.isArray(own.details) ? own.details.filter((d: Json) => d?.name && d?.value !== undefined && d?.value !== '') : [];
+  let specs: Json | null = drafted.length
+    ? { ...(p?.specifications ?? {}), ...Object.fromEntries(drafted.map((d: Json) => [clip(d.name, 60), clip(d.value, 200)])) }
+    : null;
   let answered = 0; let leftOut = 0;
   const decide = (checks?.decide ?? []).map((q) => {
     if (q.answer) return q;
@@ -424,9 +443,12 @@ export function settle(p: Json, words: Json, label: Json | null, facts: string, 
     : hazard ? 'label'
       : 'ready';
 
-  const did = { title, slug, hazard: Boolean(hazard), safety, answered, leftOut, unsure, returns: rules.returns, chemical: rules.rules.chemical };
+  const did = {
+    title, slug, hazard: Boolean(hazard), safety, answered, leftOut, unsure, returns: rules.returns, chemical: rules.rules.chemical,
+    wrote: Boolean(fill.description), placed: Boolean(fill.section),
+  };
   return {
-    tray, patch, returns, title, slug, hazard, biocideReg, description, specs,
+    tray, patch, returns, title, slug, hazard, biocideReg, description, specs, fill: Object.keys(fill).length ? fill : null,
     line: lineFor(tray, did, check),
     why: dashless([rules.rules.returns_reason, rules.rules.chemical ? rules.rules.chemical_reason : null, title ? check.title_reason : null].filter(Boolean).join(' ')).slice(0, 600),
   };
@@ -444,6 +466,8 @@ export function lineFor(_tray: Tray, did: Json, check: Json) {
   if (did.title) bits.push('new title');
   else if (check.suggested_title) bits.push('title suggestion left for you');
   if (did.slug) bits.push('shorter address');
+  if (did.wrote) bits.push('description written');
+  if (did.placed) bits.push('section set');
   if (did.answered) bits.push(did.leftOut ? `${did.answered} old questions sorted, ${did.leftOut} disputed ${did.leftOut === 1 ? 'detail' : 'details'} left out` : `${did.answered} old ${did.answered === 1 ? 'question' : 'questions'} sorted`);
   if (check.corrections?.length) bits.push('own description corrected');
   if (check.gaps?.length) bits.push(`needs ${check.gaps.join(', ')}`);

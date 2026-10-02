@@ -33,7 +33,7 @@ const PRICES = {
 
 const PRODUCT_FIELDS = 'id, tenant_id, status, archived_at, title, slug, brand, gtin, category_path, description, in_the_box, '
   + 'specifications, source_description, source_kind, source_ref, image_url, images, derived_fields, candidate_id, hazard, '
-  + 'biocide_reg_no, price, stock, availability, updated_at';
+  + 'biocide_reg_no, price, stock, availability, section, updated_at';
 
 // Everything on sale now, for the same-product check: a few hundred short rows, read once a call.
 async function liveProducts(client: Db, tenantId: string) {
@@ -149,7 +149,7 @@ export async function checkOne(client: Db, job: Json, run: Json | null, ctx: Awa
   if (!run?.rehearsal) {
     const { data: wrote, error } = await client.rpc('set_keeper_check', {
       p_id: p.id, p_seen: p.updated_at, p_derived: s.patch, p_returns: s.returns, p_title: s.title, p_slug: s.slug,
-      p_hazard: s.hazard, p_biocide_reg: s.biocideReg, p_description: s.description, p_specs: s.specs,
+      p_hazard: s.hazard, p_biocide_reg: s.biocideReg, p_description: s.description, p_specs: s.specs, p_fill: s.fill,
     });
     if (error) throw new Error(error.message);
     if (wrote === 'changed') {

@@ -4,7 +4,7 @@ import { PageSkeleton } from '@components/ui/portal/Skeleton';
 import { Icon } from '@components/ui/icons';
 import { useKeeperRun } from '@hooks/useKeeperRun';
 import { useAccount } from '@hooks/useAccount';
-import { PRODUCT_SELECT, isReady } from '@hooks/useCatalogue';
+import { PRODUCT_SELECT, blockers, isLive, isReady } from '@hooks/useCatalogue';
 import { SELLABLE, TRAYS, pounds, timeLeft, trayOf } from '@lib/keeper';
 import { loadTenant } from '@lib/tenant';
 import { supabase } from '@lib/supabase';
@@ -336,6 +336,8 @@ function LogLine({ job, product }) {
 function Report({ agent, run, jobs, products, totals, tenantId, onDone, studio }) {
   const readyIds = useMemo(() => jobs.filter((j) => SELLABLE.includes(trayOf(j))).map((j) => j.product_id), [jobs]);
   const [eligible, setEligible] = useState(null);
+  // Checked as ready, but changed since (opened and rewritten, a box emptied): which ones, and what they need now.
+  const [held, setHeld] = useState([]);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState(null);
@@ -354,6 +356,7 @@ function Report({ agent, run, jobs, products, totals, tenantId, onDone, studio }
         rows.push(...(data ?? []));
       }
       setEligible(rows.filter(isReady).map((r) => r.id));
+      setHeld(rows.filter((r) => !isReady(r) && !isLive(r)).map((r) => ({ id: r.id, title: r.title, why: blockers(r).join(', ').toLowerCase() })));
     })();
   }, [readyIds, run.rehearsal]);
 
@@ -424,8 +427,18 @@ function Report({ agent, run, jobs, products, totals, tenantId, onDone, studio }
         </ol>
       )}
 
-      {!run.rehearsal && eligible && readyIds.length > eligible.length && (
-        <p className={styles.more}>{plural(readyIds.length - eligible.length, 'checked draft')} changed since, and {readyIds.length - eligible.length === 1 ? 'needs' : 'need'} a look on Products first.</p>
+      {!run.rehearsal && held.length > 0 && (
+        <div className={styles.held}>
+          <p className={styles.more}>{plural(held.length, 'checked draft')} changed since, and {held.length === 1 ? 'needs' : 'need'} a look first:</p>
+          <ul>
+            {held.map((h) => (
+              <li key={h.id}>
+                <Link to={productUrl(h.id)}>{h.title}</Link>
+                {h.why && <span>: {h.why}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </section>
   );

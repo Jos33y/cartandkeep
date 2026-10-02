@@ -1,6 +1,7 @@
 // The shop check: run with
 //   deno test supabase/functions/_shared/shop-check_test.ts
 
+import { RULES_SYSTEM } from './shop-rules.ts';
 import { checkFacts, checksOf, costPence, dashless, duplicates, liveMatches, mayRetitle, settle, slugFor, slugNeedsWork, titleProblems } from './shop-check.ts';
 
 function eq(a: unknown, b: unknown) {
@@ -206,6 +207,27 @@ Deno.test('Keeper puts right a wrong number in its own unsaved description, and 
   ok(r.line.includes('own description corrected'), r.line);
   const applied = settle({ ...clips, derived_fields: { draft: { ...own, applied_at: 'T' } } }, w, null, FACTS);
   eq('draft' in applied.patch, false);
+});
+
+Deno.test("the writer's draft fills the empty boxes, and only those", () => {
+  const draft = {
+    version: 2, description: 'Strong clear clips.', brand: { real: true, name: 'Hillarys' }, in_the_box: '10 clips',
+    section: 'home/blinds', details: [{ name: 'Material', value: 'Plastic' }], titles: {},
+  };
+  const r = settle({ ...clips, specifications: { Size: '2.5 inch' }, derived_fields: { draft } }, words(), null, FACTS, {}, 'T');
+  eq(r.fill, { description: 'Strong clear clips.', in_the_box: '10 clips', section: 'home/blinds' });
+  eq(r.specs, { Size: '2.5 inch', Material: 'Plastic' });
+  eq(r.patch.draft.applied_at, 'T');
+  ok(r.line.includes('description written') && r.line.includes('section set'), r.line);
+  // Her boxes are hers: a saved description, brand and section are not filled over.
+  const hers = settle({ ...clips, description: 'Mine.', section: 'home/other', in_the_box: 'Ten', derived_fields: { draft } }, words(), null, FACTS);
+  eq(hers.fill, null);
+  // The brand only when the writer found a real one, and the box is empty.
+  eq(settle({ ...clips, brand: null, derived_fields: { draft } }, words(), null, FACTS).fill?.brand, 'Hillarys');
+});
+
+Deno.test('packaged food is sealed, not no return, in the rules Keeper reads', () => {
+  ok(RULES_SYSTEM.includes('packaged food, drink and supplements') && RULES_SYSTEM.includes('Packaged food, drink and supplements that keep are sealed, not none.'), 'returns rule');
 });
 
 Deno.test('nothing she reads carries a dash', () => {

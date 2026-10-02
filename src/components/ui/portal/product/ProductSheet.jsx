@@ -40,8 +40,8 @@ function returnsOptions(days) {
   const window = days ? `within ${days} days` : 'within your returns window';
   return [
     { value: 'standard', label: 'Standard', hint: `Most things. They can send it back ${window} for any reason` },
-    { value: 'sealed', label: 'Sealed only', hint: `Back ${window}, but only while the seal is unbroken. Hygiene and personal care` },
-    { value: 'none', label: 'No return', hint: 'Food, drink, and anything that goes off. Faulty goods can still be returned' },
+    { value: 'sealed', label: 'Sealed only', hint: `Back ${window}, but only while the seal is unbroken. Hygiene, personal care and packaged food` },
+    { value: 'none', label: 'No return', hint: 'Fresh food and anything that goes off quickly, or made to order. Faulty goods can still be returned' },
   ];
 }
 

@@ -230,6 +230,7 @@ export function ProductsPage() {
         p_rehearsal: false, p_limit: null, p_pick: 'next', p_ids: toCheck.map((r) => r.id), p_again: again,
       });
       if (error) throw error;
+      supabase.functions.invoke('draft', { body: { queue: true, tenant_id: tenant.id } }).catch(() => {});
       supabase.functions.invoke('keeper-run', { body: { queue: true, tenant_id: tenant.id } }).catch(() => {});
       setPicked(new Set());
       navigate(portalPath('/keeper'));
@@ -501,7 +502,8 @@ export function ProductsPage() {
       {picked.size > 0 && (
         <div className={styles.selection} role="region" aria-label="Selected products">
           <span className={styles.selCount}><b data-num>{picked.size}</b> selected</span>
-          {undrafted.length > 0 && (
+          {/* Checking writes first where nothing is written, so Fill in is only offered when there is nothing to check. */}
+          {undrafted.length > 0 && !pickedFresh.length && !pickedChecked.length && (
             <button type="button" className={styles.selButton} disabled={busy || asking} onClick={fillIn}>
               {asking ? `Handing over to ${agentName}` : `Fill in ${plural(undrafted.length, 'product')} with ${agentName}`}
             </button>
