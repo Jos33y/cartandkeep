@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, Navigate, useParams } from 'react-router';
 import { Head, breadcrumbSchema, productDescription, productSchema } from '@components/layout/shared/Head';
 import { Gallery } from '@components/ui/store/Gallery';
 import { Prose } from '@components/ui/store/Prose';
@@ -54,7 +54,7 @@ function NextShelf({ product, own }) {
 export function ProductPage() {
   const { slug } = useParams();
   // One product by its address, and the section list for its breadcrumb; never the whole catalogue.
-  const { status, product } = useProduct(slug);
+  const { status, product, movedTo } = useProduct(slug);
   const { groups } = useGroups();
   const { add, lines: basketLines, setQty: setLineQty } = useBasket();
   const { record } = useRecentlyViewed();
@@ -103,6 +103,9 @@ export function ProductPage() {
   if (status === 'loading') {
     return <div className={styles.page}><div className={styles.wrap}><div className={styles.loading} /></div></div>;
   }
+
+  // An old address: send the visitor to where the product lives now, replacing the old one in their history.
+  if (!product && movedTo) return <Navigate to={STORE_ROUTES.PRODUCT.replace(':slug', movedTo)} replace />;
 
   if (!product) {
     return (

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTenant } from '@hooks/useTenant';
 import { useCategoryNames } from '@hooks/useCategoryNamesStore';
-import { PAGE_SIZE, fetchCardsByIds, fetchFacets, fetchGroupCounts, fetchPage, fetchProduct, filterArgs } from '@lib/storeCatalogue';
+import { PAGE_SIZE, fetchCardsByIds, fetchFacets, fetchGroupCounts, fetchMovedSlug, fetchPage, fetchProduct, filterArgs } from '@lib/storeCatalogue';
 import { withVariants } from '@hooks/useStoreProducts';
 import { groupsFromCounts } from '@utils/categories';
 
@@ -164,10 +164,12 @@ export function useProduct(slug) {
     let live = true;
     setState({ status: 'loading', product: null });
     fetchProduct(tenantId, slug)
-      .then((row) => {
+      .then(async (row) => {
         const product = row ? withVariants(row) : null;
         if (product) remember(productCache, key, product);
-        if (live) setState({ status: 'ready', product });
+        // Not here: the address may have moved, and the old link should still find it.
+        const movedTo = product ? null : await fetchMovedSlug(tenantId, slug);
+        if (live) setState({ status: 'ready', product, movedTo });
       })
       .catch((error) => { console.error('[store] product did not load', error); if (live) setState({ status: 'error', product: null, error }); });
     return () => { live = false; };

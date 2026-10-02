@@ -63,7 +63,10 @@ export async function contextFor(client: Db, tenantId: string, runId: string | n
     }
     dups = duplicates(rows);
   }
-  return { overrides: overrides ?? [], dups, live: await liveProducts(client, tenantId) };
+  // The shop's own principles (tenants.store.principles), true of everything it sells.
+  const { data: tenant } = await client.from('tenants').select('store').eq('id', tenantId).maybeSingle();
+  const principles = (Array.isArray(tenant?.store?.principles) ? tenant.store.principles : []).filter((x: unknown) => typeof x === 'string');
+  return { overrides: overrides ?? [], dups, live: await liveProducts(client, tenantId), principles: principles as string[] };
 }
 
 async function ask(system: string, tool: Json, text: string, images: string[], maxTokens: number) {
@@ -105,7 +108,7 @@ export async function checkOne(client: Db, job: Json, run: Json | null, ctx: Awa
     card = data ?? null;
   }
   const twins = liveMatches(p, ctx.live ?? []);
-  const facts = checkFacts(p, ctx.overrides, card ? listingOf(card) : null, card ? itemFactsOf(card) : null, twins.similar);
+  const facts = checkFacts(p, ctx.overrides, card ? listingOf(card) : null, card ? itemFactsOf(card) : null, twins.similar, ctx.principles ?? []);
   const images = [...new Set([...(Array.isArray(p.images) ? p.images : []), p.image_url].filter((u) => typeof u === 'string' && /^https:\/\//.test(u)))].slice(0, PHOTOS) as string[];
 
   await phase('words');

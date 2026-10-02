@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { NewProduct } from '@components/ui/portal/NewProduct';
 import { ProductRow } from '@components/ui/portal/ProductRow';
 import { ProductSheet } from '@components/ui/portal/product/ProductSheet';
@@ -205,6 +205,38 @@ export function ProductsPage() {
       setFailed(e?.message ?? `${agentName} could not start. Try again.`);
     } finally {
       setAsking(false);
+    }
+  }
+
+  /*
+   * The drafts she picked, checked by the assistant in its office. One checked before is skipped unless she asks for
+   * it again, so nothing is paid for twice by accident.
+   */
+  const navigate = useNavigate();
+  const [again, setAgain] = useState(false);
+  const [checking, setChecking] = useState(false);
+  useEffect(() => { setAgain(false); }, [picked]);
+  const pickedFresh = pickedDraft.filter((r) => !r.is_sample && !r.derived_fields?.rules);
+  const pickedChecked = pickedDraft.filter((r) => !r.is_sample && r.derived_fields?.rules);
+  const toCheck = again ? [...pickedFresh, ...pickedChecked] : pickedFresh;
+
+  async function checkPicked() {
+    if (checking || !toCheck.length) return;
+    setChecking(true);
+    setFailed(null);
+    try {
+      const { error } = await supabase.rpc('start_keeper_run', {
+        p_tenant: tenant.id, p_task: 'shop_check', p_pace: 'watch', p_cap_pence: Math.max(500, Math.ceil(toCheck.length * 3.2)),
+        p_rehearsal: false, p_limit: null, p_pick: 'next', p_ids: toCheck.map((r) => r.id), p_again: again,
+      });
+      if (error) throw error;
+      supabase.functions.invoke('keeper-run', { body: { queue: true, tenant_id: tenant.id } }).catch(() => {});
+      setPicked(new Set());
+      navigate(portalPath('/keeper'));
+    } catch (e) {
+      setFailed(e?.message ?? `${agentName} could not start. Try again.`);
+    } finally {
+      setChecking(false);
     }
   }
 
@@ -473,6 +505,20 @@ export function ProductsPage() {
             <button type="button" className={styles.selButton} disabled={busy || asking} onClick={fillIn}>
               {asking ? `Handing over to ${agentName}` : `Fill in ${plural(undrafted.length, 'product')} with ${agentName}`}
             </button>
+          )}
+          {(pickedFresh.length > 0 || pickedChecked.length > 0) && (
+            <>
+              <button type="button" className={styles.selButton} disabled={busy || checking || !toCheck.length} onClick={checkPicked}>
+                <Icon name="IconKeeper" width="16" height="16" />
+                {checking ? 'Starting' : toCheck.length ? `Check ${toCheck.length} with ${agentName}` : `Check with ${agentName}`}
+              </button>
+              {pickedChecked.length > 0 && (
+                <label className={styles.selToggle}>
+                  <input type="checkbox" checked={again} onChange={(e) => setAgain(e.target.checked)} />
+                  {pickedFresh.length ? `Include ${pickedChecked.length} checked before` : `Check ${pickedChecked.length === 1 ? 'it' : `the ${pickedChecked.length}`} again`}
+                </label>
+              )}
+            </>
           )}
           {pickedLive.length > 0 && (
             <button type="button" className={styles.selButton} disabled={busy}

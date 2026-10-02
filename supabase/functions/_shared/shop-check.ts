@@ -29,7 +29,9 @@ If the facts do not say clearly what the product is, give the best title you can
 
 ALREADY ON THE SHOP. You may be given products already on the shop that look similar, each with a letter. If one is the same product (the same thing, perhaps with another title or from another supplier), give its letter in same_as. A different size, colour, count or pack is a different product. Otherwise same_as is empty.
 
-QUESTIONS LEFT EARLIER. You may be given questions left on the product by an earlier pass, each with an id and its options. Answer every one in answers, as the seller would, from the facts. Pick an option only when the facts settle it. When the question is about a detail the sources disagree on, or that the facts do not settle, answer "Leave out": a detail left off never puts wrong information on the shop. A note with a single option only needs that option.
+THE SHOP'S OWN RULES. You may be given the shop's own rules. They are true of every product the shop sells, so they settle any question they answer: if the shop says everything it sells is brand new and genuine, a question about whether this one is genuine or new is settled.
+
+QUESTIONS LEFT EARLIER. You may be given questions left on the product by an earlier pass, each with an id and its options. Answer every one in answers, as the seller would, from the facts and the shop's own rules. Pick an option only when they settle it. Never pick an option that would keep the product off the shop unless the facts show the problem: the product is already selling on her eBay, which is evidence that it can be sold. When the question is about a detail the sources disagree on, or that the facts do not settle, answer "Leave out": a detail left off never puts wrong information on the shop. A note with a single option only needs that option.
 
 BIOCIDES. For a biocide (an insect, rodent or weed killer, a repellent, a disinfectant), say in biocide_kind what a shopper would call it in the plural: insecticides, rodenticides, weed killers, repellents, disinfectants, or biocides when none fits.
 
@@ -122,9 +124,11 @@ export function checksOf(p: Json): { decide: Json[]; done: string[] } | null {
  * The facts the check reads: the draft's own fields, its eBay description, Keeper's unsaved draft, products already
  * on the shop that may be the same, the questions left on it earlier, and the last changes she made to Keeper's work.
  */
-export function checkFacts(p: Json, overrides: Json[] = [], listing: Json | null = null, item: Json | null = null, similar: Json[] = []) {
+export function checkFacts(p: Json, overrides: Json[] = [], listing: Json | null = null, item: Json | null = null, similar: Json[] = [], principles: string[] = []) {
   const own = ownDraft(p);
   const parts = [rulesFacts(p, listing, item)];
+  const rules = principles.map((x) => clip(x, 300)).filter(Boolean);
+  if (rules.length) parts.unshift(`The shop's own rules, true of everything it sells:\n${rules.map((x) => `- ${x}`).join('\n')}\n`);
   if (p?.gtin) parts.push(`Barcode: ${p.gtin}`);
   if (own) {
     const titles = Object.values(own.titles ?? {}).filter(Boolean).map((t) => clip(t, 120));
@@ -367,7 +371,17 @@ export function settle(p: Json, words: Json, label: Json | null, facts: string, 
     if (options.includes(a)) answer = a;
     else if (/^leave (it )?out$/i.test(a) && q.detail) answer = 'Left out';
     else if (options.length === 1) answer = options[0];
-    if (!answer) return q;
+    // Never a hold from an earlier pass's question: what Keeper cannot settle, or would hold the product back on, is
+    // left out when it is a detail and becomes a note when it is not. A hold only ever comes from her own answer.
+    const holds = Array.isArray(q.holds) && answer && q.holds.includes(answer);
+    if (!answer || holds) {
+      if (q.detail) answer = 'Left out';
+      else {
+        notes.push(`Worth a look: ${clip(q.question, 200).replace(/\?$/, '')}?`);
+        answered += 1;
+        return { ...q, answer: 'Noted', answered_by: 'keeper', noted: true };
+      }
+    }
     answered += 1;
     if (q.detail) {
       const next: Json = { ...(specs ?? p?.specifications ?? {}) };

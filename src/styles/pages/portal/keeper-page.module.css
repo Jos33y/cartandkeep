@@ -34,12 +34,13 @@
 
 /* Header */
 
-.head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s-5); flex-wrap: wrap; }
-.titleBlock { display: flex; align-items: flex-start; gap: var(--s-4); min-width: 0; max-width: 680px; }
+/* The title and the run's figures side by side; the figures drop below only on a phone. */
+.head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--s-5); }
+.titleBlock { display: flex; align-items: flex-start; gap: var(--s-4); min-width: 0; }
 .titleBlock > .stamp { margin-top: 4px; color: var(--k-ink); }
 .kicker { font-size: var(--t-micro); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--k-ink); }
 .title { margin-top: 2px; font-size: 2rem; font-weight: 560; letter-spacing: -0.028em; line-height: 1.1; text-wrap: balance; }
-.sub { margin-top: var(--s-2); font-size: var(--t-body); line-height: var(--lh-snug); color: var(--c-ink-soft); text-wrap: pretty; }
+.sub { max-width: 62ch; margin-top: var(--s-2); font-size: var(--t-body); line-height: var(--lh-snug); color: var(--c-ink-soft); text-wrap: pretty; }
 
 .stats {
   display: grid;
@@ -518,6 +519,7 @@
 }
 
 @media (max-width: 760px) {
+  .head { grid-template-columns: minmax(0, 1fr); }
   .title { font-size: 1.625rem; }
   .stats { width: 100%; grid-auto-columns: minmax(0, 1fr); }
   .stat { padding: var(--s-2) var(--s-3); }

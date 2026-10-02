@@ -84,9 +84,9 @@
 
 .next { padding-left: var(--s-6); border-left: 1px solid var(--c-line); }
 
-/* The catalogue's figure sits at the foot of its column, level with the button opposite; the kicker at the top. */
+/* The catalogue's figure straight under its heading, read top down like the panel opposite. */
 .summary { align-items: stretch; }
-.progress { display: flex; flex-direction: column; justify-content: space-between; gap: var(--s-4); }
+.progress { display: flex; flex-direction: column; justify-content: flex-start; gap: var(--s-4); }
 
 /* The shop's assistant, when it can clear the gap: its mark, the count, one press. Office blue, as in its office. */
 .next[data-agent] { --agent-ink: #2d5592; }
@@ -277,7 +277,9 @@
   transition: background var(--dur) var(--ease);
 }
 
-.selButton { border: 1px solid rgba(250, 246, 239, 0.22); color: var(--c-base); }
+.selButton { display: inline-flex; align-items: center; gap: var(--s-2); border: 1px solid rgba(250, 246, 239, 0.22); color: var(--c-base); }
+.selToggle { display: inline-flex; align-items: center; gap: var(--s-2); min-height: 40px; padding: 0 var(--s-2); font-size: var(--t-caption); color: #e6ddd0; cursor: pointer; }
+.selToggle input { width: 16px; height: 16px; accent-color: var(--c-action-strong); cursor: pointer; }
 .selButton:hover:not(:disabled) { background: rgba(250, 246, 239, 0.08); }
 .selGo { background: var(--c-action-strong); color: #fff; }
 .selGo:hover:not(:disabled) { background: #ad5134; }

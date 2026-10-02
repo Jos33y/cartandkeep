@@ -1,7 +1,7 @@
 // The shop check: run with
 //   deno test supabase/functions/_shared/shop-check_test.ts
 
-import { checksOf, costPence, dashless, duplicates, liveMatches, mayRetitle, settle, slugFor, slugNeedsWork, titleProblems } from './shop-check.ts';
+import { checkFacts, checksOf, costPence, dashless, duplicates, liveMatches, mayRetitle, settle, slugFor, slugNeedsWork, titleProblems } from './shop-check.ts';
 
 function eq(a: unknown, b: unknown) {
   const x = JSON.stringify(a); const y = JSON.stringify(b);
@@ -160,18 +160,29 @@ Deno.test('questions left earlier are answered; a disputed detail is left out of
   eq(checksOf({ derived_fields: {} }), null);
 });
 
-Deno.test('a question Keeper cannot settle, or a missing price, keeps it with her, and says what for', () => {
+Deno.test('an old question never holds a product back: what Keeper cannot settle becomes a note', () => {
   const plug = { ...clips, id: 'u', derived_fields: { checks: { decide: [
     { id: 'plug', question: 'Is the plug UK?', options: ['UK plug', 'EU plug'], holds: ['EU plug'], hold: 'Not a UK plug', answer: null },
+    { id: 'real', question: 'Is this genuine stock?', options: ['Yes', 'Not confirmed'], holds: ['Not confirmed'], hold: 'Genuine stock not confirmed', answer: null },
   ], done: [] } } };
   const open = settle(plug, words(), null, FACTS);
-  eq(open.tray, 'choose');
-  eq(open.patch.check.gaps, ['an answer to one question']);
-  const held = settle(plug, words({ answers: [{ id: 'plug', answer: 'EU plug' }] }), null, FACTS);
-  eq(held.patch.check.gaps, ['not a uk plug']);
+  eq(open.tray, 'ready');
+  eq(open.patch.check.gaps, []);
+  ok(open.patch.check.notes.includes('Worth a look: Is the plug UK?'), JSON.stringify(open.patch.check.notes));
+  const held = settle(plug, words({ answers: [{ id: 'plug', answer: 'EU plug' }, { id: 'real', answer: 'Yes' }] }), null, FACTS);
+  eq(held.tray, 'ready');
+  eq(held.patch.checks.decide.map((q: Record<string, unknown>) => q.answer), ['Noted', 'Yes']);
+  // Her own hold-back answer still holds.
+  const hers = settle({ ...plug, derived_fields: { checks: { decide: [{ ...plug.derived_fields.checks.decide[0], answer: 'EU plug' }], done: [] } } }, words(), null, FACTS);
+  eq(hers.patch.check.gaps, ['not a uk plug']);
   const noPrice = settle({ ...clips, price: 0 }, words(), null, FACTS);
   eq(noPrice.tray, 'choose');
   ok(noPrice.line.endsWith('needs a price.'), noPrice.line);
+});
+
+Deno.test("the shop's own rules are given to Keeper as facts", () => {
+  const facts = checkFacts({ title: 'AirPods Pro' }, [], null, null, [], ['Everything we sell is brand new and genuine.']);
+  ok(facts.startsWith("The shop's own rules, true of everything it sells:\n- Everything we sell is brand new and genuine."), facts);
 });
 
 Deno.test('the same product as one on the shop, or another draft, comes to her', () => {

@@ -69,6 +69,13 @@ export async function fetchGroupCounts(tenantId) {
 }
 
 // One product with everything its page shows, by address. Live and not a sample, as a customer would see it.
+// Where an old address went: the live product's address now, or null (store_slug_moves, 0126).
+export async function fetchMovedSlug(tenantId, slug) {
+  const { data, error } = await supabase.rpc('store_slug_now', { p_tenant: tenantId, p_slug: slug });
+  if (error) return null;
+  return typeof data === 'string' && data ? data : null;
+}
+
 export async function fetchProduct(tenantId, slug) {
   const { data, error } = await supabase
     .from('store_products')
