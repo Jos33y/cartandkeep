@@ -13,7 +13,8 @@ const OPEN = new Set(['running', 'paused']);
  * Keeper's latest shop check for this shop: the run, its jobs and the products they are for, read every two seconds
  * while it is open. The work is on the server (keeper-run, 0123), so closing the page loses nothing.
  */
-export function useKeeperRun(tenantId, { followPace = false } = {}) {
+// Rehearsals are the studio's: only the studio sees them (includeRehearsals), so she only ever sees her own real runs.
+export function useKeeperRun(tenantId, { followPace = false, includeRehearsals = false } = {}) {
   const [run, setRun] = useState(undefined);
   const [jobs, setJobs] = useState([]);
   const [products, setProducts] = useState(() => new Map());
@@ -55,8 +56,9 @@ export function useKeeperRun(tenantId, { followPace = false } = {}) {
 
   const read = useCallback(async () => {
     if (!tenantId) return;
-    const { data: latest, error: e } = await supabase.from('keeper_runs').select('*')
-      .eq('tenant_id', tenantId).eq('task', TASK).order('created_at', { ascending: false }).limit(1).maybeSingle();
+    let q = supabase.from('keeper_runs').select('*').eq('tenant_id', tenantId).eq('task', TASK);
+    if (!includeRehearsals) q = q.eq('rehearsal', false);
+    const { data: latest, error: e } = await q.order('created_at', { ascending: false }).limit(1).maybeSingle();
     if (e) { setError(e.message); setRun(null); return; }
     setRun(latest ?? null);
     if (!latest) { setJobs([]); return; }
@@ -71,7 +73,7 @@ export function useKeeperRun(tenantId, { followPace = false } = {}) {
     if (stamp !== seen.current) { seen.current = stamp; lastMove.current = Date.now(); }
     setJobs(all);
     readProducts([...new Set(all.map((j) => j.product_id))]);
-  }, [tenantId, readProducts]);
+  }, [tenantId, readProducts, includeRehearsals]);
 
   const kick = useCallback(() => {
     if (!tenantId) return;

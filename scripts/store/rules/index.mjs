@@ -19,11 +19,13 @@ import { CANT_POST as POST, POST_CHECK, TOILETRY_AEROSOL } from './post.mjs';
 import * as healthBeauty from './categories/health-beauty.mjs';
 import * as hardware from './categories/hardware.mjs';
 import * as toysGames from './categories/toys-games.mjs';
+import * as babyToddler from './categories/baby-toddler.mjs';
 
 const BY_CATEGORY = new Map([
   ['health and beauty', healthBeauty],
   ['hardware', hardware],
   ['toys and games', toysGames],
+  ['baby and toddler', babyToddler],
 ]);
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

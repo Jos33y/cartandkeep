@@ -82,10 +82,11 @@ export function KeeperPage() {
   const agent = tenant?.store?.agent?.name || 'Your assistant';
   const account = useAccount();
   const studio = account.isStudio;
-  const k = useKeeperRun(tenant?.id, { followPace: !account.loading && !studio });
+  // Nothing is read until the account is known, so she never glimpses a studio rehearsal.
+  const k = useKeeperRun(account.loading ? null : tenant?.id, { followPace: !account.loading && !studio, includeRehearsals: studio });
   const { run, jobs, products, totals, waiting } = k;
 
-  if (tenant === undefined || run === undefined) return <PageSkeleton rows={5} />;
+  if (tenant === undefined || account.loading || run === undefined) return <PageSkeleton rows={5} />;
 
   const live = Boolean(run && (run.state === 'running' || run.state === 'paused'));
   return (

@@ -11,6 +11,7 @@ import {
   useCatalogue, categoryCounts, isLive, isReady, isNeedsYou, isBlocked, isArchived, isNewFromEbay,
 } from '@hooks/useCatalogue';
 import { useKeeper } from '@hooks/useKeeper';
+import { useAccount } from '@hooks/useAccount';
 import { KeeperDock } from '@components/ui/portal/KeeperDock';
 import { stepsFor, columnsFor, isOpen } from '@lib/readiness';
 import { useCategoryNames } from '@hooks/useCategoryNames';
@@ -83,13 +84,18 @@ export function ProductsPage() {
 
   // Drafts Keeper has not checked, and a check already going: the way into Keeper's office.
   const uncheckedCount = useMemo(() => rows.filter(unchecked).length, [rows]);
+  const account = useAccount();
   const [keeperRun, setKeeperRun] = useState(null);
   useEffect(() => {
     if (!tenant?.id) return;
-    supabase.from('keeper_runs').select('id, state, total').eq('tenant_id', tenant.id).in('state', ['running', 'paused'])
+    // A studio rehearsal is not hers to see: only real runs are offered to her.
+    if (account.loading) return;
+    let q = supabase.from('keeper_runs').select('id, state, total').eq('tenant_id', tenant.id).in('state', ['running', 'paused']);
+    if (!account.isStudio) q = q.eq('rehearsal', false);
+    q
       .order('created_at', { ascending: false }).limit(1).maybeSingle()
       .then(({ data }) => setKeeperRun(data ?? null), () => setKeeperRun(null));
-  }, [tenant?.id]);
+  }, [tenant?.id, account.loading, account.isStudio]);
 
   const setView = (next) => {
     const merged = { filter, gap: gapKey, ...next };
