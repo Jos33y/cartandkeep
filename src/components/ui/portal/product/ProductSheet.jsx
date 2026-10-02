@@ -5,6 +5,8 @@ import { ChecksPanel } from '@components/ui/portal/product/ChecksPanel';
 import { VariantsPanel } from '@components/ui/portal/product/VariantsPanel';
 import { StepMark } from '@components/ui/portal/product/StepMark';
 import { Icon } from '@components/ui/icons';
+import { CategoryPicker } from '@components/ui/portal/CategoryPicker';
+import { HOW_SET, categoryPath, loadCategories } from '@lib/categories';
 import { formatGbp } from '@utils/formatGbp';
 import { visibleSpecs, hiddenSpecs } from '@utils/specs';
 import {
@@ -191,6 +193,43 @@ function dropKept(id) {
   try { window.localStorage.removeItem(keyOf(id)); } catch { /* nothing kept */ }
 }
 
+// Where Google files it for Shopping: the path, how it was set, and her own choice, saved at once.
+function GoogleCategory({ product, onPick }) {
+  const id = product.google_category_id ?? null;
+  const [path, setPath] = useState(() => (id ? categoryPath(id) : null));
+  const [moving, setMoving] = useState(false);
+  useEffect(() => {
+    if (!id) { setPath(null); return undefined; }
+    let live = true;
+    loadCategories([id], false).then(() => { if (live) setPath(categoryPath(id)); }).catch(() => { if (live) setPath(null); });
+    return () => { live = false; };
+  }, [id]);
+  const how = HOW_SET[product.google_category_source] ?? null;
+  const parts = path ? path.split(' > ') : [];
+
+  return (
+    <div className={row.field}>
+      <span className={row.label}>Google category</span>
+      <div className={row.google}>
+        <span className={row.googlePath}>
+          {parts.length ? parts.map((part, i) => (
+            <span key={`${part}-${i}`} className={i === parts.length - 1 ? row.googleLast : undefined}>
+              {part}{i < parts.length - 1 && <span className={row.googleSep} aria-hidden="true"> › </span>}
+            </span>
+          )) : <span className={row.googleNone}>{id ? 'Reading' : 'Not set yet'}</span>}
+        </span>
+        <span className={row.googleMove}>
+          <button type="button" className={row.ghost} aria-expanded={moving} onClick={() => setMoving((m) => !m)}>Change</button>
+          {moving && <CategoryPicker current={id} onPick={onPick} onClose={() => setMoving(false)} />}
+        </span>
+      </div>
+      <span className={row.hint}>
+        Where Google files it for Shopping, and what places it in a section{how ? `: ${how}` : ''}.
+      </span>
+    </div>
+  );
+}
+
 export function ProductSheet({
   product, focus, onClose, catalogue, categories, categoryCount, fees, tenantId, returnDays, agent, keeper, onCreateSection,
 }) {
@@ -257,6 +296,16 @@ export function ProductSheet({
   };
 
   const sections = useMemo(() => (categories ?? []).map((c) => ({ path: c.path, label: c.label })), [categories]);
+
+  // Her Google category saves at once; a product with no section may be placed by it, so the box follows.
+  async function pickGoogle(googleId) {
+    const fresh = await catalogue.setGoogle(product.id, googleId);
+    if (fresh && !touched.current.has('section') && (fresh.section ?? '') !== (form.section ?? '')) {
+      setForm((f) => ({ ...f, section: fresh.section ?? '' }));
+      setArrived(new Set(['section']));
+      setTimeout(() => setArrived(new Set()), 1800);
+    }
+  }
 
   async function makeSection(name) {
     const clean = String(name ?? '').trim();
@@ -627,8 +676,9 @@ export function ProductSheet({
                 {(categories ?? []).map((c) => <option key={c.path} value={c.path}>{c.label}</option>)}
                 <option value={NEW_SECTION}>New section…</option>
               </select>
-              <span className={row.hint}>Where it shows on your shop. Its eBay category stays for Google.</span>
+              <span className={row.hint}>Where it shows on your shop.</span>
             </label>
+            {catalogue.setGoogle && <GoogleCategory product={product} onPick={pickGoogle} />}
             {naming !== null && (
               <form className={row.variantAdd} onSubmit={(e) => { e.preventDefault(); makeSection(naming); }}>
                 <label className={row.field}>

@@ -72,3 +72,6 @@ verify_jwt = true
 # The product sheet's "Check now", with her session.
 [functions.shop-rules]
 verify_jwt = true
+
+[functions.shop-sort]
+verify_jwt = true

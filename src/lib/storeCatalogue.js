@@ -21,6 +21,8 @@ export function filterArgs(tenantId, f = {}) {
     p_dispatch_max: num(f.dispatchMax),
     // An unknown dispatch time leaves on the next dispatch day, which utils/delivery.js treats as zero days.
     p_dispatch_default: 0,
+    // Google's category inside a section (0129): only with one section, never across the whole shop.
+    p_subs: Array.isArray(f.keys) && f.keys.length === 1 ? clean(f.subs) : null,
   };
 }
 
@@ -81,7 +83,7 @@ export async function fetchProduct(tenantId, slug) {
     .from('store_products')
     .select(`
       id, slug, title, description, price, compare_at,
-      image_url, images, category, category_path, section, postage_band,
+      image_url, images, category, category_path, section, google_sub, postage_band,
       status, is_sample, position,
       brand, condition, source_description, specifications, highlights,
       in_the_box, gtin, mpn, availability, stock, dispatch_days,

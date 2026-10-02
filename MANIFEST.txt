@@ -1,24 +1,19 @@
-Cart & Keep, Coverage by route and category, 2026-09-29
-
-Run first, in the Supabase SQL editor:
-  supabase/migrations/0111_store_coverage.sql
-  Your NNNN_store_coverage.sql with three changes: portal read only (select policy, the import writes with the
-  service key), the store_coverage_gap view for the brand list, and an index for reading a reason by rank.
-  Safe to run twice. Run it in place of NNNN, not as well as it.
-
-New
-  src/components/ui/portal/StoreFlow.jsx      the Google route flow: ranked to sent, stops falling away by kind
-  src/components/ui/portal/StoreRoute.jsx     season chips, flow, list by late October, why the rest stopped
-  src/hooks/useStoreCoverage.js               summary counts; a reason's products read 50 at a time when opened
-  src/lib/storeCoverage.js                    stages, reason wording and kinds, in one place
-
-Changed
-  src/pages/portal/CoveragePage.jsx           route switch, Google category tabs, 1,060 line, no batch labels
-  src/components/ui/portal/CoverageFlow.jsx   zoom title and the "fewer cards than searches sent" note
-  src/hooks/useQueryCoverage.js               cards carry category_top_id for the tabs
-  src/pages/portal/CandidatesPage.jsx         ?card=<id> opens that card on its tab and status
-  src/styles/pages/portal/coverage-page.module.css
-  src/styles/ui/portal/coverage-flow.module.css
-
-Tidy
-  0108_candidate_categories.sql and 0109 are the same file. Delete 0108 from the repo; running both did no harm.
+./MANIFEST.txt
+./scripts/categories/fill-product-categories.mjs
+./scripts/categories/load-ebay-map.mjs
+./src/components/ui/portal/product/ProductSheet.jsx
+./src/hooks/useBrowseParams.js
+./src/hooks/useCatalogue.js
+./src/hooks/useCategoryNames.js
+./src/lib/storeCatalogue.js
+./src/pages/portal/CategoriesPage.jsx
+./src/pages/store/CategoryPage.jsx
+./src/pages/store/ProductPage.jsx
+./src/styles/pages/portal/categories-page.module.css
+./src/styles/pages/store/category-page.module.css
+./src/styles/ui/portal/product-row.module.css
+./supabase/functions/google-feed/index.ts
+./supabase/functions/keeper-run/work.ts
+./supabase/functions/shop-sort/index.ts
+./supabase/functions/shop-sort/sort.ts
+./supabase/migrations/0129_sections_on_google.sql

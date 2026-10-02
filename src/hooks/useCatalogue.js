@@ -16,6 +16,7 @@ import { mergeDerived, overridesFor } from '@lib/keeper';
 export const PRODUCT_SELECT = `
   id, tenant_id, slug, title, price, image_url, images, status, is_sample, stock,
   category, category_path, section, brand, description, source_description,
+  google_category_id, google_category_source, google_sub,
   specifications, in_the_box,
   landed_cost, postage_cost, cost_note, cost_updated_at,
   availability, returns_class, returns_note,
@@ -559,8 +560,20 @@ export function useCatalogue(tenantId) {
     return data;
   }, [tenantId]);
 
+  // Her choice of Google category: saved at once as hers, and the row read back, since the database may place it.
+  const setGoogle = useCallback(async (id, googleId) => {
+    const { error } = await supabase.from('store_products')
+      .update({ google_category_id: googleId, google_category_source: 'manual' })
+      .eq('tenant_id', tenantId).eq('id', id);
+    if (error) throw error;
+    const { data: fresh, error: rErr } = await supabase.from('store_products').select(PRODUCT_SELECT).eq('id', id).maybeSingle();
+    if (rErr) throw rErr;
+    if (fresh) setState((s) => ({ ...s, rows: s.rows.map((r) => (r.id === id ? fresh : r)) }));
+    return fresh;
+  }, [tenantId]);
+
   return {
-    ...state, counts, reload: load, checkRules,
+    ...state, counts, reload: load, checkRules, setGoogle,
     publish, unpublish, saveSheet, saveImages, removeImage, create,
     addVariant, saveVariant, removeVariant,
     archive, unarchive,

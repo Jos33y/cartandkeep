@@ -124,6 +124,11 @@ export async function work(client: Db, tenant: string | null, budgetMs = BUDGET_
     if (n === 0) break;
   }
   if (Date.now() < until) checked += await workLoose(client, tenant, until);
+  // Three or more checked products waiting in a Google branch no section covers get a section (0129).
+  if (checked > 0) {
+    const { error } = await client.rpc('keeper_open_sections', { p_tenant: tenant });
+    if (error) console.error('[keeper-run] sections not opened:', error.message);
+  }
   return { checked };
 }
 

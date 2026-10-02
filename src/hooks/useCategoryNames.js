@@ -15,7 +15,7 @@ export function useCategoryNames(tenantId) {
 
     const { data, error } = await supabase
       .from('store_category_map')
-      .select('path, products, live, name, slug, blurb, position, hidden, own, aliases, ebay_name')
+      .select('path, products, live, name, slug, blurb, position, hidden, own, aliases, ebay_name, google_ids, opened_by')
       .eq('tenant_id', tenantId)
       .order('path');
 
@@ -26,6 +26,7 @@ export function useCategoryNames(tenantId) {
       products: Number(r.products),
       live: Number(r.live),
       label: r.name || r.ebay_name,
+      google_ids: r.google_ids ?? [],
     })).sort((a, b) => {
       if (a.position !== null && b.position !== null && a.position !== b.position) return a.position - b.position;
       if (a.position !== null && b.position === null) return -1;
@@ -44,11 +45,11 @@ export function useCategoryNames(tenantId) {
     if (error) throw error;
   }, [tenantId]);
 
-  const create = useCallback(async (name, { reload = true } = {}) => {
+  const create = useCallback(async (name, { reload = true, googleIds = null } = {}) => {
     const clean = String(name ?? '').trim();
     if (!clean) throw new Error('Give the section a name.');
     const path = `own:${crypto.randomUUID().slice(0, 8)}`;
-    await write({ path, name: clean, slug: sectionSlug(clean), own: true });
+    await write({ path, name: clean, slug: sectionSlug(clean), own: true, ...(googleIds ? { google_ids: googleIds } : {}) });
     if (reload) await load();
     return path;
   }, [write, load]);
@@ -62,6 +63,14 @@ export function useCategoryNames(tenantId) {
     await write({ path: dept.path, name: clean, slug, own: true, aliases });
     await load();
   }, [write, load]);
+
+  // The Google branches a section covers; products with no section are placed by them in the database.
+  const setBranches = useCallback(async (path, googleIds, { reload = true } = {}) => {
+    const { error } = await supabase.from('store_category_names').update({ google_ids: googleIds })
+      .eq('tenant_id', tenantId).eq('path', path);
+    if (error) throw error;
+    if (reload) await load();
+  }, [tenantId, load]);
 
   const setHidden = useCallback(async (dept, hidden) => {
     await write({ path: dept.path, hidden });
@@ -109,5 +118,5 @@ export function useCategoryNames(tenantId) {
     if (reload) await load();
   }, [tenantId, load]);
 
-  return { ...state, reload: load, create, rename, setHidden, reorder, move, remove };
+  return { ...state, reload: load, create, rename, setBranches, setHidden, reorder, move, remove };
 }

@@ -6,6 +6,7 @@ import { Card, Tip } from '@components/ui/portal/primitives';
 import { Icon } from '@components/ui/icons';
 import { PageSkeleton } from '@components/ui/portal/Skeleton';
 import { loadTenant } from '@lib/tenant';
+import { categoryPath, loadCategories } from '@lib/categories';
 import { sectionOf } from '@utils/categories';
 import styles from '@styles/pages/portal/categories-page.module.css';
 
@@ -17,6 +18,25 @@ function Thumb({ product, className }) {
   return src
     ? <img className={className} src={src} alt="" loading="lazy" />
     : <span className={`${className} ${styles.thumbEmpty}`} aria-hidden="true" />;
+}
+
+// A Google branch a section covers: its own name, the full path on hover.
+function Branches({ ids, paths }) {
+  const list = (paths ?? ids.map((id) => categoryPath(id))).filter(Boolean);
+  if (!list.length) return null;
+  return (
+    <ul className={styles.branches} aria-label="Google categories it covers">
+      {list.map((path) => (
+        <li key={path} className={styles.branch} title={path}>
+          <svg className={styles.branchMark} viewBox="0 0 12 12" aria-hidden="true">
+            <circle cx="3" cy="2.5" r="1.6" /><circle cx="3" cy="9.5" r="1.6" /><circle cx="9.5" cy="6" r="1.6" />
+            <path d="M3 4v4M3 6h5" fill="none" strokeWidth="1.2" />
+          </svg>
+          {path.split(' > ').pop()}
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 // How close a section is to showing, as the three places it needs.
@@ -98,7 +118,7 @@ function Picker({ dept, products, labels, busy, onMove, onClose }) {
   );
 }
 
-function Section({ dept, index, total, products, labels, busy, run, actions }) {
+function Section({ dept, index, total, products, labels, busy, run, actions, agent }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(dept.name ?? '');
   const [adding, setAdding] = useState(false);
@@ -146,7 +166,14 @@ function Section({ dept, index, total, products, labels, busy, run, actions }) {
         /c/{dept.slug}
         <span aria-hidden="true"> </span>
         <span data-num>{plural(dept.products, 'product')}</span>
+        {dept.opened_by === 'keeper' && (
+          <span className={styles.opened}><Icon name="IconKeeper" width="13" height="13" />Opened by {agent}</span>
+        )}
       </p>
+
+      {(dept.google_ids ?? []).length
+        ? <Branches ids={dept.google_ids} />
+        : <p className={styles.noBranch}>Covers no Google category yet, so new products never land here on their own.</p>}
 
       <Threshold live={dept.live} hidden={dept.hidden} />
 
@@ -225,8 +252,8 @@ function SortReview({ proposal, setProposal, products, departments, agent, busy,
       <div className={styles.reviewHead}>
         <h2 className={styles.reviewTitle}>{agent}&apos;s sections</h2>
         <p className={styles.hint}>
-          Read from your shop{proposal.coming ? <> and <span data-num>{proposal.coming}</span> eBay listings still to come</> : null}.
-          Rename any section or move any product, then apply. Old addresses keep working.
+          Built on Google&apos;s categories for your shop and your research{proposal.coming ? <>, and <span data-num>{proposal.coming}</span> eBay listings still to come</> : null}.
+          Rename any section or move any product, then apply. New products find their section on their own. Old addresses keep working.
         </p>
       </div>
 
@@ -241,6 +268,7 @@ function SortReview({ proposal, setProposal, products, departments, agent, busy,
                   {existing.has(x.name.trim().toLowerCase()) ? 'Yours' : 'New'}
                 </span>
               </div>
+              <Branches ids={x.google_ids} paths={x.branches} />
               {x.why && <p className={styles.hint}>{x.why}</p>}
               <ul className={styles.reviewList}>
                 {inside.map((p) => (
@@ -261,6 +289,12 @@ function SortReview({ proposal, setProposal, products, departments, agent, busy,
         })}
       </div>
 
+      {proposal.unplaced > 0 && (
+        <p className={styles.hint}>
+          <span data-num>{plural(proposal.unplaced, 'product')}</span> {proposal.unplaced === 1 ? 'has' : 'have'} no Google category {agent} is sure of, or one no section covers.
+          Change it on the product, or move it here.
+        </p>
+      )}
       {unplaced.length > 0 && (
         <p className={styles.hint}>
           Stays where it is: {unplaced.map((p) => p.title).slice(0, 3).join(', ')}{unplaced.length > 3 ? ` and ${unplaced.length - 3} more` : ''}.
@@ -286,6 +320,13 @@ export function CategoriesPage() {
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
   const sections = useCategoryNames(tenant?.id);
+  // Names for the Google branches the sections cover, read once per set.
+  const [, setNamed] = useState(0);
+  const branchKey = sections.departments.flatMap((d) => d.google_ids ?? []).sort((a, b) => a - b).join(',');
+  useEffect(() => {
+    if (!branchKey) return;
+    loadCategories(branchKey.split(',').map(Number), false).then(() => setNamed((n) => n + 1)).catch(() => {});
+  }, [branchKey]);
   const catalogue = useCatalogue(tenant?.id);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState(null);
@@ -299,12 +340,17 @@ export function CategoriesPage() {
     setSorting(true);
     setNote(null);
     try {
-      const { data, error } = await supabase.functions.invoke('draft', { body: { sort: true, tenant_id: tenant.id } });
-      if (error || data?.error) throw new Error(data?.error ?? error.message);
+      const { data, error } = await supabase.functions.invoke('shop-sort', { body: { tenant_id: tenant.id } });
+      if (error) {
+        const said = await error.context?.json?.().catch(() => null);
+        throw new Error(said?.error ?? error.message);
+      }
+      if (data?.error) throw new Error(data.error);
       setProposal({
-        sections: data.sections.map((x, i) => ({ key: i, name: x.name, why: x.why })),
+        sections: data.sections.map((x, i) => ({ key: i, name: x.name, why: x.why, google_ids: x.google_ids, branches: x.branches })),
         placed: new Map(data.placements.map((pl) => [pl.id, data.sections.findIndex((x) => x.name === pl.section)])),
         coming: data.coming,
+        unplaced: data.unplaced ?? 0,
       });
     } catch (e) {
       setNote({ ok: false, text: e?.message ?? `${agent} could not sort. Try again.` });
@@ -321,7 +367,9 @@ export function CategoriesPage() {
       const name = x.name.trim();
       if (!name) throw new Error('Every section needs a name.');
       const have = byName.get(name.toLowerCase());
-      const path = have ? have.path : await sections.create(name, { reload: false });
+      const ids = x.google_ids ?? [];
+      if (have && JSON.stringify(have.google_ids ?? []) !== JSON.stringify(ids)) await sections.setBranches(have.path, ids, { reload: false });
+      const path = have ? have.path : await sections.create(name, { reload: false, googleIds: ids });
       target.set(x.key, have ?? { path, slug: sectionSlug(name), aliases: [], label: name });
     }
 
@@ -415,8 +463,9 @@ export function CategoriesPage() {
         </div>
         <span className={styles.headActions}>
           <Tip side="end">
-            Sections are the departments across the top of the shop, and they are yours alone. A product's eBay
-            category is only a clue for {agent}; Google still gets the eBay category.
+            Sections are the departments across the top of the shop, and they are yours alone. Each covers some of
+            Google&apos;s categories, so a new product finds its section on its own, and Google reads the shop the way it
+            reads the products.
           </Tip>
           {!proposal && (
             <button type="button" className={styles.quiet} disabled={sorting || busy} onClick={askSort}>
@@ -457,7 +506,7 @@ export function CategoriesPage() {
       <div className={styles.grid}>
         {sections.departments.map((d, i) => (
           <Section key={d.path} dept={d} index={i} total={sections.departments.length}
-            products={products} labels={labels} busy={busy} run={run} actions={actions} />
+            products={products} labels={labels} busy={busy} run={run} actions={actions} agent={agent} />
         ))}
       </div>
 

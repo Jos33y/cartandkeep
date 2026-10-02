@@ -148,6 +148,11 @@ export function ProductPage() {
   const path = STORE_ROUTES.PRODUCT.replace(':slug', product.slug);
   const trail = [{ name: 'Shop', path: '/' }];
   if (sectionGroup) trail.push({ name: section, path: categoryPath(sectionGroup.slug) });
+  // Google's category inside her section, as the shelf's own filter: Care and Mobility > Incontinence Aids.
+  const sub = sectionGroup && product.google_sub
+    ? { name: product.google_sub.split(' > ').pop(), path: `${categoryPath(sectionGroup.slug)}?sub=${encodeURIComponent(product.google_sub)}` }
+    : null;
+  if (sub) trail.push(sub);
   trail.push({ name: product.title, path });
   const schema = { '@context': 'https://schema.org', '@graph': [productSchema(product, { path }), breadcrumbSchema(trail)].map(({ '@context': _, ...node }) => node) };
 
@@ -185,6 +190,12 @@ export function ProductPage() {
             <>
               <ChevronRightIcon size={13} />
               {sectionGroup ? <Link to={categoryPath(sectionGroup.slug)}>{section}</Link> : <span>{section}</span>}
+            </>
+          )}
+          {sub && (
+            <>
+              <ChevronRightIcon size={13} />
+              <Link to={sub.path}>{sub.name}</Link>
             </>
           )}
           <ChevronRightIcon size={13} />

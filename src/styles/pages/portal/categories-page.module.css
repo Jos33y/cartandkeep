@@ -281,3 +281,23 @@
 @media (prefers-reduced-motion: reduce) {
   .review { animation: none; }
 }
+
+/* The Google branches a section covers, in the office ink, quieter than her own words. */
+.branches { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.branch {
+  display: inline-flex; align-items: center; gap: 5px; max-width: 100%; min-height: 24px; padding: 0 8px;
+  border: 1px solid color-mix(in srgb, #2d5592 22%, transparent); border-radius: 999px;
+  background: color-mix(in srgb, #2d5592 7%, var(--c-surface)); color: #2d5592;
+  font-size: var(--t-micro); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.branchMark { flex: none; width: 11px; height: 11px; fill: currentColor; stroke: currentColor; }
+.opened { display: inline-flex; align-items: center; gap: 4px; color: #2d5592; font-weight: 500; }
+.noBranch { margin: 0; font-size: var(--t-caption); color: var(--c-ink-faint); }
+/* On a phone the actions wrap to the left edge, so the explanation opens rightwards and stays on screen. */
+@media (max-width: 700px) { .headActions [data-side] [role='tooltip'][id] { left: -6px; right: auto; max-width: calc(100vw - 2 * var(--s-4)); } }
+/* A phone: the head stacks and the two actions share the width, so neither runs off the edge. */
+@media (max-width: 520px) {
+  .head { flex-direction: column; align-items: stretch; gap: var(--s-3); }
+  .headActions { flex-wrap: wrap; }
+  .headActions > button { flex: 1 1 auto; justify-content: center; }
+}

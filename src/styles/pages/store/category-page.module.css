@@ -153,3 +153,41 @@ ul.skeletons[data-density='dense'] { --card-min: 164px; }
   ul.skeletons { --card-min: 160px; }
   ul.skeletons[data-density='dense'] { --card-min: 136px; }
 }
+
+/* Inside a section: Google's next level as a row of tabs that scrolls sideways on a phone rather than wrapping. */
+.subs {
+  display: flex;
+  gap: var(--s-2);
+  margin: var(--s-3) calc(-1 * var(--s-4)) 0;
+  padding: 2px var(--s-4) 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-padding: 0 var(--s-4);
+}
+.subs::-webkit-scrollbar { display: none; }
+@media (min-width: 900px) { .subs { flex-wrap: wrap; margin: var(--s-3) 0 var(--s-4); padding: 2px 0 0; overflow: visible; } }
+
+.sub {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-full);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font-size: var(--t-caption);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease), color 140ms var(--ease);
+}
+.sub:hover { border-color: var(--c-ink-soft); }
+.sub:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+.sub[aria-pressed='true'] { border-color: var(--c-ink); background: var(--c-ink); color: var(--c-on-dark); }
+
+.subCount { font-weight: 500; color: var(--c-faint); font-variant-numeric: tabular-nums; }
+.sub[aria-pressed='true'] .subCount { color: color-mix(in srgb, var(--c-on-dark) 70%, transparent); }
+
+@media (prefers-reduced-motion: reduce) { .sub { transition: none; } }

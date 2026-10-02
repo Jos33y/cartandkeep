@@ -27,7 +27,15 @@ function availabilityOf(availability: string | null, stock: unknown): string | n
 
 type Row = Record<string, any>;
 
-function item(p: Row, v: Row | null, skipped: string[]): string | null {
+// Her section by name, then the Google filter inside it: "Care and Mobility > Incontinence Aids".
+function typeOf(p: Row, sections: Map<string, string>): string | null {
+  const section = p.section ? sections.get(p.section) ?? null : null;
+  if (!section) return null;
+  const sub = p.google_sub ? String(p.google_sub).split(' > ').pop() : null;
+  return sub ? `${section} > ${sub}` : section;
+}
+
+function item(p: Row, v: Row | null, skipped: string[], sections: Map<string, string>): string | null {
   const price = Number(v?.price ?? p.price);
   const availability = availabilityOf(v?.availability ?? p.availability ?? null, v ? v.stock : p.stock);
   const images: string[] = (Array.isArray(p.images) && p.images.length ? p.images : [p.image_url]).filter(Boolean);
@@ -54,7 +62,9 @@ function item(p: Row, v: Row | null, skipped: string[]): string | null {
     gtin ? `<g:gtin>${esc(gtin)}</g:gtin>` : null,
     p.mpn ? `<g:mpn>${esc(p.mpn)}</g:mpn>` : null,
     !gtin && !(p.brand && p.mpn) ? '<g:identifier_exists>no</g:identifier_exists>' : null,
-    p.section ? `<g:product_type>${esc(p.section)}</g:product_type>` : null,
+    // Google's own category, when it was read from eBay, the title or her; the default is Google's to guess.
+    p.google_category_id && p.google_category_source !== 'default' ? `<g:google_product_category>${esc(p.google_category_id)}</g:google_product_category>` : null,
+    typeOf(p, sections) ? `<g:product_type>${esc(typeOf(p, sections))}</g:product_type>` : null,
     v ? `<g:item_group_id>${esc(p.id)}</g:item_group_id>` : null,
   ].filter(Boolean);
   return `<item>\n  ${lines.join('\n  ')}\n</item>`;
@@ -78,10 +88,13 @@ Deno.serve(async () => {
   const byProduct = new Map<string, Row[]>();
   for (const v of variants ?? []) byProduct.set(v.product_id, [...(byProduct.get(v.product_id) ?? []), v]);
 
+  const { data: names } = await db.from('store_category_names').select('path, name').eq('tenant_id', tenant.id).eq('own', true);
+  const sections = new Map((names ?? []).map((n) => [String(n.path), String(n.name)]));
+
   const skipped: string[] = [];
   const items = (products ?? []).flatMap((p) => {
     const vs = byProduct.get(p.id) ?? [];
-    return vs.length ? vs.map((v) => item(p, v, skipped)) : [item(p, null, skipped)];
+    return vs.length ? vs.map((v) => item(p, v, skipped, sections)) : [item(p, null, skipped, sections)];
   }).filter(Boolean);
 
   const xml = [

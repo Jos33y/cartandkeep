@@ -30,7 +30,7 @@ export const RESTRICTED = {
   // Sleep products against safe-sleep advice (The Lullaby Trust): nests, pods, positioners, wedges, pillows, bumpers
   // and weighted sleep products. Anti-roll changing mats are not sleep products and pass (NOT_RESTRICTED in
   // ../restricted.mjs).
-  sleep_safety: String.raw`\b(baby ?nests?|babynests?|sleep ?(?:positioners?|wedges?|nests?)|positioners?|dock ?a ?tot|sleepyhead|cocoonababy|purflo|sleepcarrier|dreamcradle|anti[- ]?roll (?:pillows?|cushions?|wedges?)|weighted (?:sleep ?(?:bags?|sacks?|suits?)|swaddles?|blankets?)|reflux (?:sleep|wedges?|pillows?|cradles?)|baby (?:sleep )?pillows?|(?:cot|crib) bumpers?|bumpers? for (?:cots?|cribs?)|(?:cot|crib) wedges?|flat head pillows?|head shaping pillows?)\b`,
+  sleep_safety: String.raw`\b(baby ?nests?|babynests?|sleep ?(?:positioners?|wedges?|nests?)|positioners?|dock ?a ?tot|sleepyhead|cocoonababy|purflo|sleepcarrier|dreamcradle|cosymorpho|morpho ?mattress|anti[- ]?roll (?:pillows?|cushions?|wedges?)|weighted (?:sleep ?(?:bags?|sacks?|suits?)|swaddles?|blankets?)|reflux (?:sleep|wedges?|pillows?|cradles?)|baby (?:sleep )?pillows?|(?:cot|crib) bumpers?|bumpers? for (?:cots?|cribs?)|(?:cot|crib) wedges?|flat head pillows?|head shaping pillows?)\b`,
   // Baby medicines the shared list does not name: teething gels and powders, colic drops, gripe water and licensed
   // nappy rash ointment. Probiotic and vitamin drops are food supplements and pass.
   // First and follow-on milks the shared rule misses: comfort, hungry, anti-reflux and allergy formulas (FSMP, used

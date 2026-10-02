@@ -88,6 +88,9 @@ export function CategoryPage({ everything = false }) {
     if (filters.q && browse.status === 'ready' && browse.total !== null) trackSearch(filters.q, browse.total);
   }, [filters.q, browse.status, browse.total]);
 
+  // Filters inside a section, only when there are two or more to choose between.
+  const subs = !everything && Array.isArray(facets?.subs) ? facets.subs : [];
+
   const activeCount = (filters.q ? 1 : 0) + (filters.min !== null || filters.max !== null ? 1 : 0)
     + (filters.dispatchMax !== null ? 1 : 0) + (filters.inStock ? 1 : 0) + filters.brands.length;
 
@@ -146,6 +149,24 @@ export function CategoryPage({ everything = false }) {
       {/* No section tabs here: the header's shelf rail already carries them on every page, and a second row cost the short laptop its first row of products. */}
       <CategoryHeader name={name} count={count} priceMin={priceMin} priceMax={priceMax} arrives={arrives} />
 
+      {/* Inside a section, the next level of Google's categories, so a shopper narrows the shelf in one tap. */}
+      {subs.length >= 2 && (
+        <nav className={styles.subs} aria-label={`Inside ${name}`}>
+          <button type="button" className={styles.sub} aria-pressed={!filters.subs.length} onClick={() => update({ subs: [] })}>
+            All{count ? <span className={styles.subCount} data-num>{count}</span> : null}
+          </button>
+          {subs.map((x) => {
+            const on = filters.subs.includes(x.path);
+            return (
+              <button key={x.path} type="button" className={styles.sub} aria-pressed={on}
+                onClick={() => update({ subs: on ? [] : [x.path] })}>
+                {x.name}<span className={styles.subCount} data-num>{x.count}</span>
+              </button>
+            );
+          })}
+        </nav>
+      )}
+
       <div className={styles.layout}>
         <aside className={styles.rail} aria-label="Filters">{panel}</aside>
 
@@ -188,6 +209,7 @@ export function CategoryPage({ everything = false }) {
                 )}
                 <div className={styles.emptyActions}>
                   {filters.q && <button type="button" onClick={() => update({ q: null })}>Remove “{filters.q}”</button>}
+                  {filters.subs.length > 0 && <button type="button" onClick={() => update({ subs: [] })}>All of {name}</button>}
                   {filters.brands.length > 0 && <button type="button" onClick={() => update({ brands: [] })}>Any brand</button>}
                   {(filters.min !== null || filters.max !== null) && <button type="button" onClick={() => update({ min: null, max: null })}>Any price</button>}
                   {filters.inStock && <button type="button" onClick={() => update({ inStock: false })}>Include out of stock</button>}
