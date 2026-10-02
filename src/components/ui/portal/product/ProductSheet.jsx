@@ -153,7 +153,7 @@ function buildPatch(product, form, checks, draft) {
     derived.returns_by = 'her';
   }
 
-  if (needsLabel(product) && (form.hazardNone || form.signal)) {
+  if ((needsLabel(product) || product.hazard) && (form.hazardNone || form.signal)) {
     delete derived.hazard_suspect;
     delete derived.hazard_draft;
     derived.hazard_checked = true;
@@ -418,6 +418,9 @@ export function ProductSheet({
   // What Keeper's check left for her on this product, in a line each.
   const check = product.derived_fields?.check ?? null;
   const checkNotes = [
+    check?.same_as_live && {
+      key: 'live', text: `${agent} thinks this is already on your shop as "${check.same_as_live.title}". Keep one, archive the other.`,
+    },
     check?.suggested_title && form.title !== check.suggested_title && {
       key: 'title', use: check.suggested_title,
       text: `${agent} suggests "${check.suggested_title}", but it needs you: ${(check.title_problems ?? []).join(', ')}.`,
@@ -431,6 +434,7 @@ export function ProductSheet({
     check?.corrections?.length > 0 && {
       key: 'fix', text: `${agent} corrected its own description: ${check.corrections.map((c) => `${c.says} is ${c.facts}`).join('; ')}.`,
     },
+    ...(check?.notes ?? []).map((text, i) => ({ key: `note-${i}`, text })),
   ].filter(Boolean);
 
   const openAnswers = (checks?.decide ?? []).filter((q) => !(form.answers[q.id] ?? q.answer)).length;
@@ -677,13 +681,15 @@ export function ProductSheet({
             </label>
           </div>
         ) },
-        needsLabel(product) && { key: 'hazard', title: 'Label warning', body: (
+        (needsLabel(product) || product.hazard || rules?.chemical) && { key: 'hazard', title: 'Label warning', body: (
           <div className={row.panel}>
             <p className={row.guessed}>
-              If the bottle has a warning label, the shop has to show the same warning next to the price.
-              {product.derived_fields?.hazard_draft && !product.hazard
-                ? ` ${agent} read this from ${product.derived_fields?.hazard_draft?.read_from ?? 'the product facts'}. Check it against the bottle, then save.`
-                : ' Copy across what is printed on it.'}
+              When the label carries a warning, the shop shows the same warning next to the price.
+              {product.derived_fields?.hazard_by === 'keeper'
+                ? ` ${agent} read this from ${product.derived_fields?.hazard_read_from ?? 'the photographs'}. Change anything that is wrong.`
+                : product.derived_fields?.hazard_draft && !product.hazard
+                  ? ` ${agent} read this from ${product.derived_fields?.hazard_draft?.read_from ?? 'the product facts'}.`
+                  : ' Add it when you have it.'}
             </p>
             {rules?.chemical_reason && (
               <p className={row.hint}>

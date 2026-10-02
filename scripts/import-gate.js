@@ -41,7 +41,7 @@ import { envKey, proposeShops } from './lib/shops.js';
 import { entryKeepOf, listingsOf, refusalsOf } from './lib/refusals.js';
 import { BAND_LABEL, entryRank, buildRow, listPrice, matchOf, titleOf } from './lib/row.js';
 import { MARKET, refreshMarket, writeCoverage } from './lib/persist.js';
-import { ebayAtWeight } from '../src/lib/pricing.js';
+import { ebayWeight, recostEbay, weighGateRow } from './lib/weight.js';
 import { categorise } from './categories/categorise.mjs';
 
 export { listPrice, buildRow, parseCsv, readShelf };
@@ -73,9 +73,15 @@ function addEbay(db, card, gated) {
     image_url: card.image_url ?? gated.image_url ?? null,
     margin: {
       ...card.margin,
-      // Re-costed for the product's weight where the store card knows it, not the gate's run band.
+      // Re-costed for the product's weight, not the gate's run band: the eBay listing's weight first, then the
+      // store card's, the shop page name and the title (scripts/lib/weight.js).
       ebay: {
-        ...ebayAtWeight(gated.margin, card.margin?.postage_band?.grams),
+        ...recostEbay(gated.margin, ebayWeight({
+          listingTitle: gated.entry?.title,
+          store: card.margin?.postage_band,
+          pageName: card.margin?.cost_from?.product,
+          title: gated.title,
+        })).margin,
         shelf: card.margin?.cost_from ? { ...card.margin.cost_from, price: card.margin.cost } : gated.margin.shelf,
         match: card.margin?.cost != null ? packAgainst(card.margin, gated.entry?.title) ?? UNKNOWN_PACK : gated.margin.match,
       },
@@ -215,6 +221,9 @@ async function main() {
       shops: shopsBy.get(titleOf(r.query)) ?? null,
       product: pages.get(shelf.get((r.query || '').trim())?.url) ?? null,
     }))
+    // The run costed every row at one band. A weight on the row (the listing title, the shelf name, the query)
+    // raises it: a 14kg tub is not an Evri to 5kg parcel.
+    .map((row) => weighGateRow(row))
     .sort((a, b) => {
       const [ba, ra] = entryRank(a);
       const [bb, rb] = entryRank(b);
@@ -262,6 +271,11 @@ async function main() {
   console.log(`  ${refused} refused by the gate`
     + (minGoods == null ? '' : `, ${unsourceable} passed but nothing can be bought under £${minGoods.toFixed(2)}`));
   if (collapsed) console.log(`  ${collapsed} folded into another query, same listing underneath`);
+  const reweighed = rows.filter((r) => r.margin.postage_basis === 'weight' || r.margin.courier_only);
+  if (reweighed.length) {
+    const courier = reweighed.filter((r) => r.margin.courier_only).length;
+    console.log(`  ${reweighed.length} re-costed for their weight, not the run band${courier ? ` (${courier} over 20kg, courier only)` : ''}`);
+  }
   console.log(`  ${rows.filter((r) => r.entry?.proved).length} where a small seller is selling, `
     + `${rows.filter((r) => r.entry && !r.entry.proved).length} selling but only to bigger accounts (*)\n`);
 
@@ -317,7 +331,7 @@ async function main() {
   for (const r of rows) r.tenant_id = tenant.id;
 
   if (refresh) {
-    await refreshMarket(db, tenant.id, deliveredFor, rows, coverage, term);
+    await refreshMarket(db, tenant.id, deliveredFor, rows, coverage, term, refreshDecided);
     return;
   }
 

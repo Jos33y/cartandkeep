@@ -14,7 +14,7 @@ sealed    Goods not suitable for return once unsealed, for health or hygiene rea
 none      Consumables and perishables: food, drink, supplements. Anything made to order or personalised.
 Choose standard unless the goods clearly fall in an exception. Wrongly refusing a return denies a customer a right they have in law, which is the worse error, so when the goods are ambiguous the answer is standard. Judge the goods, not the packaging. Cleaning chemicals are ordinary goods, so they are standard.
 
-CHEMICAL. Is it a chemical product that may carry a GB CLP hazard label: cleaners, bleach, descalers, drain unblockers, disinfectants, pest and weed killers, glues and sealants, paints, varnishes, oils and solvents, fuels, lamp oil, aerosols, battery acid, pool and garden chemicals, dishwasher and laundry products. Tools, appliances, furniture, clothing, food and ordinary cosmetics are not. Say true when it is such a product, even if the facts give no label, because she must check the bottle.
+CHEMICAL. Is it a chemical product that may carry a GB CLP hazard label: cleaners, bleach, descalers, drain unblockers, disinfectants, pest and weed killers, glues and sealants, paints, varnishes, oils and solvents, fuels, lamp oil, aerosols, battery acid, pool and garden chemicals, dishwasher and laundry products. Tools, appliances, furniture, clothing, food and ordinary cosmetics are not. Say true when it is such a product, even if the facts give no label, because its warnings belong on the shop page when they can be found.
 
 LABEL. Only what is printed in the facts or clearly legible on a photograph of the label: the signal word (Warning or Danger), the hazard statements with their codes as printed (H315 Causes skin irritation, EUH208 Contains ...), the precautionary statements with their codes (P102 Keep out of reach of children), the hazard pictograms by GHS code (GHS02 flame, GHS05 corrosion, GHS07 exclamation mark, GHS09 environment, and so on), and an HSE number for a biocide. Never write a statement, a code or a symbol that is not given: an empty list is the right answer when the label cannot be read. Say where you read it in one short phrase.
 
@@ -48,7 +48,7 @@ export const RULES_TOOL = {
 };
 
 const clip = (v: unknown, n: number) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
-const dashless = (s: string) => s.replace(/[‒-―]/g, ',').replace(/\s+,/g, ',');
+const dashless = (s: string) => s.replace(/[\u2012-\u2015]/g, ',').replace(/\s+,/g, ',');
 
 // Statements as printed, with their codes: a line without a code is a sentence, not a label element.
 const H = /^(EUH\s?\d{3}[A-Z]?|H\d{3}[A-Za-z]{0,2}(\s?\+\s?H\d{3}[A-Za-z]{0,2})*)\b/;
@@ -87,7 +87,7 @@ export function tidyRules(input: Json, at = new Date().toISOString()) {
       biocide,
       chemical_reason: dashless(clip(input?.chemical_reason, 240)),
     },
-    // Only what was read off the label; null when nothing was, so she copies it from the bottle.
+    // Only what was read off the label; null when nothing could be read.
     hazard_draft: chemical && read ? { signal, h, p, pictograms, biocide_reg_no: hse, read_from: dashless(clip(label.read_from, 120)) || null } : null,
   };
 }

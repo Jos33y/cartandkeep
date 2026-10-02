@@ -3,7 +3,7 @@
 // judge the same way.
 import { askTool } from './claude.ts';
 import { itemFactsOf, listingOf } from './product.ts';
-import { CHECK_SYSTEM, CHECK_TOOL, LABEL_SYSTEM, LABEL_TOOL, checkFacts, costPence, duplicates, settle, tokensOf } from './shop-check.ts';
+import { CHECK_SYSTEM, CHECK_TOOL, LABEL_SYSTEM, LABEL_TOOL, checkFacts, costPence, duplicates, liveMatches, settle, tokensOf } from './shop-check.ts';
 
 type Json = Record<string, any>;
 // The calls made on the database here: any Supabase client works.
@@ -32,9 +32,23 @@ const PRICES = {
 };
 
 const PRODUCT_FIELDS = 'id, tenant_id, status, archived_at, title, slug, brand, gtin, category_path, description, in_the_box, '
-  + 'specifications, source_description, source_kind, image_url, images, derived_fields, candidate_id, hazard, updated_at';
+  + 'specifications, source_description, source_kind, source_ref, image_url, images, derived_fields, candidate_id, hazard, '
+  + 'biocide_reg_no, price, stock, availability, updated_at';
 
-// What one run reads once: her last changes to Keeper's work, and which of its drafts look like the same product.
+// Everything on sale now, for the same-product check: a few hundred short rows, read once a call.
+async function liveProducts(client: Db, tenantId: string) {
+  const rows: Json[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data } = await client.from('store_products').select('id, title, gtin, source_ref')
+      .eq('tenant_id', tenantId).eq('status', 'live').range(from, from + 999);
+    rows.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
+  return rows;
+}
+
+// What one run reads once: her last changes to Keeper's work, which of its drafts look like the same product, and
+// what is on sale already.
 export async function contextFor(client: Db, tenantId: string, runId: string | null) {
   const { data: overrides } = await client.from('keeper_overrides').select('field, keeper_value, her_value')
     .eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(20);
@@ -49,7 +63,7 @@ export async function contextFor(client: Db, tenantId: string, runId: string | n
     }
     dups = duplicates(rows);
   }
-  return { overrides: overrides ?? [], dups };
+  return { overrides: overrides ?? [], dups, live: await liveProducts(client, tenantId) };
 }
 
 async function ask(system: string, tool: Json, text: string, images: string[], maxTokens: number) {
@@ -74,6 +88,11 @@ async function ask(system: string, tool: Json, text: string, images: string[], m
 // One draft, checked. Returns the job's result; throws only for a retry.
 export async function checkOne(client: Db, job: Json, run: Json | null, ctx: Awaited<ReturnType<typeof contextFor>>): Promise<{ state: string; result: Json; cost?: number }> {
   const started = Date.now();
+  // Where Keeper is with this draft, for the office's desk: real steps, written as they happen. Never fatal.
+  const phase = async (name: string) => {
+    if (!job?.id) return;
+    try { await client.from('keeper_jobs').update({ result: { phase: name } }).eq('id', job.id).eq('state', 'working'); } catch { /* the desk waits */ }
+  };
   const { data } = await client.from('store_products').select(PRODUCT_FIELDS).eq('id', job.product_id).maybeSingle();
   const p = data as Json | null;
   if (!p || p.status !== 'draft' || p.archived_at) {
@@ -85,30 +104,37 @@ export async function checkOne(client: Db, job: Json, run: Json | null, ctx: Awa
     const { data } = await client.from('candidates').select('id, listing, draft').eq('id', p.candidate_id).maybeSingle();
     card = data ?? null;
   }
-  const facts = checkFacts(p, ctx.overrides, card ? listingOf(card) : null, card ? itemFactsOf(card) : null);
+  const twins = liveMatches(p, ctx.live ?? []);
+  const facts = checkFacts(p, ctx.overrides, card ? listingOf(card) : null, card ? itemFactsOf(card) : null, twins.similar);
   const images = [...new Set([...(Array.isArray(p.images) ? p.images : []), p.image_url].filter((u) => typeof u === 'string' && /^https:\/\//.test(u)))].slice(0, PHOTOS) as string[];
 
-  const first = await ask(CHECK_SYSTEM, CHECK_TOOL, facts, [], 1600);
+  await phase('words');
+  const first = await ask(CHECK_SYSTEM, CHECK_TOOL, facts, [], 2000);
   let cost = costPence(first.payload.usage, PRICES);
   const tokens = [tokensOf(first.payload.usage)];
 
   let label: Json | null = null;
   if ((first.input.chemical === true || first.input.needs_photos === true) && images.length) {
+    await phase('photos');
     const second = await ask(LABEL_SYSTEM, LABEL_TOOL, facts, images, 900);
     label = second.input;
     cost += costPence(second.payload.usage, PRICES);
     tokens.push(tokensOf(second.payload.usage));
   }
 
-  const s = settle(p, first.input, label, facts, ctx.dups.get(String(p.id)) ?? []);
+  await phase('writing');
+  const s = settle(p, first.input, label, facts, { partners: ctx.dups.get(String(p.id)) ?? [], live: twins.similar, certain: twins.certain });
   const result: Json = {
     tray: s.tray,
     line: s.line,
+    why: s.why,
     product_title: p.title,
     image: images[0] ?? null,
     title_before: p.title,
     title: s.title,
+    slug: s.slug,
     returns: s.returns,
+    same_as: s.patch.check?.same_as_live ?? null,
     chemical: Boolean(s.patch.rules?.chemical),
     read_photos: Boolean(label),
     ms: Date.now() - started,
@@ -118,9 +144,9 @@ export async function checkOne(client: Db, job: Json, run: Json | null, ctx: Awa
   };
 
   if (!run?.rehearsal) {
-    const keepReturns = 'returns_class' in s.patch || s.returns === 'standard';
     const { data: wrote, error } = await client.rpc('set_keeper_check', {
-      p_id: p.id, p_seen: p.updated_at, p_derived: s.patch, p_returns: keepReturns ? s.returns : null, p_title: s.title, p_slug: s.slug,
+      p_id: p.id, p_seen: p.updated_at, p_derived: s.patch, p_returns: s.returns, p_title: s.title, p_slug: s.slug,
+      p_hazard: s.hazard, p_biocide_reg: s.biocideReg, p_description: s.description, p_specs: s.specs,
     });
     if (error) throw new Error(error.message);
     if (wrote === 'changed') {

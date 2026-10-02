@@ -3,8 +3,9 @@ import { Link } from 'react-router';
 import { PageSkeleton } from '@components/ui/portal/Skeleton';
 import { Icon } from '@components/ui/icons';
 import { useKeeperRun } from '@hooks/useKeeperRun';
+import { useAccount } from '@hooks/useAccount';
 import { PRODUCT_SELECT, isReady } from '@hooks/useCatalogue';
-import { TRAYS, pounds, timeLeft } from '@lib/keeper';
+import { SELLABLE, TRAYS, pounds, timeLeft, trayOf } from '@lib/keeper';
 import { loadTenant } from '@lib/tenant';
 import { supabase } from '@lib/supabase';
 import { portalPath } from '@utils/constants';
@@ -21,6 +22,9 @@ const photoOf = (p, job) => job?.result?.image ?? p?.image_url ?? (Array.isArray
 const small = (url) => (url ? url.replace(/\/s-l\d+\./, '/s-l140.') : null);
 const productUrl = (id) => portalPath(`/products?open=${id}`);
 const trayMeta = (key) => TRAYS.find((t) => t.key === key) ?? null;
+// Where Keeper is with the draft in hand, as the server writes it (keeper-check.ts). The photos step happens only
+// for a chemical or an unclear product, so it is shown as passed over when Keeper goes straight to writing.
+const PHASES = [['words', 'Reading the title and description'], ['photos', 'Looking at the photographs'], ['writing', 'Writing it up']];
 
 // Keeper's mark: the shop's stamp with a K. It tilts while reading, presses down on a verdict.
 function Stamp({ state = 'idle', size = 56, tone = null }) {
@@ -46,6 +50,7 @@ export function KeeperPage() {
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
   const agent = tenant?.store?.agent?.name || 'Keeper';
   const k = useKeeperRun(tenant?.id);
+  const { isStudio } = useAccount();
   const { run, jobs, products, totals, waiting } = k;
 
   if (tenant === undefined || run === undefined) return <PageSkeleton rows={5} />;
@@ -53,21 +58,21 @@ export function KeeperPage() {
   const live = Boolean(run && (run.state === 'running' || run.state === 'paused'));
   return (
     <div className={styles.page} data-wide>
-      <Header agent={agent} run={run} live={live} totals={totals} />
+      <Header agent={agent} run={run} live={live} totals={totals} studio={isStudio} />
       {k.error && <p className={styles.error} role="alert">{k.error}</p>}
       {live
-        ? <Floor agent={agent} run={run} jobs={jobs} products={products} totals={totals} onSet={k.set} />
+        ? <Floor agent={agent} run={run} jobs={jobs} products={products} totals={totals} onSet={k.set} studio={isStudio} />
         : (
           <>
-            {run && <Report agent={agent} run={run} jobs={jobs} products={products} totals={totals} tenantId={tenant?.id} onDone={k.reload} />}
-            <Start agent={agent} waiting={waiting} last={run} onStart={k.start} />
+            {run && <Report agent={agent} run={run} jobs={jobs} products={products} totals={totals} tenantId={tenant?.id} onDone={k.reload} studio={isStudio} />}
+            <Start agent={agent} waiting={waiting} last={run} onStart={k.start} studio={isStudio} />
           </>
         )}
     </div>
   );
 }
 
-function Header({ agent, run, live, totals }) {
+function Header({ agent, run, live, totals, studio }) {
   const total = run?.total ?? 0;
   return (
     <header className={styles.head}>
@@ -89,17 +94,19 @@ function Header({ agent, run, live, totals }) {
             <dt>Left</dt>
             <dd>{timeLeft(totals.left, totals.avgMs, run.pace) ?? 'finishing'}</dd>
           </div>
-          <div className={styles.stat}>
-            <dt>Spent</dt>
-            <dd data-num>{pounds(run.spent_pence)}<small> of {pounds(run.cap_pence)}</small></dd>
-          </div>
+          {studio && (
+            <div className={styles.stat}>
+              <dt>Spent</dt>
+              <dd data-num>{pounds(run.spent_pence)}<small> of {pounds(run.cap_pence)}</small></dd>
+            </div>
+          )}
         </dl>
       )}
     </header>
   );
 }
 
-function Floor({ agent, run, jobs, products, totals, onSet }) {
+function Floor({ agent, run, jobs, products, totals, onSet, studio }) {
   const [stopping, setStopping] = useState(false);
   const [only, setOnly] = useState(null);
   const total = run.total || 1;
@@ -108,26 +115,30 @@ function Floor({ agent, run, jobs, products, totals, onSet }) {
   const working = jobs.filter((j) => j.state === 'working').sort((a, b) => String(b.started_at).localeCompare(String(a.started_at)));
   const finished = jobs.filter((j) => j.state === 'done' || j.state === 'failed')
     .sort((a, b) => String(b.finished_at ?? '').localeCompare(String(a.finished_at ?? '')));
-  const landed = finished.filter((j) => j.result?.tray !== 'skipped');
+  const landed = finished.filter((j) => trayOf(j) && trayOf(j) !== 'skipped');
 
   // The desk: the draft in hand, or the one just stamped until the next is picked up.
   const inHand = working[0] ?? null;
   const justDone = !inHand ? landed[0] ?? null : null;
   const onDesk = inHand ?? justDone;
   const p = onDesk ? products.get(onDesk.product_id) : null;
-  const tray = justDone ? (justDone.state === 'failed' ? 'unread' : justDone.result?.tray) : null;
+  const tray = justDone ? trayOf(justDone) : null;
   const meta = trayMeta(tray);
 
-  const log = (only ? landed.filter((j) => (j.state === 'failed' ? 'unread' : j.result?.tray) === only) : landed).slice(0, only ? 60 : 14);
+  const log = (only ? landed.filter((j) => trayOf(j) === only) : landed).slice(0, only ? 60 : 14);
+  const phase = inHand?.result?.phase ?? 'words';
+  const at = Math.max(0, PHASES.findIndex(([key]) => key === phase));
 
   return (
     <>
       <div className={styles.controls}>
-        <div className={styles.pace} role="group" aria-label="Pace">
-          {[['watch', 'Watch'], ['normal', 'Normal']].map(([key, label]) => (
-            <button key={key} type="button" aria-pressed={run.pace === key} onClick={() => run.pace !== key && onSet({ pace: key })}>{label}</button>
-          ))}
-        </div>
+        {studio && (
+          <div className={styles.pace} role="group" aria-label="Pace">
+            {[['watch', 'Watch'], ['normal', 'Normal']].map(([key, label]) => (
+              <button key={key} type="button" aria-pressed={run.pace === key} onClick={() => run.pace !== key && onSet({ pace: key })}>{label}</button>
+            ))}
+          </div>
+        )}
         {run.state === 'running'
           ? <button type="button" className={styles.quiet} onClick={() => onSet({ state: 'paused' })}><Icon name="IconClock" className={styles.btnIcon} />Pause</button>
           : <button type="button" className={styles.go} onClick={() => onSet({ state: 'running' })}>Carry on</button>}
@@ -146,7 +157,7 @@ function Floor({ agent, run, jobs, products, totals, onSet }) {
       {run.state === 'paused' && (
         <p className={styles.notice} role="status">
           <Icon name="IconInfo" className={styles.noticeIcon} />
-          {run.paused_reason ?? `Paused. ${agent} carries on from the next draft when you press Carry on.`}
+          {run.paused_reason && studio ? run.paused_reason : `Paused. ${agent} carries on from the next draft when you press Carry on.`}
         </p>
       )}
 
@@ -199,12 +210,11 @@ function Floor({ agent, run, jobs, products, totals, onSet }) {
               ) : (
                 <div className={styles.reading}>
                   <Stamp state="reading" size={44} />
-                  <ul className={styles.steps}>
-                    <li>Reading the title and description</li>
-                    <li>Weighing the returns</li>
-                    <li>Is it a chemical? If so, reading the label from the photos</li>
-                    <li>Writing a clean shop title</li>
-                  </ul>
+                  <ol className={styles.steps}>
+                    {PHASES.map(([key, label], i) => (
+                      <li key={key} data-state={i < at ? (key === 'photos' && phase === 'writing' && !inHand?.result?.read_photos ? 'skipped' : 'done') : i === at ? 'now' : 'next'}>{label}</li>
+                    ))}
+                  </ol>
                 </div>
               )}
             </article>
@@ -219,7 +229,7 @@ function Floor({ agent, run, jobs, products, totals, onSet }) {
         <section className={styles.trays} aria-label="Out-trays">
           <h2 className={styles.colHead}>Out-trays</h2>
           {TRAYS.map((t) => {
-            const inTray = landed.filter((j) => (j.state === 'failed' ? 'unread' : j.result?.tray) === t.key);
+            const inTray = landed.filter((j) => trayOf(j) === t.key);
             return (
               <button key={t.key} type="button" className={styles.tray} data-tone={t.tone} aria-pressed={only === t.key}
                 onClick={() => setOnly(only === t.key ? null : t.key)}>
@@ -252,8 +262,7 @@ function Floor({ agent, run, jobs, products, totals, onSet }) {
 }
 
 function LogLine({ job, product }) {
-  const tray = job.state === 'failed' ? 'unread' : job.result?.tray;
-  const meta = trayMeta(tray);
+  const meta = trayMeta(trayOf(job));
   return (
     <li className={styles.line} data-tone={meta?.tone}>
       <Stamp state="stamped" size={26} tone={meta?.tone} />
@@ -270,8 +279,8 @@ function LogLine({ job, product }) {
 }
 
 // After a run: what landed where, and the one action each tray needs from you.
-function Report({ agent, run, jobs, products, totals, tenantId, onDone }) {
-  const readyIds = useMemo(() => jobs.filter((j) => j.state === 'done' && j.result?.tray === 'ready').map((j) => j.product_id), [jobs]);
+function Report({ agent, run, jobs, products, totals, tenantId, onDone, studio }) {
+  const readyIds = useMemo(() => jobs.filter((j) => SELLABLE.includes(trayOf(j))).map((j) => j.product_id), [jobs]);
   const [eligible, setEligible] = useState(null);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -318,12 +327,11 @@ function Report({ agent, run, jobs, products, totals, tenantId, onDone }) {
   const stopped = run.state === 'stopped';
   const lines = [
     { key: 'ready', count: t.ready, text: run.rehearsal ? 'would be ready for sale' : 'ready for sale' },
-    { key: 'label', count: t.label, text: 'with a label to copy from the bottle' },
-    { key: 'not_chemical', count: t.not_chemical, text: 'flagged by a word but not a chemical: tick no label' },
-    { key: 'choose', count: t.choose, text: 'for you to choose: returns, a title, or the same product twice' },
+    { key: 'label', count: t.label, text: run.rehearsal ? 'would have their label warnings added' : 'with their label warnings added, ready too' },
+    { key: 'choose', count: t.choose, text: 'need you: already on the shop, a returns call, or something only you can add' },
     { key: 'unread', count: t.unread, text: run.rehearsal ? 'could not be read' : 'could not be read: the next check tries them again' },
   ].filter((l) => l.count > 0);
-  const inTray = (key) => jobs.filter((j) => (j.state === 'failed' ? 'unread' : j.state === 'done' ? j.result?.tray : null) === key);
+  const inTray = (key) => jobs.filter((j) => trayOf(j) === key);
   const unread = t.unread ?? 0;
 
   return (
@@ -333,7 +341,7 @@ function Report({ agent, run, jobs, products, totals, tenantId, onDone }) {
         <div>
           <p className="micro">{run.rehearsal ? 'Rehearsal finished' : stopped ? 'Stopped' : 'Finished'}</p>
           <h2 className={styles.reportTitle}>
-            {agent} {run.rehearsal ? 'would have checked' : 'checked'} {plural(totals.done - unread, 'draft')}{stopped ? ` of ${n(run.total)}` : ''} for {pounds(run.spent_pence)}.
+            {agent} {run.rehearsal ? 'would have checked' : 'checked'} {plural(totals.done - unread, 'draft')}{stopped ? ` of ${n(run.total)}` : ''}{studio ? ` for ${pounds(run.spent_pence)}` : ''}.
           </h2>
           {run.rehearsal && <p className={styles.sub}>Nothing was written. Start for real to apply it.</p>}
         </div>
@@ -371,7 +379,7 @@ function Report({ agent, run, jobs, products, totals, tenantId, onDone }) {
           </span>
         )}
         {!run.rehearsal && eligible && readyIds.length > eligible.length && (
-          <p className={styles.more}>{plural(readyIds.length - eligible.length, 'ready draft')} still {readyIds.length - eligible.length === 1 ? 'needs' : 'need'} something on Products first, such as a photograph or a description.</p>
+          <p className={styles.more}>{plural(readyIds.length - eligible.length, 'checked draft')} changed since, and {readyIds.length - eligible.length === 1 ? 'needs' : 'need'} a look on Products first.</p>
         )}
         {said && <p className={styles.more} role="status">{said}</p>}
       </div>
@@ -379,7 +387,7 @@ function Report({ agent, run, jobs, products, totals, tenantId, onDone }) {
   );
 }
 
-function Start({ agent, waiting, last, onStart }) {
+function Start({ agent, waiting, last, onStart, studio }) {
   const [pace, setPace] = useState('watch');
   const [cap, setCap] = useState('5.00');
   const [busy, setBusy] = useState(null);
@@ -389,24 +397,26 @@ function Start({ agent, waiting, last, onStart }) {
   if (!waiting) {
     return <p className={styles.allDone}><Icon name="IconCheck" className={styles.noticeIcon} />Every draft has been checked. New copies from eBay are checked as they arrive.</p>;
   }
-  const capPence = Math.round(Number(String(cap).replace(/[£,\s]/g, '')) * 100);
+  // The studio sets the limit; for her it is worked out: about twice what a draft has been costing, never under £5.
+  const capPence = studio ? Math.round(Number(String(cap).replace(/[£,\s]/g, '')) * 100) : Math.max(500, Math.ceil(waiting * 3.2));
   const capOk = Number.isFinite(capPence) && capPence >= 50;
   const tryOn = Math.min(5, waiting);
 
   async function go(rehearsal) {
     setBusy(rehearsal ? 'rehearsal' : 'run');
     setFailed(null);
-    try { await onStart({ pace, capPence, rehearsal, limit: rehearsal ? 5 : null }); } catch (e) { setFailed(e?.message ?? 'That did not start.'); } finally { setBusy(null); }
+    try { await onStart({ pace: studio ? pace : 'watch', capPence, rehearsal, limit: rehearsal ? 5 : null }); } catch (e) { setFailed(e?.message ?? 'That did not start.'); } finally { setBusy(null); }
   }
 
   return (
     <section className={styles.start} aria-label="Start a check">
       <h2 className={styles.startTitle}>{last && !last.rehearsal ? `Check the rest: ${plural(waiting, 'draft')}` : `${plural(waiting, 'draft')} to check`}</h2>
       <p className={styles.startBody}>
-        {agent} reads each draft&apos;s title and description, decides its returns, reads the label of anything that is a
-        chemical from its photographs, and writes a clean shop title for each copy from eBay. Your eBay listings are not
-        touched, and nothing goes on sale until you say so.
+        {agent} reads each draft, sets its returns, puts a chemical&apos;s label warnings on the page when it can read
+        them, gives each copy from eBay a clean shop title and a short address, and sorts questions left on it earlier.
+        Your eBay listings are not touched, and nothing goes on sale until you say so.
       </p>
+      {studio && (
       <div className={styles.startForm}>
         <div className={styles.field}>
           <span className={styles.fieldLabel} id="pace-label">Pace</span>
@@ -426,13 +436,16 @@ function Start({ agent, waiting, last, onStart }) {
           <span className={styles.fieldHint} id="cap-hint">{capOk ? 'It pauses there and asks before going on.' : 'At least £0.50.'}</span>
         </label>
       </div>
+      )}
       <div className={styles.startActions}>
         <button type="button" className={styles.go} disabled={!capOk || Boolean(busy)} onClick={() => go(false)}>
           {busy === 'run' ? 'Starting' : `Start checking ${plural(waiting, 'draft')}`}
         </button>
-        <button type="button" className={styles.quiet} disabled={!capOk || Boolean(busy)} onClick={() => go(true)}>
-          {busy === 'rehearsal' ? 'Starting' : `Rehearse on ${tryOn}, write nothing`}
-        </button>
+        {studio && (
+          <button type="button" className={styles.quiet} disabled={!capOk || Boolean(busy)} onClick={() => go(true)}>
+            {busy === 'rehearsal' ? 'Starting' : `Rehearse on ${tryOn}, write nothing`}
+          </button>
+        )}
       </div>
       {failed && <p className={styles.error} role="alert">{failed}</p>}
     </section>

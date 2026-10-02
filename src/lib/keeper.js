@@ -4,14 +4,18 @@
  * write over a check that landed while the sheet was open.
  */
 
-// The out-trays, in the order the office shows them. Tones are the portal's: green done, amber hers, blue a question.
+// The out-trays, in the order the office shows them. Only "Needs you" waits on her; the rest can go on sale.
 export const TRAYS = [
-  { key: 'ready', label: 'Ready for sale', hint: 'Standard returns, no label needed', tone: 'positive' },
-  { key: 'label', label: 'Label to copy', hint: 'A chemical: check the label against the bottle', tone: 'warning' },
-  { key: 'not_chemical', label: 'Not a chemical', hint: 'Flagged by a word: tick no label, with the reason', tone: 'info' },
-  { key: 'choose', label: 'Yours to choose', hint: 'Sealed or no return, a title, or the same product twice', tone: 'info' },
-  { key: 'unread', label: 'Could not read', hint: 'Open it, or check it again', tone: 'negative' },
+  { key: 'ready', label: 'Ready for sale', hint: 'Returns set, title and address tidied', tone: 'positive' },
+  { key: 'label', label: 'Warnings added', hint: 'A chemical: its label warnings are on the page', tone: 'warning' },
+  { key: 'choose', label: 'Needs you', hint: 'Already on the shop, a returns call, or something only you can add', tone: 'info' },
+  { key: 'unread', label: 'Could not read', hint: 'Tried three times; the next check tries again', tone: 'negative' },
 ];
+
+// Trays from the first version of the check, read as today's.
+const LEGACY = { not_chemical: 'ready' };
+// The trays whose drafts can go straight on sale.
+export const SELLABLE = ['ready', 'label'];
 
 // A draft Keeper has not checked: what a run picks up (start_keeper_run, 0123).
 export const unchecked = (p) => p?.status === 'draft' && !p?.archived_at && !p?.is_sample && !p?.derived_fields?.rules;
@@ -20,7 +24,8 @@ export const unchecked = (p) => p?.status === 'draft' && !p?.archived_at && !p?.
 export function trayOf(job) {
   if (job.state === 'failed') return 'unread';
   if (job.state !== 'done') return null;
-  return job.result?.tray ?? null;
+  const t = job.result?.tray ?? null;
+  return LEGACY[t] ?? t;
 }
 
 // Everything the office counts, from the jobs alone: the trays always add up to what is done.

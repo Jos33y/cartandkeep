@@ -18,7 +18,8 @@
 import fs from 'node:fs';
 import { parseCsv } from '../lib/sources.js';
 import { queryOf, squash } from './match.mjs';
-import { PROFIT, STORE, ebayAtWeight } from '../../src/lib/pricing.js';
+import { PROFIT, STORE } from '../../src/lib/pricing.js';
+import { ebayWeight, recostEbay, storeWeight } from '../lib/weight.js';
 import { priceStore } from './price-store.mjs';
 import { withVat } from './page.mjs';
 import { categorise } from '../categories/categorise.mjs';
@@ -80,7 +81,11 @@ for (const r of rows) {
   // The same key store-picks wrote and the eBay query file carries; drafted here only for a picks file that predates it.
   const ref = String(r.query ?? '').trim() || queryOf(r.title, r.brand);
   if (seenRefs.has(ref)) continue;
-  const priced = priceStore(cost, Number(r.google_min), r.grams);
+  // No weight from the shop or the title: the shop page name often has it ("Hydrosoft Granular Salt 25kg").
+  const pageW = Number(r.grams) > 0 ? null : storeWeight({ pageName: r.page_name });
+  const grams = Number(r.grams) > 0 ? r.grams : pageW?.grams ?? null;
+  if (pageW) tally.weight_from_page = (tally.weight_from_page ?? 0) + 1;
+  const priced = priceStore(cost, Number(r.google_min), grams);
   const band = priced.band;
   if (!band) { tally.over_20kg += 1; continue; }
   seenRefs.add(ref);
@@ -116,7 +121,7 @@ for (const r of rows) {
       cost_from: { shop: shops[0] ?? null, url: r.seen_link || null, product: r.page_name || r.seen_as || null, price: cost },
       postage: band.postage,
       packaging: band.packaging,
-      postage_band: { key: band.key, label: band.label, grams: band.grams, basis: band.basis, from: r.weight_from || null },
+      postage_band: { key: band.key, label: band.label, grams: band.grams, basis: band.basis, from: r.weight_from || (pageW ? 'page name' : null) },
       card: { pct: STORE.cardPct, fixed: STORE.cardFixed },
       returns_allowance: STORE.returns,
       profit_rule: PROFIT.store,
@@ -248,8 +253,10 @@ const byRef = new Map(cards.map((c) => [c.external_ref, c]));
 // The store figures on top, the card's eBay reading kept whole under margin.ebay: the same shape a store card has after the gate.
 const withStore = (card, storeCard) => {
   const m = storeCard.margin;
-  // The eBay reading re-costed for the product's weight, when the store side knows it.
-  const ebay = ebayAtWeight(card.margin?.channel === 'store' ? card.margin.ebay ?? null : card.margin ?? null, m.postage_band?.grams);
+  // The eBay reading re-costed for the product's weight: the eBay listing first, then the store side (weight.js).
+  const base = card.margin?.channel === 'store' ? card.margin.ebay ?? null : card.margin ?? null;
+  const w = ebayWeight({ listingTitle: card.entry?.title, store: m.postage_band, pageName: m.cost_from?.product, title: storeCard.title });
+  const ebay = base ? recostEbay(base, w).margin : null;
   return {
     ...m,
     ...(ebay ? {

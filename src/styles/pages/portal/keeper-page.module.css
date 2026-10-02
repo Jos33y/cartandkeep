@@ -252,16 +252,29 @@
   font-size: var(--t-label);
   line-height: var(--lh-snug);
   color: var(--c-ink-faint);
-  animation: stepOn 600ms var(--ease) both;
+  transition: color var(--dur-settle) var(--ease);
 }
 
-.steps li::before { content: ''; position: absolute; left: 2px; top: 0.5em; width: 6px; height: 6px; border-radius: 50%; background: var(--c-line-mid); }
-.steps li:nth-child(1) { animation-delay: 150ms; }
-.steps li:nth-child(2) { animation-delay: 900ms; }
-.steps li:nth-child(3) { animation-delay: 1650ms; }
-.steps li:nth-child(4) { animation-delay: 2400ms; }
+.steps li::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: 0.45em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c-line-mid);
+  transition: background var(--dur-settle) var(--ease), box-shadow var(--dur-settle) var(--ease);
+}
 
-@keyframes stepOn { from { color: var(--c-ink-faint); } to { color: var(--c-ink); } }
+/* Real steps, from the server: done, the one in hand, still to come, or passed over. */
+.steps li[data-state='done'] { color: var(--c-ink-soft); }
+.steps li[data-state='done']::before { background: var(--c-positive); }
+.steps li[data-state='now'] { color: var(--c-ink); font-weight: 500; }
+.steps li[data-state='now']::before { background: var(--c-action-strong); box-shadow: 0 0 0 3px var(--c-action-wash); animation: beat 1.2s var(--ease) infinite; }
+.steps li[data-state='skipped'] { color: var(--c-ink-faint); text-decoration: line-through; text-decoration-color: var(--c-line-mid); }
+
+@keyframes beat { 50% { box-shadow: 0 0 0 6px var(--c-action-wash); } }
 
 .verdict { animation: rise var(--dur-settle) var(--ease-out) both; }
 .verdictLabel { font-size: var(--t-label); font-weight: 560; }
@@ -499,6 +512,6 @@
 @media (prefers-reduced-motion: reduce) {
   .paper, .pileItem, .verdict, .line, .report, .start, .confirm, .trayStack > span { animation: none; }
   .stamp svg, .stamp circle { animation: none !important; }
-  .steps li { animation: none; color: var(--c-ink-soft); }
+  .steps li::before { animation: none !important; }
   .meter span { transition: none; }
 }
