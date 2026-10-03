@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { NewProduct } from '@components/ui/portal/NewProduct';
 import { ProductRow } from '@components/ui/portal/ProductRow';
@@ -19,6 +19,7 @@ import { sectionOf } from '@utils/categories';
 import { loadTenant } from '@lib/tenant';
 import { supabase } from '@lib/supabase';
 import { unchecked } from '@lib/keeper';
+import { matchesWords, searchText, wordsOf } from '@lib/productSearch';
 import { portalPath } from '@utils/constants';
 import styles from '@styles/pages/portal/products-page.module.css';
 
@@ -67,6 +68,12 @@ export function ProductsPage() {
   const requested = params.get('filter');
   const filter = FILTERS.some((f) => f.key === requested) ? requested : 'ready';
   const gapKey = params.get('gap');
+  // The search box, kept in the address (?q=) so a reload or a link keeps it. Typed fast, the list follows a beat
+  // behind (useDeferredValue) so 200 rows never hold up a keystroke.
+  const [find, setFind] = useState(() => params.get('q') ?? '');
+  const findRef = useRef(null);
+  const typed = useDeferredValue(find);
+  const words = useMemo(() => wordsOf(typed), [typed]);
 
   const [picked, setPicked] = useState(() => new Set());
   const [busy, setBusy] = useState(false);
@@ -98,12 +105,46 @@ export function ProductsPage() {
   }, [tenant?.id, account.loading, account.isStudio]);
 
   const setView = (next) => {
-    const merged = { filter, gap: gapKey, ...next };
+    const merged = { filter, gap: gapKey, q: find, ...next };
     const out = {};
     if (merged.filter && merged.filter !== 'ready') out.filter = merged.filter;
     if (merged.gap) out.gap = merged.gap;
+    if (merged.q?.trim()) out.q = merged.q.trim();
     setParams(out, { replace: true });
   };
+
+  const search = (value) => {
+    setFind(value);
+    setView({ q: value });
+  };
+
+  // "/" anywhere on the page goes to the search box; Escape in it clears it, then leaves it.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target;
+      if (el?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el?.tagName)) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      e.preventDefault();
+      findRef.current?.focus();
+      findRef.current?.select();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  // What every product can be found by, folded once per load rather than once per keystroke.
+  const texts = useMemo(() => new Map(rows.map((r) => [r.id, searchText(r)])), [rows]);
+  const searching = words.length > 0;
+  const found = useMemo(
+    () => (searching ? rows.filter((r) => matchesWords(texts.get(r.id) ?? '', words)) : rows),
+    [rows, texts, words, searching],
+  );
+  // While searching, the tabs count what the search found in each, so an empty tab is never a surprise.
+  const tabCounts = useMemo(() => {
+    if (!searching) return counts;
+    return Object.fromEntries(FILTERS.map((f) => [f.key, found.filter(MATCH[f.key]).length]));
+  }, [searching, counts, found]);
 
   const byCategory = useMemo(() => categoryCounts(rows), [rows]);
   const columns = useMemo(() => columnsFor(rows), [rows]);
@@ -144,10 +185,10 @@ export function ProductsPage() {
   }, [columns, tally]);
 
   const visible = useMemo(() => {
-    const inFilter = rows.filter(MATCH[filter]);
+    const inFilter = found.filter(MATCH[filter]);
     if (!gapKey) return inFilter;
     return inFilter.filter((r) => isOpen(stepsFor(r, columns).find((s) => s.key === gapKey)?.state));
-  }, [rows, filter, gapKey, columns]);
+  }, [found, filter, gapKey, columns]);
 
   const shown = useMemo(() => {
     const out = Object.fromEntries(columns.map((c) => [c.key, { done: 0, open: 0 }]));
@@ -181,8 +222,9 @@ export function ProductsPage() {
     setParams(rest, { replace: true });
   }, [params, rows, setParams]);
 
-  // A selection that survives a filter change publishes things she cannot see.
-  useEffect(() => { setPicked(new Set()); }, [filter, gapKey]);
+  // A selection that survives a filter or a search publishes things she cannot see.
+  const wordKey = words.join(' ');
+  useEffect(() => { setPicked(new Set()); }, [filter, gapKey, wordKey]);
 
   const select = (id, on) => setPicked((current) => {
     const next = new Set(current);
@@ -413,7 +455,7 @@ export function ProductsPage() {
               className={styles.tab} onClick={() => setView({ filter: f.key })}>
               {f.tone && <i className={styles.dot} data-tone={f.tone} aria-hidden="true" />}
               {f.label}
-              <span className={styles.tabCount} data-num>{counts[f.key]}</span>
+              <span className={styles.tabCount} data-num>{tabCounts[f.key]}</span>
             </button>
           ))}
         </div>
@@ -426,6 +468,18 @@ export function ProductsPage() {
             </button>
           </span>
         )}
+
+        <span className={styles.findWrap}>
+          <Icon name="IconSearch" className={styles.findIcon} />
+          <input ref={findRef} className={styles.find} type="search" value={find} placeholder="Find a title, brand or SKU"
+            aria-label="Find a product" aria-keyshortcuts="/" enterKeyHint="search" autoComplete="off" spellCheck={false}
+            onChange={(e) => search(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Escape') return;
+              if (find) { e.preventDefault(); e.stopPropagation(); search(''); } else e.currentTarget.blur();
+            }} />
+          {!find && <kbd className={styles.findKey} aria-hidden="true">/</kbd>}
+        </span>
 
         <span className={styles.help}>
           How to read this
@@ -478,6 +532,21 @@ export function ProductsPage() {
               ))}
             </div>
             <div className={styles.emptyCard}>
+              {searching && !gapKey ? (
+                <>
+                  <h2 className={styles.emptyTitle}>Nothing under {FILTERS.find((f) => f.key === filter)?.label} matches &ldquo;{find.trim()}&rdquo;</h2>
+                  <p className={styles.emptyBody}>
+                    {found.length ? `${plural(found.length, 'product matches', 'products match')} under other tabs.` : 'No product has those words in its title, brand or SKU.'}
+                  </p>
+                  <div className={styles.emptyActions}>
+                    {found.length > 0 && filter !== 'all' && (
+                      <button type="button" className={styles.quiet} onClick={() => setView({ filter: 'all' })}>See {plural(found.length, 'match', 'matches')} under All</button>
+                    )}
+                    <button type="button" className={styles.link} onClick={() => { search(''); findRef.current?.focus(); }}>Clear the search</button>
+                  </div>
+                </>
+              ) : (
+              <>
               <h2 className={styles.emptyTitle}>{EMPTY[gapKey ? 'gap' : filter].title}</h2>
               <p className={styles.emptyBody}>{EMPTY[gapKey ? 'gap' : filter].body(counts)}</p>
               <div className={styles.emptyActions}>
@@ -492,6 +561,8 @@ export function ProductsPage() {
                   </button>
                 )}
               </div>
+              </>
+              )}
             </div>
           </div>
         )}

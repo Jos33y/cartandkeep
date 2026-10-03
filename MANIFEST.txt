@@ -1,4 +1,9 @@
-./MANIFEST.txt
-./src/pages/portal/CategoriesPage.jsx
-./src/styles/pages/portal/categories-page.module.css
-./supabase/functions/shop-sort/sort.ts
+ck-keeper-batch-search-2026-10-03
+Portal only. No SQL. No functions to deploy.
+src/lib/keeper.js
+src/lib/productSearch.js (new)
+src/hooks/useKeeperRun.js
+src/pages/portal/KeeperPage.jsx
+src/pages/portal/ProductsPage.jsx
+src/styles/pages/portal/keeper-page.module.css
+src/styles/pages/portal/products-page.module.css

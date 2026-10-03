@@ -12,6 +12,14 @@ export const TRAYS = [
   { key: 'unread', label: 'Could not read', hint: 'Tried three times; the next check tries again', tone: 'negative' },
 ];
 
+/*
+ * After the run, the report says where each checked draft is now, not only where Keeper put it: a draft that has gone
+ * on sale since leaves its tray for "On sale", and one archived since leaves the trays altogether. Keeper's verdict
+ * stays on the job; this is the product's status read over it.
+ */
+export const ON_SALE = { key: 'live', label: 'On sale', hint: 'Live on your shop now', tone: 'positive' };
+export const REPORT_TRAYS = [ON_SALE, ...TRAYS];
+
 // Trays from the first version of the check, read as today's.
 const LEGACY = { not_chemical: 'ready' };
 // The trays whose drafts can go straight on sale.
@@ -28,16 +36,31 @@ export function trayOf(job) {
   return LEGACY[t] ?? t;
 }
 
-// Everything the office counts, from the jobs alone: the trays always add up to what is done.
-export function summarise(jobs = []) {
-  const trays = Object.fromEntries(TRAYS.map((t) => [t.key, 0]));
+/*
+ * Where a finished job's draft is now: 'live' once it is on sale, 'archived' once it is archived, otherwise the tray
+ * Keeper put it in. A product not read yet stays in its tray. Null while the job is still waiting or working.
+ */
+export function placeOf(job, product) {
+  const t = trayOf(job);
+  if (!t || t === 'skipped' || !product) return t;
+  if (product.status === 'archived' || product.archived_at) return 'archived';
+  if (product.status === 'live' && !product.is_sample) return 'live';
+  return t;
+}
+
+/*
+ * Everything the office counts: the trays always add up to what is done. Given the products, it counts where each
+ * draft is now (placeOf), with "live" and "archived" beside the trays; without, Keeper's verdicts as they landed.
+ */
+export function summarise(jobs = [], products = null) {
+  const trays = Object.fromEntries((products ? [...REPORT_TRAYS, { key: 'archived' }] : TRAYS).map((t) => [t.key, 0]));
   let waiting = 0; let working = 0; let skipped = 0; let stopped = 0; let ms = 0; let timed = 0;
   for (const j of jobs) {
     if (j.state === 'queued') waiting += 1;
     else if (j.state === 'working') working += 1;
     else if (j.state === 'stopped') stopped += 1;
     else {
-      const t = trayOf(j);
+      const t = products ? placeOf(j, products.get(j.product_id)) : trayOf(j);
       if (t === 'skipped') skipped += 1;
       else if (t && t in trays) trays[t] += 1;
       const took = Number(j.result?.ms);

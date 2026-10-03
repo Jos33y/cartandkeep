@@ -38,13 +38,16 @@ export function useKeeperRun(tenantId, { followPace = false, includeRehearsals =
     setWaiting(rows.filter(unchecked).length);
   }, [tenantId]);
 
-  const readProducts = useCallback(async (ids) => {
-    const missing = ids.filter((id) => !known.current.has(id));
+  // The products the jobs are for, each read once while the run goes; again (fresh) when the report needs to know
+  // where they are now, since putting them on sale or archiving them happens after the run.
+  const readProducts = useCallback(async (ids, { fresh = false } = {}) => {
+    const missing = fresh ? ids : ids.filter((id) => !known.current.has(id));
     if (!missing.length) return;
     missing.forEach((id) => known.current.add(id));
     const found = [];
     for (let i = 0; i < missing.length; i += 200) {
-      const { data } = await supabase.from('store_products').select('id, title, image_url, images, status').in('id', missing.slice(i, i + 200));
+      const { data } = await supabase.from('store_products').select('id, title, image_url, images, status, is_sample, archived_at')
+        .in('id', missing.slice(i, i + 200));
       found.push(...(data ?? []));
     }
     setProducts((m) => {
@@ -142,7 +145,31 @@ export function useKeeperRun(tenantId, { followPace = false, includeRehearsals =
     };
   }, [followPace, runId]);
 
+  // Where the finished run's drafts are now: read again on coming back to the page, since they go on sale or are
+  // archived from Products as much as from here.
+  const ids = useRef([]);
+  ids.current = [...new Set(jobs.map((j) => j.product_id))];
+  const refresh = useCallback(async () => {
+    await Promise.all([readProducts(ids.current, { fresh: true }), countWaiting()]);
+  }, [readProducts, countWaiting]);
+  useEffect(() => {
+    if (open || !run) return undefined;
+    // Focus and visibility both fire on coming back to the tab: one read for the two.
+    let at = 0;
+    const back = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - at < 1500) return;
+      at = Date.now();
+      refresh();
+    };
+    document.addEventListener('visibilitychange', back);
+    window.addEventListener('focus', back);
+    return () => {
+      document.removeEventListener('visibilitychange', back);
+      window.removeEventListener('focus', back);
+    };
+  }, [open, run, refresh]);
+
   const totals = useMemo(() => summarise(jobs), [jobs]);
 
-  return { run, jobs, products, totals, waiting, error, open, start, set, reload: read, recount: countWaiting };
+  return { run, jobs, products, totals, waiting, error, open, start, set, reload: read, refresh, recount: countWaiting };
 }

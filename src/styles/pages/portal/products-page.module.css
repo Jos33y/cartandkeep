@@ -140,7 +140,27 @@
 .gapChip button { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; }
 .gapChip button:hover { background: rgba(150, 104, 40, 0.12); }
 
-.help { display: inline-flex; align-items: center; gap: var(--s-2); margin-left: auto; font-size: var(--t-caption); color: var(--c-ink-faint); }
+/* The search box: after the tabs, pushed to the right, with the "/" key shown until something is typed. */
+.findWrap { position: relative; display: block; margin-left: auto; width: min(300px, 100%); }
+.findIcon { position: absolute; left: var(--s-3); top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--c-ink-faint); pointer-events: none; }
+.find {
+  width: 100%; min-height: 40px; padding: 0 calc(var(--s-3) + 22px) 0 calc(var(--s-3) + 22px);
+  border: 1px solid var(--c-line-mid); border-radius: var(--r-md); background: var(--c-surface);
+  font: inherit; font-size: var(--t-label); color: var(--c-ink);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.find::placeholder { color: var(--c-ink-faint); }
+.find:hover { border-color: var(--c-control); }
+.find:focus { outline: none; border-color: var(--c-control); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-control) 18%, transparent); }
+.findKey {
+  position: absolute; right: var(--s-2); top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px;
+  border: 1px solid var(--c-line-mid); border-radius: 4px; background: var(--c-sunk);
+  font-family: inherit; font-size: var(--t-caption); line-height: 1; color: var(--c-ink-faint); pointer-events: none;
+}
+.find:focus + .findKey { display: none; }
+
+.help { display: inline-flex; align-items: center; gap: var(--s-2); font-size: var(--t-caption); color: var(--c-ink-faint); }
 
 .error { font-size: var(--t-caption); color: var(--c-negative); }
 
@@ -308,7 +328,14 @@
   .head { align-items: flex-start; }
   .title { font-size: 1.625rem; }
   .summary { padding: var(--s-4); }
-  .toolbar { flex-wrap: nowrap; overflow-x: auto; margin-inline: calc(var(--s-4) * -1); padding-inline: var(--s-4); scrollbar-width: none; }
+  /* The search box takes the first line (16px type, so a phone does not zoom on it); the tabs scroll under it. */
+  .toolbar { flex-wrap: wrap; gap: var(--s-2); }
+  .findWrap { order: -1; flex: 1 1 100%; width: 100%; margin-left: 0; }
+  .findKey { display: none; }
+  .find { font-size: 16px; }
+  .tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: none; }
   .help { display: none; }
   .ledger { margin-top: 0; background: none; border: 0; box-shadow: none; }
   .cols { display: none; }

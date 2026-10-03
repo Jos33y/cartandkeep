@@ -5,7 +5,7 @@ import { Icon } from '@components/ui/icons';
 import { useKeeperRun } from '@hooks/useKeeperRun';
 import { useAccount } from '@hooks/useAccount';
 import { PRODUCT_SELECT, blockers, isLive, isReady } from '@hooks/useCatalogue';
-import { SELLABLE, TRAYS, pounds, timeLeft, trayOf } from '@lib/keeper';
+import { REPORT_TRAYS, SELLABLE, TRAYS, placeOf, pounds, summarise, timeLeft, trayOf } from '@lib/keeper';
 import { loadTenant } from '@lib/tenant';
 import { supabase } from '@lib/supabase';
 import { portalPath } from '@utils/constants';
@@ -21,7 +21,7 @@ const plural = (count, one, many = `${one}s`) => `${n(count)} ${count === 1 ? on
 const photoOf = (p, job) => job?.result?.image ?? p?.image_url ?? (Array.isArray(p?.images) ? p.images[0] : null) ?? null;
 const small = (url) => (url ? url.replace(/\/s-l\d+\./, '/s-l225.') : null);
 const productUrl = (id) => portalPath(`/products?open=${id}`);
-const trayMeta = (key) => TRAYS.find((t) => t.key === key) ?? null;
+const trayMeta = (key) => REPORT_TRAYS.find((t) => t.key === key) ?? null;
 
 // Where the assistant is with the draft in hand, as the server writes it (keeper-check.ts). The photos step happens
 // only for a chemical or an unclear product, so it shows as passed over when the assistant goes straight to writing.
@@ -40,8 +40,9 @@ function Stamp({ state = 'idle', size = 56, tray = null }) {
   );
 }
 
-// Each out-tray's own mark, drawn on its front: a price tag, a bottle, a hand, a torn page.
+// Each out-tray's own mark, drawn on its front: a shop bag, a price tag, a bottle, a hand, a torn page.
 function TrayMark({ tray }) {
+  if (tray === 'live') return <g><path d="M-8 -4h16l-1.5 14h-13z" /><path d="M-4 -4v-2.5a4 4 0 0 1 8 0v2.5" /></g>;
   if (tray === 'ready') return <g><path d="M-9 -5h11l7 7-9 9-9-9z" /><circle cx="-4" cy="0" r="1.6" /></g>;
   if (tray === 'label') return <g><path d="M-3 -10h6M-2 -10v4l-5 6v9h14v-9l-5-6v-4" /><path d="M-4 3h8" /></g>;
   if (tray === 'choose') return <g><path d="M-5 9v-8a2 2 0 0 1 4 0v-6a2 2 0 0 1 4 0v6a2 2 0 0 1 4 0v8c0 2-2 3-4 3h-5c-2 0-3-1-3-3z" /></g>;
@@ -97,7 +98,7 @@ export function KeeperPage() {
         ? <Floor agent={agent} run={run} jobs={jobs} products={products} totals={totals} onSet={k.set} studio={studio} />
         : (
           <>
-            {run && <Report agent={agent} run={run} jobs={jobs} products={products} totals={totals} tenantId={tenant?.id} onDone={k.reload} studio={studio} />}
+            {run && <Report agent={agent} run={run} jobs={jobs} products={products} totals={totals} tenantId={tenant?.id} onDone={k.refresh} studio={studio} />}
             <Start agent={agent} waiting={waiting} last={run} onStart={k.start} studio={studio} />
           </>
         )}
@@ -307,8 +308,8 @@ function Floor({ agent, run, jobs, products, totals, onSet, studio }) {
 }
 
 // One checked draft: its photo, the title, the tray, the short line, and the reasons folded away.
-function LogLine({ job, product }) {
-  const tray = trayOf(job);
+function LogLine({ job, product, place = null }) {
+  const tray = place ?? trayOf(job);
   const meta = trayMeta(tray);
   const why = job.result?.why;
   return (
@@ -334,7 +335,15 @@ function LogLine({ job, product }) {
 
 // After a run: the trays drawn with what landed in each, and the one press that puts the ready ones on sale.
 function Report({ agent, run, jobs, products, totals, tenantId, onDone, studio }) {
-  const readyIds = useMemo(() => jobs.filter((j) => SELLABLE.includes(trayOf(j))).map((j) => j.product_id), [jobs]);
+  // Where the drafts are now: on sale since, archived since, or still in Keeper's tray.
+  const now = useMemo(() => summarise(jobs, products), [jobs, products]);
+  const placed = (j) => placeOf(j, products.get(j.product_id));
+  // Still drafts in a tray that can go on sale. Read again whenever the products are, so one put on sale from
+  // Products in the meantime is not offered twice.
+  const readyIds = useMemo(
+    () => jobs.filter((j) => SELLABLE.includes(placeOf(j, products.get(j.product_id)))).map((j) => j.product_id),
+    [jobs, products],
+  );
   const [eligible, setEligible] = useState(null);
   // Checked as ready, but changed since (opened and rewritten, a box emptied): which ones, and what they need now.
   const [held, setHeld] = useState([]);
@@ -347,7 +356,8 @@ function Report({ agent, run, jobs, products, totals, tenantId, onDone, studio }
   // Of the sellable trays, the drafts the shop's own release check lets go on sale now.
   useEffect(() => {
     const key = readyIds.join(',');
-    if (run.rehearsal || !readyIds.length || asked.current === key) return;
+    if (run.rehearsal || asked.current === key) return;
+    if (!readyIds.length) { asked.current = key; setEligible([]); setHeld([]); return; }
     asked.current = key;
     (async () => {
       const rows = [];
@@ -356,7 +366,7 @@ function Report({ agent, run, jobs, products, totals, tenantId, onDone, studio }
         rows.push(...(data ?? []));
       }
       setEligible(rows.filter(isReady).map((r) => r.id));
-      setHeld(rows.filter((r) => !isReady(r) && !isLive(r)).map((r) => ({ id: r.id, title: r.title, why: blockers(r).join(', ').toLowerCase() })));
+      setHeld(rows.filter((r) => !isReady(r) && !isLive(r) && r.status !== 'archived').map((r) => ({ id: r.id, title: r.title, why: blockers(r).join(', ').toLowerCase() })));
     })();
   }, [readyIds, run.rehearsal]);
 
@@ -364,12 +374,15 @@ function Report({ agent, run, jobs, products, totals, tenantId, onDone, studio }
     setBusy(true);
     setSaid(null);
     try {
+      // Counted from what the database changed, not what was asked: one put on sale elsewhere meanwhile is not counted.
+      let went = 0;
       for (let i = 0; i < eligible.length; i += 200) {
-        const { error } = await supabase.from('store_products').update({ status: 'live', is_sample: false })
-          .eq('tenant_id', tenantId).eq('status', 'draft').in('id', eligible.slice(i, i + 200));
+        const { data, error } = await supabase.from('store_products').update({ status: 'live', is_sample: false })
+          .eq('tenant_id', tenantId).eq('status', 'draft').in('id', eligible.slice(i, i + 200)).select('id');
         if (error) throw error;
+        went += data?.length ?? 0;
       }
-      setSaid(`${plural(eligible.length, 'product')} on sale now.`);
+      setSaid(went ? `${plural(went, 'product')} on sale now.` : 'They were already on sale.');
       setEligible([]);
       setConfirm(false);
       onDone?.();
@@ -380,11 +393,12 @@ function Report({ agent, run, jobs, products, totals, tenantId, onDone, studio }
     }
   }
 
-  const t = totals.trays;
+  const t = now.trays;
   const stopped = run.state === 'stopped';
-  const unread = t.unread ?? 0;
-  const shown = TRAYS.filter((x) => t[x.key] > 0);
-  const inTray = (key) => jobs.filter((j) => trayOf(j) === key);
+  const unread = totals.trays.unread ?? 0;
+  const shown = REPORT_TRAYS.filter((x) => t[x.key] > 0);
+  const inTray = (key) => jobs.filter((j) => placed(j) === key);
+  const gone = t.archived ?? 0;
 
   return (
     <section className={styles.report} aria-label="The last check">
@@ -421,9 +435,11 @@ function Report({ agent, run, jobs, products, totals, tenantId, onDone, studio }
         ))}
       </div>
 
-      {showing && (
+      {gone > 0 && <p className={styles.more}>{plural(gone, 'checked draft')} archived since.</p>}
+
+      {showing && t[showing] > 0 && (
         <ol className={styles.lines} data-in-report>
-          {inTray(showing).map((j) => <LogLine key={j.id} job={j} product={products.get(j.product_id)} />)}
+          {inTray(showing).map((j) => <LogLine key={j.id} job={j} product={products.get(j.product_id)} place={showing} />)}
         </ol>
       )}
 
@@ -444,7 +460,11 @@ function Report({ agent, run, jobs, products, totals, tenantId, onDone, studio }
   );
 }
 
+// How many drafts one check takes: a few at a time, oldest first, or all of them.
+const BATCHES = [20, 50, 100];
+
 function Start({ agent, waiting, last, onStart, studio }) {
+  const [batch, setBatch] = useState(null);
   const [pace, setPace] = useState('watch');
   const [cap, setCap] = useState('5.00');
   const [busy, setBusy] = useState(null);
@@ -454,8 +474,12 @@ function Start({ agent, waiting, last, onStart, studio }) {
   if (!waiting) {
     return <p className={styles.allDone}><Icon name="IconCheck" className={styles.noticeIcon} />Every draft has been checked. New copies from eBay are checked as they arrive.</p>;
   }
+  // A batch bigger than what is waiting is all of them; null is all.
+  const sizes = BATCHES.filter((b) => b < waiting);
+  const take = batch && batch < waiting ? batch : null;
+  const count = take ?? waiting;
   // The studio sets the limit; for her it is worked out: about twice what a draft has been costing, never under £5.
-  const capPence = studio ? Math.round(Number(String(cap).replace(/[£,\s]/g, '')) * 100) : Math.max(500, Math.ceil(waiting * 3.2));
+  const capPence = studio ? Math.round(Number(String(cap).replace(/[£,\s]/g, '')) * 100) : Math.max(500, Math.ceil(count * 3.2));
   const capOk = Number.isFinite(capPence) && capPence >= 50;
   const tryOn = Math.min(5, waiting);
 
@@ -463,7 +487,7 @@ function Start({ agent, waiting, last, onStart, studio }) {
     setBusy(rehearsal ? `rehearsal-${pick}` : 'run');
     setFailed(null);
     try {
-      await onStart({ pace: studio ? pace : 'watch', capPence, rehearsal, limit: rehearsal && pick === 'next' ? 5 : null, pick });
+      await onStart({ pace: studio ? pace : 'watch', capPence, rehearsal, limit: rehearsal ? (pick === 'next' ? 5 : null) : take, pick });
     } catch (e) {
       setFailed(e?.message ?? 'That did not start.');
     } finally {
@@ -484,13 +508,27 @@ function Start({ agent, waiting, last, onStart, studio }) {
         <h2 className={styles.startTitle}>{last && !last.rehearsal ? `${plural(waiting, 'draft')} left to check` : `${plural(waiting, 'draft')} to check`}</h2>
         <p className={styles.startBody}>
           {agent} sets each draft&apos;s returns, puts a chemical&apos;s label warnings on the page, gives each copy from eBay a
-          clean title and a short address, and sorts questions left on it. About {timeLeft(waiting, null, 'watch')?.replace('about ', '')} while you
+          clean title and a short address, and sorts questions left on it. About {timeLeft(count, null, 'watch')?.replace('about ', '')} while you
           watch. Your eBay listings are not touched.
         </p>
+        {sizes.length > 0 && (
+          <div className={styles.batch}>
+            <span className={styles.fieldLabel} id="batch-label">How many</span>
+            <div className={styles.pace} role="group" aria-labelledby="batch-label" aria-describedby="batch-hint">
+              {sizes.map((b) => (
+                <button key={b} type="button" aria-pressed={take === b} onClick={() => setBatch(b)}>{n(b)}</button>
+              ))}
+              <button type="button" aria-pressed={take === null} onClick={() => setBatch(null)}>All {n(waiting)}</button>
+            </div>
+            <span className={styles.fieldHint} id="batch-hint">
+              {take ? `The first ${n(take)} to come in. The other ${n(waiting - take)} wait for the next check.` : 'Every draft not checked yet, in the order they came in.'}
+            </span>
+          </div>
+        )}
         <div className={styles.startActions}>
           <button type="button" className={styles.go} data-big disabled={!capOk || Boolean(busy)} onClick={() => go(false)}>
             <Icon name="IconKeeper" className={styles.btnIcon} />
-            {busy === 'run' ? 'Starting' : `Check ${plural(waiting, 'draft')}`}
+            {busy === 'run' ? 'Starting' : take ? `Check ${plural(take, 'draft')}` : `Check ${waiting === 1 ? 'it' : `all ${plural(waiting, 'draft')}`}`}
           </button>
         </div>
 

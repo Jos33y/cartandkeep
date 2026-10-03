@@ -47,11 +47,22 @@ function measures(text) {
   return m;
 }
 // Words that make a different version of the same line: Blast against Blast Max, a kids' blanket, lightweight against heavyweight.
-const VERSION = ['kids', 'children', 'junior', 'baby', 'mini', 'max', 'pro', 'plus', 'lite', 'xl', 'lightweight', 'heavyweight', 'combination', 'dual', 'single', 'double', 'king', 'cordless', 'corded', 'refill', 'refills', 'replacement', 'tray', 'saucer', 'spoons', 'station', 'pods', 'powder', 'heated', 'cuckoo', 'shot', 'combo', 'duo', 'insecticide', 'lawn', 'forest', 'meadow'];
+const VERSION = ['kids', 'children', 'junior', 'baby', 'mini', 'max', 'pro', 'plus', 'lite', 'xl', 'lightweight', 'heavyweight', 'combination', 'dual', 'single', 'double', 'king', 'cordless', 'corded', 'refill', 'refills', 'replacement', 'tray', 'saucer', 'spoons', 'station', 'pods', 'powder', 'heated', 'cuckoo', 'shot', 'combo', 'duo', 'insecticide', 'lawn', 'forest', 'meadow',
+  // Pet food and care lines: a diet or a range on one side only is another product (2 October: one in five
+  // pet name matches was Wagg Active for Meaty Goodness, Royal Canin Ageing 15+ for Kitten, a topper for a complete food).
+  // Life stages are pairs below (puppy against adult), so "Adult & Senior" and a cat tree "for cats and kittens" pass.
+  'ageing', 'active', 'sensitive', 'hypoallergenic', 'urinary', 'digestive', 'gastrointestinal', 'renal', 'satiety',
+  'orthopaedic', 'orthopedic', 'broth', 'topper', 'toppers', 'multipack', 'value'];
 
 // Pairs where one word on each side means two different products.
 const KINDS = [['rat', 'mouse'], ['cat', 'dog'], ['indoor', 'outdoor'], ['left', 'right'], ['blanket', 'bag'], ['throw', 'duvet'], ['wasp', 'fly'], ['smoke', 'heat'], ['mains', 'battery'],
-  ['goose', 'duck'], ['liquid', 'pods'], ['liquid', 'powder'], ['liquid', 'kit'], ['liquid', 'spray'], ['candle', 'spray'], ['oil', 'stain'], ['wine', 'beer'], ['frying', 'saute'], ['wall', 'alarm'], ['travel', 'large'], ['medium', 'tall'], ['flat', 'spin'], ['ball', 'candle'], ['pot', 'can'], ['trimmer', 'battery'], ['hooks', 'fixings']];
+  ['goose', 'duck'], ['liquid', 'pods'], ['liquid', 'powder'], ['liquid', 'kit'], ['liquid', 'spray'], ['candle', 'spray'], ['oil', 'stain'], ['wine', 'beer'], ['frying', 'saute'], ['wall', 'alarm'], ['travel', 'large'], ['medium', 'tall'], ['flat', 'spin'], ['ball', 'candle'], ['pot', 'can'], ['trimmer', 'battery'], ['hooks', 'fixings'],
+  // Pet food: wet against dry, and the textures and stages that make a different recipe.
+  ['wet', 'dry'], ['jelly', 'gravy'], ['jelly', 'broth'], ['gravy', 'broth'], ['jelly', 'loaf'], ['gravy', 'loaf'], ['loaf', 'mousse'], ['jelly', 'pate'], ['gravy', 'pate'],
+  ['puppy', 'adult'], ['kitten', 'adult'], ['adult', 'senior'], ['puppy', 'senior'], ['kitten', 'senior'],
+  // The meat in a recipe: Autarky Salmon is not Autarky Chicken.
+  ...(() => { const m = ['chicken', 'beef', 'lamb', 'salmon', 'turkey', 'duck', 'tuna', 'rabbit', 'venison', 'pork', 'trout', 'herring'];
+    return m.flatMap((x, i) => m.slice(i + 1).map((y) => [x, y])); })()];
 
 /*
  * The barcode settles it when both sides have one: the page's own GTIN against every GTIN Google lists for the

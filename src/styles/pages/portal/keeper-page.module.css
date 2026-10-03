@@ -1,6 +1,7 @@
 /*
  * The assistant's office. Paper, ink and four tray colours, each with one job: green for ready, amber for a
- * chemical's warnings, plum for what needs her, clay for what could not be read. The stamp prints in office blue.
+ * chemical's warnings, plum for what needs her, clay for what could not be read. The stamp prints in office blue,
+ * and the report's "On sale" tray takes the same blue: stamped and gone out.
  * Motion is only ever a job changing state on the server, so it is short and it settles.
  */
 
@@ -27,6 +28,7 @@
 }
 
 /* One colour per tray, set wherever data-tray is. */
+.page [data-tray='live'] { --k-tray: var(--k-ink); --k-tray-wash: var(--k-ink-wash); }
 .page [data-tray='ready'] { --k-tray: var(--k-ready); --k-tray-wash: var(--k-ready-wash); }
 .page [data-tray='label'] { --k-tray: var(--k-label); --k-tray-wash: var(--k-label-wash); }
 .page [data-tray='choose'] { --k-tray: var(--k-choose); --k-tray-wash: var(--k-choose-wash); }
@@ -471,6 +473,9 @@
 .startTitle { font-size: 1.375rem; font-weight: 560; letter-spacing: -0.02em; }
 .startBody { max-width: 64ch; margin-top: var(--s-2); font-size: var(--t-label); line-height: var(--lh-body); color: var(--c-ink-soft); }
 .startActions { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-4); }
+/* How many drafts the check takes. */
+.batch { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-2); margin-top: var(--s-4); }
+.batch .pace { flex-wrap: wrap; max-width: 100%; }
 
 .studio { margin-top: var(--s-5); padding-top: var(--s-4); border-top: 1px dashed var(--c-line-mid); }
 .studioHead { font-size: var(--t-micro); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-ink-faint); }
