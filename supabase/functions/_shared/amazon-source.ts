@@ -38,7 +38,9 @@ export const TITLE_MATCH = 0.6;
 export function pickResult(cardTitle: unknown, results: Json[]): { asin: string; via: 'only' | 'title' } | { asin: null; why: string } {
   if (!results.length) return { asin: null, why: 'none' };
   if (results.length === 1) return { asin: results[0].asin, via: 'only' };
-  const scored = results.map((r) => ({ r, score: titleMatch(cardTitle, r.title) })).filter((x) => x.score >= TITLE_MATCH);
+  // A result naming another colour, size or weight is another variant, whatever else agrees.
+  const scored = results.map((r) => ({ r, score: variantConflict(cardTitle, r.title) ? 0 : titleMatch(cardTitle, r.title) }))
+    .filter((x) => x.score >= TITLE_MATCH);
   if (!scored.length) return { asin: null, why: `${results.length} results for the barcode, and no title matches this card` };
   // The best match; on a tie, the one Amazon put first.
   scored.sort((a, b) => b.score - a.score || a.r.position - b.r.position);
@@ -105,42 +107,122 @@ export function codesOn(read: Read): string[] {
   return [...out];
 }
 
-// The pack the page names: a count from the title ("Pack of 3", "x6"), "6 x 500ml", or a number of items over one in
-// its details. Null when it names none.
-// Unit count is left out: Amazon gives it as a size ("500.0 Millilitre"), not a pack.
-const ITEMS = /^(number of items|item package quantity|package quantity|pack quantity)\s*:\s*(\d+)\s*$/i;
-const MULTI = /\b(\d+)\s?x\s?\d+(\.\d+)?\s?(ml|l|g|kg|cl|oz)\b/i;
+/*
+ * Packs (3 October, after the first runs). A count rules a card out only when Amazon names a real multipack, or both
+ * titles state a count and they differ. Card titles are short ("Lego 77260"), so a card that states no count is not
+ * "a single": what is inside one product (292 pieces, 108 pcs, 75 tablets, 28 sticks) is never a pack on its own, and
+ * neither is "N x size" that describes a kit's contents ("Kit (3 x 450ml spray)", "with 2 x 500ml Refills").
+ */
+const UNITS = '(?:ml|l|ltr|litres?|g|kg|cl|oz)';
+const CONTENTS = /\b(kit|set|includes?|including|incl\.?|starter)\b/i;
+// Words just before "N x size" that make it the contents of one product: "with 2 x 500ml refills".
+const CONTENTS_BEFORE = /(?:\bwith|\bplus|\+|\band|\bincl\.?|\bincludes?|\bincluding)\s*$/i;
 
-export function packOn(title: unknown, details: unknown[] = []) {
+type Pack = { n: number | null; said: string };
+
+// A multipack the title names outright. `context` is the other title, so a kit on either side reads "N x size" as
+// contents.
+export function multipackOf(title: unknown, context: unknown = ''): Pack | null {
   const t = String(title ?? '');
-  const multi = MULTI.exec(t);
-  if (multi && Number(multi[1]) > 1) return { kind: 'count' as const, n: Number(multi[1]), said: multi[0] };
-  const p = packOf(t);
-  if (p?.kind === 'count' && p.n > 1) return { ...p, said: `${p.n} in the title` };
-  for (const line of details) {
-    const m = ITEMS.exec(String(line));
-    if (m && Number(m[2]) > 1) return { kind: 'count' as const, n: Number(m[2]), said: `${m[1]}: ${m[2]}` };
+  const explicit: Array<[RegExp, (m: RegExpExecArray) => number | null]> = [
+    [/\b(?:pack|case|box|tray) of (\d{1,3})\b/i, (m) => Number(m[1])],
+    [/\b(\d{1,3})[\s-]?(?:pack|pk|packs)\b/i, (m) => Number(m[1])],
+    [/\btwin[\s-]?pack\b/i, () => 2],
+    [/\b(?:double)[\s-]?pack\b/i, () => 2],
+    [/\btriple[\s-]?pack\b/i, () => 3],
+    [/\bmulti[\s-]?pack\b/i, () => null],
+    [new RegExp(String.raw`\b\d+(?:\.\d+)?\s?${UNITS}\s?x\s?(\d{1,3})\b`, 'i'), (m) => Number(m[1])],
+    [/(?:^|[\s,(])x\s?(\d{1,3})\s*(?:$|[,)])/i, (m) => Number(m[1])],
+  ];
+  for (const [re, n] of explicit) {
+    const m = re.exec(t);
+    if (m) {
+      const count = n(m);
+      if (count === null || count > 1) return { n: count, said: m[0].trim() };
+    }
+  }
+  // "2 x 2L": a pack, unless it is a kit's contents.
+  const nx = new RegExp(String.raw`\b(\d{1,3})\s?x\s?\d+(?:\.\d+)?\s?${UNITS}\b`, 'i').exec(t);
+  if (nx && Number(nx[1]) > 1) {
+    const before = t.slice(0, nx.index);
+    const kit = CONTENTS.test(t) || CONTENTS.test(String(context ?? '')) || CONTENTS_BEFORE.test(before);
+    if (!kit) return { n: Number(nx[1]), said: nx[0] };
   }
   return null;
 }
 
+// What is inside one product, as a title counts it: "292 Pieces", "75 Tablets". Compared only when both titles say.
+function contentsCount(title: unknown): number | null {
+  if (multipackOf(title)) return null;
+  const p = packOf(title);
+  return p?.kind === 'count' && p.n > 1 ? p.n : null;
+}
+
+// Amazon's "Number of Items", which it fills loosely (a jug and its filters is "4"): a warning, never a rule-out.
+const ITEMS = /^(number of items|item package quantity|package quantity|pack quantity)\s*:\s*(\d+)\s*$/i;
+export function itemsOn(details: unknown[] = []): number | null {
+  for (const line of details) {
+    const m = ITEMS.exec(String(line));
+    if (m && Number(m[2]) > 1) return Number(m[2]);
+  }
+  return null;
+}
+
+// Kept for the tests and the report: the pack a page names in its title, or null.
+export function packOn(title: unknown) {
+  return multipackOf(title);
+}
+
 /*
  * Another pack on the page rules it out: third-party sellers sometimes list a multipack under the single item's
- * barcode. Amazon naming a count the candidate does not have, or a different weight or volume, is enough.
- * A page that names no pack is not a doubt: the barcode is the product.
+ * barcode. Ruled out only on a multipack Amazon names, a count both titles state and differ on, or a weight or volume
+ * both state and differ on.
  */
 export function packDoubt(candidateTitle: unknown, read: Read): string | null {
-  const theirs = packOn(read.facts?.title, read.facts?.details ?? []);
-  const ours = packOf(candidateTitle);
+  const title = read.facts?.title;
+  const theirs = multipackOf(title, candidateTitle);
+  const ours = multipackOf(candidateTitle, title);
   if (theirs) {
-    const multi = MULTI.exec(String(candidateTitle ?? ''));
-    const ourCount = multi ? Number(multi[1]) : ours?.kind === 'count' ? ours.n : 1;
-    if (ourCount !== theirs.n) return `Amazon's page is a pack of ${theirs.n} (${theirs.said}); this card is ${ourCount === 1 ? 'a single' : `a pack of ${ourCount}`}`;
+    const ourN = ours?.n ?? 1;
+    if (theirs.n === null ? !ours : theirs.n !== ourN) {
+      return `Amazon's page is ${theirs.n ? `a pack of ${theirs.n}` : 'a multipack'} ("${theirs.said}"); this card is ${ourN === 1 ? 'a single' : `a pack of ${ourN}`}`;
+    }
+    return null;
   }
-  const theirWeight = packOf(read.facts?.title);
-  if (theirWeight?.kind === 'weight' && ours?.kind === 'weight' && Math.abs(theirWeight.n - ours.n) > 0.5) {
-    return `Amazon's page is ${theirWeight.n}g or ml; this card is ${ours.n}`;
+  const a = contentsCount(title);
+  const b = contentsCount(candidateTitle);
+  if (a && b && a !== b) return `Amazon's page has ${a} in it; this card has ${b}`;
+  const theirWeight = packOf(title);
+  const ourWeight = packOf(candidateTitle);
+  if (theirWeight?.kind === 'weight' && ourWeight?.kind === 'weight' && Math.abs(theirWeight.n - ourWeight.n) > 0.5) {
+    return `Amazon's page is ${theirWeight.n}g or ml; this card is ${ourWeight.n}`;
   }
+  return null;
+}
+
+// Not new: she sells new. Amazon's renewed and used listings can sit under the same barcode, and say so in the title
+// (the reader does not record the offer's condition).
+export const notNew = (read: Read) => /\b(renewed|refurbished|reconditioned|pre-?owned|used\s*-\s*(?:like new|good|very good|acceptable))\b/i.test(String(read.facts?.title ?? ''));
+
+// A bundle: something comes with it. A warning for Approved.
+const BUNDLE = /\bbundle\b|\+\s*free\b|\bfree\s+[a-z]+(?:\s+[a-z]+)?\s+(?:included|inside)\b|\bcomes with\b/i;
+
+// Colours and clothing sizes a title can name: two titles naming different ones are different variants.
+const COLOURS = ['black', 'white', 'grey', 'gray', 'silver', 'gold', 'red', 'blue', 'navy', 'green', 'yellow', 'orange', 'pink', 'purple', 'brown', 'beige', 'cream', 'clear', 'rose gold', 'charcoal', 'teal'];
+const SIZES = ['xxs', 'xs', 'small', 'medium', 'large', 'xl', 'xxl', 'xxxl', 'single', 'double', 'king', 'super king'];
+const named = (t: unknown, list: string[]) => {
+  const s = ` ${String(t ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ')} `;
+  return list.filter((w) => s.includes(` ${w} `));
+};
+export function variantConflict(cardTitle: unknown, resultTitle: unknown): string | null {
+  for (const list of [COLOURS, SIZES]) {
+    const ours = named(cardTitle, list);
+    const theirs = named(resultTitle, list);
+    if (ours.length && theirs.length && !ours.some((w) => theirs.includes(w))) return `${theirs[0]} on Amazon, ${ours[0]} on this card`;
+  }
+  const a = packOf(cardTitle);
+  const b = packOf(resultTitle);
+  if (a?.kind === 'weight' && b?.kind === 'weight' && Math.abs(a.n - b.n) > 0.5) return `${b.n} on Amazon, ${a.n} on this card`;
   return null;
 }
 
@@ -151,7 +233,7 @@ export const sentByAmazon = (offer: Json | null | undefined) =>
 const pounds = (v: number) => `£${v.toFixed(2)}`;
 
 export type Verdict =
-  | { ok: true; asin: string; cost: number | null; delivery: number | null; status: 'quoted' | 'unavailable'; line: string; why: string }
+  | { ok: true; asin: string; cost: number | null; delivery: number | null; status: 'quoted' | 'unavailable'; line: string; why: string; warnings: string[] }
   | { ok: false; asin: string | null; line: string; why: string };
 
 const STOCK_WORDS: Record<string, string> = { in: 'in stock', low: 'running low', slow: 'slow to dispatch', out: 'out of stock', unknown: 'stock not shown' };
@@ -168,7 +250,19 @@ const STOCK_WORDS: Record<string, string> = { in: 'in stock', low: 'running low'
  * unavailable, with no cost, so nothing is priced from a guess.
  * The cost is the price shown today, deal or not (Part 14, version 3). A seller's delivery charge to her is part of it.
  */
-export function judge(candidate: { title?: string | null }, gtin: string, read: Read): Verdict {
+// The research's own price for the goods, to see whether Amazon's price suggests another pack. The shelf price is the
+// field the portal reads; the others are read where present.
+export function researchPrice(margin: Json | null | undefined): number | null {
+  for (const v of [margin?.shelf?.price, margin?.cost_from?.price, margin?.landed_cost]) {
+    const n = Number(v);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
+}
+// Amazon at this many times the research's price suggests another pack: a warning, not a rule-out.
+export const PRICE_SUSPECT = 2.5;
+
+export function judge(candidate: { title?: string | null; margin?: Json | null }, gtin: string, read: Read): Verdict {
   const asin = read.asin ?? null;
   const no = (line: string, why = line): Verdict => ({ ok: false, asin, line, why });
   if (!read.found || !read.facts) return no('The Amazon page could not be read.');
@@ -176,14 +270,24 @@ export function judge(candidate: { title?: string | null }, gtin: string, read: 
   if (codes.length && !codes.some((c) => sameCode(c, gtin))) return no(`Amazon's page has another barcode (${codes.join(', ')}).`);
   const pack = packDoubt(candidate.title, read);
   if (pack) return no('Another pack on Amazon.', `${pack}.`);
+  if (notNew(read)) return no('Not new on Amazon.', `Amazon's page is a renewed or used listing: "${read.facts.title}".`);
   const offer = read.offer;
   const cost = goodsOf(offer);
+  // What Approved should check by eye: saved with the reading and shown on the card there.
+  const warnings: string[] = [];
+  const items = itemsOn(read.facts.details ?? []);
+  if (items && !multipackOf(candidate.title)) warnings.push(`Amazon lists ${items} items on this page: check it is the one product, not a pack.`);
+  if (BUNDLE.test(String(read.facts.title ?? ''))) warnings.push('Amazon\'s page is a bundle: check what comes with it.');
+  const ref = researchPrice(candidate.margin);
+  if (cost != null && ref && cost >= ref * PRICE_SUSPECT) warnings.push(`Amazon's price is ${(cost / ref).toFixed(1)} times the ${pounds(ref)} the research found: check it is not a bigger pack.`);
+  const ourPack = multipackOf(candidate.title);
+  if (ourPack && !multipackOf(read.facts.title, candidate.title)) warnings.push(`This card is ${ourPack.n ? `a pack of ${ourPack.n}` : 'a multipack'}; Amazon's page names no pack: check the cost is for the whole pack.`);
   const amazon = sentByAmazon(offer);
   // What getting it to her costs: nothing on Prime from Amazon; another seller's delivery charge when it shows one.
   const delivery = !amazon && Number(offer.shipping) > 0 ? Number(offer.shipping) : null;
   const who = amazon
     ? (/^amazon/i.test(String(offer.sold_by ?? '')) ? 'sold by Amazon' : `sent by Amazon${offer.sold_by ? ` for ${offer.sold_by}` : ''}`)
-    : `sold by ${offer.sold_by ?? 'another seller'}${delivery ? `, ${pounds(delivery)} delivery` : ''}`;
+    : offer.sold_by ? `sold by ${offer.sold_by}${delivery ? `, ${pounds(delivery)} delivery` : ''}` : 'no seller shown';
   const head = codes.length ? 'Same barcode on Amazon' : 'Found by its barcode on Amazon';
   const deal = offer.deal && offer.was ? `, on a deal (usually ${pounds(Number(offer.was))})` : '';
   return {
@@ -192,7 +296,8 @@ export function judge(candidate: { title?: string | null }, gtin: string, read: 
     cost,
     delivery,
     status: cost == null ? 'unavailable' : 'quoted',
-    line: `${head}, ${cost != null ? `${pounds(cost)}, ` : 'no price now, '}${who}, ${STOCK_WORDS[offer.stock] ?? 'stock not shown'}.`,
+    line: `${head}, ${cost != null ? `${pounds(cost)}, ` : 'no price now, '}${who}, ${STOCK_WORDS[offer.stock] ?? 'stock not shown'}.${warnings.length ? ` ${warnings.length === 1 ? 'One thing' : `${warnings.length} things`} to check.` : ''}`,
+    warnings,
     why: `${codes.length ? `Barcode ${gtin} on the Amazon page` : `Amazon's search for ${gtin} found it`}${deal}.${offer.stock_text ? ` Amazon says "${String(offer.stock_text).replace(/\.+$/, '')}".` : ''}${offer.fulfilled_by ? ` Sent by ${offer.fulfilled_by}.` : ''}`,
   };
 }

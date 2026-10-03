@@ -1,4 +1,26 @@
-ck-keeper-mark-icon-2026-10-03
-The Keeper mark on Approved rows is Keeper's icon alone (the circled K), in its blue, no text and no box.
-Screen readers hear "Approved by Keeper"; hovering says what Keeper did.
-Portal only: push. Replaces these two files from ck-keeper-amazon-any-seller.
+ck-keeper-amazon-packs-2026-10-03
+The pack rule fixed, and the cases that would come later (Joseey, 3 October: "go for all of it").
+
+What changed in Keeper's look on Amazon:
+- A count rules a card out only when Amazon names a real multipack ("Pack of 3", "9 Pack", "Twin Pack", "Multipack",
+  "250ml x 12", "2 x 2L"), or both titles state a count and they differ (Dentastix 28 against 7). Short card titles
+  ("Lego 77260") are no longer read as "a single".
+- What is inside one product is never a pack: 292 Pieces, 108 Pcs, 75 Tablets, 28 Sticks; "N x size" after kit, set,
+  with, includes ("Kit (3 x 450ml spray)", "with 2 x 500ml Refills").
+- Renewed, refurbished or used listings are ruled out: she sells new.
+- Approved with a warning for Approved, shown on the card ("Amazon: check the pack" / "Amazon: a bundle"):
+  Amazon's "Number of Items" over one; a bundle ("+ Free Spoon"); Amazon at 2.5 times or more the research's price;
+  a card that is a pack where Amazon's page names none.
+- More than one result: another colour, size or weight is another variant and is not picked.
+- No seller on the page says "no seller shown", not "another seller".
+36 tests pass, with every title from the runs and the likely next ones.
+
+IN THIS ORDER
+1. SQL: none.
+2. Functions (amazon.ts changed: the warnings are kept through the daily read):
+     supabase functions deploy keeper-run --project-ref vtdqrhkjdzkdjmyxrsok
+     supabase functions deploy supplier-read --project-ref vtdqrhkjdzkdjmyxrsok
+     supabase functions deploy ebay-match --project-ref vtdqrhkjdzkdjmyxrsok
+3. Portal (push): src/lib/supplierWatch.js shows Keeper's warnings on the card.
+4. Then supabase/sql/amazon-look-again-packs.sql: step 1 lists the cards the old rule left wrongly (expect Dryzone,
+   Brita Marella, FireAngel Smoke Alarm, Seven Seas); step 2 sends them back for the next look. About 1p each.

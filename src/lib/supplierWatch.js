@@ -152,6 +152,8 @@ export function supplierWarnings(r, costed = r?.costed ?? null, now = Date.now()
       });
     }
   }
+  // What Keeper asked her to check when it sourced the card on Amazon (task 02): a pack, a bundle, a price.
+  for (const text of r.keeper_warnings ?? []) out.push({ level: 'warn', short: /bundle/i.test(text) ? 'a bundle' : 'check the pack', text });
   // A reading that keeps failing: the figures above are old.
   if (r.error && r.read_at && now - Date.parse(r.read_at) > 36 * 3600 * 1000) {
     out.push({ level: 'note', text: `Not read since ${day(r.read_at)}. ${r.error}` });

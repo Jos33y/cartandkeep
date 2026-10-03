@@ -260,6 +260,8 @@ export function nextRead(prev: Json | null, r: Read, page: { source_id: string |
     costed: page.costed,
     before: same ? { ...prev.offer, read_at: prev.read_at } : null,
     cost_change: prev?.asin === r.asin ? prev?.cost_change ?? null : null,
+    // What Keeper asked her to check when it sourced the card (task 02), kept until the page changes.
+    keeper_warnings: prev?.asin === r.asin ? prev?.keeper_warnings ?? null : null,
     tried_at: r.read_at,
     error: null,
   };

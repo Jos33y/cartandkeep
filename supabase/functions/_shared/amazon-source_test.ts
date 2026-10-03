@@ -2,7 +2,7 @@
 //   deno test supabase/functions/_shared/amazon-source_test.ts
 
 import { barcodesOf, costFollow, fromAxesso } from './amazon.ts';
-import { amazonWeight, candidateGtin, codesOn, fillOf, packedKg, weightKg, judge, keeperGtin, packDoubt, pence, pickResult, runSearch, sameCode, sentByAmazon, titleMatch } from './amazon-source.ts';
+import { amazonWeight, candidateGtin, codesOn, fillOf, multipackOf, notNew, packedKg, variantConflict, weightKg, judge, keeperGtin, packDoubt, pence, pickResult, runSearch, sameCode, sentByAmazon, titleMatch } from './amazon-source.ts';
 
 function assertEquals(a: unknown, b: unknown) {
   if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
@@ -105,8 +105,9 @@ Deno.test('another pack on the page rules it out', () => {
   const six = judge({ title: 'Coca-Cola Classic 330ml can' }, '5449000000996',
     page({ title: 'Coca-Cola Original Taste 24 x 330ml', productDetails: [{ name: 'EAN', value: '5449000000996' }] }));
   assert(!six.ok, JSON.stringify(six));
+  // Number of Items alone is a warning, not a rule-out (Amazon fills it loosely).
   const items = judge(nutella, '3017620422003', page({ productDetails: [{ name: 'EAN', value: '3017620422003' }, { name: 'Number of Items', value: '4' }] }));
-  assert(!items.ok, JSON.stringify(items));
+  assert(items.ok && /Amazon lists 4 items/.test(items.warnings.join(' ')), JSON.stringify(items));
   const kilo = packDoubt('Nutella 400g', page({ title: 'Nutella Hazelnut Spread 1kg' }));
   assert(kilo && /1000g/.test(kilo), String(kilo));
   // The same pack on both sides is no doubt.
@@ -231,4 +232,66 @@ Deno.test('the card is filled from the reading: facts, link, the weight packed (
   const f = fillOf(r);
   assertEquals([f.supplier_url, f.weight_kg], ['https://www.amazon.co.uk/dp/B00NUTELLA?psc=1', 0.95]);
   assert(/Brand: Nutella|Nutella Hazelnut Spread 400g/.test(String(f.supplier_text)), String(f.supplier_text));
+});
+
+// Titles from the 3 October runs and the ones likely to come next. Only real multipacks are ruled out.
+const pageTitled = (title: string, over: Record<string, unknown> = {}) => page({ title, ...over });
+Deno.test('packs: what is inside one product is never a pack; a named multipack is', () => {
+  const cases: Array<[string, string, boolean]> = [
+    ['Lego 77260', 'LEGO Speed Champions Toyota Supra MK4 77260, Building Kit, 292 Pieces', false],
+    ['Stanley socket set', 'STANLEY 1/4 and 1/2 Inch Socket Set, 108 Pcs', false],
+    ['Fairy Platinum dishwasher tablets', 'Fairy Platinum Plus Dishwasher Tablets, 75 Tablets', false],
+    ['Dettol spray', 'Dettol Antibacterial Surface Spray 500ml with 2 x 500ml Refills', false],
+    ['Pedigree Dentastix', 'Pedigree Dentastix Daily Dental Chews, 28 Sticks', false],
+    ['Dryzone Mould Remover Prevention Kit', 'Dryzone Mould Remover and Prevention Kit (3 x 450ml spray)', false],
+    ['Shavingfun massage gun', 'SHAVINGFUN Mini Massage Gun, 6 Speeds, 4 Heads', false],
+    ['Nutella 400g', 'Nutella Hazelnut Spread, 400g (Pack of 3)', true],
+    ['Wet Forget Mould Lichen Algae Remover', 'Wet & Forget Moss Mould Lichen & Algae Remover 2 x 2L', true],
+    ['Coca-Cola Classic 330ml can', 'Coca-Cola Original Taste 24 x 330ml', true],
+    ['Red Bull 250ml', 'Red Bull Energy Drink 250ml x 12', true],
+    ['Andrex toilet tissue', 'Andrex Classic Clean Toilet Tissue, 9 Pack', true],
+    ['Fairy liquid', 'Fairy Original Washing Up Liquid, Twin Pack', true],
+    ['Pedigree Dentastix 7 sticks', 'Pedigree Dentastix Daily Dental Chews, 28 Sticks', true],
+    ['Nutella 400g (Pack of 3)', 'Nutella Hazelnut Spread 400g, Pack of 3', false],
+    ['Nutella 400g', 'Nutella Hazelnut Spread 1kg', true],
+  ];
+  for (const [card, amazon, out] of cases) {
+    const said = packDoubt(card, pageTitled(amazon));
+    assert(Boolean(said) === out, `${card} vs ${amazon}: ${said ?? 'passes'}`);
+  }
+  assertEquals(multipackOf('Andrex 9 Pack')?.n, 9);
+  assertEquals(multipackOf('Kit (3 x 450ml spray)'), null);
+});
+
+Deno.test('a renewed or used listing is ruled out: she sells new', () => {
+  const r = pageTitled('Philips Hue Bridge (Renewed)');
+  assert(notNew(r));
+  const v = judge({ title: 'Philips Hue Bridge' }, '3017620422003', r);
+  assert(!v.ok && v.line === 'Not new on Amazon.', JSON.stringify(v));
+  assert(!notNew(pageTitled('Philips Hue Bridge, New Edition')));
+});
+
+Deno.test('a bundle, or a price far over the research, is approved with a warning for Approved', () => {
+  const bundle = judge(nutella, '3017620422003', pageTitled('Nutella Hazelnut Spread 400g + Free Spoon'));
+  assert(bundle.ok && /a bundle/.test(bundle.warnings.join(' ')) && /One thing to check/.test(bundle.line), JSON.stringify(bundle));
+  const dear = judge({ title: 'Nutella 400g', margin: { shelf: { price: 3.2 } } }, '3017620422003', pageTitled('Nutella Hazelnut Spread 400g', { price: 9.6 }));
+  assert(dear.ok && /3\.0 times the £3\.20/.test(dear.warnings.join(' ')), JSON.stringify(dear));
+  const fair = judge({ title: 'Nutella 400g', margin: { shelf: { price: 3.2 } } }, '3017620422003', pageTitled('Nutella Hazelnut Spread 400g', { price: 3.46 }));
+  assert(fair.ok && fair.warnings.length === 0, JSON.stringify(fair));
+});
+
+Deno.test('more than one result: another colour, size or weight is another variant', () => {
+  assertEquals(variantConflict('Minky Reflex Mop Black', 'Minky Reflex Mop, White'), 'white on Amazon, black on this card');
+  assertEquals(variantConflict('Silentnight electric blanket double', 'Silentnight Electric Blanket, King'), 'king on Amazon, double on this card');
+  assertEquals(variantConflict('Nutella 400g', 'Nutella Hazelnut Spread 750g'), '750 on Amazon, 400 on this card');
+  assertEquals(variantConflict('Minky Reflex Mop', 'Minky Reflex Mop, White'), null);
+  assertEquals(pickResult('Minky Reflex Mop Black', [
+    { asin: 'WHITE', title: 'Minky Reflex Mop White', position: 0 },
+    { asin: 'BLACK', title: 'Minky Reflex Mop Black', position: 1 },
+  ]), { asin: 'BLACK', via: 'title' });
+});
+
+Deno.test('no seller shown is said so, not "another seller"', () => {
+  const v = judge(nutella, '3017620422003', page({ soldBy: null, fulfilledBy: null, price: null, warehouseAvailability: null }));
+  assert(v.ok && /no price now, no seller shown, stock not shown/.test(v.line), JSON.stringify(v));
 });

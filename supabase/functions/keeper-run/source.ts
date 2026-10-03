@@ -134,10 +134,11 @@ export async function sourceBatch(client: Client, jobs: Json[], run: Json, deps:
     }
     const yes = { v, r };
     const source = sourceOf(yes.r, v);
-    const result = { line: v.line, why: v.why, asin: v.asin, url: source.url, price: v.cost, image: c.image_url ?? source.image_url };
+    const result = { line: v.line, why: v.why, asin: v.asin, url: source.url, price: v.cost, image: c.image_url ?? source.image_url, warnings: v.warnings };
     if (run.rehearsal) { out.push(done({ ...result, tray: 'ready', rehearsal: true })); continue; }
 
-    const reading = nextRead(null, yes.r, { source_id: null, costed: v.cost });
+    // What Approved should check by eye travels with the reading, so the card shows it (supplierWatch.js).
+    const reading = { ...nextRead(null, yes.r, { source_id: null, costed: v.cost }), keeper_warnings: v.warnings };
     const { data: said, error: e } = await client.rpc('keeper_source_approve', {
       p_candidate: c.id, p_source: source, p_read: reading, p_note: v.line,
       // The card filled from the reading where empty: Amazon's facts, the link, the packed weight (0136).
