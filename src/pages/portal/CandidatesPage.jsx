@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { CandidateRow, confirmSource } from '@components/ui/portal/CandidateRow';
 import { CategoryTabs } from '@components/ui/portal/CategoryTabs';
 import { Tip } from '@components/ui/portal/primitives';
@@ -13,6 +13,7 @@ import { useCandidates, useBatches } from '@hooks/useCandidates';
 import { NEEDS, UNSORTED, categoryName, deepensAt, loadCategories, placeOf, storedTab } from '@lib/categories';
 import { useSuppliers } from '@hooks/useSuppliers';
 import { loadTenant } from '@lib/tenant';
+import { supabase } from '@lib/supabase';
 import { assess, READY_MIN_SOLD } from '@lib/assess';
 import { formatGbp } from '@utils/formatGbp';
 import { portalPath, REJECTION_REASONS } from '@utils/constants';
@@ -149,6 +150,64 @@ export function CandidatesPage() {
   const sentinel = useRef(null);
 
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
+
+  // Keeper's way into looking candidates up on Amazon (keeper-task-02): how many it could look up, or the look going
+  // now. Shown only when there is one or the other; before 0133 runs the count fails and nothing is shown.
+  const [sourcing, setSourcing] = useState(null);
+  useEffect(() => {
+    if (!tenant?.id) return undefined;
+    let live = true;
+    Promise.all([
+      supabase.rpc('amazon_source_waiting', { p_tenant: tenant.id }),
+      supabase.from('keeper_runs').select('id, state').eq('tenant_id', tenant.id).eq('task', 'amazon_source')
+        .in('state', ['running', 'paused']).limit(1).maybeSingle(),
+    ]).then(([w, r]) => {
+      if (live) setSourcing({ waiting: w.error ? 0 : Number(w.data ?? 0), run: r.error ? null : r.data ?? null });
+    }, () => { if (live) setSourcing(null); });
+    return () => { live = false; };
+  }, [tenant?.id]);
+  const agentName = tenant?.store?.agent?.name || 'Your assistant';
+  const navigate = useNavigate();
+
+  // The ticked cards looked up on Amazon by Keeper (0134): a run of those only, watched in the office. First a count of
+  // why any cannot be (0135), so when none can, the bar says which reason applies. A card looked up before goes again
+  // only when asked, since it is paid for again.
+  const [lookup, setLookup] = useState(null);
+  const lookUp = useCallback(async (again = false) => {
+    if (!tenant?.id) return;
+    const ids = [...selected];
+    setLookup({ busy: true });
+    const { data: check, error: e1 } = await supabase.rpc('amazon_source_check', { p_tenant: tenant.id, p_ids: ids });
+    if (e1) { setLookup({ head: 'That did not start.', detail: [e1.message] }); return; }
+    const can = again ? check.ready + check.looked : check.ready;
+    if (!can) {
+      const n = (v, one, many) => `${v.toLocaleString('en-GB')} ${v === 1 ? one : many}`;
+      setLookup({
+        head: ids.length === 1 ? 'This one cannot be looked up on Amazon.' : `None of these ${ids.length} can be looked up on Amazon.`,
+        detail: [
+          check.looked > 0 && `${n(check.looked, 'was', 'were')} looked up already.`,
+          check.no_barcode > 0 && `${n(check.no_barcode, 'has', 'have')} no barcode.`,
+          check.decided > 0 && `${n(check.decided, 'is', 'are')} decided already.`,
+          check.in_hand > 0 && `${n(check.in_hand, 'is', 'are')} being looked up now.`,
+        ].filter(Boolean),
+        again: check.looked,
+        open: check.in_hand > 0,
+      });
+      return;
+    }
+    const { error } = await supabase.rpc('start_amazon_run', {
+      p_tenant: tenant.id, p_cap_pence: Math.max(500, Math.ceil(can * 3.2)), p_limit: null, p_pace: 'watch', p_ids: ids, p_again: again,
+    });
+    if (!error) {
+      supabase.functions.invoke('keeper-run', { body: { queue: true, tenant_id: tenant.id } }).catch(() => {});
+      setLookup(null);
+      navigate(portalPath('/keeper/amazon'));
+      return;
+    }
+    if (error.code === '23505') setLookup({ head: `${agentName} is already looking some up.`, detail: ['Wait for it to finish, then start this one.'], open: true });
+    else setLookup({ head: 'That did not start.', detail: [error.message] });
+  }, [tenant?.id, selected, navigate, agentName]);
+  useEffect(() => { setLookup(null); }, [selected]);
 
   const batches = useBatches(tenant?.id);
   const liveIds = useMemo(() => (batches ?? []).map((b) => b.id), [batches]);
@@ -509,6 +568,20 @@ export function CandidatesPage() {
         </div>
       </header>
 
+      {sourcing && (sourcing.waiting > 0 || sourcing.run) && (
+        <div className={styles.keeperStrip}>
+          <Icon name="IconKeeper" className={styles.keeperIcon} />
+          <p className={styles.keeperLine}>
+            {sourcing.run
+              ? `${agentName} is looking up your candidates on Amazon.`
+              : <><b data-num>{sourcing.waiting.toLocaleString('en-GB')}</b> {sourcing.waiting === 1 ? 'candidate has a barcode' : 'candidates have a barcode'} {agentName} can look up on Amazon.</>}
+          </p>
+          <Link className={styles.keeperGo} to={portalPath('/keeper/amazon')}>
+            {sourcing.run ? `See ${agentName} at work` : `Let ${agentName} look them up`}
+          </Link>
+        </div>
+      )}
+
       <CategoryTabs groups={tabs} current={tab} onPick={pickCategory} />
 
       {(subs.length > 1 || sub.l2 != null || subs.some(([k]) => deepensAt(k))) && (
@@ -697,8 +770,24 @@ export function CandidatesPage() {
 
       {selected.size > 0 && (
         <div className={styles.bulk} role="region" aria-label="Selected cards">
-          <span className={styles.bulkCount}><span data-num>{selected.size}</span> selected</span>
-          {bulkRejecting ? (
+          {!lookup?.head && <span className={styles.bulkCount}><span data-num>{selected.size}</span> selected</span>}
+          {lookup?.head ? (
+            <>
+              <div className={styles.bulkNote} role="status">
+                <p className={styles.bulkHead}>{lookup.head}</p>
+                {lookup.detail.length > 0 && <p className={styles.bulkDetail}>{lookup.detail.join(' ')}</p>}
+              </div>
+              <div className={styles.bulkActions}>
+                {lookup.again > 0 && (
+                  <button type="button" className={styles.bulkApprove} onClick={() => lookUp(true)}>
+                    Look up {lookup.again === 1 ? 'it' : `the ${lookup.again}`} again
+                  </button>
+                )}
+                {lookup.open && <Link className={styles.bulkQuiet} to={portalPath('/keeper/amazon')}>See {agentName} at work</Link>}
+                <button type="button" className={styles.bulkQuiet} onClick={() => setLookup(null)}>Back</button>
+              </div>
+            </>
+          ) : bulkRejecting ? (
             <>
               <span className={styles.bulkLabel}>Why</span>
               {REJECTION_REASONS.map((r, i) => (
@@ -713,6 +802,9 @@ export function CandidatesPage() {
             <>
               <button type="button" className={styles.bulkQuiet} onClick={() => actOnSelected({ action: 'defer' })}>Later <kbd>L</kbd></button>
               <button type="button" className={styles.bulkQuiet} onClick={() => setBulkRejecting(true)}>Reject <kbd>R</kbd></button>
+              <button type="button" className={styles.bulkQuiet} disabled={lookup?.busy} onClick={() => lookUp(false)}>
+                {lookup?.busy ? 'Starting' : 'Look up on Amazon'}
+              </button>
               <button type="button" className={styles.bulkApprove} onClick={() => actOnSelected({ action: 'approve' })}>Approve <kbd>A</kbd></button>
               <button type="button" className={styles.bulkQuiet} onClick={() => setSelected(new Set())}>Clear</button>
             </>

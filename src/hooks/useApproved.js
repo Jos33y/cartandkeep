@@ -109,7 +109,7 @@ export function useApproved(tenantId) {
         sold_30d, avg_sold_price, window_start, window_series,
         recommended_channels,
         batches ( delivered_for ),
-        decisions!inner ( action, decided_at, note ),
+        decisions!inner ( action, decided_at, note, made_by ),
         candidate_sources (
           id, supplier, supplier_kind, fulfilment, status, url, note,
           unit_cost, moq, price_at_moq, supplier_shipping,

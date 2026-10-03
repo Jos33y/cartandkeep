@@ -1,8 +1,4 @@
-ck-send-button-2026-10-03
-Portal only. No SQL. No functions to deploy.
-
-src/lib/sendToCart.js   the Send to Cart & Keep button: never silent, opens the portal in the same tab if the new
-                        tab is blocked, keeps the supplier text's line breaks, ASCII only.
-
-After the push: delete the old bookmark, open portal.cartandkeep.com/approved, and drag the button to the
-bookmarks bar again. The old bookmark keeps the old code.
+ck-keeper-mark-icon-2026-10-03
+The Keeper mark on Approved rows is Keeper's icon alone (the circled K), in its blue, no text and no box.
+Screen readers hear "Approved by Keeper"; hovering says what Keeper did.
+Portal only: push. Replaces these two files from ck-keeper-amazon-any-seller.

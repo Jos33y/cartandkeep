@@ -20,6 +20,16 @@ export const TRAYS = [
 export const ON_SALE = { key: 'live', label: 'On sale', hint: 'Live on your shop now', tone: 'positive' };
 export const REPORT_TRAYS = [ON_SALE, ...TRAYS];
 
+/*
+ * Looking candidates up on Amazon (keeper-task-02-amazon-sourcing.md, pass 1). The same three tray keys, so the
+ * office draws them in the same inks: sourced (approved), left for the full check, and could not read.
+ */
+export const SOURCE_TRAYS = [
+  { key: 'ready', label: 'Sourced on Amazon', stamp: 'Sourced', hint: 'Approved, with the Amazon supplier, cost, seller and stock saved', tone: 'positive' },
+  { key: 'choose', label: 'Left for the full check', stamp: 'Left', hint: 'Not found by its barcode, or another pack. What was found is noted on the card', tone: 'info' },
+  { key: 'unread', label: 'Could not read', stamp: 'Not read', hint: 'Amazon did not answer three times; the next run tries again', tone: 'negative' },
+];
+
 // Trays from the first version of the check, read as today's.
 const LEGACY = { not_chemical: 'ready' };
 // The trays whose drafts can go straight on sale.
@@ -32,6 +42,8 @@ export const unchecked = (p) => p?.status === 'draft' && !p?.archived_at && !p?.
 export function trayOf(job) {
   if (job.state === 'failed') return 'unread';
   if (job.state !== 'done') return null;
+  // An approval from Amazon that was undone afterwards.
+  if (job.result?.undone) return 'undone';
   const t = job.result?.tray ?? null;
   return LEGACY[t] ?? t;
 }
@@ -52,9 +64,9 @@ export function placeOf(job, product) {
  * Everything the office counts: the trays always add up to what is done. Given the products, it counts where each
  * draft is now (placeOf), with "live" and "archived" beside the trays; without, Keeper's verdicts as they landed.
  */
-export function summarise(jobs = [], products = null) {
-  const trays = Object.fromEntries((products ? [...REPORT_TRAYS, { key: 'archived' }] : TRAYS).map((t) => [t.key, 0]));
-  let waiting = 0; let working = 0; let skipped = 0; let stopped = 0; let ms = 0; let timed = 0;
+export function summarise(jobs = [], products = null, own = TRAYS) {
+  const trays = Object.fromEntries((products ? [...REPORT_TRAYS, { key: 'archived' }] : own).map((t) => [t.key, 0]));
+  let waiting = 0; let working = 0; let skipped = 0; let stopped = 0; let undone = 0; let ms = 0; let timed = 0;
   for (const j of jobs) {
     if (j.state === 'queued') waiting += 1;
     else if (j.state === 'working') working += 1;
@@ -62,13 +74,14 @@ export function summarise(jobs = [], products = null) {
     else {
       const t = products ? placeOf(j, products.get(j.product_id)) : trayOf(j);
       if (t === 'skipped') skipped += 1;
+      else if (t === 'undone') undone += 1;
       else if (t && t in trays) trays[t] += 1;
       const took = Number(j.result?.ms);
       if (Number.isFinite(took) && took > 0) { ms += took; timed += 1; }
     }
   }
-  const done = Object.values(trays).reduce((a, b) => a + b, 0) + skipped;
-  return { trays, waiting, working, skipped, stopped, done, left: waiting + working, avgMs: timed ? ms / timed : null };
+  const done = Object.values(trays).reduce((a, b) => a + b, 0) + skipped + undone;
+  return { trays, waiting, working, skipped, stopped, undone, done, left: waiting + working, avgMs: timed ? ms / timed : null };
 }
 
 // Time to go, in words: at watch pace each draft takes at least three and a half seconds.

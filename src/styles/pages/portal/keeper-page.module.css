@@ -564,3 +564,22 @@
   .stamp svg, .stamp circle, .phaseDot { animation: none !important; }
   .meter span { transition: none; }
 }
+
+/* Keeper's two kinds of work, a click apart: shop drafts and Amazon. Compact, the same pills as the pace. */
+.switch { display: inline-flex; gap: 2px; padding: 3px; background: var(--c-sunk); border: 1px solid var(--c-line); border-radius: var(--r-md); align-self: flex-start; }
+.switch a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 var(--s-4);
+  border-radius: 4px;
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.switch a:hover { color: var(--c-ink); }
+.switch a[aria-current='page'] { background: var(--c-surface); color: var(--c-ink); font-weight: 500; box-shadow: var(--e-2); }
+.switch a:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+/* A text button that sits in line with the text above it: the tap height stays, the side padding goes. */
+.inline { padding-left: 0; padding-right: 0; min-height: 32px; }

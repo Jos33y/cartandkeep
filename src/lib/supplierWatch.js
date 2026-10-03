@@ -66,10 +66,10 @@ const when = (iso) => {
   return d.toLocaleDateString('en-GB', { timeZone: 'Europe/London' }) === today ? `today at ${time}` : `${day(iso)} at ${time}`;
 };
 
-// What one unit's goods cost by a reading: the price, or on a deal the price it goes back to (amazon.ts goodsOf).
+// What one unit's goods cost by a reading: the price shown today, deal or not (amazon.ts goodsOf).
 export function goodsOf(offer) {
   if (!offer || offer.price == null) return null;
-  return offer.deal && offer.was ? Number(offer.was) : Number(offer.price);
+  return Number(offer.price);
 }
 
 /*
@@ -111,17 +111,26 @@ export function supplierWarnings(r, costed = r?.costed ?? null, now = Date.now()
     if (o.stock === 'out' && r.found !== false) out.push({ level: 'stop', short: 'out of stock', text: `Out of stock on Amazon${said ? `: "${said}"` : ''}.` });
     if (o.stock === 'low') out.push({ level: 'warn', short: 'running low', text: `Amazon says "${said}".` });
     if (o.stock === 'slow') out.push({ level: 'warn', short: 'slow to dispatch', text: `Amazon says "${said}". Your buyers would wait.` });
+    // Sourced on Amazon whoever sells it (task 02): who sends it is hers to weigh here. Not Amazon means delivery to
+    // her is the seller's, not Prime's.
+    if (o.sold_by && !/amazon/i.test(String(o.fulfilled_by ?? '')) && !/^amazon/i.test(String(o.sold_by))) {
+      out.push({
+        level: 'warn',
+        short: 'not sent by Amazon',
+        text: `Sold and sent by ${o.sold_by}, not Amazon${Number(o.shipping) > 0 ? `: ${formatGbp(Number(o.shipping))} delivery to you, counted in your cost` : ', so delivery may not be free on Prime'}.`,
+      });
+    }
     if (cost != null && costed != null && cost > costed + 0.01) {
       const up = (cost - costed) / costed;
       out.push({ level: up >= 0.1 ? 'stop' : 'warn', short: `now ${formatGbp(cost)}`, text: `Costs ${formatGbp(cost)} today. You costed it at ${formatGbp(costed)}.` });
     } else if (cost != null && b?.price != null && cost > b.price + 0.01 && !followed(r, cost)) {
       out.push({ level: 'warn', short: `up to ${formatGbp(cost)}`, text: `Up from ${formatGbp(b.price)} on ${day(b.read_at)} to ${formatGbp(cost)}.` });
     }
-    if (o.deal && o.was && o.price != null) {
-      const after = Math.round((o.was + (o.shipping ?? 0)) * 100) / 100;
-      out.push(costed != null && after > costed + 0.01
-        ? { level: 'warn', short: 'deal price', text: `On a deal. When it ends it costs ${formatGbp(after)}, more than the ${formatGbp(costed)} you costed.` }
-        : { level: 'note', text: `On a deal. When it ends it costs ${formatGbp(after)}.` });
+    // A deal is a cost while it lasts. Its end is what needs telling.
+    if (b?.deal && !o.deal && o.price != null && b.price != null && o.price > b.price + 0.01) {
+      out.push({ level: 'warn', short: 'deal ended', text: `Amazon's deal has ended: now ${formatGbp(o.price)}, was ${formatGbp(b.price)} on ${day(b.read_at)}.` });
+    } else if (o.deal && o.was && o.price != null) {
+      out.push({ level: 'note', text: `On a deal at ${formatGbp(o.price)}, usually ${formatGbp(o.was)}. You will be told when it ends.` });
     }
     if (cost != null && b?.price != null && cost < b.price - 0.01) out.push({ level: 'note', text: `Down from ${formatGbp(b.price)} on ${day(b.read_at)}.` });
     if (b?.stock === 'out' && o.stock === 'in') out.push({ level: 'note', text: 'Back in stock.' });
@@ -133,7 +142,7 @@ export function supplierWarnings(r, costed = r?.costed ?? null, now = Date.now()
     const age = now - Date.parse(moved.at);
     if (age < 14 * 24 * 3600 * 1000) {
       const up = moved.from == null || moved.to > moved.from + 0.01;
-      const after = moved.why === 'deal' ? ', the price after the deal ends' : '';
+      const after = moved.why === 'deal_ended' ? ', when its deal ended' : '';
       out.push({
         level: up && age < 3 * 24 * 3600 * 1000 ? 'warn' : 'note',
         short: `cost now ${formatGbp(moved.to)}`,
@@ -193,4 +202,6 @@ export function amazonWeight(r) {
   return weightKg(line?.split(':').slice(1).join(':')) ?? null;
 }
 // Packed, it weighs more: 15% for the box and wrapping, rounded up to the next 50g, at least 50g more.
-export const packedKg = (itemKg) => (itemKg ? Math.ceil(Math.max(itemKg * 1.15, itemKg + 0.05) * 20) / 20 : null);
+// Rounded to the gram before rounding up: 0.1 + 0.05 is 0.15000000000000002 in floating point, which rounded a 100g
+// item up to 200g, not 150g.
+export const packedKg = (itemKg) => (itemKg ? Math.ceil(Math.round(Math.max(itemKg * 1.15, itemKg + 0.05) * 20 * 1e6) / 1e6) / 20 : null);

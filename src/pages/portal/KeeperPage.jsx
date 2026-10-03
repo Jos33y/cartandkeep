@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { PageSkeleton } from '@components/ui/portal/Skeleton';
 import { Icon } from '@components/ui/icons';
-import { useKeeperRun } from '@hooks/useKeeperRun';
+import { subjectOf, useKeeperRun } from '@hooks/useKeeperRun';
 import { useAccount } from '@hooks/useAccount';
 import { PRODUCT_SELECT, blockers, isLive, isReady } from '@hooks/useCatalogue';
-import { REPORT_TRAYS, SELLABLE, TRAYS, placeOf, pounds, summarise, timeLeft, trayOf } from '@lib/keeper';
+import { REPORT_TRAYS, SELLABLE, SOURCE_TRAYS, TRAYS, placeOf, pounds, summarise, timeLeft, trayOf } from '@lib/keeper';
 import { loadTenant } from '@lib/tenant';
 import { supabase } from '@lib/supabase';
 import { portalPath } from '@utils/constants';
@@ -14,6 +14,7 @@ import styles from '@styles/pages/portal/keeper-page.module.css';
 /*
  * The assistant's office (keeper-task-01-shop-drafts.md): the in-tray of drafts, the one on the desk, the stamp, and
  * the out-trays filling. Every movement is a job changing state on the server; nothing here is staged.
+ * The same office looks candidates up on Amazon (keeper-task-02-amazon-sourcing.md) at /keeper/amazon.
  */
 
 const n = (v) => Number(v ?? 0).toLocaleString('en-GB');
@@ -21,11 +22,41 @@ const plural = (count, one, many = `${one}s`) => `${n(count)} ${count === 1 ? on
 const photoOf = (p, job) => job?.result?.image ?? p?.image_url ?? (Array.isArray(p?.images) ? p.images[0] : null) ?? null;
 const small = (url) => (url ? url.replace(/\/s-l\d+\./, '/s-l225.') : null);
 const productUrl = (id) => portalPath(`/products?open=${id}`);
-const trayMeta = (key) => REPORT_TRAYS.find((t) => t.key === key) ?? null;
+const trayMeta = (key, trays = REPORT_TRAYS) => trays.find((t) => t.key === key) ?? null;
 
 // Where the assistant is with the draft in hand, as the server writes it (keeper-check.ts). The photos step happens
 // only for a chemical or an unclear product, so it shows as passed over when the assistant goes straight to writing.
 const PHASES = [['words', 'Reading', 'IconNote'], ['photos', 'Photos', 'IconEye'], ['writing', 'Writing', 'IconSpark']];
+// Looking a candidate up on Amazon (keeper-run/source.ts): the search, the product page, the rules.
+const SOURCE_PHASES = [['search', 'Searching', 'IconEye'], ['read', 'Reading', 'IconNote'], ['decide', 'Deciding', 'IconCheck']];
+
+// What each task calls things. Portal copy says "you", never "she".
+const TASKS = {
+  shop_check: {
+    trays: TRAYS,
+    phases: PHASES,
+    one: 'A draft',
+    title: ({ live, run, waiting, agent }) => (live ? 'Checking your shop drafts' : run && !waiting ? `${agent} has checked your drafts` : 'Get your drafts ready for sale'),
+    sub: 'Returns, label warnings, a clean title and a short address for each draft. Nothing goes on sale until you say so.',
+    stop: (agent) => `Stop? Drafts already checked keep what ${agent} found.`,
+    paused: (agent) => `Paused. ${agent} carries on from the next draft when you press Carry on.`,
+    next: 'Picking up the next draft.',
+    reading: (agent) => `${agent} is reading`,
+    landed: 'Just checked',
+  },
+  amazon_source: {
+    trays: SOURCE_TRAYS,
+    phases: SOURCE_PHASES,
+    one: 'A candidate',
+    title: ({ live, run, waiting, agent }) => (live ? 'Looking up your candidates on Amazon' : run && !waiting ? `${agent} has looked up your candidates` : 'Find your candidates on Amazon'),
+    sub: 'Each candidate with a barcode is searched on Amazon UK. Approved when the search finds it in the same pack. Who sells it, the stock and the delivery are saved on the card for you to decide in Approved.',
+    stop: (agent) => `Stop? Candidates already looked up keep what ${agent} found.`,
+    paused: (agent) => `Paused. ${agent} carries on from the next candidate when you press Carry on.`,
+    next: 'Picking up the next candidate.',
+    reading: (agent) => `${agent} is looking`,
+    landed: 'Just looked up',
+  },
+};
 
 // The stamp: the shop's mark with a K. It tilts while reading and presses down, in the tray's ink, on a verdict.
 function Stamp({ state = 'idle', size = 56, tray = null }) {
@@ -77,14 +108,16 @@ function Thumb({ url, size = 'md' }) {
     : <span className={styles.thumb} data-size={size} data-empty="" />;
 }
 
-export function KeeperPage() {
+export function KeeperPage({ task = 'shop_check' }) {
+  const t = TASKS[task] ?? TASKS.shop_check;
+  const sourcing = task === 'amazon_source';
   const [tenant, setTenant] = useState(undefined);
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
   const agent = tenant?.store?.agent?.name || 'Your assistant';
   const account = useAccount();
   const studio = account.isStudio;
   // Nothing is read until the account is known, so she never glimpses a studio rehearsal.
-  const k = useKeeperRun(account.loading ? null : tenant?.id, { followPace: !account.loading && !studio, includeRehearsals: studio });
+  const k = useKeeperRun(account.loading ? null : tenant?.id, { task, followPace: !account.loading && !studio, includeRehearsals: studio });
   const { run, jobs, products, totals, waiting } = k;
 
   if (tenant === undefined || account.loading || run === undefined) return <PageSkeleton rows={5} />;
@@ -92,11 +125,20 @@ export function KeeperPage() {
   const live = Boolean(run && (run.state === 'running' || run.state === 'paused'));
   return (
     <div className={styles.page} data-wide>
-      <Header agent={agent} run={run} live={live} totals={totals} studio={studio} waiting={waiting} />
+      <nav className={styles.switch} aria-label={`${agent}'s work`}>
+        <Link to={portalPath('/keeper')} aria-current={sourcing ? undefined : 'page'}>Shop drafts</Link>
+        <Link to={portalPath('/keeper/amazon')} aria-current={sourcing ? 'page' : undefined}>Amazon</Link>
+      </nav>
+      <Header t={t} agent={agent} run={run} live={live} totals={totals} studio={studio} waiting={waiting} />
       {k.error && <p className={styles.error} role="alert">{k.error}</p>}
       {live
-        ? <Floor agent={agent} run={run} jobs={jobs} products={products} totals={totals} onSet={k.set} studio={studio} />
-        : (
+        ? <Floor t={t} agent={agent} run={run} jobs={jobs} products={products} totals={totals} onSet={k.set} studio={studio} onUndo={sourcing ? k.undo : null} />
+        : sourcing ? (
+          <>
+            {run && <SourceReport agent={agent} run={run} jobs={jobs} products={products} totals={totals} studio={studio} onUndo={k.undo} />}
+            <SourceStart agent={agent} waiting={waiting} last={run} onStart={k.start} studio={studio} />
+          </>
+        ) : (
           <>
             {run && <Report agent={agent} run={run} jobs={jobs} products={products} totals={totals} tenantId={tenant?.id} onDone={k.refresh} studio={studio} />}
             <Start agent={agent} waiting={waiting} last={run} onStart={k.start} studio={studio} />
@@ -106,12 +148,10 @@ export function KeeperPage() {
   );
 }
 
-function Header({ agent, run, live, totals, studio, waiting }) {
+function Header({ t, agent, run, live, totals, studio, waiting }) {
   const total = run?.total ?? 0;
   const working = live && run.state === 'running' && totals.working > 0;
-  const title = live ? 'Checking your shop drafts'
-    : run && !waiting ? `${agent} has checked your drafts`
-      : 'Get your drafts ready for sale';
+  const title = t.title({ live, run, waiting, agent });
   return (
     <header className={styles.head}>
       <div className={styles.titleBlock}>
@@ -119,7 +159,7 @@ function Header({ agent, run, live, totals, studio, waiting }) {
         <div>
           <p className={styles.kicker}>{live ? (run.state === 'paused' ? `${agent} is paused` : `${agent} at work`) : agent}</p>
           <h1 className={styles.title}>{title}</h1>
-          <p className={styles.sub}>Returns, label warnings, a clean title and a short address for each draft. Nothing goes on sale until you say so.</p>
+          <p className={styles.sub}>{t.sub}</p>
         </div>
       </div>
       {live && (
@@ -145,10 +185,10 @@ function Header({ agent, run, live, totals, studio, waiting }) {
 }
 
 // Progress in the trays' own colours, so the bar says where the drafts went as well as how many.
-function Meter({ totals, total }) {
+function Meter({ totals, total, trays = TRAYS }) {
   return (
-    <div className={styles.meter} role="img" aria-label={`${n(totals.done)} of ${n(total)} checked`}>
-      {TRAYS.map((t) => (
+    <div className={styles.meter} role="img" aria-label={`${n(totals.done)} of ${n(total)} done`}>
+      {trays.map((t) => (
         <span key={t.key} data-tray={t.key} style={{ width: `${(totals.trays[t.key] / total) * 100}%` }} />
       ))}
       <span data-tray="skipped" style={{ width: `${(totals.skipped / total) * 100}%` }} />
@@ -156,7 +196,7 @@ function Meter({ totals, total }) {
   );
 }
 
-function Floor({ agent, run, jobs, products, totals, onSet, studio }) {
+function Floor({ t: task, agent, run, jobs, products, totals, onSet, studio, onUndo }) {
   const [stopping, setStopping] = useState(false);
   const [only, setOnly] = useState(null);
   const total = run.total || 1;
@@ -171,11 +211,11 @@ function Floor({ agent, run, jobs, products, totals, onSet, studio }) {
   const inHand = working[0] ?? null;
   const justDone = !inHand ? landed[0] ?? null : null;
   const onDesk = inHand ?? justDone;
-  const p = onDesk ? products.get(onDesk.product_id) : null;
+  const p = onDesk ? products.get(subjectOf(onDesk)) : null;
   const tray = justDone ? trayOf(justDone) : null;
-  const meta = trayMeta(tray);
-  const phase = inHand?.result?.phase ?? 'words';
-  const at = Math.max(0, PHASES.findIndex(([key]) => key === phase));
+  const meta = trayMeta(tray, task.trays);
+  const phase = inHand?.result?.phase ?? task.phases[0][0];
+  const at = Math.max(0, task.phases.findIndex(([key]) => key === phase));
   const log = (only ? landed.filter((j) => trayOf(j) === only) : landed).slice(0, only ? 60 : 12);
   const newTitle = justDone?.result?.title && justDone.result.title_before && justDone.result.title !== justDone.result.title_before;
 
@@ -195,7 +235,7 @@ function Floor({ agent, run, jobs, products, totals, onSet, studio }) {
         {stopping
           ? (
             <span className={styles.confirm} role="group" aria-label="Stop the check">
-              <span>Stop? Drafts already checked keep what {agent} found.</span>
+              <span>{task.stop(agent)}</span>
               <button type="button" className={styles.danger} onClick={() => { setStopping(false); onSet({ state: 'stopped' }); }}>Stop</button>
               <button type="button" className={styles.link} onClick={() => setStopping(false)}>Keep going</button>
             </span>
@@ -207,11 +247,11 @@ function Floor({ agent, run, jobs, products, totals, onSet, studio }) {
       {run.state === 'paused' && (
         <p className={styles.notice} role="status">
           <Icon name="IconInfo" className={styles.noticeIcon} />
-          {run.paused_reason && studio ? run.paused_reason : `Paused. ${agent} carries on from the next draft when you press Carry on.`}
+          {run.paused_reason && studio ? run.paused_reason : task.paused(agent)}
         </p>
       )}
 
-      <Meter totals={totals} total={total} />
+      <Meter totals={totals} total={total} trays={task.trays} />
 
       <div className={styles.floor}>
         <section className={styles.inTray} aria-label="In-tray">
@@ -222,11 +262,11 @@ function Floor({ agent, run, jobs, products, totals, onSet, studio }) {
           </div>
           <ol className={styles.pile}>
             {queued.slice(0, 4).map((j, i) => {
-              const q = products.get(j.product_id);
+              const q = products.get(subjectOf(j));
               return (
                 <li key={j.id} className={styles.pileItem} style={{ '--i': i }}>
                   <Thumb url={photoOf(q, j)} size="sm" />
-                  <span className={styles.pileName}>{q?.title ?? 'A draft'}</span>
+                  <span className={styles.pileName}>{q?.title ?? task.one}</span>
                 </li>
               );
             })}
@@ -240,18 +280,18 @@ function Floor({ agent, run, jobs, products, totals, onSet, studio }) {
             <article key={onDesk.id + (justDone ? ':done' : '')} className={styles.paper} data-phase={justDone ? 'stamped' : 'reading'} data-tray={tray || undefined}>
               <div className={styles.photo}><Thumb url={photoOf(p, onDesk)} size="lg" /></div>
               <div className={styles.paperText}>
-                <p className={styles.paperKicker}>{justDone ? 'Just checked' : `${agent} is reading`}</p>
+                <p className={styles.paperKicker}>{justDone ? task.landed : task.reading(agent)}</p>
                 {newTitle ? (
                   <>
                     <p className={styles.was}>{justDone.result.title_before}</p>
                     <h2 className={styles.paperTitle} data-new>{justDone.result.title}</h2>
                   </>
-                ) : <h2 className={styles.paperTitle}>{justDone?.result?.title ?? p?.title ?? 'A draft'}</h2>}
+                ) : <h2 className={styles.paperTitle}>{justDone?.result?.title ?? p?.title ?? task.one}</h2>}
                 {justDone ? (
                   <p className={styles.verdictLine}>{justDone.state === 'failed' ? `Could not read it: ${justDone.error ?? 'try again'}` : justDone.result?.line}</p>
                 ) : (
                   <ol className={styles.phases} aria-label="Steps">
-                    {PHASES.map(([key, label, icon], i) => {
+                    {task.phases.map(([key, label, icon], i) => {
                       const state = i < at ? (key === 'photos' && !inHand?.result?.read_photos ? 'skipped' : 'done') : i === at ? 'now' : 'next';
                       return (
                         <li key={key} data-state={state}>
@@ -266,14 +306,14 @@ function Floor({ agent, run, jobs, products, totals, onSet, studio }) {
               {justDone && (
                 <div className={styles.landing}>
                   <Stamp state="stamped" size={84} tray={tray} />
-                  <span className={styles.landingLabel} data-tray={tray}>{meta?.label ?? 'Checked'}</span>
+                  <span className={styles.landingLabel} data-tray={tray}>{meta?.stamp ?? meta?.label ?? 'Done'}</span>
                 </div>
               )}
             </article>
           ) : (
             <div className={styles.emptyDesk}>
               <Stamp state="idle" size={56} />
-              <p>{run.state === 'paused' ? 'Paused.' : 'Picking up the next draft.'}</p>
+              <p>{run.state === 'paused' ? 'Paused.' : task.next}</p>
             </div>
           )}
         </section>
@@ -281,7 +321,7 @@ function Floor({ agent, run, jobs, products, totals, onSet, studio }) {
         <section className={styles.trays} aria-label="Out-trays">
           <h2 className={styles.colHead}>Out-trays</h2>
           <div className={styles.trayGrid}>
-            {TRAYS.map((t) => (
+            {task.trays.map((t) => (
               <button key={t.key} type="button" className={styles.tray} data-tray={t.key} aria-pressed={only === t.key}
                 title={t.hint} onClick={() => setOnly(only === t.key ? null : t.key)}>
                 <TrayArt tray={t.key} count={totals.trays[t.key]} size={96} />
@@ -293,32 +333,51 @@ function Floor({ agent, run, jobs, products, totals, onSet, studio }) {
         </section>
       </div>
 
-      <section className={styles.log} aria-label="What was checked">
+      <section className={styles.log} aria-label="What was done">
         <h2 className={styles.colHead}>
-          {only ? trayMeta(only)?.label : 'Just checked'}
+          {only ? trayMeta(only, task.trays)?.label : task.landed}
           {only && <button type="button" className={styles.link} onClick={() => setOnly(null)}>Show all</button>}
         </h2>
         {!log.length && <p className={styles.more}>Nothing yet.</p>}
         <ol className={styles.lines}>
-          {log.map((j) => <LogLine key={j.id} job={j} product={products.get(j.product_id)} />)}
+          {log.map((j) => <LogLine key={j.id} job={j} product={products.get(subjectOf(j))} trays={task.trays} onUndo={onUndo} />)}
         </ol>
       </section>
     </>
   );
 }
 
-// One checked draft: its photo, the title, the tray, the short line, and the reasons folded away.
-function LogLine({ job, product, place = null }) {
+// One checked draft or candidate: its photo, the title, the tray, the short line, and the reasons folded away.
+// A candidate links to its Amazon page; one Keeper approved can be undone while it is still Keeper's.
+function LogLine({ job, product, place = null, trays = REPORT_TRAYS, onUndo = null }) {
   const tray = place ?? trayOf(job);
-  const meta = trayMeta(tray);
+  const meta = tray === 'undone' ? { label: 'Undone' } : trayMeta(tray, trays);
   const why = job.result?.why;
+  const candidate = Boolean(job.candidate_id);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState(null);
+  const keepers = product?.decisions && (Array.isArray(product.decisions) ? product.decisions[0] : product.decisions);
+  const canUndo = onUndo && candidate && tray === 'ready' && !job.result?.rehearsal && keepers?.made_by === 'keeper';
+
+  async function undo() {
+    setBusy(true);
+    setSaid(null);
+    try {
+      await onUndo(job.candidate_id);
+    } catch (e) {
+      setSaid(e?.message ?? 'That did not undo. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <li className={styles.line} data-tray={tray}>
       <Thumb url={photoOf(product, job)} size="sm" />
       <div className={styles.lineText}>
         <p className={styles.lineHead}>
-          <span className={styles.lineName}>{job.result?.title ?? product?.title ?? 'A draft'}</span>
-          <span className={styles.chip} data-tray={tray}>{meta?.label ?? 'Checked'}</span>
+          <span className={styles.lineName}>{job.result?.title ?? product?.title ?? (candidate ? 'A candidate' : 'A draft')}</span>
+          <span className={styles.chip} data-tray={tray}>{meta?.label ?? 'Done'}</span>
         </p>
         <p className={styles.lineWhy}>{job.state === 'failed' ? `Could not read it: ${job.error ?? 'try again'}` : job.result?.line}</p>
         {why && (
@@ -327,8 +386,16 @@ function LogLine({ job, product, place = null }) {
             <p>{why}</p>
           </details>
         )}
+        {canUndo && (
+          <p className={styles.lineWhy}>
+            <button type="button" className={`${styles.link} ${styles.inline}`} disabled={busy} onClick={undo}>{busy ? 'Undoing' : 'Undo the approval'}</button>
+          </p>
+        )}
+        {said && <p className={styles.error} role="alert">{said}</p>}
       </div>
-      <Link className={styles.open} to={productUrl(job.product_id)}>Open<span className="visually-hidden"> {product?.title}</span></Link>
+      {candidate
+        ? job.result?.url && <a className={styles.open} href={job.result.url} target="_blank" rel="noopener noreferrer">Amazon<span className="visually-hidden"> page for {job.result?.title ?? product?.title}, opens in a new tab</span></a>
+        : <Link className={styles.open} to={productUrl(job.product_id)}>Open<span className="visually-hidden"> {product?.title}</span></Link>}
     </li>
   );
 }
@@ -565,6 +632,169 @@ function Start({ agent, waiting, last, onStart, studio }) {
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+        {failed && <p className={styles.error} role="alert">{failed}</p>}
+      </div>
+    </section>
+  );
+}
+
+// After a look on Amazon: what was approved, what was left for the full check, and what Amazon did not answer.
+function SourceReport({ agent, run, jobs, products, totals, studio, onUndo }) {
+  const [showing, setShowing] = useState(null);
+  const t = totals.trays;
+  const stopped = run.state === 'stopped';
+  const shown = SOURCE_TRAYS.filter((x) => t[x.key] > 0);
+  const inTray = (key) => jobs.filter((j) => trayOf(j) === key);
+
+  return (
+    <section className={styles.report} aria-label="The last look on Amazon">
+      <div className={styles.reportHead}>
+        <div>
+          <p className={styles.kicker}>{stopped ? 'Stopped' : 'Finished'}</p>
+          <h2 className={styles.reportTitle}>
+            {agent} looked up {plural(totals.done, 'candidate')}{stopped ? ` of ${n(run.total)}` : ''}{studio ? ` for ${pounds(run.spent_pence)}` : ''}.
+          </h2>
+        </div>
+        {t.ready > 0 && (
+          <Link className={styles.go} data-big to={portalPath('/approved?only=keeper')}>See {t.ready === 1 ? 'it' : 'them'} in Approved</Link>
+        )}
+      </div>
+
+      <div className={styles.reportTrays} role="group" aria-label="Where the candidates went">
+        {shown.map((x) => (
+          <button key={x.key} type="button" className={styles.reportTray} data-tray={x.key} aria-expanded={showing === x.key}
+            onClick={() => setShowing(showing === x.key ? null : x.key)}>
+            <TrayArt tray={x.key} count={t[x.key]} size={112} />
+            <span className={styles.reportCount} data-num>{n(t[x.key])}</span>
+            <span className={styles.trayLabel}>{x.label}</span>
+            <span className={styles.trayHint}>{x.hint}</span>
+          </button>
+        ))}
+      </div>
+
+      {totals.undone > 0 && (
+        <p className={styles.more}>
+          {plural(totals.undone, 'approval')} undone.{' '}
+          <button type="button" className={styles.link} aria-expanded={showing === 'undone'} onClick={() => setShowing(showing === 'undone' ? null : 'undone')}>
+            {showing === 'undone' ? 'Hide' : 'Show'}
+          </button>
+        </p>
+      )}
+
+      {showing && inTray(showing).length > 0 && (
+        <ol className={styles.lines} data-in-report>
+          {inTray(showing).map((j) => (
+            <LogLine key={j.id} job={j} product={products.get(subjectOf(j))} trays={SOURCE_TRAYS} onUndo={onUndo} />
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+// How many candidates one look takes: five to see it work, then more. The ones that would make the most go first.
+const SOURCE_BATCHES = [5, 20, 50, 100];
+// About half a minute each while you watch: a search and a page read at Amazon.
+const SOURCE_EACH_MS = 30000;
+
+function SourceStart({ agent, waiting, last, onStart, studio }) {
+  const [batch, setBatch] = useState(5);
+  const [pace, setPace] = useState('watch');
+  const [cap, setCap] = useState('5.00');
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(null);
+
+  if (waiting === null) return null;
+  if (!waiting) {
+    return (
+      <p className={styles.allDone}>
+        <Icon name="IconCheck" className={styles.noticeIcon} />
+        Every candidate with a barcode has been looked up. The ones left in Candidates wait for the full check.
+      </p>
+    );
+  }
+  const sizes = SOURCE_BATCHES.filter((b) => b < waiting);
+  const take = batch && batch < waiting ? batch : null;
+  const count = take ?? waiting;
+  // The studio sets the limit; for you it is worked out: about twice what a look costs, never under £5.
+  const capPence = studio ? Math.round(Number(String(cap).replace(/[£,\s]/g, '')) * 100) : Math.max(500, Math.ceil(count * 3.2));
+  const capOk = Number.isFinite(capPence) && capPence >= 50;
+
+  async function go() {
+    setBusy(true);
+    setFailed(null);
+    try {
+      await onStart({ pace: studio ? pace : 'watch', capPence, limit: take });
+    } catch (e) {
+      setFailed(e?.message ?? 'That did not start.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className={styles.start} aria-label="Look up candidates on Amazon">
+      <div className={styles.startArt} aria-hidden="true">
+        <div className={styles.pileArt} data-big>
+          {Array.from({ length: 5 }, (_, i) => <span key={i} style={{ '--i': i }} />)}
+          <b data-num>{n(waiting)}</b>
+        </div>
+        <Stamp state="idle" size={64} />
+      </div>
+      <div className={styles.startText}>
+        <h2 className={styles.startTitle}>
+          {last ? `${plural(waiting, 'candidate')} with a barcode left to look up` : `${plural(waiting, 'candidate')} with a barcode to look up`}
+        </h2>
+        <p className={styles.startBody}>
+          {agent} searches Amazon UK for each barcode. One result is the product; with more than one, the title picks it.
+          When it is the same pack, the card is approved with Amazon as its supplier and today&apos;s price as its cost. Who
+          sells it, the stock and any delivery charge are saved for you to weigh in Approved. What it finds on the rest is
+          noted on each card. About {timeLeft(count, SOURCE_EACH_MS, 'watch')?.replace('about ', '')} while you watch.
+        </p>
+        {sizes.length > 0 && (
+          <div className={styles.batch}>
+            <span className={styles.fieldLabel} id="source-batch-label">How many</span>
+            <div className={styles.pace} role="group" aria-labelledby="source-batch-label" aria-describedby="source-batch-hint">
+              {sizes.map((b) => (
+                <button key={b} type="button" aria-pressed={take === b} onClick={() => setBatch(b)}>{n(b)}</button>
+              ))}
+              <button type="button" aria-pressed={take === null} onClick={() => setBatch(null)}>All {n(waiting)}</button>
+            </div>
+            <span className={styles.fieldHint} id="source-batch-hint">
+              {take ? `The ${n(take)} that would make the most a month. The other ${n(waiting - take)} wait for the next look.` : 'Every candidate with a barcode, the ones that would make the most a month first.'}
+            </span>
+          </div>
+        )}
+        <div className={styles.startActions}>
+          <button type="button" className={styles.go} data-big disabled={!capOk || busy} onClick={go}>
+            <Icon name="IconKeeper" className={styles.btnIcon} />
+            {busy ? 'Starting' : take ? `Look up ${plural(take, 'candidate')}` : `Look up ${waiting === 1 ? 'it' : `all ${plural(waiting, 'candidate')}`}`}
+          </button>
+        </div>
+
+        {studio && (
+          <div className={styles.studio}>
+            <p className={styles.studioHead}>Studio only</p>
+            <div className={styles.startForm}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel} id="source-pace-label">Pace</span>
+                <div className={styles.pace} role="group" aria-labelledby="source-pace-label">
+                  {[['watch', 'Watch'], ['normal', 'Normal']].map(([key, label]) => (
+                    <button key={key} type="button" aria-pressed={pace === key} onClick={() => setPace(key)}>{label}</button>
+                  ))}
+                </div>
+              </div>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>Spending limit</span>
+                <span className={styles.money}>
+                  <span aria-hidden="true">£</span>
+                  <input inputMode="decimal" value={cap} onChange={(e) => setCap(e.target.value)} aria-describedby="source-cap-hint" />
+                </span>
+                <span className={styles.fieldHint} id="source-cap-hint">{capOk ? 'About 1p to 2p a candidate. It pauses there and asks.' : 'At least £0.50.'}</span>
+              </label>
             </div>
           </div>
         )}

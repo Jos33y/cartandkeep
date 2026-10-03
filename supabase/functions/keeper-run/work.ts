@@ -2,6 +2,7 @@
 // through set_keeper_check (0123). Kept apart from the server so the tests can drive it against a real database.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { checkOne, contextFor } from '../_shared/keeper-check.ts';
+import { sourceBatch } from './source.ts';
 
 type Json = Record<string, any>;
 
@@ -26,6 +27,11 @@ export type Db = ReturnType<typeof db>;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+// Sourcing on Amazon (task 02): one batch per call, since a batch waits on two Apify runs. Watch: one candidate.
+// Normal: eight, one search and one read for all of them. The lease covers the slowest batch.
+const SOURCE_AT_ONCE = 8;
+const SOURCE_LEASE_S = 240;
+
 async function finishJob(client: Db, job: Json, out: { state: string; result: Json }) {
   await client.from('keeper_jobs').update({
     state: out.state,
@@ -42,8 +48,42 @@ async function failJob(client: Db, job: Json, why: string) {
     : { state: 'queued', error: why }).eq('id', job.id);
 }
 
+// One batch of a sourcing run: claimed, looked up, each job finished or sent round again, the spend added.
+async function workSource(client: Db, run: Json) {
+  let looked = 0;
+  try {
+    const { data: now } = await client.from('keeper_runs').select('state, pace, rehearsal').eq('id', run.id).single();
+    if (!now || now.state !== 'running') return 0;
+    await client.from('keeper_runs').update({ lease_until: new Date(Date.now() + SOURCE_LEASE_S * 1000).toISOString() }).eq('id', run.id);
+    const { data: jobs, error } = await client.rpc('claim_run_jobs', { p_run: run.id, p_limit: now.pace === 'watch' ? 1 : SOURCE_AT_ONCE });
+    if (error) throw new Error(error.message);
+    if (!jobs?.length) return 0;
+    const outs = await sourceBatch(client, jobs as Json[], { ...run, ...now }, {
+      token: env('APIFY_TOKEN'),
+      gbpPerUsd: Number(Deno.env.get('KEEPER_GBP_PER_USD') ?? 0.75) || 0.75,
+    });
+    let spent = 0;
+    let lastError = '';
+    let failures = 0;
+    for (let i = 0; i < outs.length; i += 1) {
+      const o = outs[i];
+      spent += o.cost ?? 0;
+      if ('error' in o) { lastError = o.error; failures += 1; await failJob(client, jobs[i], o.error); } else { await finishJob(client, jobs[i], o); looked += 1; }
+    }
+    if (spent > 0) await client.rpc('add_keeper_spend', { p_run: run.id, p_pence: spent });
+    // Every one in a batch failing is Amazon or Apify, not the candidates: pause and say why rather than spend again.
+    if (failures === outs.length && failures >= Math.min(FAIL_STREAK, outs.length) && jobs.every((j: Json) => j.attempts >= 3)) {
+      await client.rpc('close_keeper_run', { p_run: run.id, p_pause_reason: `Amazon could not be read three times. The last said: ${lastError}` });
+    }
+  } finally {
+    await client.rpc('close_keeper_run', { p_run: run.id });
+  }
+  return looked;
+}
+
 // Works one run until the budget, the run's state or the cap stops it.
 async function workRun(client: Db, run: Json, until: number) {
+  if (run.task === 'amazon_source') return workSource(client, run);
   const ctx = await contextFor(client, run.tenant_id, run.id);
   let streak = 0;
   let lastError = '';
@@ -114,11 +154,15 @@ async function workLoose(client: Db, tenant: string | null, until: number) {
 export async function work(client: Db, tenant: string | null, budgetMs = BUDGET_MS) {
   const until = Date.now() + budgetMs;
   let checked = 0;
+  let sourced = 0;
+  // A sourcing run gets one batch a call; the call then goes on to any other run.
+  const worked: string[] = [];
   while (Date.now() < until) {
-    const { data: runs, error } = await client.rpc('lease_keeper_run', { p_seconds: LEASE_S, p_tenant: tenant });
+    const { data: runs, error } = await client.rpc('lease_keeper_run', { p_seconds: LEASE_S, p_tenant: tenant, p_skip: worked.length ? worked : null });
     if (error) throw new Error(error.message);
     if (!runs?.length) break;
     const n = await workRun(client, runs[0], until);
+    if (runs[0].task === 'amazon_source') { sourced += n; worked.push(runs[0].id); continue; }
     checked += n;
     // Nothing could be taken (its drafts are still being written): leave it for the next call.
     if (n === 0) break;
@@ -129,6 +173,6 @@ export async function work(client: Db, tenant: string | null, budgetMs = BUDGET_
     const { error } = await client.rpc('keeper_open_sections', { p_tenant: tenant });
     if (error) console.error('[keeper-run] sections not opened:', error.message);
   }
-  return { checked };
+  return { checked, sourced };
 }
 

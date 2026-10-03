@@ -105,7 +105,7 @@ export function ProductsPage() {
     if (!tenant?.id) return;
     // A studio rehearsal is not hers to see: only real runs are offered to her.
     if (account.loading) return;
-    let q = supabase.from('keeper_runs').select('id, state, total').eq('tenant_id', tenant.id).in('state', ['running', 'paused']);
+    let q = supabase.from('keeper_runs').select('id, state, total').eq('tenant_id', tenant.id).eq('task', 'shop_check').in('state', ['running', 'paused']);
     if (!account.isStudio) q = q.eq('rehearsal', false);
     q
       .order('created_at', { ascending: false }).limit(1).maybeSingle()

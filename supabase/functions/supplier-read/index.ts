@@ -50,7 +50,8 @@ async function callerOf(req: Request, tenantId: string): Promise<'schedule' | 'p
   return !error && data === true ? 'portal' : null;
 }
 
-const SOURCE_FIELDS = 'id, candidate_id, url, unit_cost, landed_unit_cost, price_at_moq, supplier_shipping, fulfilment, cost_by';
+// Freight and duty mark an imported stock route, whose cost is not Amazon's price (costFollow).
+const SOURCE_FIELDS = 'id, candidate_id, url, unit_cost, landed_unit_cost, price_at_moq, supplier_shipping, inbound_freight_per_unit, duty_pct, fulfilment, cost_by';
 // What the portal holds for a supplier (useApproved), so a moved cost lands on the card without a reload.
 const SOURCE_ROW = `id, candidate_id, supplier, supplier_kind, fulfilment, status, url, note, unit_cost, moq, price_at_moq,
   supplier_shipping, inbound_freight_per_unit, duty_pct, landed_unit_cost, ships_from, transit_days, confirmed, quoted_on,
@@ -148,7 +149,11 @@ Deno.serve(async (req) => {
       const follow = r ? costFollow(c.supplier_read, r, source) : null;
       if (follow && source) {
         const { data: row, error: e } = await client.from('candidate_sources')
-          .update({ unit_cost: follow.to, price_at_moq: follow.to, supplier_shipping: follow.shipping, cost_by: 'amazon', quoted_on: r!.read_at.slice(0, 10) })
+          // Back in stock with a price: a supplier saved as unavailable is quoted again.
+          .update({
+            unit_cost: follow.to, price_at_moq: follow.to, supplier_shipping: follow.shipping, inbound_freight_per_unit: follow.freight,
+            cost_by: 'amazon', quoted_on: r!.read_at.slice(0, 10), status: 'quoted',
+          })
           .eq('id', source.id).eq('tenant_id', tenantId).select(SOURCE_ROW).single();
         if (e) console.error('[supplier-read] cost not moved', c.id, e.message);
         else {

@@ -381,6 +381,9 @@
   align-items: center;
   flex-wrap: wrap;
   gap: var(--s-2);
+  /* Pinned at 50% from the left, the bar would only get the other half of the screen to fit in, and wrap its words on
+     a phone. Sized to its content instead, never wider than the screen less the gutters. */
+  width: max-content;
   max-width: min(760px, calc(100vw - 2 * var(--s-4)));
   padding: var(--s-2) var(--s-2) var(--s-2) var(--s-4);
   border-radius: var(--r-lg);
@@ -535,3 +538,46 @@
   .toast, .bulk { animation: none; }
   .laneTab::after, .find { transition: none; }
 }
+
+/* Keeper's way into looking candidates up on Amazon: one quiet line under the header, not a band. */
+.keeperStrip {
+  --agent-ink: #2d5592;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+}
+.keeperIcon { width: 18px; height: 18px; flex: none; color: var(--agent-ink); }
+.keeperLine { flex: 1 1 16rem; min-width: 0; font-size: var(--t-label); color: var(--c-ink-soft); }
+.keeperLine b { font-weight: 600; color: var(--agent-ink); }
+.keeperGo {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--c-ink);
+  white-space: nowrap;
+  transition: background var(--dur) var(--ease);
+}
+.keeperGo:hover { background: var(--c-sunk); }
+.keeperGo:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+/* A link in the selection bar (to Keeper's office) sits like its buttons. */
+.bulk a.bulkQuiet { display: inline-flex; align-items: center; }
+.bulk a:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+.bulkQuiet:disabled { opacity: 0.6; cursor: default; }
+
+/* Why the ticked cards cannot be looked up: a full line of readable text above the actions, never caption grey. */
+.bulkNote { flex: 1 1 100%; display: flex; flex-direction: column; gap: 2px; padding: var(--s-1) var(--s-2) var(--s-1) 0; }
+.bulkHead { font-size: var(--t-label); font-weight: 600; color: var(--c-base); }
+.bulkDetail { font-size: var(--t-label); line-height: 1.45; color: rgba(250, 246, 239, 0.86); }
+.bulkActions { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }

@@ -86,6 +86,17 @@ export function barcodeOf(item: Json) {
   return d.length >= 8 && d.length <= 14 ? d : null;
 }
 
+// Every barcode the page shows, wherever Amazon puts it: one line can hold two ("5012345678900, 5012345678917"), and
+// the details table drops bare numbers (detailsOf), so they are kept here for task 02's barcode match.
+export function barcodesOf(item: Json): string[] {
+  const out = new Set<string>();
+  for (const d of [...(item.productDetails ?? []), ...(item.productSpecification ?? []), ...(item.aboutProduct ?? [])] as Json[]) {
+    if (!/\b(upc|ean|gtin|isbn-13|barcode)\b/i.test(String(d?.name ?? ''))) continue;
+    for (const code of String(d?.value ?? '').match(/\d{8,14}/g) ?? []) out.add(code);
+  }
+  return [...out];
+}
+
 const brandOf = (item: Json) => clip(item.brandFormatted, 60)
   || clip(String(item.manufacturer ?? '').replace(/^(visit the|brand:)\s*/i, '').replace(/\s*store$/i, ''), 60)
   || detail(item, /^brand( name)?$/i);
@@ -131,6 +142,7 @@ export function fromAxesso(item: Json, at = new Date().toISOString()) {
   const brand = brandOf(item);
   const model = detail(item, /^(model number|model name|manufacturer part number|part number)$/i);
   const barcode = barcodeOf(item);
+  const barcodes = barcodesOf(item);
   const bullets = ((item.features ?? []) as unknown[]).map(plainBullet).filter(Boolean).slice(0, 10);
   const variant = variantOf(item);
   const details = detailsOf(item, [brand, model, ...(variant ?? []).map((v) => v.value)]);
@@ -155,7 +167,7 @@ export function fromAxesso(item: Json, at = new Date().toISOString()) {
     url: asin ? pageFor(asin) : clip(item.url, 300),
     read_at: at,
     found: true,
-    facts: { title, brand, model, barcode, variant, bullets, details, description, images, text },
+    facts: { title, brand, model, barcode, barcodes, variant, bullets, details, description, images, text },
     offer: {
       price,
       // The struck-through price when it is higher: what she pays once the deal ends.
@@ -255,36 +267,55 @@ export function nextRead(prev: Json | null, r: Read, page: { source_id: string |
 
 const near = (a: unknown, b: unknown) => a != null && b != null && Math.abs(Number(a) - Number(b)) < 0.015;
 
-// What one unit's goods cost by this reading: the price, or on a deal the price it goes back to when the deal ends.
-// A deal price is not a cost (keepr-agent-04, Part 14). Postage apart.
+// What one unit's goods cost by this reading: the price shown today, deal or not, since that is what she pays for an
+// order that comes in now (Joseph, 3 October; replaces "a deal price is not a cost"). When a deal ends the next read
+// moves the cost up and says so. Postage apart.
 export function goodsOf(offer: Json | null | undefined): number | null {
   if (!offer || offer.price == null) return null;
-  return offer.deal && offer.was ? Number(offer.was) : Number(offer.price);
+  return Number(offer.price);
 }
 
 /*
  * Her supplier's cost, moved to Amazon's price: from, to and the postage, or null to leave it. It follows when:
- *   the supplier ships to her buyer (dropship), and the page was found with a price;
+ *   the page was found with a price, and the supplier is one of her two Amazon routes:
+ *     dropship  Amazon sends to her buyer, and its postage follows too;
+ *     stock     she buys on Prime and sends it herself (task 02): free delivery to her and no freight or duty, so
+ *               the goods are the whole cost; her postage to the buyer is counted per sale, so postage is left;
+ *     stock with freight or duty is an import, not an Amazon price, and is never moved;
  *   she has not set the cost herself (cost_by 'her');
  *   the cost already came from Amazon: marked so, empty, or equal to a price Amazon showed in this reading or the
  *   last one. A cost that matches no Amazon price is one she typed (a trade or Business price), and is hers.
  * Nothing moves when it already matches.
  */
 export function costFollow(prev: Json | null, r: Read, source: Json | null) {
-  if (!source || !r?.found || (source.fulfilment && source.fulfilment !== 'dropship')) return null;
+  if (!source || !r?.found) return null;
+  const route = source.fulfilment ?? 'dropship';
+  // Freight on her route from a cost Amazon set is another seller's delivery to her (task 02), and follows the page.
+  // Freight or duty on a cost she set is an import, never an Amazon price.
+  const imported = source.cost_by !== 'amazon' && (Number(source.inbound_freight_per_unit ?? 0) > 0 || Number(source.duty_pct ?? 0) > 0);
+  if (route !== 'dropship' && (route !== 'stock' || imported)) return null;
   const to = goodsOf(r.offer);
   if (to == null || source.cost_by === 'her') return null;
   const now = source.price_at_moq ?? source.unit_cost;
   const seen = [prev?.offer?.price, prev?.offer?.was, r.offer.price, r.offer.was];
   const follows = source.cost_by === 'amazon' || now == null || seen.some((p) => near(p, now));
   if (!follows) return null;
-  const shipping = r.offer.shipping == null ? (source.supplier_shipping ?? null) : Number(r.offer.shipping);
-  if (near(now, to) && near(source.supplier_shipping ?? 0, shipping ?? 0)) return null;
+  const shipping = route === 'stock'
+    ? (source.supplier_shipping ?? null)
+    : r.offer.shipping == null ? (source.supplier_shipping ?? null) : Number(r.offer.shipping);
+  // On her route: nothing when Amazon sends it (Prime), else the seller's delivery charge when the page shows one.
+  const byAmazon = /amazon/i.test(String(r.offer.fulfilled_by ?? '')) || /^amazon/i.test(String(r.offer.sold_by ?? ''));
+  const freight = route === 'stock' && source.cost_by === 'amazon'
+    ? (byAmazon || !(Number(r.offer.shipping) > 0) ? null : Number(r.offer.shipping))
+    : (source.inbound_freight_per_unit ?? null);
+  if (near(now, to) && near(source.supplier_shipping ?? 0, shipping ?? 0) && near(source.inbound_freight_per_unit ?? 0, freight ?? 0)) return null;
   return {
     from: now == null ? null : Number(now),
     to,
     shipping,
-    why: r.offer.deal && r.offer.was ? 'deal' as const : 'price' as const,
+    freight,
+    // A deal that has ended since the last reading is named, so the warning can say so.
+    why: prev?.offer?.deal && !r.offer.deal && to > Number(now ?? 0) ? 'deal_ended' as const : 'price' as const,
   };
 }
 

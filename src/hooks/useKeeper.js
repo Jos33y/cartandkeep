@@ -25,7 +25,8 @@ export function useKeeper(tenantId, { onFinished } = {}) {
   }, [tenantId]);
 
   const read = useCallback(async (from) => {
-    let q = supabase.from('keeper_jobs').select(FIELDS).eq('tenant_id', tenantId)
+    // Products only: Keeper's work on candidates (looking them up on Amazon) is shown in the office, not here.
+    let q = supabase.from('keeper_jobs').select(FIELDS).eq('tenant_id', tenantId).not('product_id', 'is', null)
       .order('created_at', { ascending: false }).limit(500);
     q = from ? q.or(`state.in.(queued,working),created_at.gte.${from}`) : q.in('state', [...OPEN]);
     const { data } = await q;

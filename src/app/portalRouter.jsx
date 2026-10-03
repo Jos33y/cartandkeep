@@ -74,6 +74,7 @@ export const portalRouter = createBrowserRouter([{
       { path: 'shop', element: deferred(<ShopPage />) },
       { path: 'products', element: deferred(<ProductsPage />) },
       { path: 'keeper', element: deferred(<KeeperPage />) },
+      { path: 'keeper/amazon', element: deferred(<KeeperPage task="amazon_source" />) },
       { path: 'sections', element: deferred(<CategoriesPage />) },
       { path: 'reviews', element: deferred(<ReviewsPage />) },
       { path: 'customers', element: deferred(<CustomersPage />) },

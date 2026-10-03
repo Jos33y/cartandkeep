@@ -79,13 +79,15 @@ const when = (iso) => {
 export function ApprovedPage() {
   const [tenant, setTenant] = useState(undefined);
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
+  const agentName = tenant?.store?.agent?.name || 'Your assistant';
 
   const {
     status, rows, month, jobs, addSource, updateSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose, marketCheck, matchListing, readSupplier,
   } = useApproved(tenant?.id);
   const { suppliers, remember } = useSuppliers(tenant?.id);
   const [find, setFind] = useState('');
-  const [only, setOnly] = useState(null);
+  // A link can open one tab: Keeper's report sends ?only=keeper, so the cards it just approved are what she sees.
+  const [only, setOnly] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('only') === 'keeper' ? 'keeper' : null));
   const [listed, setListed] = useState(null);
   const [notice, setNotice] = useState(null);
   const [selected, setSelected] = useState(() => new Set());
@@ -168,6 +170,8 @@ export function ApprovedPage() {
     readyEbayAll: assessed.filter(({ gl }) => gl.readyOn.includes('ebay')).length,
     half: assessed.filter(({ gl }) => gl.started.length > 0).length,
     edited: assessed.filter(({ a }) => a.edited).length,
+    // Approved by Keeper from Amazon (keeper-task-02), not by her.
+    keeper: assessed.filter(({ row }) => row.decision?.made_by === 'keeper').length,
     queued: assessed.filter(({ row }) => jobOpen(jobOf(row.id))).length,
     refused: assessed.filter((x) => refused(x)).length,
     readyEbay: assessed.filter(({ row, gl }) => readyFor(gl, 'ebay') && !jobOpen(jobOf(row.id))).length,
@@ -464,6 +468,7 @@ export function ApprovedPage() {
       case 'check': return !gl.ready;
       case 'half': return gl.started.length > 0;
       case 'edited': return a.edited;
+      case 'keeper': return row.decision?.made_by === 'keeper';
       case 'queued': return jobOpen(jobOf(row.id));
       case 'refused': return refused(x);
       case 'held': return held?.ids.has(row.id);
@@ -546,6 +551,10 @@ export function ApprovedPage() {
           <StateTab id="edited" only={only} setOnly={setOnly} icon="IconNote"
             label="Edited" count={counts.edited} />
         )}
+        {counts.keeper > 0 && (
+          <StateTab id="keeper" only={only} setOnly={setOnly} icon="IconKeeper"
+            label={`From ${agentName}`} count={counts.keeper} />
+        )}
         {counts.queued > 0 && (
           <StateTab id="queued" only={only} setOnly={setOnly} icon="IconClock"
             label="In the eBay queue" count={counts.queued} />
@@ -602,6 +611,7 @@ export function ApprovedPage() {
           <Pack
             key={row.id}
             row={row}
+            agentName={agentName}
             base={a}
             baseGl={gl}
             job={jobOf(row.id)}
@@ -739,7 +749,7 @@ const joinFixes = (xs) => {
 function Pack({
   row, base, baseGl, job, selected, onSelect, onCancelJob, onRetryJob, onSaved, onRead,
   tenantId, fees, suppliers, onSource, onCost, onList, onShop, onCheckPhotos, onAmazon, onShowIds, onMarket, onMatch,
-  onRebuild, rebuilding = false, rebuilt = null, onStay,
+  onRebuild, rebuilding = false, rebuilt = null, onStay, agentName = 'Your assistant',
 }) {
   const [open, setOpen] = useState(false);
   const [zoomed, setZoomed] = useState(false);
@@ -1312,6 +1322,12 @@ function Pack({
               </span>
             )}
             {edited && <span className={styles.editedTag}>Edited</span>}
+            {row.decision?.made_by === 'keeper' && (
+              <span className={styles.keeperTag} role="img" aria-label={`Approved by ${agentName}`}
+                title={`${agentName} found it on Amazon by its barcode and approved it`}>
+                <Icon name="IconKeeper" className={styles.keeperIcon} />
+              </span>
+            )}
           </span>
         </div>
 
@@ -1363,7 +1379,7 @@ function Pack({
           <BriefStrip
             tone={gl.ready ? 'positive' : 'warning'}
             icon={gl.ready ? 'IconCheck' : 'IconInfo'}
-            kicker={<>{gl.complete ? 'Ready to go live' : gl.ready ? `Ready for ${gl.readyOn.map((c) => (c === 'ebay' ? 'eBay' : 'your shop')).join(' and ')}` : 'Needs a look'}{row.decision?.decided_at && <span className={styles.stripWhen}> · approved {when(row.decision.decided_at)}</span>}</>}
+            kicker={<>{gl.complete ? 'Ready to go live' : gl.ready ? `Ready for ${gl.readyOn.map((c) => (c === 'ebay' ? 'eBay' : 'your shop')).join(' and ')}` : 'Needs a look'}{row.decision?.decided_at && <span className={styles.stripWhen}> · approved {when(row.decision.decided_at)}{row.decision.made_by === 'keeper' ? ` by ${agentName}` : ''}</span>}</>}
             checks={a.warnings.map((w) => ({ tone: /^Loses money/.test(w) ? 'negative' : 'info', text: w }))}
             action={!confirm && (
               <span className={styles.actions}>
