@@ -11,13 +11,14 @@ import styles from '@styles/pages/portal/being-found-page.module.css';
 
 const thumb = (url) => (url ? url.replace(/\/s-l\d+\./, '/s-l225.') : null);
 
-// Google refuses a product without the first three; the last three decide how well it ranks.
+// Google refuses a product without the first three; the rest decide how well it ranks.
 const CHECKS = [
   { key: 'description', label: 'Description', must: true, step: 'description' },
   { key: 'photograph', label: 'Photo', must: true, step: 'photo' },
   { key: 'price', label: 'Price', must: true, step: 'price' },
   { key: 'brand', label: 'Brand', step: 'section' },
   { key: 'barcode', label: 'Barcode', step: 'details' },
+  { key: 'category', label: 'Category', step: 'section' },
 ];
 
 const open = (id, step) => portalPath(`${PORTAL_ROUTES.PRODUCTS}?filter=all&open=${id}${step ? `&step=${step}` : ''}`);

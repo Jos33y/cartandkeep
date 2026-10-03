@@ -16,7 +16,8 @@ Propose 5 to 9 sections.
 - Keep a current section's name when it still fits.
 - Choose the level by the depth of stock: a branch with many products and cards earns a section of its own; thin branches join a broader one.
 - Every branch with products on the shop should sit inside some section.
-- Give each section the ids of the branches it covers, and one short line on why, in plain words.`;
+- Give each section the ids of the branches it covers, and one short line on why, in plain words.
+- Give only the top of each branch. A branch covers everything inside it, so a section with Home & Garden never also names Decor or Vases. A deeper branch belongs in a section of its own or nowhere.`;
 
 export const SORT_TOOL = {
   name: 'propose_sections',
@@ -107,7 +108,9 @@ export async function sortShop(db: Json, tenantId: string, key: string) {
   for (const s of (input?.sections ?? []) as Json[]) {
     const name = clip(s?.name, 40).replace(/\s*&\s*/g, ' and ');
     if (!name || sections.some((x) => x.name.toLowerCase() === name.toLowerCase())) continue;
-    const gids = ((s?.google_ids ?? []) as unknown[]).map(Number).filter((id) => offered.has(id) && !used.has(id));
+    const asked = ((s?.google_ids ?? []) as unknown[]).map(Number).filter((id, i, all) => offered.has(id) && !used.has(id) && all.indexOf(id) === i);
+    // Only the top of each branch: one inside another in the same section adds nothing (0130 trims it too).
+    const gids = asked.filter((id) => !asked.some((other) => other !== id && under(pathOf.get(id)!, pathOf.get(other)!)));
     if (!gids.length) continue;
     gids.forEach((id) => used.add(id));
     sections.push({ name, why: clip(s?.why, 120), google_ids: gids, branches: gids.map((id) => pathOf.get(id)!) });

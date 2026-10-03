@@ -35,9 +35,9 @@ alter table store_products
   add column if not exists google_sub text;
 alter table store_products drop constraint if exists store_products_google_source_check;
 alter table store_products add constraint store_products_google_source_check
-  check (google_category_source is null or google_category_source in ('manual', 'ebay', 'ai', 'default'));
+  check (google_category_source is null or google_category_source in ('manual', 'ebay', 'ai', 'checked', 'default'));
 comment on column store_products.google_category_id is
-  'Google product category, sent to Merchant as google_product_category. Source: manual (hers), ebay (the table), ai (the title), default (Home & Garden, nothing better known).';
+  'Google product category, sent to Merchant as google_product_category. Source: manual (hers), ebay (the table), ai (the title), checked (corrected by the studio), default (Home & Garden, nothing better known).';
 comment on column store_products.google_sub is
   'The Google category the shop filters this product by inside its section, one level below the section''s branch.';
 

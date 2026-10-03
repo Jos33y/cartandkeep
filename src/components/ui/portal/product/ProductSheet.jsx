@@ -364,13 +364,7 @@ export function ProductSheet({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rulesWaiting]);
 
-  // The agent reads each product once, on first open, so the sheet arrives filled in.
-  const asked = useRef(false);
-  useEffect(() => {
-    if (asked.current || archived || draft?.version === 2 || job || !keeper) return;
-    asked.current = true;
-    askAgent();
-  }, []);
+  // Opening a product never sets Keeper reading it: that starts from Products, or from "Ask again" here.
 
   const closeRef = useRef(null);
   useEffect(() => {
@@ -853,7 +847,7 @@ export function ProductSheet({
                 </span>
                 <span className={styles.where}>{shelfLabel}</span>
                 {!archived && !reading && keeper && (
-                  <button type="button" className={styles.again} onClick={askAgent}><Icon name="IconKeeper" width="16" height="16" />Ask {agent} again</button>
+                  <button type="button" className={styles.again} onClick={askAgent}><Icon name="IconKeeper" width="16" height="16" />{draft?.version === 2 ? `Ask ${agent} again` : `Ask ${agent} to fill it in`}</button>
                 )}
               </p>
               {readFailed && !reading && <p className={styles.failedLine}>{agent} could not fill it in: {readFailed}</p>}

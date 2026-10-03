@@ -23,7 +23,8 @@ const REPORT_SELECT = `
 
 const PRODUCT_SELECT = `
   id, slug, title, status, is_sample,
-  description, brand, gtin, image_url, condition, price, category_path
+  description, brand, gtin, image_url, condition, price, category_path,
+  google_category_id, google_category_source
 `;
 
 /*
@@ -47,6 +48,8 @@ export function feedGaps(p) {
   if (!(Number(p.price) > 0)) gaps.push('price');
   if (!p.brand?.trim()) gaps.push('brand');
   if (!p.gtin?.trim()) gaps.push('barcode');
+  // A Google category known from eBay, the title or by hand; the default is Google left to guess.
+  if (!p.google_category_id || p.google_category_source === 'default') gaps.push('category');
   return gaps;
 }
 

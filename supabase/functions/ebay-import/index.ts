@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    const { tenant_id: tenantId, listing_ids: asked, sections = [] } = await req.json();
+    const { tenant_id: tenantId, listing_ids: asked } = await req.json();
     if (!tenantId || !Array.isArray(asked) || !asked.length) return json({ error: 'tenant_id and listing_ids are required' }, 400);
     if (!(await allowed(req, tenantId))) return json({ error: 'Not authorised. Sign in to the portal and try again.' }, 401);
 
@@ -237,12 +237,8 @@ Deno.serve(async (req) => {
           if (error) console.error('[ebay-import] variants', id, error.message);
         }
 
-        // Keeper writes the draft, then checks it: returns, label and the shop title. The check waits for the writing.
-        const { error: jErr } = await client.from('keeper_jobs').insert([
-          { tenant_id: tenantId, product_id: row.id, sections },
-          { tenant_id: tenantId, product_id: row.id, kind: 'shop_check' },
-        ]);
-        if (jErr) console.error('[ebay-import] jobs', id, jErr.message);
+        // Keeper does not read it here. It waits in Products as an unchecked draft, and a check started there writes
+        // and checks it once (0128), so nothing is read twice.
 
         added.push({ listing_id: id, product_id: row.id });
       } catch (err) {

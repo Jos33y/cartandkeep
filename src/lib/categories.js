@@ -21,6 +21,7 @@ export const HOW_SET = {
   manual: 'you set this',
   ebay: 'from the eBay listing',
   ai: 'from the title',
+  checked: 'checked by hand',
   google_export: "Google's top category only",
   default: 'placed in Home & Garden for you to move',
 };

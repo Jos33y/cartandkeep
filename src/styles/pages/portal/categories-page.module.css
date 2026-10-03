@@ -301,3 +301,4 @@
   .headActions { flex-wrap: wrap; }
   .headActions > button { flex: 1 1 auto; justify-content: center; }
 }
+.takes { margin: 0; font-size: var(--t-caption); font-weight: 600; color: var(--c-ink); }

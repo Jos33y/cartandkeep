@@ -269,6 +269,7 @@ function SortReview({ proposal, setProposal, products, departments, agent, busy,
                 </span>
               </div>
               <Branches ids={x.google_ids} paths={x.branches} />
+              <p className={styles.takes}><span data-num>{plural(inside.length, 'product')}</span> from your shop</p>
               {x.why && <p className={styles.hint}>{x.why}</p>}
               <ul className={styles.reviewList}>
                 {inside.map((p) => (

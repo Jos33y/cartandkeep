@@ -592,11 +592,11 @@ export function EbayTrafficPage() {
       <KeeperDock keeper={keeper} agent={agent}>
         {bringing && (
           <DockNote line={`Bringing ${bringing.done ? `${bringing.done} of ` : ''}${bringing.total} from eBay`}
-            note={`Each one goes to ${agent} as it lands.`} progress={bringing.done / bringing.total} />
+            note="Each one waits in Products as a draft." progress={bringing.done / bringing.total} />
         )}
         {!bringing && brought && (brought.added.length > 0 || skippedWhy) && (
           <DockNote line={`${brought.added.length} added to your products as drafts.`}
-            note={skippedWhy ?? `Review them under New from eBay once ${agent} has filled them in.`}
+            note={skippedWhy ?? `Check them with ${agent} from Products when you are ready.`}
             onDismiss={() => setBrought(null)} />
         )}
       </KeeperDock>

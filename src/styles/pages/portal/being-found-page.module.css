@@ -46,7 +46,7 @@ ul.gates { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 
 .listHead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-3); }
 
 .grid { background: var(--c-surface); border: 1px solid var(--c-line); border-radius: 14px; box-shadow: var(--e-1); overflow: hidden; }
-.gridHead, .gridRow { display: grid; grid-template-columns: minmax(0, 1fr) repeat(5, 76px) 100px; align-items: center; gap: var(--s-2); padding: var(--s-2) var(--s-5); }
+.gridHead, .gridRow { display: grid; grid-template-columns: minmax(0, 1fr) repeat(6, 76px) 100px; align-items: center; gap: var(--s-2); padding: var(--s-2) var(--s-5); }
 .gridHead { padding-block: var(--s-3); background: var(--c-raised); border-bottom: 1px solid var(--c-line); font-size: var(--t-micro); font-weight: 600; color: var(--c-ink-faint); }
 .gridHead span:not(:first-child) { text-align: center; }
 .gridHead span[data-must] { color: var(--c-ink-soft); }
@@ -102,7 +102,7 @@ a.cell:focus-visible, .gridProduct:focus-visible { outline: 2px solid var(--c-ac
 .failureBody { margin-bottom: var(--s-4); color: var(--c-ink-soft); line-height: var(--lh-body); }
 
 @media (max-width: 1100px) {
-  .gridHead, .gridRow { grid-template-columns: minmax(0, 1fr) repeat(5, 54px) 84px; gap: var(--s-1); padding-inline: var(--s-4); }
+  .gridHead, .gridRow { grid-template-columns: minmax(0, 1fr) repeat(6, 54px) 84px; gap: var(--s-1); padding-inline: var(--s-4); }
   .gridHead span:not(:first-child) { font-size: 10px; }
   .hero { grid-template-columns: 1fr; }
   .googleBody { grid-template-columns: 1fr; }
@@ -114,7 +114,7 @@ a.cell:focus-visible, .gridProduct:focus-visible { outline: 2px solid var(--c-ac
   .hero { padding: var(--s-5); }
   .gates { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .gridHead { display: none; }
-  .gridRow { grid-template-columns: repeat(5, minmax(0, 1fr)); padding: var(--s-3) var(--s-4); }
+  .gridRow { grid-template-columns: repeat(6, minmax(0, 1fr)); padding: var(--s-3) var(--s-4); }
   .gridProduct { grid-column: 1 / -1; }
   .verdict { grid-column: 1 / -1; justify-self: start; }
   .waiting { flex-direction: column; align-items: flex-start; }
@@ -153,4 +153,14 @@ a.cell:focus-visible, .gridProduct:focus-visible { outline: 2px solid var(--c-ac
   .waiting .months { display: none; }
   .listHead { flex-direction: column; align-items: stretch; }
   .search { min-width: 0; }
+}
+
+/* A small phone: the ring sits above its words, so the button never runs past the card. */
+@media (max-width: 420px) {
+  .heroScore { flex-direction: column; align-items: flex-start; gap: var(--s-4); }
+  .ring { width: 112px; height: 112px; }
+  .ringInner b { font-size: 2.25rem; }
+  .heroGo { white-space: normal; }
+  ul.gates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gate em { white-space: normal; }
 }
