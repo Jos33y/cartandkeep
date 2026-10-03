@@ -11,15 +11,26 @@
  *
  * Plain old JavaScript, because it runs on someone else's page. Block comments only and no percent signs: the
  * bookmark is one line, and a percent sign in a javascript: address is read as an escape.
+ *
+ * ASCII only, and no line break written as a backslash n. The build turns a backslash n into a real line break, and
+ * a browser drops line breaks from an address, so the supplier text lost its breaks (3 October). Line breaks are made
+ * at run time from JSON (the build folds String.fromCharCode into a real one), and odd spaces are matched through a RegExp string, so the bookmark stays as written.
+ *
+ * Never silent: anything that goes wrong is said in an alert. If the browser blocks the new tab, the portal opens in
+ * this one instead.
  */
 function collect(origin, path) {
+  try {
+  /* JSON.parse, so the build cannot fold it back into a real line break. */
+  var NL = JSON.parse('"\\n"');
   if (location.origin === origin || /(^|\.)cartandkeep\.com$/.test(location.hostname)) {
     alert('Open your supplier\'s product page first, then press Send to Cart & Keep there.');
     return;
   }
   var q = function (s, root) { return (root || document).querySelector(s); };
   var all = function (s, root) { return Array.prototype.slice.call((root || document).querySelectorAll(s)); };
-  var clean = function (x) { return String(x || '').replace(/[​-‏ ]/g, ' ').replace(/\s+/g, ' ').trim(); };
+  var ODD_SPACE = new RegExp('[\\u200B-\\u200F\\u00A0]', 'g');
+  var clean = function (x) { return String(x || '').replace(ODD_SPACE, ' ').replace(/\s+/g, ' ').trim(); };
   var t = function (e) { return e ? clean(e.textContent) : ''; };
   var abs = function (u) { try { return new URL(String(u).trim(), location.href).href; } catch (e) { return ''; } };
   var json = function (x) { try { return JSON.parse(x); } catch (e) { return null; } };
@@ -224,12 +235,18 @@ function collect(origin, path) {
   out.text = [
     out.title,
     out.brand && ('Brand: ' + out.brand),
-    out.variant.join('\n'),
-    out.bullets.map(function (b) { return '- ' + b; }).join('\n'),
-    out.details.join('\n'),
+    out.variant.join(NL),
+    out.bullets.map(function (b) { return '- ' + b; }).join(NL),
+    out.details.join(NL),
     out.description,
-  ].filter(Boolean).join('\n').slice(0, 6000);
-  window.open(origin + path + '#send=' + encodeURIComponent(JSON.stringify(out)), '_blank');
+  ].filter(Boolean).join(NL).slice(0, 6000);
+  var to = origin + path + '#send=' + encodeURIComponent(JSON.stringify(out));
+  var tab = window.open(to, '_blank');
+  /* A blocked new tab comes back empty: open the portal here instead, so the press is never lost. */
+  if (!tab) location.href = to;
+  } catch (e) {
+    alert('Send to Cart & Keep could not read this page: ' + (e && e.message ? e.message : e));
+  }
 }
 
 // The bookmark's address: the function above, with this portal's address in it.

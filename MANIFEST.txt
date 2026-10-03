@@ -1,9 +1,8 @@
-ck-listings-once-2026-10-03
+ck-send-button-2026-10-03
 Portal only. No SQL. No functions to deploy.
 
-Listings reads every live listing once when the page opens (and on reload), then sorts, filters, searches and counts
-in the browser. A tab, filter, sort or search no longer asks the database anything. A read still going when a new one
-starts is cancelled.
+src/lib/sendToCart.js   the Send to Cart & Keep button: never silent, opens the portal in the same tab if the new
+                        tab is blocked, keeps the supplier text's line breaks, ASCII only.
 
-src/hooks/useLiveListings.js
-src/pages/portal/ListingsPage.jsx   the drafts banner and "add every one" use the list already read
+After the push: delete the old bookmark, open portal.cartandkeep.com/approved, and drag the button to the
+bookmarks bar again. The old bookmark keeps the old code.
