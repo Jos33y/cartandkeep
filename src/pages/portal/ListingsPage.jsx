@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EmptyState } from '@components/ui/portal/EmptyState';
 import { PageSkeleton } from '@components/ui/portal/Skeleton';
 import { Icon } from '@components/ui/icons';
-import { PAGE, conditions, useLiveListings } from '@hooks/useLiveListings';
+import { PAGE, matches, useLiveListings } from '@hooks/useLiveListings';
 import { supabase } from '@lib/supabase';
 import { loadTenant } from '@lib/tenant';
 import { PRODUCT_SELECT, blockers, isReady } from '@hooks/useCatalogue';
@@ -202,14 +202,8 @@ export function ListingsPage() {
   const [drafts, setDrafts] = useState(null);
   const loadDrafts = useCallback(async () => {
     if (!tenant?.id || !counts?.drafts) { setDrafts(null); return; }
-    const ids = [];
-    for (let from = 0; from < 20000; from += 1000) {
-      const { data, error } = await supabase.from('live_listings').select('product_id')
-        .eq('tenant_id', tenant.id).eq('on_ebay', true).eq('shop_state', 'draft').order('key').range(from, from + 999);
-      if (error) return;
-      ids.push(...(data ?? []).map((x) => x.product_id).filter(Boolean));
-      if ((data ?? []).length < 1000) break;
-    }
+    // From the list already read, not the view again.
+    const ids = list.all.filter((x) => x.on_ebay && x.shop_state === 'draft').map((x) => x.product_id).filter(Boolean);
     const rows = [];
     for (let i = 0; i < ids.length; i += 200) {
       const { data, error } = await supabase.from('store_products').select(PRODUCT_SELECT).in('id', ids.slice(i, i + 200));
@@ -223,10 +217,9 @@ export function ListingsPage() {
       if (first) why.set(first, (why.get(first) ?? 0) + 1);
     }
     setDrafts({ ready: readyRows, waiting: rows.length - readyRows.length, why: [...why.entries()].sort((a, b) => b[1] - a[1]) });
-  }, [tenant?.id, counts?.drafts]);
+  }, [tenant?.id, counts?.drafts, list.all]);
+  // Read again with the list, so a draft put on sale anywhere leaves the banner.
   useEffect(() => { loadDrafts(); }, [loadDrafts]);
-  // The banner's counts follow the list: a draft put on sale anywhere leaves them.
-  useEffect(() => { loadDrafts(); }, [counts?.shop]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function sellReady() {
     setNotice(null);
@@ -263,16 +256,8 @@ export function ListingsPage() {
     }
   }
   async function addEveryNoShop() {
-    // Every listing with no shop product under this tab and search, read in pages: the list on screen may hold fewer.
-    const ids = [];
-    for (let from = 0; from < 20000; from += 1000) {
-      let q = supabase.from('live_listings').select('listing_id').eq('tenant_id', tenant.id);
-      for (const [op, col, val] of conditions({ tab, show: 'noShop', find })) q = op === 'or' ? q.or(col) : q[op](col, val);
-      const { data, error } = await q.order('key').range(from, from + 999);
-      if (error) { setNotice({ tone: 'warning', text: error.message }); return; }
-      ids.push(...(data ?? []).map((r) => r.listing_id).filter(Boolean));
-      if ((data ?? []).length < 1000) break;
-    }
+    // Every listing with no shop product under this tab and search, from the whole list: the rows drawn may be fewer.
+    const ids = list.all.filter((r) => matches(r, { tab, show: 'noShop', find })).map((r) => r.listing_id).filter(Boolean);
     if (ids.length) addToShop(ids, 'all');
   }
 

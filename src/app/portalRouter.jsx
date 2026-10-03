@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router';
 import { PortalProtected } from '@components/layout/portal/PortalProtected';
 import { PageSkeleton } from '@components/ui/portal/Skeleton';
+import { RouteError } from '@components/layout/shared/RouteError';
 import { LoginPage } from '@pages/portal/LoginPage';
 import { OverviewPage } from '@pages/portal/OverviewPage';
 import { CandidatesPage } from '@pages/portal/CandidatesPage';
@@ -42,7 +43,10 @@ const EbayTrafficPage = lazy(() => import('@pages/portal/EbayTrafficPage').then(
  */
 const deferred = (el) => <Suspense fallback={<PageSkeleton />}>{el}</Suspense>;
 
-export const portalRouter = createBrowserRouter([
+export const portalRouter = createBrowserRouter([{
+  // Any route that fails, the sign-in and eBay's return included, gets RouteError rather than React Router's screen.
+  errorElement: <RouteError />,
+  children: [
   { path: PORTAL_ROUTES.LOGIN, element: <LoginPage /> },
 
   // Outside the guard on purpose. eBay sends her here after she approves, and
@@ -59,7 +63,10 @@ export const portalRouter = createBrowserRouter([
   {
     path: '/',
     element: <PortalProtected />,
-    children: [
+    children: [{
+      // A page that fails shows its error inside the portal, nav kept (RouteError), not React Router's own screen.
+      errorElement: <RouteError />,
+      children: [
       { index: true, element: <OverviewPage /> },
       { path: 'candidates', element: <CandidatesPage /> },
       { path: 'approved', element: deferred(<ApprovedPage />) },
@@ -87,6 +94,8 @@ export const portalRouter = createBrowserRouter([
       // Catches everything unmatched, and does it inside the shell so she is
       // not thrown out of the portal by a typo in the address bar.
       { path: '*', element: <PortalNotFoundPage /> },
-    ],
+      ],
+    }],
   },
-]);
+  ],
+}]);

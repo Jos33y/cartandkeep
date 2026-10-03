@@ -1,5 +1,9 @@
-ck-products-pills-2026-10-03
+ck-listings-once-2026-10-03
 Portal only. No SQL. No functions to deploy.
-Replaces ck-products-figures-2026-10-03 (compact pills). Includes the search from ck-keeper-batch-search-2026-10-03.
-src/pages/portal/ProductsPage.jsx
-src/styles/pages/portal/products-page.module.css
+
+Listings reads every live listing once when the page opens (and on reload), then sorts, filters, searches and counts
+in the browser. A tab, filter, sort or search no longer asks the database anything. A read still going when a new one
+starts is cancelled.
+
+src/hooks/useLiveListings.js
+src/pages/portal/ListingsPage.jsx   the drafts banner and "add every one" use the list already read

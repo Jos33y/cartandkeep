@@ -210,3 +210,87 @@ Six exports (October to December 2025, July to September 2026), 43,860 products.
 - Bundles: B&M sells LEGO bundles (Rustic Charm, Bohemian) that read as the single set.
 - Bulky toys (slides, see saws, garden kitchens, trampolines, ride-ons, hobby horses) are too big for a Royal Mail parcel: courier only.
 - Retired LEGO sets: buy only against an order.
+
+## Baby & Toddler (2 October)
+
+Six exports (October to December 2025, July to September 2026), 14,761 products. 1,402 sit inside the £8 to £60 window after the rules. 255 new cards went to her queue.
+
+**Rules, `rules/categories/baby-toddler.mjs`:**
+- **Not shelf:**
+  - car seats and car boosters;
+  - pushchairs, prams, strollers, buggies and carrycots;
+  - cots, cot beds, bedside cribs and nursery furniture;
+  - cot and crib mattresses.
+- **What still passes:**
+  - An accessory passes when it is the product itself: named after the big product ("Pushchair Footmuff", "Car Seat Raincover"), just before it ("Hood Trim Pram"), or with "for" ("Cup Holder for Buggy"). "Pushchair with Rain Cover & Cup Holder" is still a pushchair.
+  - Toy prams, dining booster seats, travel cots and Moses baskets pass.
+- **`sleep_safety`:** baby nests, pods, positioners, wedges, baby pillows, cot bumpers and weighted sleep products (DockATot, Sleepyhead, SleepCarrier, DreamCradle), against Lullaby Trust advice. Anti-roll changing mats pass (an exemption in `restricted.mjs`).
+- **`infant_formula_more`:**
+  - comfort, hungry, anti-reflux, lactose-free and allergy formulas (Nutramigen, Aptamil Pepti, SMA Althera, Neocate);
+  - ready-to-feed infant milk.
+  - Toddler and growing-up milks pass.
+- **`baby_medicines`:** Infacol, Anbesol, Calgel, Dentinox teething and colic products, Ashton & Parsons, gripe water, teething gels, and Metanium nappy rash ointment.
+- **`BRANDED`:** baby makers (Kendamil, Momcozy, Tommee Tippee, MAM, Joie, Hubble, Littlelife and others). Kendamil toddler milk under ASDA's or Boots' name is Kendamil, not own label. Cuggl (Argos), Little Angels (ASDA) and Little Ones (Sainsbury's) still stop.
+- **Shared change:** Sudocrem now stops only on the medicine. Care & Protect, My Little Sudocrem and Sudosalve pass. Antiseptic Healing Cream and Skin Care Cream still stop.
+
+**Need words, `needs/baby-toddler.mjs`:**
+- safety: gates, locks, guards, bed rails, bath seats;
+- monitor: baby monitors, thermometers;
+- part: teats, pump parts, nappy bin refills.
+
+**In the window, before and after the rules:** not shelf 45 to 149, sleep safety 0 to 4, formula 24 to 46, own label 160 to 147, passing 1,519 to 1,402. Mamas & Papas stays own label: 196 stopped, 34 in the window.
+
+**Shops:**
+- **Natural Baby Shower** (Shopify, 6,760 products, 11,530 variant rows). `shelf-barcodes.mjs` read 4,955 barcodes, and barcode matches went from 2 to 116. Its weights are unreliable on pram accessories: a Bugaboo snack tray at 11.3kg, a bumper bar at 6.4kg.
+- **Blocked:** Kiddies Kingdom. Its sitemap answers 202 with an empty page, a bot check. Don't retry.
+- **Gaps:** gate specialists. Safetots, Bright Starts, Dreambaby, Babylo and BabyDan are the most-missed brands, and no shop on file stocks them.
+
+**Page check:** 730 picks; 261 confirmed (228 by barcode), 105 wrong (all on a different barcode), 364 unsure. 346 of the unsure were "names too far apart, not read". A sample of 45 was 45 wrong (Crystals baby gate against BWT boiler crystals), so `--read-all` is not worth it here.
+
+**Big brands:** 455 of 1,411 picks. Baby runs with `--with-big-brands` and `--big-brands`, like Toys.
+
+**Price:** 254 of 256 cards sit above Google's lowest. John Lewis and Natural Baby Shower are full retail, so this is supplier work for her.
+
+**Review:** 122 keep, 127 notes, 5 rejects, 1 re-source (MAM Perfect soother, not found).
+- **Rejects:** two duplicate pages, a Pampers title with no size, the Babymoov Cosymorpho (a sleep positioner the rule missed), and the Obaby cot bed under-drawer.
+- **Judgment call, 22 cards:** Bugaboo, Stokke, UPPAbaby, Nuna, Doona and Joolz (authorised retailers only) went in as notes, not rejects.
+
+**Still to add to the rules:** Cosymorpho and "morpho mattress" in `sleep_safety`.
+
+## Animals & Pet Supplies (3 October)
+
+Six exports (October to December 2025, July to September 2026), 29,122 products. 1,314 picks were seen in a shop; 378 new cards went to her queue.
+
+**Rules, `rules/categories/animals-pet-supplies.mjs`:**
+- **Own label:** Wainwright's (Pets at Home), AVA, and the zooplus brands. Own-label stops went from 823 to 1,005.
+- **`vet_prescription`** (189 stopped, 37 in the window): POM-V brands and words (Exzolt, Zenrelia, Numelvi, Baytril, Prednicortone, Propalin, Continence, injections, "POM-V", "NFA-VPS"). These need a vet's prescription or an SQP.
+- **`vet_counter`** (124 stopped, 33 in the window): horse wormers, Panacur, Drontal, Droncit, Dronspot, Advantage, Advantix, Seresto, Frontline Plus, Combo and Tri-Act, and Zoetis spot-ons. **Judgment call:** several are AVM-GSL and legal for anyone to sell, but the line between GSL and NFA-VPS packs of the same brand is hard to read from a title. Stopped by default; one line to lift if she wants them.
+- **`BRANDED`:** pet makers, so a maker's product under a shop's name in the Brand column is not own label.
+
+**Need words, `needs/animals-pet-supplies.mjs`:** pest (flea, tick, worm), care (dental, joint, ear, skin), safety (gates, crates, harnesses, reflective kit), part (filters, refills, litter liners).
+
+**Shared changes:**
+- `not-shelf.mjs`: pet sofas and pet mattresses pass; plant-fibre litter passes the plant rule.
+- `post.mjs`: the aerosol stop skips spacer chambers; the paint note skips rakes, combs, shampoo, aquariums, cabinets and Fluval.
+- `restricted.mjs`: the tobacco exclusion now passes toys, plush, chews and pet products (a "tobacco" coloured toy); the alcohol exclusion passes vinegar; poppers no longer match waistbands and press studs.
+
+**Shops:**
+- **Lords & Labradors** (Shopify, 1,072 products, 1,980 barcodes). Its weights are ignored: the median is 7kg on beds and toys. Its own range (the Comfort Cube and others) is own label: 10 cards rejected in review. Add it to `own-label.mjs` before the next pet run.
+- **Reptile Centre** (Shopify, 1,805 products, 261 barcodes). The Shopify vendor is the distributor (Peregrine), not the maker, so the brand reads wrong. Fix: read the `Brand:` tag in `shelf-shopify.mjs`.
+- **Blocked:** Jollyes (Cloudflare 403). Monster Pet Supplies and Pet Supermarket return 404 on products.json. Don't retry.
+
+**Query keys (`match.mjs`), 3 October:**
+- VERSION gained: ageing, active, sensitive, hypoallergenic, urinary, digestive, gastrointestinal, renal, satiety, orthopaedic, broth, topper, multipack, value.
+- KINDS gained: wet/dry; jelly, gravy, broth, loaf, mousse and pâté; puppy, kitten, adult and senior; and the protein pairs (chicken, beef, lamb, salmon, turkey, duck, tuna, rabbit, venison, pork, trout, herring).
+- Kept out of VERSION on purpose: calming, working, puppy, kitten, senior (they flipped right matches to unsure).
+- `check-picks --recheck` defaults to `--top=100`. Use `--recheck --top=all`.
+
+**Page check:** confirmed 483 before the match fix, 423 after (unsure 674, wrong 213, page gone 4). The 60 lost were real wrong matches, mostly Royal Canin breed and diet pages.
+
+**Import:** 378 kept; 213 wrong, 669 unsure, 18 bigger pack, 1 over 20kg. 345 of 378 sit above Google's lowest.
+
+**Review:** 193 keep, 132 notes, 29 re-source, 27 rejects (17 other, 10 not sourceable).
+- **Rejects:** the 10 Lords & Labradors own-range cards; shared-page duplicates; Indorex flea spray (two cards) and Pet Corrector, both compressed gas; Royal Canin Glycobalance (vet diet); generic "Royal Canin Cat Food" and "Feliway Diffuser".
+- **Re-source:** 26 leads found by name, 12 right. The 14 wrong ones were turned to "not found" before `--apply` (`resource-animals-and-pet-supplies-2026-10-03-checked.csv`): 17 noted not found, 12 left to check.
+
+**Still to fix in `match.mjs`:** "Royal Canin Adult Dry Dog Food" overlaps enough words with any breed or size page to confirm. The re-source search sent Medium, Giant, Maxi, Bulldog and Dachshund all to the Boxer page. Needed: size words (mini, medium, maxi, giant, small breed, large breed) as VERSION; a breed group in KINDS; fish and ocean fish in the protein pairs; a flavour group for supplements (pumpkin, calming, deer antler).

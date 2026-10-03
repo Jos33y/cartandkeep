@@ -1,0 +1,120 @@
+/*
+ * The page a route shows when it fails. Paper on the canvas, one drawn mark, one line of plain words, and the two
+ * ways out. Base tokens only, so it sits as well in the shop as in the portal.
+ */
+
+.page {
+  display: grid;
+  place-items: center;
+  min-height: 60dvh;
+  padding: var(--s-6) var(--s-4);
+}
+
+.card {
+  position: relative;
+  width: min(440px, 100%);
+  padding: var(--s-6) var(--s-6) var(--s-5);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--e-2);
+  color: var(--c-ink);
+  animation: settle var(--dur-enter) var(--ease-out) both;
+}
+
+/* A thin band across the top in the state's colour: action for an update, clay for a fault. */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: -1px -1px auto;
+  height: 3px;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  background: var(--tone);
+}
+.card[data-kind='stale'] { --tone: var(--c-action-strong); }
+.card[data-kind='fault'] { --tone: var(--c-negative); }
+
+.mark { display: block; width: 44px; height: 44px; color: var(--tone); }
+
+.kicker {
+  margin-top: var(--s-4);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tone);
+}
+
+.title { margin-top: var(--s-1); font-size: 1.375rem; font-weight: 560; letter-spacing: -0.015em; line-height: 1.2; }
+.body { margin-top: var(--s-2); font-size: var(--t-body); line-height: 1.55; color: var(--c-ink-soft); }
+
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); margin-top: var(--s-5); }
+
+.reload {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 44px;
+  padding: 0 var(--s-5);
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--c-action-strong);
+  color: #fff;
+  font: inherit;
+  font-size: var(--t-label);
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 1px 2px rgba(122, 52, 30, 0.25);
+  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.reload:hover { background: var(--c-action-text); }
+.reload:active { transform: translateY(1px); }
+.reload:focus-visible, .home:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+.reload svg { width: 16px; height: 16px; }
+
+.home {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  text-decoration: underline;
+  text-decoration-color: var(--c-line-mid);
+  text-underline-offset: 3px;
+}
+.home:hover { color: var(--c-ink); text-decoration-color: currentColor; }
+
+/* While the new version loads: a quiet bar instead of buttons. */
+.loading { margin-top: var(--s-5); height: 3px; border-radius: 2px; background: var(--c-sunk); overflow: hidden; }
+.loading i { display: block; width: 40%; height: 100%; border-radius: inherit; background: var(--tone); animation: slide 1.1s var(--ease) infinite; }
+
+/* Portal only: what failed, folded away, for the studio. */
+.details { margin-top: var(--s-4); font-size: var(--t-caption); color: var(--c-ink-faint); }
+.details summary { cursor: pointer; width: max-content; min-height: 32px; display: flex; align-items: center; gap: 6px; list-style: none; }
+.details summary::-webkit-details-marker { display: none; }
+.details summary::before { content: ''; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform var(--dur) var(--ease); }
+.details[open] summary::before { transform: rotate(45deg); }
+.details summary:hover { color: var(--c-ink-soft); }
+.details summary:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+.details pre {
+  margin-top: var(--s-2);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-sunk);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--t-caption);
+}
+
+@keyframes settle { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+
+@media (max-width: 420px) {
+  .card { padding: var(--s-5) var(--s-4) var(--s-4); }
+  .reload { flex: 1 1 100%; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .loading i { animation: none; }
+  .loading i { width: 100%; opacity: 0.5; }
+}

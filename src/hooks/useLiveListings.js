@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@lib/supabase';
 
 /*
- * What is live, a page at a time, from the live_listings view (migration 0120): sorted, filtered and counted in the
- * database, so 5,000 listings cost the page what 60 do. Each tab and filter number is counted with the same conditions
- * as the list, inside the other choices made, so a number and the list it opens always agree.
+ * What is live, from the live_listings view (migration 0120), read once and worked in the browser (useLiveListings).
+ * Each tab and filter number is counted with the same conditions as the list, inside the other choices made, so a
+ * number and the list it opens always agree. The rows are drawn 60 at a time, so a long list stays quick to scroll.
  */
 export const PAGE = 60;
 
@@ -44,103 +44,144 @@ function filtered(q, choice) {
   return q;
 }
 
+/*
+ * The same conditions, read in the browser against a row, the way PostgREST reads them: a missing value never equals
+ * anything, and ilike is a case-blind "contains". So a tab or filter here keeps exactly the rows the database would.
+ */
+const TEST = {
+  eq: (v, x) => v != null && v === x,
+  gt: (v, x) => v != null && Number(v) > x,
+  gte: (v, x) => v != null && Number(v) >= x,
+  lte: (v, x) => v != null && Number(v) <= x,
+  is: (v, x) => (x === null ? v == null : v === x),
+  ilike: (v, x) => v != null && String(v).toLowerCase().includes(String(x).replace(/%/g, '').toLowerCase()),
+};
+function orTest(row, text) {
+  return text.split(',').some((part) => {
+    const [col, op, ...rest] = part.split('.');
+    const val = Number(rest.join('.'));
+    return TEST[op]?.(row[col], Number.isFinite(val) ? val : rest.join('.')) ?? false;
+  });
+}
+export function matches(row, choice) {
+  return conditions(choice).every(([op, col, val]) => (op === 'or' ? orTest(row, col) : TEST[op](row[col], val)));
+}
+
+// The database's order, in the browser: the column chosen with blanks last, then most opened, then the key.
+const byTitle = new Intl.Collator('en-GB', { sensitivity: 'base', numeric: true });
+function compare(column, ascending) {
+  const one = (col, asc) => (a, b) => {
+    const x = a[col];
+    const y = b[col];
+    if (x == null && y == null) return 0;
+    if (x == null) return 1;
+    if (y == null) return -1;
+    const c = typeof x === 'string' || typeof y === 'string' ? byTitle.compare(String(x), String(y)) : Number(x) - Number(y);
+    return asc ? c : -c;
+  };
+  const first = one(column, ascending);
+  const views = one('views', false);
+  return (a, b) => first(a, b) || (column !== 'views' ? views(a, b) : 0) || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+}
+
+// The header's counts from the rows themselves, with the same rules as live_listing_counts (0122).
+export function countsOf(rows, pulledAt = null) {
+  const c = (f) => rows.reduce((n, r) => n + (f(r) ? 1 : 0), 0);
+  const sum = (col) => rows.reduce((n, r) => n + (r.on_ebay ? Number(r[col] ?? 0) : 0), 0);
+  return {
+    all: rows.length,
+    ebay: c((r) => r.on_ebay),
+    shop: c((r) => r.on_shop),
+    both: c((r) => r.on_ebay && r.on_shop),
+    ebay_only: c((r) => r.on_ebay && !r.on_shop),
+    shop_only: c((r) => r.on_shop && !r.on_ebay),
+    no_shop: c((r) => r.on_ebay && r.shop_state == null),
+    drafts: c((r) => r.on_ebay && r.shop_state === 'draft'),
+    out: c((r) => r.available === 0),
+    low: c((r) => r.available != null && r.available >= 1 && r.available <= 2),
+    quiet: c((r) => r.on_ebay && r.views === 0),
+    selling: c((r) => r.sold > 0),
+    wanted: c((r) => r.on_shop && Number(r.shop_sold ?? 0) === 0 && (r.shop_adds > 0 || r.shop_saves > 0)),
+    ebay_impressions: sum('impressions'),
+    ebay_views: sum('views'),
+    ebay_orders: sum('orders_window'),
+    pulled_at: pulledAt,
+  };
+}
+
+/*
+ * Every live listing, read once when the page opens (and again on reload), then sorted, filtered, searched and
+ * counted in the browser. A tab or a filter costs nothing and is instant.
+ *
+ * Until 3 October each tab change asked the database about twelve times (the page, its total, four tab counts and six
+ * filter counts), each a full run of live_listings, and a quick second click stacked twelve more on the first: the
+ * "canceling statement due to statement timeout" on Listings. Now the view runs once, and a read still going when a
+ * new one starts is cancelled. Comfortable to a few thousand listings; past that, a materialized live_listings.
+ */
 export function useLiveListings(tenantId, { tab, show, find, sort, dir }) {
-  const [state, setState] = useState({ status: 'loading', rows: [], total: 0, error: null, more: false });
-  const [counts, setCounts] = useState(null);
+  const [all, setAll] = useState(null);
+  const [status, setStatus] = useState('loading');
+  const [error, setError] = useState(null);
+  const [pulledAt, setPulledAt] = useState(null);
   const [sold, setSold] = useState(null);
-  const [facets, setFacets] = useState(null);
-  const [fresh, setFresh] = useState(0);
-  const ask = useRef(0);
-  const facetAsk = useRef(0);
+  const [shown, setShown] = useState(PAGE);
+  const reading = useRef(null);
 
-  const query = useCallback((from) => {
-    let q = supabase.from('live_listings').select(COLUMNS, { count: from === 0 ? 'exact' : undefined }).eq('tenant_id', tenantId);
-    q = filtered(q, { tab, show, find });
-    const column = SORTS[sort]?.column ?? 'sold';
-    const ascending = dir === 'asc';
-    q = q.order(column, { ascending, nullsFirst: false });
-    // A steady order inside equal values, so paging never repeats or skips a row.
-    if (column !== 'views') q = q.order('views', { ascending: false, nullsFirst: false });
-    return q.order('key', { ascending: true }).range(from, from + PAGE - 1);
-  }, [tenantId, tab, show, find, sort, dir]);
-
-  // The first page, again whenever the tab, the filter, the search or the sort changes.
-  useEffect(() => {
-    if (!tenantId) return undefined;
-    const n = ++ask.current;
-    setState((s) => ({ ...s, status: s.rows.length ? 'refreshing' : 'loading' }));
-    const t = setTimeout(async () => {
-      const { data, error, count } = await query(0);
-      if (n !== ask.current) return;
-      if (error) { setState({ status: 'error', rows: [], total: 0, error: error.message, more: false }); return; }
-      setState({ status: 'ready', rows: data ?? [], total: count ?? (data ?? []).length, error: null, more: (data ?? []).length === PAGE });
-    }, find ? 220 : 0);
-    return () => clearTimeout(t);
-  }, [tenantId, query, find]);
-
-  // What each tab holds under the filter and search, and each filter under the tab and search: counted, not fetched.
-  useEffect(() => {
-    if (!tenantId) return undefined;
-    const n = ++facetAsk.current;
-    const t = setTimeout(async () => {
-      const count = (choice) => filtered(
-        supabase.from('live_listings').select('key', { count: 'exact', head: true }).eq('tenant_id', tenantId), choice,
-      );
-      const res = await Promise.all([
-        ...TAB_IDS.map((id) => count({ tab: id, show, find })),
-        ...SHOW_IDS.map((id) => count({ tab, show: id, find })),
-      ]);
-      if (n !== facetAsk.current) return;
-      // A count that did not come back is not a zero: the page falls back rather than greying a filter out.
-      if (res.some((r) => r.error || r.count == null)) { setFacets(null); return; }
-      const at = (i) => res[i].count;
-      setFacets({
-        tab: Object.fromEntries(TAB_IDS.map((id, i) => [id, at(i)])),
-        show: Object.fromEntries(SHOW_IDS.map((id, i) => [id, at(TAB_IDS.length + i)])),
-      });
-    }, find ? 220 : 0);
-    return () => clearTimeout(t);
-  }, [tenantId, tab, show, find, fresh]);
-
-  const loadMore = useCallback(async () => {
-    if (state.status !== 'ready' || !state.more) return;
-    const n = ask.current;
-    setState((s) => ({ ...s, status: 'more' }));
-    const { data, error } = await query(state.rows.length);
-    if (n !== ask.current) return;
-    if (error) { setState((s) => ({ ...s, status: 'ready', more: false, error: error.message })); return; }
-    setState((s) => {
-      const have = new Set(s.rows.map((r) => r.key));
-      const rows = [...s.rows, ...(data ?? []).filter((r) => !have.has(r.key))];
-      return { ...s, status: 'ready', rows, more: (data ?? []).length === PAGE && rows.length < s.total };
-    });
-  }, [query, state.status, state.more, state.rows.length]);
-
-  // Counts for the header, tabs and filters, and units sold on every channel since the first sale (the Overview's figure).
-  const loadCounts = useCallback(async () => {
+  const read = useCallback(async () => {
     if (!tenantId) return;
-    const [c, u] = await Promise.all([
-      supabase.rpc('live_listing_counts', { p_tenant: tenantId }),
-      supabase.from('store_channel_profit').select('units, month').eq('tenant_id', tenantId),
+    reading.current?.abort();
+    const ctl = new AbortController();
+    reading.current = ctl;
+    setStatus((s) => (s === 'loading' ? 'loading' : 'refreshing'));
+    const rows = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error: e } = await supabase.from('live_listings').select(COLUMNS).eq('tenant_id', tenantId)
+        .order('key', { ascending: true }).range(from, from + 999).abortSignal(ctl.signal);
+      if (ctl.signal.aborted) return;
+      if (e) { setError(e.message); setStatus('error'); return; }
+      rows.push(...(data ?? []));
+      if (!data || data.length < 1000) break;
+    }
+    const [t, u] = await Promise.all([
+      supabase.from('ebay_traffic').select('fetched_at').eq('tenant_id', tenantId).not('listing_id', 'is', null)
+        .order('fetched_at', { ascending: false }).limit(1).maybeSingle().abortSignal(ctl.signal),
+      supabase.from('store_channel_profit').select('units, month').eq('tenant_id', tenantId).abortSignal(ctl.signal),
     ]);
-    if (!c.error) setCounts(c.data);
+    if (ctl.signal.aborted) return;
+    setPulledAt(t.error ? null : t.data?.fetched_at ?? null);
     if (!u.error) {
       const months = (u.data ?? []).map((r) => r.month).filter(Boolean).sort();
       setSold({ units: (u.data ?? []).reduce((s, r) => s + Number(r.units ?? 0), 0), since: months[0] ?? null });
     }
+    setAll(rows);
+    setError(null);
+    setStatus('ready');
   }, [tenantId]);
-  useEffect(() => { loadCounts(); }, [loadCounts]);
 
-  const reload = useCallback(() => {
-    loadCounts();
-    setFresh((v) => v + 1);
-    ask.current += 1;
-    const n = ask.current;
-    query(0).then(({ data, error, count }) => {
-      if (n !== ask.current || error) return;
-      setState({ status: 'ready', rows: data ?? [], total: count ?? 0, error: null, more: (data ?? []).length === PAGE });
-    });
-  }, [loadCounts, query]);
+  useEffect(() => {
+    read();
+    return () => reading.current?.abort();
+  }, [read]);
+
+  // A new choice starts from the top of the list again.
+  useEffect(() => { setShown(PAGE); }, [tab, show, find, sort, dir]);
+
+  const counts = useMemo(() => (all ? countsOf(all, pulledAt) : null), [all, pulledAt]);
+
+  const list = useMemo(() => {
+    if (!all) return [];
+    const column = SORTS[sort]?.column ?? 'sold';
+    return all.filter((r) => matches(r, { tab, show, find })).sort(compare(column, dir === 'asc'));
+  }, [all, tab, show, find, sort, dir]);
+
+  // What each tab holds under the filter and search, and each filter under the tab and search.
+  const facets = useMemo(() => (all ? {
+    tab: Object.fromEntries(TAB_IDS.map((id) => [id, all.filter((r) => matches(r, { tab: id, show, find })).length])),
+    show: Object.fromEntries(SHOW_IDS.map((id) => [id, all.filter((r) => matches(r, { tab, show: id, find })).length])),
+  } : null), [all, tab, show, find]);
+
+  const rows = useMemo(() => list.slice(0, shown), [list, shown]);
+  const loadMore = useCallback(() => setShown((n) => n + PAGE), []);
 
   /*
    * Her eBay listings onto the shop as drafts, ten to a call (the ebay-import function's limit), through the same
@@ -188,7 +229,15 @@ export function useLiveListings(tenantId, { tab, show, find, sort, dir }) {
     return data;
   }, [tenantId]);
 
-  return { ...state, counts, facets, sold, loadMore, reload, addToShop, cardOf, updateOnEbay, readLive };
+  return {
+    status,
+    error,
+    rows,
+    total: list.length,
+    more: rows.length < list.length,
+    all: all ?? [],
+    counts, facets, sold, loadMore, reload: read, addToShop, cardOf, updateOnEbay, readLive,
+  };
 }
 
 // Live counts alone, for the Overview: the same numbers the Listings page shows.

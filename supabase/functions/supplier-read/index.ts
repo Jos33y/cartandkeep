@@ -3,11 +3,13 @@
 //   the schedule  reads every card with an Amazon supplier once a day, 20 at a time, for the price and stock check.
 // The reading goes on the card (candidates.supplier_read) and into the history (supplier_checks). Her draft is never
 // written here: the portal puts the facts and photos in her draft, the way the Send button does.
+// Her supplier's cost follows Amazon's price where it came from Amazon (costFollow), and so does the shop product's
+// cost where it came from the supplier. A cost she set herself is never moved: she is told, and offered the price.
 // Needs APIFY_TOKEN in the function secrets.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { env } from '../_shared/ebay/listing.ts';
-import { BATCH, failedRead, londonDay, nextRead, runAxesso, supplierPageOf } from '../_shared/amazon.ts';
+import { BATCH, costFollow, failedRead, londonDay, nextRead, runAxesso, supplierPageOf } from '../_shared/amazon.ts';
 
 type Json = Record<string, any>;
 
@@ -48,7 +50,13 @@ async function callerOf(req: Request, tenantId: string): Promise<'schedule' | 'p
   return !error && data === true ? 'portal' : null;
 }
 
-const SOURCE_FIELDS = 'id, candidate_id, url, unit_cost, landed_unit_cost';
+const SOURCE_FIELDS = 'id, candidate_id, url, unit_cost, landed_unit_cost, price_at_moq, supplier_shipping, fulfilment, cost_by';
+// What the portal holds for a supplier (useApproved), so a moved cost lands on the card without a reload.
+const SOURCE_ROW = `id, candidate_id, supplier, supplier_kind, fulfilment, status, url, note, unit_cost, moq, price_at_moq,
+  supplier_shipping, inbound_freight_per_unit, duty_pct, landed_unit_cost, ships_from, transit_days, confirmed, quoted_on,
+  matched_on, cost_by`;
+// A shop product's cost that came from the supplier rather than from her, so it may follow the supplier's.
+const FROM_SUPPLIER = 'landed_cost.is.null,cost_note.ilike.From the confirmed supplier*,cost_note.ilike.Amazon price*';
 
 // Approved cards with an Amazon supplier link, on her supplier list or sent from her browser.
 async function cardsWithAmazon(client: ReturnType<typeof db>, tenantId: string) {
@@ -96,7 +104,7 @@ Deno.serve(async (req) => {
     const now = new Date().toISOString();
     const today = londonDay(now);
     // deno-lint-ignore no-explicit-any
-    let todo: Array<{ c: Json; page: any }>;
+    let todo: Array<{ c: Json; page: any; sources: Json[] }>;
     const skipped: Record<string, string> = {};
 
     if (daily) {
@@ -128,10 +136,32 @@ Deno.serve(async (req) => {
     const { reads, failed } = todo.length ? await runAxesso(todo.map((x) => x.page.url), token) : { reads: new Map(), failed: [] as string[] };
 
     const out: Record<string, Json> = {};
+    const moved: Record<string, Json> = {};
     const history: Json[] = [];
-    for (const { c, page } of todo) {
+    for (const { c, page, sources } of todo) {
       const r = reads.get(page.asin);
-      const next = r ? nextRead(c.supplier_read, r, page) : failedRead(c.supplier_read, page, failed.includes(page.asin) ? 'Apify did not return this page.' : 'Not read.', now);
+      const next: Json = r ? nextRead(c.supplier_read, r, page) : failedRead(c.supplier_read, page, failed.includes(page.asin) ? 'Apify did not return this page.' : 'Not read.', now);
+
+      // Her cost, moved with Amazon's price where it came from Amazon. Written before the reading, so the reading
+      // says what it was costed at after the move and the card's warning compares like with like.
+      const source = sources.find((s) => s.id === page.source_id) ?? null;
+      const follow = r ? costFollow(c.supplier_read, r, source) : null;
+      if (follow && source) {
+        const { data: row, error: e } = await client.from('candidate_sources')
+          .update({ unit_cost: follow.to, price_at_moq: follow.to, supplier_shipping: follow.shipping, cost_by: 'amazon', quoted_on: r!.read_at.slice(0, 10) })
+          .eq('id', source.id).eq('tenant_id', tenantId).select(SOURCE_ROW).single();
+        if (e) console.error('[supplier-read] cost not moved', c.id, e.message);
+        else {
+          moved[c.id] = row;
+          next.costed = row.landed_unit_cost != null ? Number(row.landed_unit_cost) : follow.to;
+          next.cost_change = { from: follow.from, to: follow.to, at: r!.read_at, why: follow.why };
+          const { error: e2 } = await client.from('store_products')
+            .update({ landed_cost: row.landed_unit_cost, cost_note: `Amazon price, read ${londonDay(r!.read_at)}`, cost_updated_at: now })
+            .eq('tenant_id', tenantId).eq('candidate_id', c.id).neq('status', 'archived').or(FROM_SUPPLIER);
+          if (e2) console.error('[supplier-read] shop cost not moved', c.id, e2.message);
+        }
+      }
+
       const { error } = await client.from('candidates').update({ supplier_read: next }).eq('id', c.id).eq('tenant_id', tenantId);
       if (error) throw new Error(error.message);
       out[c.id] = next;
@@ -156,7 +186,7 @@ Deno.serve(async (req) => {
         }
       }
     }
-    return json({ read: reads.size, failed: failed.length, reads: out, skipped });
+    return json({ read: reads.size, failed: failed.length, reads: out, skipped, moved });
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }

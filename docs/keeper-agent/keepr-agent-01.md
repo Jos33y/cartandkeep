@@ -1,10 +1,10 @@
 # Keepr Agent-01: store card reviewer
 
-Version 3.2, 2 October 2026. Cart & Keep, Brick Dev Commerce.
+Version 3.4, 3 October 2026. Cart & Keep, Brick Dev Commerce.
 
 Version 2 adds what the first two live reviews taught: Home & Garden (57 cards) and Health & Beauty (483 cards). These cover the working method, the flags that find problems fast, the patterns for a wrong match, the sourcing and legal lists, and the lessons that became pipeline rules.
 
-Version 3 adds VAT on shelf prices, how to read a re-source results file, generic titles, barcodes for eBay catalogue listing, and a watch list for each category still to run. Version 3.1 adds the Hardware review (752 cards, 1 October). Version 3.2 adds the Toys & Games review (1,026 cards, 2 October).
+Version 3 adds VAT on shelf prices, how to read a re-source results file, generic titles, barcodes for eBay catalogue listing, and a watch list for each category still to run. Version 3.1 adds the Hardware review (752 cards, 1 October). Version 3.2 adds the Toys & Games review (1,026 cards, 2 October). Version 3.3 adds the Baby & Toddler review (255 cards, 2 October) and postage by weight on eBay cards. Version 3.4 adds the Animals & Pet Supplies review (381 cards, 3 October).
 
 ## What it is
 
@@ -303,11 +303,11 @@ node scripts/store/key-check.mjs --google=research/google/<category>
 |---|---|---|
 | Hardware (632) | plumbing parts, heating and ventilation, electrical accessories, locks, tool accessories, hand tools | trade-only work (consumer units, gas parts, anything needing Part P or a Gas Safe engineer); long or heavy items (pipe, cable drums, ladders); can't-post solvents, gas canisters, spray foam, flammable adhesives; power tools sold bare or with a battery (check the kit); UKCA marking on electricals |
 | Toys & Games | done 2 October, see below | |
-| Animals & Pet Supplies (1) | pet care, beds, feeders, grooming, pest control for pets | prescription diets and medicines (flea and wormer treatments marked POM-V, POM-VPS or NFA-VPS need a vet or SQP; AVM-GSL ones are fine); Pets at Home own label; heavy food sacks; live animals |
+| Animals & Pet Supplies | done 3 October, see below | |
 | Electronics (222) | cables, batteries, chargers, ink and toner, big-button phones | counterfeit chargers and cables (authorised sources only); loose lithium batteries can't be posted; Apple and Samsung enforce on eBay; compatible ink is fine, fake branded ink is not |
 | Office Supplies (922) | label tape, ink, shredders, label printers | compatible against original consumables (say which); heavy paper boxes |
 | Sporting Goods (988) | care-adjacent fitness only (hand exercisers, resistance bands) | sized clothing and footwear; heavy weights; gas cylinders for camping stoves |
-| Baby & Toddler (537) | baby safety (gates, monitors, corner guards), plus baby toys and gifts now that Toys is in | infant formula; sleep products with safety claims (sleep positioners, nests, weighted sleep bags); car seats (out); cot mattresses (bulky); teething gels with lidocaine or benzocaine (medicines); prams and pushchairs (bulky, courier); Mamas & Papas own label |
+| Baby & Toddler | done 2 October, see below | |
 | Vehicles & Parts (888) | car care only | parts for one vehicle; car batteries and aerosols can't post; screenwash and de-icer may be flammable |
 
 ## Lessons that became pipeline rules
@@ -346,7 +346,34 @@ Every pattern Keepr rejected by hand twice was moved upstream, so the next batch
 
 **Upstream fixes from the Toys run** (see the Toys section of `store-rules-2026-09-30.md`): maker-to-range lines (Epoch to Sylvanian Families and so on), the first-word fallback guard in store-picks, big brands read and imported for toys, and The Entertainer and Studio prices in `page.mjs`.
 
-**Watch on eBay cards: the postage band.** On 2 October a Sika jointing compound eBay card (15kg tub on the shelf, 14kg on eBay) was costed at "Evri to 5kg, £2.62". A heavy product priced in the small band makes "You keep" look like profit when it is a loss. On any eBay card, read the weight in the title or pack chip ("Shelf 15000, eBay 14000" means 15kg against 14kg: the chip's numbers are grams or millilitres) against the postage line on the receipt.
+**Baby & Toddler review patterns (2 October), 255 cards: 122 keep, 127 notes, 5 rejects, 1 re-source:**
+- **Barcode matches were clean again** (223 of 255), as in Toys. The work was in shipping and sourcing notes, not wrong products.
+- **Sleep products the rule misses:** shaped sleep mattresses and positioners under a brand name (Babymoov Cosymorpho). Read any "nest", "cocoon", "pod", "morpho" or "positioner" by hand. A pram cocoon or a car seat newborn insert from the maker is fine.
+- **Furniture parts:** a cot bed under-drawer or a toddler rail is nursery furniture or a part of it. The drawer is 140cm and courier only (reject); a toddler rail is a note.
+- **Shop weights on pram accessories:** Natural Baby Shower writes 5kg to 11kg on light Bugaboo parts (snack tray, bumper bar, seat liner, travel bag). These are costed as a medium parcel; note the card, and don't trust that shop's weights over 4kg.
+- **Bulky with no weight:** swings, bouncers, play gyms, gates, baths and playpens are costed as a small parcel when no weight is known. Most need a medium parcel.
+- **Travel cots:** the bag is about 80cm long, over Royal Mail's 61cm medium parcel. Evri or a courier.
+- **Premium nursery brands** (Bugaboo, Stokke, UPPAbaby, Nuna, Doona, Joolz) are sold through authorised retailers only. Noted as "check she can open a trade account", not rejected (judgment call, 22 cards).
+- **Hygiene:** breast pumps and their parts, nipple shields, bottles, teats, soothers and potties can't be returned once opened.
+- **Car seat accessories** (belt guards, summer covers, adaptors): only the maker's own part, for the seat it names.
+- **Marked-up marketplace prices:** Hannworld lists Fisher-Price at twice Google's price. A note to find it cheaper, not a wrong product.
+
+**Upstream fixes from the Baby run** (see the Baby & Toddler section of `store-rules-2026-09-30.md`): car seats, pushchairs and cots stopped with their accessories passing; sleep safety; more infant formula; baby medicines; baby `BRANDED`; Sudocrem by product, not brand.
+
+**Animals & Pet Supplies review patterns (3 October), 381 cards: 193 keep, 132 notes, 29 re-source, 27 rejects:**
+- **Name matches on big food ranges go wrong.** Royal Canin sells one recipe per breed, size, age and diet, and the titles share most words. A Royal Canin card on a name match is unsure until the breed, size and diet words all agree: five cards sat on the Beagle page, three on Appetite Control. Same for James Wellbeloved, Eukanuba and Harringtons flavours.
+- **Pack size on pet food.** The same recipe comes in 2kg, 10kg and 15kg bags. A cost at a third of Google, or over twice it, is another bag. Read the kg on the page before calling it the same.
+- **Weight.** Dry food over 10kg needs a medium parcel; 15kg bags are close to the 20kg limit with packing. Litter is heavy for its size (10L is about 5kg to 7kg). Glass tanks and bowls need packing notes.
+- **Vet medicines.** A flea or wormer treatment is legal only when the pack says AVM-GSL. POM-V, POM-VPS and NFA-VPS need a vet or an SQP. Frontline Wormer and similar: note "check AVM-GSL on the pack".
+- **Vet diets.** Royal Canin Expert and Veterinary ranges (Glycobalance, Renal, Urinary S/O) are sold through vets: reject the clinical ones, note the Expert ones.
+- **Flea sprays are aerosols.** Indorex and Pet Corrector are compressed gas: can't post.
+- **Shop own ranges.** Lords & Labradors sells its own beds and toys under its name; nobody else stocks them.
+- **Pet food needs feed business registration** with her council, like human food. Say so in the legal column.
+- **Re-source leads repeat the breed mistake.** 14 of 26 leads were wrong (Boxer for five different cards, Duck & Rice for Fish & Rice, a Home Bargains pouch pack for tins). Read every one.
+
+**Upstream fixes from the Pet run** (see the Animals & Pet Supplies section of `store-rules-2026-09-30.md`): vet prescription and vet counter stops, pet own label and `BRANDED`, pet food KINDS and VERSION words in `match.mjs`, pet beds and plant litter through the not-shelf rule. Still open: breed and size words in `match.mjs`, Lords & Labradors as own label, the Reptile Centre brand tag.
+
+**Watch on eBay cards: the postage band.** On 2 October a Sika jointing compound eBay card (15kg tub on the shelf, 14kg on eBay) was costed at "Evri to 5kg, £2.62". A heavy product priced in the small band makes "You keep" look like profit when it is a loss. On any eBay card, read the weight in the title or pack chip ("Shelf 15000, eBay 14000" means 15kg against 14kg: the chip's numbers are grams or millilitres) against the postage line on the receipt. Fixed the same day: the importers now cost eBay postage by weight, and `scripts/recost-ebay-weight.mjs` re-costed 50 cards already in her queue (see `postage-by-weight-2026-10-02.md`). A weight read from a title can still be wrong (a damaged-box listing read as 22kg for a steam iron): read the courier and negative-keep lists before `--apply`.
 
 When Keepr keeps finding the same problem, the fix belongs in a rule, not in the next review.
 

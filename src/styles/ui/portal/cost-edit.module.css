@@ -1,0 +1,70 @@
+/* Changing a supplier's cost by hand, and taking Amazon's price. Quiet until opened; the form sits in the panel. */
+
+.line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-3); font-size: var(--t-micro); }
+.who { color: var(--c-ink-faint); }
+
+.link {
+  min-height: 28px;
+  font-size: var(--t-micro);
+  color: var(--c-action-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.link:hover:not(:disabled) { color: var(--c-action-strong); }
+.link:focus-visible, .save:focus-visible, .use:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+.form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-raised);
+}
+
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.label { font-size: var(--t-caption); font-weight: 500; color: var(--c-ink-soft); }
+
+.money {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 38px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  font-size: var(--t-label);
+  color: var(--c-ink-faint);
+}
+.money:focus-within { border-color: var(--c-control); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-control) 18%, transparent); }
+.money input { flex: 1; min-width: 0; border: 0; background: none; font: inherit; color: var(--c-ink); font-variant-numeric: tabular-nums; }
+.money input:focus { outline: none; }
+
+.hint { grid-column: 1 / -1; font-size: var(--t-micro); line-height: var(--lh-snug); color: var(--c-ink-faint); }
+.actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+
+.save, .use {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-action-strong);
+  color: #fff;
+  font-size: var(--t-caption);
+  font-weight: 600;
+  transition: background var(--dur) var(--ease);
+}
+.save:hover:not(:disabled), .use:hover:not(:disabled) { background: var(--c-action-text); }
+.save:disabled, .use:disabled { opacity: 0.6; }
+
+.error { grid-column: 1 / -1; font-size: var(--t-caption); color: var(--c-negative); }
+
+.offer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); margin-top: var(--s-2); }
+.offerHint { font-size: var(--t-micro); color: var(--c-ink-faint); }
+
+@media (max-width: 420px) {
+  .form { grid-template-columns: minmax(0, 1fr); }
+}

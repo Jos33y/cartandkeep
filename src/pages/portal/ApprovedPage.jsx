@@ -16,6 +16,7 @@ import { PRODUCT_FIELDS, sameListing } from '@lib/product';
 import { bookmarkletFor, likelyCard, readSent } from '@lib/sendToCart';
 import { amazonPageOf, amazonWeight, isAmazonUk, needsRead, packedKg, readOf, sentOf, supplierPatch, supplierWarnings, weightKg } from '@lib/supplierWatch';
 import { SupplierWatch } from '@components/ui/portal/SupplierWatch';
+import { CostEdit } from '@components/ui/portal/CostEdit';
 import { KeeprSuggestion } from '@components/ui/portal/MarketListings';
 import { ListingComposer } from '@components/ui/portal/ListingComposer';
 import { BulkBar, ListSheet } from '@components/ui/portal/BulkListing';
@@ -80,7 +81,7 @@ export function ApprovedPage() {
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
   const {
-    status, rows, month, jobs, addSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose, marketCheck, matchListing, readSupplier,
+    status, rows, month, jobs, addSource, updateSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose, marketCheck, matchListing, readSupplier,
   } = useApproved(tenant?.id);
   const { suppliers, remember } = useSuppliers(tenant?.id);
   const [find, setFind] = useState('');
@@ -628,6 +629,7 @@ export function ApprovedPage() {
             rebuilt={rebuilt[row.id] ?? null}
             onStay={() => setStay((x) => (x.has(row.id) ? x : new Set(x).add(row.id)))}
             onShowIds={(ids, label) => { setHeld({ ids: new Set(ids), label }); setOnly('held'); }}
+            onCost={(sourceId, fields) => updateSource(row.id, sourceId, fields)}
             onSource={async (fields) => {
               await addSource({ candidateId: row.id, tenantId: tenant.id, ...fields });
               await remember({ tenantId: tenant.id, name: fields.supplier, country: fields.ships_from });
@@ -736,7 +738,7 @@ const joinFixes = (xs) => {
 
 function Pack({
   row, base, baseGl, job, selected, onSelect, onCancelJob, onRetryJob, onSaved, onRead,
-  tenantId, fees, suppliers, onSource, onList, onShop, onCheckPhotos, onAmazon, onShowIds, onMarket, onMatch,
+  tenantId, fees, suppliers, onSource, onCost, onList, onShop, onCheckPhotos, onAmazon, onShowIds, onMarket, onMatch,
   onRebuild, rebuilding = false, rebuilt = null, onStay,
 }) {
   const [open, setOpen] = useState(false);
@@ -1677,6 +1679,10 @@ function Pack({
                   <ShelfLabel shop={shopName(a.best.supplier) ?? a.best.supplier} product={product ?? a.title}
                     price={a.best.landed_unit_cost} url={a.best.url} state={labelState} />
                 )}
+                {/* The supplier the card prices from: its cost can be changed here, and is then hers. */}
+                {a.best?.id && others.length <= 1 && (row.sources ?? []).some((src) => src.id === a.best.id) && (
+                  <CostEdit source={a.best} onSave={(fields) => onCost(a.best.id, fields)} />
+                )}
                 {(a.l?.in_stock || a.l?.max_qty != null) && (
                   <p className={styles.shopMeta}>
                     {a.l?.in_stock === 'yes' && <span className={styles.inStock}><span className={styles.dot} />In stock</span>}
@@ -1714,7 +1720,8 @@ function Pack({
                 )}
                 {amazonPage && (
                   <SupplierWatch page={amazonPage} read={amazonRead} costed={amazonRead?.costed ?? null}
-                    reading={readingAmazon} onRead={() => readAmazon(amazonPage.uk ? null : amazonPage.url)} />
+                    reading={readingAmazon} onRead={() => readAmazon(amazonPage.uk ? null : amazonPage.url)}
+                    source={(row.sources ?? []).find((src) => src.id === amazonRead?.source_id) ?? null} onCost={onCost} />
                 )}
                 {/*
                   * What her supplier's page says, pasted by her. Some suppliers (Amazon Business) cannot be read by
@@ -1744,6 +1751,7 @@ function Pack({
                 )}
                 {others.length > 1 && (
                   <SourceList candidate={row} onAdd={onSource} suppliers={suppliers} compact canAdd={false}
+                    onCost={onCost}
                     keepOf={(src) => assess({ ...row, draft }, {
                       tryCost: Number(src.landed_unit_cost), tryPosted: src.fulfilment === 'stock' ? 'you' : 'supplier', holdPrice: true,
                     }).keep} />

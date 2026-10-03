@@ -1,6 +1,7 @@
 import { formatGbp } from '@utils/formatGbp';
 import { Icon } from '@components/ui/icons';
-import { offerLine, riskLine, supplierWarnings } from '@lib/supplierWatch';
+import { costOffer, offerLine, riskLine, supplierWarnings } from '@lib/supplierWatch';
+import { CostOffer } from '@components/ui/portal/CostEdit';
 import styles from '@styles/ui/portal/supplier-watch.module.css';
 
 /*
@@ -8,8 +9,10 @@ import styles from '@styles/ui/portal/supplier-watch.module.css';
  * changed, and what Amazon's buyers complain about. The buyers' part is for her before she lists it; none of it
  * goes in a listing.
  */
-export function SupplierWatch({ page, read, costed = null, reading = false, onRead }) {
+// `source` is the supplier the page is costed from; `onCost` saves a cost on it (useApproved updateSource).
+export function SupplierWatch({ page, read, costed = null, reading = false, onRead, source = null, onCost = null }) {
   if (!page) return null;
+  const take = onCost ? costOffer(read, source) : null;
   const offer = offerLine(read);
   const warnings = supplierWarnings(read, costed);
   const risk = riskLine(read);
@@ -54,6 +57,7 @@ export function SupplierWatch({ page, read, costed = null, reading = false, onRe
           ))}
         </ul>
       )}
+      {take && <CostOffer offer={take} onUse={(fields) => onCost(source.id, fields)} />}
 
       {risk && (risk.concerns.length > 0 || risk.head) && (
         <div className={styles.risk}>

@@ -12,6 +12,15 @@ function one(decisions) {
 // The same product approved more than once: the same barcode, or the same title. The card already started on a
 // channel keeps its place, else the strongest; the rest point at it. Research titles, not hers, so two drafts
 // written differently are still caught.
+// A supplier as the card holds it: what the page loads, what an add or a cost change returns.
+const SOURCE_COLUMNS = `
+  id, supplier, supplier_kind, fulfilment, status, url, note,
+  unit_cost, moq, price_at_moq, supplier_shipping,
+  inbound_freight_per_unit, duty_pct, landed_unit_cost,
+  ships_from, transit_days, confirmed, quoted_on, matched_on, cost_by
+`;
+const byLanded = (a, b) => Number(a.landed_unit_cost ?? 1e9) - Number(b.landed_unit_cost ?? 1e9);
+
 const words = (t) => String(t ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 function markDuplicates(rows) {
   const keeper = new Map();
@@ -105,7 +114,7 @@ export function useApproved(tenantId) {
           id, supplier, supplier_kind, fulfilment, status, url, note,
           unit_cost, moq, price_at_moq, supplier_shipping,
           inbound_freight_per_unit, duty_pct, landed_unit_cost,
-          ships_from, transit_days, confirmed, quoted_on, matched_on
+          ships_from, transit_days, confirmed, quoted_on, matched_on, cost_by
         )
       `)
       .eq('tenant_id', tenantId)
@@ -138,12 +147,7 @@ export function useApproved(tenantId) {
       const { data, error } = await supabase
         .from('candidate_sources')
         .insert({ candidate_id: candidateId, tenant_id: tenantId, ...fields })
-        .select(`
-          id, supplier, supplier_kind, fulfilment, status, url, note,
-          unit_cost, moq, price_at_moq, supplier_shipping,
-          inbound_freight_per_unit, duty_pct, landed_unit_cost,
-          ships_from, transit_days, confirmed, quoted_on, matched_on
-        `)
+        .select(SOURCE_COLUMNS)
         .single();
 
       if (error) throw error;
@@ -162,6 +166,30 @@ export function useApproved(tenantId) {
     },
     [],
   );
+
+  // One supplier, new or changed, into the page's copy of its card, cheapest first as the page loads them.
+  const putSource = useCallback((candidateId, source) => {
+    setState((s) => ({
+      ...s,
+      rows: s.rows.map((r) => (r.id === candidateId
+        ? { ...r, sources: [...(r.sources ?? []).filter((x) => x.id !== source.id), source].sort(byLanded) }
+        : r)),
+    }));
+  }, []);
+
+  // A supplier's cost changed from the card, by her or by taking Amazon's price. Only her own shop's row.
+  const updateSource = useCallback(async (candidateId, sourceId, fields) => {
+    const { data, error } = await supabase
+      .from('candidate_sources')
+      .update(fields)
+      .eq('id', sourceId)
+      .eq('tenant_id', tenantId)
+      .select(SOURCE_COLUMNS)
+      .single();
+    if (error) throw error;
+    putSource(candidateId, data);
+    return data;
+  }, [tenantId, putSource]);
 
   // Her saved draft, back into the page's copy of the card.
   const noteDraft = useCallback((candidateId, draft) => {
@@ -205,8 +233,10 @@ export function useApproved(tenantId) {
     if (Object.keys(reads).length) {
       setState((s) => ({ ...s, rows: s.rows.map((r) => (reads[r.id] ? { ...r, supplier_read: reads[r.id] } : r)) }));
     }
+    // A supplier whose cost followed Amazon's price in this read, so the card's keep moves with it.
+    for (const [candidateId, source] of Object.entries(data?.moved ?? {})) putSource(candidateId, source);
     return { reads, skipped: data?.skipped ?? {} };
-  }, [tenantId]);
+  }, [tenantId, putSource]);
 
   const marketCheck = useCallback(async (candidateId, query = null) => {
     const data = await invoke('ebay-list', { tenant_id: tenantId, candidate_id: candidateId, market: true, ...(query ? { query } : {}) });
@@ -324,5 +354,5 @@ export function useApproved(tenantId) {
     [tenantId],
   );
 
-  return { ...state, month, jobs, reload: load, addSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose, marketCheck, matchListing, readSupplier };
+  return { ...state, month, jobs, reload: load, addSource, updateSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose, marketCheck, matchListing, readSupplier };
 }

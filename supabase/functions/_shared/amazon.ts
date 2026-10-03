@@ -219,7 +219,7 @@ export async function runAxesso(urls: string[], token: string, { timeoutSecs = 1
 /*
  * Which Amazon page a card is checked against. The page she sent or chose for the card first; otherwise her
  * cheapest Amazon supplier. Only amazon.co.uk: another Amazon prices in another currency and ships from abroad.
- * `costed` is the unit cost she put on that supplier, what the card's keep was worked out from.
+ * `costed` is that supplier's landed cost (goods and its postage), what the card's keep was worked out from.
  */
 export function supplierPageOf(c: Json, sources: Json[] = []) {
   const amazon = sources.filter((s) => isAmazon(s.url) && asinOf(s.url));
@@ -232,11 +232,14 @@ export function supplierPageOf(c: Json, sources: Json[] = []) {
   const asin = asinOf(url);
   if (!asin) return { reason: 'no_asin' as const, url };
   const source = amazon.find((s) => asinOf(s.url) === asin) ?? null;
-  const costed = source?.unit_cost != null ? Number(source.unit_cost) : null;
+  // What a unit costs her from this supplier with its postage, the same figure the card's keep is worked out from.
+  const raw = source?.landed_unit_cost ?? source?.unit_cost;
+  const costed = raw != null ? Number(raw) : null;
   return { url: pageFor(asin), asin, source_id: source?.id ?? null, costed: Number.isFinite(costed) ? costed : null };
 }
 
-// The card's new reading, with the offer before it kept beside it when it is the same product.
+// The card's new reading, with the offer before it kept beside it when it is the same product, and the last time her
+// cost followed Amazon kept until it moves again.
 export function nextRead(prev: Json | null, r: Read, page: { source_id: string | null; costed: number | null }) {
   const same = prev?.asin === r.asin && prev?.offer;
   return {
@@ -244,8 +247,44 @@ export function nextRead(prev: Json | null, r: Read, page: { source_id: string |
     source_id: page.source_id,
     costed: page.costed,
     before: same ? { ...prev.offer, read_at: prev.read_at } : null,
+    cost_change: prev?.asin === r.asin ? prev?.cost_change ?? null : null,
     tried_at: r.read_at,
     error: null,
+  };
+}
+
+const near = (a: unknown, b: unknown) => a != null && b != null && Math.abs(Number(a) - Number(b)) < 0.015;
+
+// What one unit's goods cost by this reading: the price, or on a deal the price it goes back to when the deal ends.
+// A deal price is not a cost (keepr-agent-04, Part 14). Postage apart.
+export function goodsOf(offer: Json | null | undefined): number | null {
+  if (!offer || offer.price == null) return null;
+  return offer.deal && offer.was ? Number(offer.was) : Number(offer.price);
+}
+
+/*
+ * Her supplier's cost, moved to Amazon's price: from, to and the postage, or null to leave it. It follows when:
+ *   the supplier ships to her buyer (dropship), and the page was found with a price;
+ *   she has not set the cost herself (cost_by 'her');
+ *   the cost already came from Amazon: marked so, empty, or equal to a price Amazon showed in this reading or the
+ *   last one. A cost that matches no Amazon price is one she typed (a trade or Business price), and is hers.
+ * Nothing moves when it already matches.
+ */
+export function costFollow(prev: Json | null, r: Read, source: Json | null) {
+  if (!source || !r?.found || (source.fulfilment && source.fulfilment !== 'dropship')) return null;
+  const to = goodsOf(r.offer);
+  if (to == null || source.cost_by === 'her') return null;
+  const now = source.price_at_moq ?? source.unit_cost;
+  const seen = [prev?.offer?.price, prev?.offer?.was, r.offer.price, r.offer.was];
+  const follows = source.cost_by === 'amazon' || now == null || seen.some((p) => near(p, now));
+  if (!follows) return null;
+  const shipping = r.offer.shipping == null ? (source.supplier_shipping ?? null) : Number(r.offer.shipping);
+  if (near(now, to) && near(source.supplier_shipping ?? 0, shipping ?? 0)) return null;
+  return {
+    from: now == null ? null : Number(now),
+    to,
+    shipping,
+    why: r.offer.deal && r.offer.was ? 'deal' as const : 'price' as const,
   };
 }
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { formatGbp } from '@utils/formatGbp';
 import { isPackCheck } from '@lib/pricing';
+import { CostEdit } from '@components/ui/portal/CostEdit';
 import styles from '@styles/ui/portal/source-list.module.css';
 
 const EMPTY = {
@@ -31,7 +32,8 @@ const display = (name, suppliers) => {
 const SLOW_DAYS = 30;
 
 // keepOf(source) is what she keeps a sale with that source's cost, from assess(), so a supplier line and the card agree.
-export function SourceList({ candidate, onAdd, suppliers = [], compact = false, canAdd = true, keepOf = null }) {
+// onCost(sourceId, fields), when given, lets each supplier's cost be changed in place.
+export function SourceList({ candidate, onAdd, suppliers = [], compact = false, canAdd = true, keepOf = null, onCost = null }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
@@ -127,6 +129,7 @@ export function SourceList({ candidate, onAdd, suppliers = [], compact = false, 
                   s.note,
                 ].filter(Boolean).join(' · ')}
               </p>
+              {onCost && <CostEdit source={s} onSave={(fields) => onCost(s.id, fields)} />}
             </div>
 
             <div className={styles.money}>

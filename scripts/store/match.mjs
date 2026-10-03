@@ -55,14 +55,78 @@ const VERSION = ['kids', 'children', 'junior', 'baby', 'mini', 'max', 'pro', 'pl
   'orthopaedic', 'orthopedic', 'broth', 'topper', 'toppers', 'multipack', 'value'];
 
 // Pairs where one word on each side means two different products.
+const RECIPE = new Set(['chicken', 'beef', 'lamb', 'salmon', 'turkey', 'duck', 'tuna', 'rabbit', 'venison', 'pork', 'trout', 'herring', 'fish', 'mixed']);
 const KINDS = [['rat', 'mouse'], ['cat', 'dog'], ['indoor', 'outdoor'], ['left', 'right'], ['blanket', 'bag'], ['throw', 'duvet'], ['wasp', 'fly'], ['smoke', 'heat'], ['mains', 'battery'],
   ['goose', 'duck'], ['liquid', 'pods'], ['liquid', 'powder'], ['liquid', 'kit'], ['liquid', 'spray'], ['candle', 'spray'], ['oil', 'stain'], ['wine', 'beer'], ['frying', 'saute'], ['wall', 'alarm'], ['travel', 'large'], ['medium', 'tall'], ['flat', 'spin'], ['ball', 'candle'], ['pot', 'can'], ['trimmer', 'battery'], ['hooks', 'fixings'],
   // Pet food: wet against dry, and the textures and stages that make a different recipe.
   ['wet', 'dry'], ['jelly', 'gravy'], ['jelly', 'broth'], ['gravy', 'broth'], ['jelly', 'loaf'], ['gravy', 'loaf'], ['loaf', 'mousse'], ['jelly', 'pate'], ['gravy', 'pate'],
   ['puppy', 'adult'], ['kitten', 'adult'], ['adult', 'senior'], ['puppy', 'senior'], ['kitten', 'senior'],
-  // The meat in a recipe: Autarky Salmon is not Autarky Chicken.
-  ...(() => { const m = ['chicken', 'beef', 'lamb', 'salmon', 'turkey', 'duck', 'tuna', 'rabbit', 'venison', 'pork', 'trout', 'herring'];
-    return m.flatMap((x, i) => m.slice(i + 1).map((y) => [x, y])); })()];
+  // The meat in a recipe: Autarky Salmon is not Autarky Chicken. Fish and a mixed selection are recipes too
+  // (3 October: James Wellbeloved Fish & Rice went to Duck & Rice, Harringtons Mixed in Jelly to Fish in Jelly).
+  ...pairsOf([...RECIPE]),
+  // Tins against pouches: Pedigree tins in jelly went to an 80-pouch pack.
+  ['tins', 'pouches'], ['tin', 'pouch'], ['tins', 'pouch'], ['tin', 'pouches']];
+function pairsOf(list) { return list.flatMap((x, i) => list.slice(i + 1).map((y) => [x, y])); }
+
+/*
+ * Pet food sold by breed and by dog size (3 October). Royal Canin makes one recipe per breed and per size, and the
+ * titles share every other word, so "Royal Canin Medium Adult Dog Food" confirmed on the Boxer page, and so did
+ * Giant, Maxi, Bulldog and Dachshund. Only read when the title is about a pet, so boxer shorts and a pug toy are left
+ * alone. Longer names first, so French Bulldog is not read as Bulldog.
+ */
+const PET = /\b(dogs?|pupp(?:y|ies)|cats?|kittens?)\b/i;
+const BREEDS = ['french bulldog', 'english bulldog', 'bulldog', 'boxer', 'beagle', 'dachshund', 'labrador', 'golden retriever',
+  'german shepherd', 'yorkshire terrier', 'shih tzu', 'chihuahua', 'pug', 'poodle', 'cocker spaniel', 'springer spaniel',
+  'west highland', 'westie', 'jack russell', 'border collie', 'cavalier king charles', 'schnauzer', 'maltese',
+  'staffordshire', 'husky', 'rottweiler', 'great dane', 'cockapoo', 'persian', 'british shorthair', 'maine coon',
+  'ragdoll', 'siamese', 'bengal', 'sphynx', 'norwegian forest'];
+const breedsIn = (s) => {
+  let t = ` ${squash(s)} `;
+  const found = [];
+  for (const b of BREEDS) if (t.includes(` ${b} `)) { found.push(b); t = t.replaceAll(` ${b} `, ' '); }
+  return found;
+};
+// Dog sizes in a food title: X-Small, Mini, Medium, Maxi, Giant, Small Breed, Large Breed.
+const FOOD = /\b(food|kibble|biscuits?|complete|dry|wet)\b/i;
+const SIZES = ['xsmall', 'x small', 'extra small', 'mini', 'small', 'medium', 'maxi', 'large', 'giant'];
+const sizesIn = (s) => {
+  let t = ` ${squash(s).replace(/\bx-?small\b/g, 'xsmall')} `;
+  const found = [];
+  for (const z of SIZES) if (t.includes(` ${z} `)) { found.push(z); t = t.replaceAll(` ${z} `, ' '); }
+  return found;
+};
+// Supplements sold by what they are for: Bugalugs Pumpkin went to Bugalugs Deer Antler.
+const SUPPLEMENT = ['pumpkin', 'calming', 'antler'];
+const STAGES = ['puppy', 'kitten', 'junior', 'senior'];
+const STAGE_SAME = { ageing: 'senior', aging: 'senior', mature: 'senior', babycat: 'kitten', babydog: 'puppy' };
+function petVerdict(title, name) {
+  if (!PET.test(title)) return null;
+  const tb = breedsIn(title);
+  const nb = breedsIn(name);
+  const otherBreed = nb.find((b) => !tb.includes(b));
+  if (tb.length && otherBreed && !tb.some((b) => nb.includes(b))) return `wrong, ${otherBreed} not ${tb[0]}`;
+  if (tb.length && !tb.some((b) => nb.includes(b))) return `unsure, no ${tb[0]}`;
+  if (!tb.length && nb.length) return `unsure, extra ${nb[0]}`;
+  if (FOOD.test(title)) {
+    const ts = sizesIn(title);
+    const ns = sizesIn(name);
+    if (ts.length && ns.length && !ts.some((z) => ns.includes(z))) return `wrong, ${ns[0]} not ${ts[0]}`;
+    if (ts.length !== ns.length && (ts.length ? !ns.length : true)) return `unsure, ${ts.length ? 'no' : 'extra'} ${ts[0] ?? ns[0]}`;
+    // A food for two life stages is its own recipe: Scrumbles Adult is not Scrumbles Adult & Senior.
+    // Adult is the default and often left out, so only the other stages count.
+    const stageWords = (s) => new Set(squash(s).split(' ').map((w) => STAGE_SAME[w] ?? w));
+    const tl = stageWords(title);
+    const nl = stageWords(name);
+    const stage = STAGES.find((w) => tl.has(w) !== nl.has(w));
+    if (stage) return `unsure, ${tl.has(stage) ? 'no' : 'extra'} ${stage}`;
+  }
+  const tw = new Set(squash(title).split(' '));
+  const nw = new Set(squash(name).split(' '));
+  const ta = SUPPLEMENT.find((w) => tw.has(w));
+  const na = SUPPLEMENT.find((w) => nw.has(w) && !tw.has(w));
+  if (ta && na && !nw.has(ta)) return `wrong, ${na} not ${ta}`;
+  return null;
+}
 
 /*
  * The barcode settles it when both sides have one: the page's own GTIN against every GTIN Google lists for the
@@ -90,13 +154,19 @@ export function sameProduct(title, brand, name, { df, brands }) {
   const a = measures(title);
   const c = measures(name);
   for (const [unit, sizes] of a) if (c.has(unit) && !sizes.some((x) => c.get(unit).includes(x))) return `wrong, different size (${sizes[0]}${unit})`;
+  // A breed, size or supplement against another settles it; one missing only stops a name match from confirming.
+  const pet = petVerdict(title, name);
+  if (pet?.startsWith('wrong')) return pet;
   const tw = new Set(squash(title).split(' '));
   const nw = new Set(n.split(' '));
   const version = VERSION.find((w) => tw.has(w) !== nw.has(w));
   if (version) return `unsure, ${tw.has(version) ? 'no' : 'extra'} ${version}`;
   // Words that make it a different thing altogether: a rat trap is not a mouse trap, a dog blanket is not a dog bag.
+  // Two recipes are different only when each side lacks the other's: "Mixed Variety Fish in Gravy" is the Mixed in Gravy page.
   for (const [x, y] of KINDS) {
-    if ((tw.has(x) && nw.has(y) && !nw.has(x)) || (tw.has(y) && nw.has(x) && !nw.has(y))) return `wrong, ${tw.has(x) ? x : y} not ${tw.has(x) ? y : x}`;
+    const both = RECIPE.has(x) && RECIPE.has(y);
+    if (tw.has(x) && nw.has(y) && !nw.has(x) && !(both && tw.has(y))) return `wrong, ${x} not ${y}`;
+    if (tw.has(y) && nw.has(x) && !nw.has(y) && !(both && tw.has(x))) return `wrong, ${y} not ${x}`;
   }
   // A name that opens with another brand (Charles Bentley against Charles Tyrwhitt) is another product.
   const opener = [...brands].find((x) => x !== b && x.length >= 4 && (n === x || n.startsWith(`${x} `)) && !b.startsWith(x) && !` ${squash(title)} `.includes(` ${x} `));
@@ -125,7 +195,7 @@ export function sameProduct(title, brand, name, { df, brands }) {
   const missing = line.filter((w) => !n.split(' ').includes(w));
   if (line.length && missing.length) return overlap(title, name, b) >= 0.5 ? `unsure, no ${missing[0]}` : 'wrong, different product';
   const share = overlap(title, name, b);
-  if (share >= 0.75) return 'confirmed, name';
+  if (share >= 0.75) return pet ?? 'confirmed, name';
   if (share < 0.4) return 'wrong, different product';
   return 'unsure, look at it';
 }

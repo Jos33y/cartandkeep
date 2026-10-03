@@ -1,3 +1,4 @@
+import { RouteError } from '@components/layout/shared/RouteError';
 import { createBrowserRouter } from 'react-router';
 import { StoreShell } from '@components/layout/store/StoreShell';
 import { HomePage } from '@pages/store/HomePage';
@@ -28,6 +29,7 @@ import { STORE_ROUTES } from '@utils/constants';
 export const storeRouter = createBrowserRouter([
   {
     element: <StoreShell />,
+    errorElement: <RouteError />,
     children: [
       { path: STORE_ROUTES.HOME, element: <HomePage /> },
       // Same page, whole catalogue. The sub-sections become departments.

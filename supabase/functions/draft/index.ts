@@ -1,6 +1,7 @@
 // One pass that fills every field of a product for her to approve. Writes only derived_fields.draft.
 // No ../_shared import: the dashboard editor deploys one folder, so CORS is duplicated on purpose.
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { NOT_A_FINDING, screenWords } from '../_shared/screen-words.ts';
 
 
 // The model sometimes answers "nothing" as a pair of quote marks or a word; all of those are empty.
@@ -357,29 +358,7 @@ const DRAFT_TOOL = {
   },
 };
 
-// The prompt asks for screen words; this enforces it, because the model has already slipped twice.
-const FIELD_WORDS: Array<[RegExp, string]> = [
-  [/\b(the )?current_returns_class\b/gi, 'the returns policy'],
-  [/\b(the )?returns_class\b/gi, 'the returns policy'],
-  [/\b(the )?supplier_text\b/gi, 'what the supplier wrote'],
-  [/\b(the )?in_the_box\b/gi, 'what is in the box'],
-  [/\b(the )?category_path\b/gi, 'the section'],
-  [/\b(the )?image_url\b/gi, 'the photograph'],
-  [/\b(the )?current_title\b/gi, 'the title'],
-  [/\b(the )?price_gbp\b/gi, 'the price'],
-  [/\b(the )?specifications\b/gi, 'the details'],
-];
-
-const NOT_A_FINDING = [
-  /\b(returns?|cancellation) (policy|class|rules?)\b/i,
-  /\bper (rule|policy|guideline)/i,
-];
-
-function screenWords(raw: unknown) {
-  let text = String(raw ?? '').trim();
-  for (const [pattern, word] of FIELD_WORDS) text = text.replace(pattern, word);
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
+// Screen words, enforced in _shared/screen-words.ts: the prompt asks for them, and the model has slipped before.
 
 const clip = (v: unknown, max: number) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max).trim();
 

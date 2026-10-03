@@ -66,6 +66,30 @@ const when = (iso) => {
   return d.toLocaleDateString('en-GB', { timeZone: 'Europe/London' }) === today ? `today at ${time}` : `${day(iso)} at ${time}`;
 };
 
+// What one unit's goods cost by a reading: the price, or on a deal the price it goes back to (amazon.ts goodsOf).
+export function goodsOf(offer) {
+  if (!offer || offer.price == null) return null;
+  return offer.deal && offer.was ? Number(offer.was) : Number(offer.price);
+}
+
+/*
+ * Amazon's price offered as her cost: when the reading is of this supplier's page and its price differs from the
+ * supplier's cost. A cost that follows Amazon has already been moved by the morning read, so this is left for a
+ * cost she set herself, or one that matched no Amazon price.
+ */
+export function costOffer(r, source) {
+  if (!r?.found || !source?.id || r.source_id !== source.id) return null;
+  const to = goodsOf(r.offer);
+  if (to == null) return null;
+  const now = source.price_at_moq ?? source.unit_cost;
+  if (now != null && Math.abs(Number(now) - to) < 0.015) return null;
+  return { to, shipping: r.offer.shipping ?? source.supplier_shipping ?? null, deal: Boolean(r.offer.deal && r.offer.was) };
+}
+
+// Her cost already moved to this price in the same read: "up from" would say the same thing twice.
+const followed = (r, cost) => r?.cost_change?.to != null && r.cost_change.at === r.read_at
+  && Math.abs(Number(r.cost_change.to) + Number(r.offer?.shipping ?? 0) - cost) < 0.015;
+
 export const STOCK = { in: 'In stock', low: 'Running low', slow: 'Slow to dispatch', out: 'Out of stock', unknown: 'Stock not shown' };
 
 /*
@@ -90,7 +114,7 @@ export function supplierWarnings(r, costed = r?.costed ?? null, now = Date.now()
     if (cost != null && costed != null && cost > costed + 0.01) {
       const up = (cost - costed) / costed;
       out.push({ level: up >= 0.1 ? 'stop' : 'warn', short: `now ${formatGbp(cost)}`, text: `Costs ${formatGbp(cost)} today. You costed it at ${formatGbp(costed)}.` });
-    } else if (cost != null && b?.price != null && cost > b.price + 0.01) {
+    } else if (cost != null && b?.price != null && cost > b.price + 0.01 && !followed(r, cost)) {
       out.push({ level: 'warn', short: `up to ${formatGbp(cost)}`, text: `Up from ${formatGbp(b.price)} on ${day(b.read_at)} to ${formatGbp(cost)}.` });
     }
     if (o.deal && o.was && o.price != null) {
@@ -102,6 +126,22 @@ export function supplierWarnings(r, costed = r?.costed ?? null, now = Date.now()
     if (cost != null && b?.price != null && cost < b.price - 0.01) out.push({ level: 'note', text: `Down from ${formatGbp(b.price)} on ${day(b.read_at)}.` });
     if (b?.stock === 'out' && o.stock === 'in') out.push({ level: 'note', text: 'Back in stock.' });
     if (b?.sold_by && o.sold_by && b.sold_by !== o.sold_by) out.push({ level: 'note', text: `Now sold by ${o.sold_by}, not ${b.sold_by}.` });
+  }
+  // Her cost moved with Amazon's price in a morning read. Up is worth a look for three days, then it is only said.
+  const moved = r.cost_change;
+  if (moved?.to != null && moved.at) {
+    const age = now - Date.parse(moved.at);
+    if (age < 14 * 24 * 3600 * 1000) {
+      const up = moved.from == null || moved.to > moved.from + 0.01;
+      const after = moved.why === 'deal' ? ', the price after the deal ends' : '';
+      out.push({
+        level: up && age < 3 * 24 * 3600 * 1000 ? 'warn' : 'note',
+        short: `cost now ${formatGbp(moved.to)}`,
+        text: moved.from == null
+          ? `Your cost is set from Amazon's price: ${formatGbp(moved.to)}${after}.`
+          : `Your cost moved from ${formatGbp(moved.from)} to ${formatGbp(moved.to)} with Amazon's price on ${day(moved.at)}${after}.`,
+      });
+    }
   }
   // A reading that keeps failing: the figures above are old.
   if (r.error && r.read_at && now - Date.parse(r.read_at) > 36 * 3600 * 1000) {
