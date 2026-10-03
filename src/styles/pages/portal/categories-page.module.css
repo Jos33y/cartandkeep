@@ -302,3 +302,34 @@
   .headActions > button { flex: 1 1 auto; justify-content: center; }
 }
 .takes { margin: 0; font-size: var(--t-caption); font-weight: 600; color: var(--c-ink); }
+
+/* Keeper's mark wherever Keeper acts here: the sort button, the proposal, the wait. The office ink, as in the nav. */
+.sort { composes: quiet; gap: var(--s-2); }
+.sort svg { flex: none; color: #2d5592; }
+.sort[data-working] svg { animation: keeper-turn 1.4s var(--ease) infinite; }
+.reviewTitle { display: flex; align-items: center; gap: var(--s-2); }
+.keeperMark { flex: none; color: #2d5592; }
+
+.review { border-top: 3px solid #2d5592; }
+.cover { display: flex; align-items: center; gap: var(--s-3); margin-top: var(--s-2); }
+.coverBar { position: relative; flex: 1 1 auto; max-width: 420px; height: 8px; border-radius: 999px; background: color-mix(in srgb, #2d5592 12%, var(--c-sunk)); overflow: hidden; }
+.coverBar i { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: #2d5592; transition: width var(--dur-settle) var(--ease-out); }
+.coverText { flex: none; font-size: var(--t-label); color: var(--c-ink-soft); }
+.coverText b { color: var(--c-ink); font-weight: 600; }
+.checked { font-size: var(--t-caption); color: #2d5592; }
+
+/* Keeper's own sections carry a thin ink rule; what the check added is dashed, so it is read as added, not chosen. */
+.reviewSection[data-by='keeper'] { box-shadow: inset 0 2px 0 color-mix(in srgb, #2d5592 55%, transparent); }
+.reviewSection[data-by='check'] { border-style: dashed; border-color: color-mix(in srgb, #2d5592 45%, var(--c-line)); background: color-mix(in srgb, #2d5592 4%, var(--c-base)); }
+.byCheck { margin: 0; font-size: var(--t-micro); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #2d5592; }
+.notes { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.sorting { display: flex; align-items: center; gap: var(--s-4); border-top: 3px solid #2d5592; }
+.sortingMark { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 50%; background: color-mix(in srgb, #2d5592 10%, var(--c-surface)); color: #2d5592; animation: keeper-breathe 1.6s var(--ease) infinite; }
+.sortingLine { font-size: var(--t-body); font-weight: 560; color: var(--c-ink); }
+
+@keyframes keeper-turn { 50% { transform: rotate(-14deg) scale(1.08); } }
+@keyframes keeper-breathe { 50% { box-shadow: 0 0 0 8px color-mix(in srgb, #2d5592 8%, transparent); } }
+@media (prefers-reduced-motion: reduce) {
+  .sort[data-working] svg, .sortingMark { animation: none; }
+}

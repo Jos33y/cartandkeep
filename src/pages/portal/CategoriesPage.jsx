@@ -238,36 +238,58 @@ function Section({ dept, index, total, products, labels, busy, run, actions, age
   );
 }
 
-// Keeper's proposal, editable in place: rename any section, move any product, then apply once.
+// Keeper's proposal, editable in place: rename any section, move any product, then apply once. What the check
+// added, what it took out and what has no place are all said here, so nothing changes without being seen.
 function SortReview({ proposal, setProposal, products, departments, agent, busy, onApply, onDiscard }) {
   const existing = new Set(departments.map((d) => d.label.trim().toLowerCase()));
   const rename = (key, name) => setProposal((p) => ({ ...p, sections: p.sections.map((x) => (x.key === key ? { ...x, name } : x)) }));
   const place = (id, key) => setProposal((p) => { const placed = new Map(p.placed); placed.set(id, key); return { ...p, placed }; });
-  const unplaced = products.filter((p) => { const k = proposal.placed.get(p.id); return k === undefined || k < 0; });
+  const placedNow = (p) => { const k = proposal.placed.get(p.id); return k !== undefined && k >= 0; };
+  const unplaced = products.filter((p) => !placedNow(p));
+  const share = products.length ? (products.length - unplaced.length) / products.length : 0;
   const proposedNames = new Set(proposal.sections.map((x) => x.name.trim().toLowerCase()));
-  const leaving = departments.filter((d) => !proposedNames.has(d.label.trim().toLowerCase()));
+  // The same rule applying uses: a section not proposed goes only once every product in it has a new place.
+  const fate = departments.filter((d) => !proposedNames.has(d.label.trim().toLowerCase())).map((d) => ({
+    d, stays: products.filter((p) => p.section === d.path && !placedNow(p)).length,
+  }));
+  const going = fate.filter((f) => !f.stays);
+  const keeping = fate.filter((f) => f.stays);
+  const added = proposal.sections.filter((x) => x.by === 'check').length;
 
   return (
     <Card className={styles.review}>
       <div className={styles.reviewHead}>
-        <h2 className={styles.reviewTitle}>{agent}&apos;s sections</h2>
+        <h2 className={styles.reviewTitle}><Icon name="IconKeeper" width="20" height="20" className={styles.keeperMark} />{agent}&apos;s sections</h2>
         <p className={styles.hint}>
           Built on Google&apos;s categories for your shop and your research{proposal.coming ? <>, and <span data-num>{proposal.coming}</span> eBay listings still to come</> : null}.
           Rename any section or move any product, then apply. New products find their section on their own. Old addresses keep working.
         </p>
+        <div className={styles.cover} role="img" aria-label={`Places ${products.length - unplaced.length} of ${products.length} products`}>
+          <span className={styles.coverBar}><i style={{ width: `${Math.round(share * 100)}%` }} /></span>
+          <span className={styles.coverText}>
+            Places <b data-num>{products.length - unplaced.length}</b> of <span data-num>{products.length}</span> products
+          </span>
+        </div>
+        {(proposal.asked > 1 || added > 0) && (
+          <p className={styles.checked}>
+            {proposal.asked > 1 && <>{agent}&apos;s first answer left some products out, so it was asked again. </>}
+            {added > 0 && <>The check added <span data-num>{added}</span> {added === 1 ? 'section' : 'sections'} for what was still out, marked below.</>}
+          </p>
+        )}
       </div>
 
       <div className={styles.reviewGrid}>
         {proposal.sections.map((x) => {
           const inside = products.filter((p) => proposal.placed.get(p.id) === x.key);
           return (
-            <section key={x.key} className={styles.reviewSection}>
+            <section key={x.key} className={styles.reviewSection} data-by={x.by}>
               <div className={styles.reviewName}>
                 <input className={styles.renameInput} value={x.name} onChange={(e) => rename(x.key, e.target.value)} aria-label="Section name" />
                 <span className={styles.reviewTag} data-new={!existing.has(x.name.trim().toLowerCase()) || undefined}>
                   {existing.has(x.name.trim().toLowerCase()) ? 'Yours' : 'New'}
                 </span>
               </div>
+              {x.by === 'check' && <p className={styles.byCheck}>Added by the check</p>}
               <Branches ids={x.google_ids} paths={x.branches} />
               <p className={styles.takes}><span data-num>{plural(inside.length, 'product')}</span> from your shop</p>
               {x.why && <p className={styles.hint}>{x.why}</p>}
@@ -279,7 +301,7 @@ function SortReview({ proposal, setProposal, products, departments, agent, busy,
                     <select className={styles.reviewMove} value={x.key} aria-label={`Section for ${p.title}`}
                       onChange={(e) => place(p.id, Number(e.target.value))}>
                       {proposal.sections.map((o) => <option key={o.key} value={o.key}>{o.name || 'Unnamed'}</option>)}
-                      <option value={-1}>Odds and ends</option>
+                      <option value={-1}>Where it is now</option>
                     </select>
                   </li>
                 ))}
@@ -290,27 +312,51 @@ function SortReview({ proposal, setProposal, products, departments, agent, busy,
         })}
       </div>
 
-      {proposal.unplaced > 0 && (
-        <p className={styles.hint}>
-          <span data-num>{plural(proposal.unplaced, 'product')}</span> {proposal.unplaced === 1 ? 'has' : 'have'} no Google category {agent} is sure of, or one no section covers.
-          Change it on the product, or move it here.
-        </p>
-      )}
-      {unplaced.length > 0 && (
-        <p className={styles.hint}>
-          Stays where it is: {unplaced.map((p) => p.title).slice(0, 3).join(', ')}{unplaced.length > 3 ? ` and ${unplaced.length - 3} more` : ''}.
-        </p>
-      )}
-      {leaving.length > 0 && (
-        <p className={styles.hint}>
-          {leaving.map((d) => d.label).join(', ')} {leaving.length === 1 ? 'goes' : 'go'} once empty; {leaving.length === 1 ? 'its address points' : 'their addresses point'} to
-          where {leaving.length === 1 ? 'its' : 'their'} products went.
-        </p>
-      )}
+      <div className={styles.notes}>
+        {proposal.left?.length > 0 && (
+          <p className={styles.hint}>
+            Too few for a section of their own, so they stay where they are: {proposal.left.map((l) => `${l.path.split(' > ').pop()} (${l.products})`).join(', ')}.
+          </p>
+        )}
+        {unplaced.length > 0 && (
+          <p className={styles.hint}>
+            Stays where it is: {unplaced.map((p) => p.title).slice(0, 3).join(', ')}{unplaced.length > 3 ? ` and ${unplaced.length - 3} more` : ''}.
+          </p>
+        )}
+        {proposal.dropped?.length > 0 && (
+          <p className={styles.hint}>
+            Taken out of {agent}&apos;s answer: {proposal.dropped.map((d) => `${d.name}, as ${d.why}`).join('; ')}.
+          </p>
+        )}
+        {going.length > 0 && (
+          <p className={styles.hint}>
+            {going.map((f) => f.d.label).join(', ')} {going.length === 1 ? 'goes' : 'go'}: every product in {going.length === 1 ? 'it has' : 'them has'} a new place,
+            and {going.length === 1 ? 'its address points' : 'their addresses point'} to where those went.
+          </p>
+        )}
+        {keeping.map((f) => (
+          <p key={f.d.path} className={styles.hint}>
+            {f.d.label} stays, with <span data-num>{plural(f.stays, 'product')}</span> this proposal does not place.
+          </p>
+        ))}
+      </div>
 
       <div className={styles.reviewFoot}>
         <button type="button" className={styles.quiet} disabled={busy} onClick={onDiscard}>Discard</button>
         <button type="button" className={styles.go} disabled={busy} onClick={onApply}>Apply these sections</button>
+      </div>
+    </Card>
+  );
+}
+
+// While Keeper reads the shop: its mark at work, and what it is reading, so the wait is not a blank button.
+function Sorting({ agent, count }) {
+  return (
+    <Card className={styles.sorting} role="status">
+      <span className={styles.sortingMark} aria-hidden="true"><Icon name="IconKeeper" width="22" height="22" /></span>
+      <div>
+        <p className={styles.sortingLine}>{agent} is reading <span data-num>{count}</span> products and your research</p>
+        <p className={styles.hint}>Up to a minute. It checks its own answer before you see it.</p>
       </div>
     </Card>
   );
@@ -348,10 +394,12 @@ export function CategoriesPage() {
       }
       if (data?.error) throw new Error(data.error);
       setProposal({
-        sections: data.sections.map((x, i) => ({ key: i, name: x.name, why: x.why, google_ids: x.google_ids, branches: x.branches })),
+        sections: data.sections.map((x, i) => ({ key: i, name: x.name, why: x.why, google_ids: x.google_ids, branches: x.branches, by: x.by ?? 'keeper' })),
         placed: new Map(data.placements.map((pl) => [pl.id, data.sections.findIndex((x) => x.name === pl.section)])),
         coming: data.coming,
-        unplaced: data.unplaced ?? 0,
+        left: data.left ?? [],
+        dropped: data.dropped ?? [],
+        asked: data.asked ?? 1,
       });
     } catch (e) {
       setNote({ ok: false, text: e?.message ?? `${agent} could not sort. Try again.` });
@@ -469,7 +517,8 @@ export function CategoriesPage() {
             reads the products.
           </Tip>
           {!proposal && (
-            <button type="button" className={styles.quiet} disabled={sorting || busy} onClick={askSort}>
+            <button type="button" className={styles.sort} disabled={sorting || busy} onClick={askSort} data-working={sorting || undefined}>
+              <Icon name="IconKeeper" width="16" height="16" />
               {sorting ? `${agent} is sorting` : `Sort with ${agent}`}
             </button>
           )}
@@ -498,6 +547,8 @@ export function CategoriesPage() {
           <p className={styles.hint}>Name it the way a customer would look for it. It shows once it has {CATEGORY_MIN} live products.</p>
         </Card>
       )}
+
+      {sorting && !proposal && <Sorting agent={agent} count={products.length} />}
 
       {proposal && (
         <SortReview proposal={proposal} setProposal={setProposal} products={products} departments={sections.departments}

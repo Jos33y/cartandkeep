@@ -1,13 +1,4 @@
 ./MANIFEST.txt
-./src/components/ui/portal/product/ProductSheet.jsx
-./src/hooks/useFindability.js
-./src/lib/categories.js
-./src/pages/portal/BeingFoundPage.jsx
 ./src/pages/portal/CategoriesPage.jsx
-./src/pages/portal/EbayTrafficPage.jsx
-./src/styles/pages/portal/being-found-page.module.css
 ./src/styles/pages/portal/categories-page.module.css
-./supabase/functions/ebay-import/index.ts
 ./supabase/functions/shop-sort/sort.ts
-./supabase/migrations/0129_sections_on_google.sql
-./supabase/migrations/0130_section_branches_and_filters.sql
