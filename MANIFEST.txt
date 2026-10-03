@@ -1,4 +1,5 @@
 ./MANIFEST.txt
+./scripts/categories/second-opinion.mjs
 ./src/pages/portal/CategoriesPage.jsx
 ./src/styles/pages/portal/categories-page.module.css
 ./supabase/functions/shop-sort/sort.ts

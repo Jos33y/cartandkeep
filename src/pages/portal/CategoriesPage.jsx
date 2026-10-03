@@ -259,9 +259,9 @@ function SortReview({ proposal, setProposal, products, departments, agent, busy,
   return (
     <Card className={styles.review}>
       <div className={styles.reviewHead}>
-        <h2 className={styles.reviewTitle}><Icon name="IconKeeper" width="20" height="20" className={styles.keeperMark} />{agent}&apos;s sections</h2>
+        <h2 className={styles.reviewTitle}><Icon name="IconKeeper" width="20" height="20" className={styles.keeperMark} />Sections from Google&apos;s tree</h2>
         <p className={styles.hint}>
-          Built on Google&apos;s categories for your shop and your research{proposal.coming ? <>, and <span data-num>{proposal.coming}</span> eBay listings still to come</> : null}.
+          Built from Google&apos;s categories: each family of products is a section, and one with {proposal.rule?.split ?? 20} or more splits into its parts. {agent} named them.
           Rename any section or move any product, then apply. New products find their section on their own. Old addresses keep working.
         </p>
         <div className={styles.cover} role="img" aria-label={`Places ${products.length - unplaced.length} of ${products.length} products`}>
@@ -355,8 +355,8 @@ function Sorting({ agent, count }) {
     <Card className={styles.sorting} role="status">
       <span className={styles.sortingMark} aria-hidden="true"><Icon name="IconKeeper" width="22" height="22" /></span>
       <div>
-        <p className={styles.sortingLine}>{agent} is reading <span data-num>{count}</span> products and your research</p>
-        <p className={styles.hint}>Up to a minute. It checks its own answer before you see it.</p>
+        <p className={styles.sortingLine}>Sorting <span data-num>{count}</span> products by Google&apos;s tree</p>
+        <p className={styles.hint}>{agent} is naming the sections. A few seconds.</p>
       </div>
     </Card>
   );
@@ -400,6 +400,7 @@ export function CategoriesPage() {
         left: data.left ?? [],
         dropped: data.dropped ?? [],
         asked: data.asked ?? 1,
+        rule: data.rule ?? null,
       });
     } catch (e) {
       setNote({ ok: false, text: e?.message ?? `${agent} could not sort. Try again.` });
