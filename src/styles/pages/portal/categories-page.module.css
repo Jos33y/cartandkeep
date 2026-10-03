@@ -333,3 +333,4 @@
 @media (prefers-reduced-motion: reduce) {
   .sort[data-working] svg, .sortingMark { animation: none; }
 }
+.address { margin: 0; font-size: var(--t-caption); color: var(--c-ink-faint); overflow-wrap: anywhere; }

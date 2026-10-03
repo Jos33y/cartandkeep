@@ -6,8 +6,9 @@
 //   - A smaller sub-branch stays with its family: it joins the largest section made from the same parent, never a
 //     section from another branch. Products filed on the parent itself do the same.
 //   - A top-level branch with fewer than MIN_SECTION products in all is listed on the review and stays where it is.
-//   - Names: her own where one of her sections already holds most of a section's products; Keeper names the rest
-//     in a shopper's words. Keeper cannot merge, split or drop anything, and if it fails the tree's names stand.
+//   - Names: each new section is offered her current name for most of its already placed products; Keeper keeps
+//     it where it still fits (so her section and its address stay) and names the rest in a shopper's words. Keeper
+//     cannot merge, split or drop anything; if it fails, her names and then the tree's own stand.
 // The same shop always gives the same sections.
 import { askTool } from '../_shared/claude.ts';
 import { MODEL } from '../_shared/model.ts';
@@ -15,7 +16,7 @@ import { MODEL } from '../_shared/model.ts';
 type Json = Record<string, any>;
 export type Item = { id: string; path: string | null; section: string | null; title?: string };
 export type Section = { name: string; why: string; google_ids: number[]; branches: string[]; by: 'tree' };
-type Draft = { node: string; branches: string[]; members: Item[] };
+export type Draft = { node: string; branches: string[]; members: Item[] };
 
 export const SPLIT = 20;
 export const MIN_SECTION = 3;
@@ -84,34 +85,56 @@ export function buildSections(items: Item[]) {
 }
 
 /*
- * Names, in order: hers where one of her sections holds at least half of this section's products (the largest
- * section keeps a name both would want); then Keeper's; then the tree's own in plain words. Never twice.
+ * Her current section for each new section: the one holding most of its products that are already placed (products
+ * with no section yet say nothing). Each of her sections is offered once, to the new section holding most of its
+ * products, so Home and garden is offered to where most of its products went, not to every part of the home.
  */
-export function nameSections(drafts: Draft[], currentName: Map<string, string>, keeper: string[] | null) {
-  const used = new Set<string>();
-  const names: string[] = new Array(drafts.length).fill('');
-  const byBig = drafts.map((d, i) => ({ d, i })).sort((a, b) => b.d.members.length - a.d.members.length);
-  for (const { d, i } of byBig) {
+export function candidatesFor(drafts: Draft[], currentName: Map<string, string>) {
+  const pairs: Array<{ i: number; path: string; n: number }> = [];
+  drafts.forEach((d, i) => {
     const tally = new Map<string, number>();
     for (const m of d.members) if (m.section && currentName.has(m.section)) tally.set(m.section, (tally.get(m.section) ?? 0) + 1);
-    const best = [...tally].sort((a, b) => b[1] - a[1])[0];
-    const hers = best && best[1] * 2 >= d.members.length ? currentName.get(best[0])! : null;
-    if (hers && !used.has(hers.toLowerCase())) { names[i] = hers; used.add(hers.toLowerCase()); }
-  }
-  drafts.forEach((d, i) => {
-    if (names[i]) return;
-    const offered = String(keeper?.[i] ?? '').replace(/\s+/g, ' ').trim().slice(0, 40).replace(/\s*&\s*/g, ' and ');
-    for (const n of [offered, plainName(d.node), `${plainName(levelOf(d.node, 1))}: ${plainName(d.node)}`]) {
-      if (n && !used.has(n.toLowerCase())) { names[i] = n; used.add(n.toLowerCase()); return; }
-    }
-    names[i] = `${plainName(d.node)} ${i + 1}`;
+    for (const [path, n] of tally) pairs.push({ i, path, n });
   });
-  return names;
+  pairs.sort((a, b) => b.n - a.n || drafts[b.i].members.length - drafts[a.i].members.length || a.path.localeCompare(b.path));
+  const out: Array<string | null> = new Array(drafts.length).fill(null);
+  const taken = new Set<string>();
+  for (const p of pairs) {
+    if (out[p.i] !== null || taken.has(p.path)) continue;
+    out[p.i] = currentName.get(p.path)!;
+    taken.add(p.path);
+  }
+  return out;
+}
+
+/*
+ * Names, in order: Keeper's answer, which keeps her current name wherever it still fits (and so her section and its
+ * address); her current name if Keeper gave none; the tree's own in plain words. A name once.
+ */
+export function nameSections(drafts: Draft[], candidates: Array<string | null>, keeper: string[] | null) {
+  const used = new Set<string>();
+  const clean = (v: unknown) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 40).replace(/\s*&\s*/g, ' and ');
+  return drafts.map((d, i) => {
+    const hers = candidates[i];
+    const said = clean(keeper?.[i]);
+    // Keeper keeping her name, in any case or spacing, is her name exactly: that is what keeps her section.
+    const first = hers && said.toLowerCase() === hers.toLowerCase() ? hers : said;
+    for (const n of [first, hers, plainName(d.node), `${plainName(levelOf(d.node, 1))}: ${plainName(d.node)}`]) {
+      if (n && !used.has(n.toLowerCase())) { used.add(n.toLowerCase()); return n; }
+    }
+    const n = `${plainName(d.node)} ${i + 1}`;
+    used.add(n.toLowerCase());
+    return n;
+  });
 }
 
 export const NAME_SYSTEM = `You name the sections of a small independent UK general store's website. The sections are already decided from Google's product categories; you only give each one a name.
 
-For each section you are given the Google category it is built on and a few of its products. Name it the way a shopper looks for things, in at most three words: Beauty, Pets, Food and Drink, Mobility Aids, Lighting. Never Google's label when it reads like a warehouse (Hardware, Business and Industrial, Household Supplies). Never a season or an occasion. No two names the same. Answer with one name per section, in the order given.`;
+For each section you are given the Google category it is built on, how many products it has, a few of them, and, where there is one, the owner's current section name for most of these products.
+
+- Keep the current name, exactly as written, whenever it still describes what is in the section. Changing a name changes the page's address, so keep it unless it would mislead a shopper: "Music and audio" for phones and chargers misleads; "Pet Essentials" for pet food and grooming does not.
+- Otherwise name it the way a shopper looks for things, in at most three words: Beauty, Pets, Food and Drink, Mobility Aids, Lighting. Never Google's label when it reads like a warehouse (Hardware, Business and Industrial, Household Supplies). Never a season or an occasion.
+- No two names the same. Answer with one name per section, in the order given.`;
 
 export const NAME_TOOL = {
   name: 'name_sections',
@@ -159,12 +182,14 @@ export async function sortShop(db: Json, tenantId: string, key: string) {
   if (missing.length) throw new Error(`Not in google_categories: ${missing.join(', ')}`);
 
   const currentName = new Map(((names ?? []) as Json[]).map((n) => [String(n.path), String(n.name)]));
+  const candidates = candidatesFor(drafts, currentName);
   let keeper: string[] | null = null;
   let model = MODEL;
   try {
     const content = JSON.stringify(drafts.map((d, i) => ({
       n: i + 1, category: d.node, products: d.members.length,
       examples: d.members.slice(0, 6).map((m) => m.title?.slice(0, 70)),
+      ...(candidates[i] ? { current_name: candidates[i] } : {}),
     })));
     const { input, payload } = await askTool(key, { system: NAME_SYSTEM, content, maxTokens: 1500, tool: NAME_TOOL });
     keeper = Array.isArray(input?.names) ? input.names.map(String) : null;
@@ -174,7 +199,7 @@ export async function sortShop(db: Json, tenantId: string, key: string) {
     // Naming is the only part Keeper does; the tree's own names stand in if it fails.
     console.error('[shop-sort] naming failed', e instanceof Error ? e.message : String(e));
   }
-  const named = nameSections(drafts, currentName, keeper);
+  const named = nameSections(drafts, candidates, keeper);
 
   const sections: Section[] = drafts.map((d, i) => ({
     name: named[i], why: '', by: 'tree', branches: d.branches, google_ids: d.branches.map((b) => idOf.get(b)!),

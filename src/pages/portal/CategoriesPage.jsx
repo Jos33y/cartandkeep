@@ -290,6 +290,11 @@ function SortReview({ proposal, setProposal, products, departments, agent, busy,
                 </span>
               </div>
               {x.by === 'check' && <p className={styles.byCheck}>Added by the check</p>}
+              <p className={styles.address}>
+                {existing.has(x.name.trim().toLowerCase())
+                  ? <>Keeps /c/{departments.find((d) => d.label.trim().toLowerCase() === x.name.trim().toLowerCase())?.slug}</>
+                  : <>New address /c/{sectionSlug(x.name)}</>}
+              </p>
               <Branches ids={x.google_ids} paths={x.branches} />
               <p className={styles.takes}><span data-num>{plural(inside.length, 'product')}</span> from your shop</p>
               {x.why && <p className={styles.hint}>{x.why}</p>}
