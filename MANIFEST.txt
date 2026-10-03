@@ -1,9 +1,5 @@
-ck-keeper-batch-search-2026-10-03
+ck-products-pills-2026-10-03
 Portal only. No SQL. No functions to deploy.
-src/lib/keeper.js
-src/lib/productSearch.js (new)
-src/hooks/useKeeperRun.js
-src/pages/portal/KeeperPage.jsx
+Replaces ck-products-figures-2026-10-03 (compact pills). Includes the search from ck-keeper-batch-search-2026-10-03.
 src/pages/portal/ProductsPage.jsx
-src/styles/pages/portal/keeper-page.module.css
 src/styles/pages/portal/products-page.module.css

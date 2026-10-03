@@ -33,6 +33,14 @@ const FILTERS = [
   { key: 'archived', label: 'Archived' },
 ];
 
+// The figures under the title, each one a way into its tab.
+const STATS = [
+  { key: 'live', label: 'On the shop', tone: 'positive' },
+  { key: 'needs', label: 'Questions for you', tone: 'warning' },
+  { key: 'blocked', label: 'Blocked', tone: 'negative' },
+  { key: 'ready', label: 'Ready to go live', tone: 'info' },
+];
+
 const MATCH = {
   live: isLive, archived: isArchived, blocked: isBlocked, needs: isNeedsYou, ready: isReady, imported: isNewFromEbay, all: () => true,
 };
@@ -111,6 +119,15 @@ export function ProductsPage() {
     if (merged.gap) out.gap = merged.gap;
     if (merged.q?.trim()) out.q = merged.q.trim();
     setParams(out, { replace: true });
+  };
+
+  // A figure under the title: its tab, with nothing narrowing it, and the list brought into view.
+  const toolbarRef = useRef(null);
+  const openTab = (key) => {
+    setFind('');
+    setView({ filter: key, gap: null, q: '' });
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    requestAnimationFrame(() => toolbarRef.current?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' }));
   };
 
   const search = (value) => {
@@ -315,7 +332,6 @@ export function ProductsPage() {
 
   const gate = columns.filter((c) => c.gate);
   const rest = columns.filter((c) => !c.gate);
-  const left = tally.total - tally.done;
   const pct = (n) => `${tally.total ? (n / tally.total) * 100 : 0}%`;
   const filters = FILTERS.filter((f) => (f.key !== 'archived' || counts.archived > 0) && (f.key !== 'imported' || counts.imported > 0));
   const gapCopy = gap && GAP[gap.key];
@@ -342,21 +358,28 @@ export function ProductsPage() {
   return (
     <div className={styles.page}>
       <header className={styles.head}>
-        <div>
-          <h1 className={styles.title}>Products</h1>
-          <p className={styles.sub}>
-            {status === 'loading' ? 'Reading the catalogue'
-              : `${counts.live} on the shop${counts.ready ? `, ${counts.ready} ready to go live` : ''}${counts.needs ? `, ${counts.needs} with a question for you` : ''}${counts.blocked ? `, ${counts.blocked} blocked` : ''}. `}
-            {status === 'ready' && (left
-              ? <><span data-num>{left}</span> {left === 1 ? 'step' : 'steps'} from complete.</>
-              : 'Every step is done.')}
-          </p>
-        </div>
+        <h1 className={styles.title}>Products</h1>
         <button type="button" className={styles.quiet} onClick={() => setAdding(true)}>
           <Icon name="IconPlus" width="16" height="16" />
           Add a product
         </button>
       </header>
+
+      {/* Where the catalogue stands, in four pills. Each opens its tab and brings the list into view. */}
+      <nav className={styles.stats} aria-label="Products at a glance" aria-busy={status === 'loading' || undefined}>
+        {STATS.map((st) => {
+          const count = counts[st.key] ?? 0;
+          if (status === 'loading') return <span key={st.key} className={`skeleton ${styles.skStat}`} aria-hidden="true" />;
+          return (
+            <button key={st.key} type="button" className={styles.stat} data-tone={st.tone} disabled={count === 0}
+              aria-pressed={filter === st.key && !gapKey && !find.trim()} onClick={() => openTab(st.key)}>
+              <i className={styles.dot} data-tone={st.tone} aria-hidden="true" />
+              <span className={styles.statFigure} data-num>{count.toLocaleString('en-GB')}</span>
+              {st.label}
+            </button>
+          );
+        })}
+      </nav>
 
       {adding && (
         <NewProduct
@@ -448,7 +471,7 @@ export function ProductsPage() {
         </section>
       )}
 
-      <div className={styles.toolbar}>
+      <div className={styles.toolbar} ref={toolbarRef}>
         <div className={styles.tabs} role="group" aria-label="Filter products">
           {filters.map((f) => (
             <button key={f.key} type="button" aria-pressed={filter === f.key}

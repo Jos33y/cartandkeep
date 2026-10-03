@@ -2,8 +2,48 @@
 
 .head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s-5); }
 .title { font-size: 2rem; font-weight: 560; letter-spacing: -0.028em; line-height: 1.1; }
-.sub { margin-top: var(--s-2); font-size: var(--t-body); color: var(--c-ink-soft); }
-.sub [data-num] { color: var(--c-ink); }
+/*
+ * Four figures under the title, one per tab that matters, each a way into it: a line of pills where the summary
+ * sentence was. The figure leads, the label follows; the tab showing takes its colour; a zero is greyed out.
+ */
+.stats { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: calc(var(--s-3) * -1); }
+
+.stat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 34px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-full);
+  background: var(--c-surface);
+  font-size: var(--t-label);
+  color: var(--c-ink-soft);
+  white-space: nowrap;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.stat[data-tone='positive'] { --stat-ink: var(--c-positive); }
+.stat[data-tone='warning'] { --stat-ink: var(--c-warning); }
+.stat[data-tone='negative'] { --stat-ink: var(--c-negative); }
+.stat[data-tone='info'] { --stat-ink: var(--c-info); }
+.stat:not(:disabled) { cursor: pointer; }
+.stat:not(:disabled):hover { border-color: var(--stat-ink); color: var(--c-ink); }
+.stat:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+/* The tab showing now. */
+.stat[aria-pressed='true'] {
+  border-color: var(--stat-ink);
+  background: color-mix(in srgb, var(--stat-ink) 9%, var(--c-surface));
+  color: var(--c-ink);
+}
+
+.statFigure { font-size: 1.0625rem; font-weight: 600; line-height: 1; color: var(--c-ink); }
+
+/* Nothing there: still said, since "none blocked" is worth knowing, but not a button. */
+.stat:disabled { border-style: dashed; background: none; color: var(--c-ink-faint); }
+.stat:disabled .statFigure { color: var(--c-ink-faint); font-weight: 500; }
+.stat:disabled .dot { opacity: 0.45; }
+
+.skStat { display: inline-block; width: 128px; height: 34px; border-radius: var(--r-full); }
 
 .quiet,
 .go {
@@ -325,7 +365,7 @@
 }
 
 @media (max-width: 760px) {
-  .head { align-items: flex-start; }
+  .head { align-items: center; }
   .title { font-size: 1.625rem; }
   .summary { padding: var(--s-4); }
   /* The search box takes the first line (16px type, so a phone does not zoom on it); the tabs scroll under it. */
@@ -346,7 +386,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .summary, .meter span, .colTrack i, .emptyCard, .selection, .tab, .col { animation: none; transition: none; }
+  .summary, .meter span, .colTrack i, .emptyCard, .selection, .tab, .col, .stat { animation: none; transition: none; }
 }
 
 .dot[data-tone='warning'] { background: var(--c-warning); }
