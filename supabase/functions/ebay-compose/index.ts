@@ -58,6 +58,29 @@ function othersFacts(c: Record<string, any>): Array<[string, unknown]> {
   ]);
 }
 
+/*
+ * The titles of the eBay listings selling this same product (the research's market read), most sold first: the words
+ * buyers search with, for the title. Never facts: a size, a pack or a claim in them is that seller's say-so.
+ */
+// deno-lint-ignore no-explicit-any
+export function sellingTitles(c: Record<string, any>, n = 8): string | null {
+  if (swappedTo(c)) return null;
+  // deno-lint-ignore no-explicit-any
+  const ls = ((c.competition?.listings ?? []) as any[]).filter((l) => l?.title);
+  if (!ls.length) return null;
+  const ranked = [...ls].sort((a, b) => Number(b.sold ?? 0) - Number(a.sold ?? 0));
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const l of ranked) {
+    const t = String(l.title).replace(/\s+/g, ' ').trim();
+    if (seen.has(t.toLowerCase())) continue;
+    seen.add(t.toLowerCase());
+    out.push(`${t}${Number(l.sold) > 0 ? ` (${l.sold} sold)` : ''}`);
+    if (out.length >= n) break;
+  }
+  return out.join(' | ');
+}
+
 // The only facts the model may use. Once the card moved to another product's eBay listing, what eBay holds for
 // that listing (brand, model, barcode, item details, its seller's description) is a source of facts; its wording
 // never is, and the research's search words are the old product's.
@@ -93,12 +116,21 @@ function facts(c: Record<string, any>) {
 }
 
 
-const TITLE_SYSTEM = `You write eBay UK listing titles.
+const TITLE_SYSTEM = `You write eBay UK listing titles that win the search.
 
 Rules:
 - 80 characters maximum. Aim for 70 to 80: eBay ranks full titles better.
 - Only use facts given. Never invent a size, a colour, a quantity, a material or a model.
 - Front-load the words a buyer types. Brand, product, then qualifiers.
+- Build it in this order where the facts give each part: brand, model name or number,
+  what the product is in the plain words buyers search, the key spec (size, capacity,
+  power, colour, material), then the pack or quantity ("Pack of 2", "4L").
+- WORDS BUYERS SEARCH, when given, are the titles of listings selling this same product,
+  most sold first. Use the words that recur in them, and their order, where the facts
+  support them: that is how buyers find this product. Never copy one whole, and never
+  take a size, a count or a claim from them that the facts do not give.
+- A model number or a set number goes in as written (LEGO 76459, Aico ei3016): buyers
+  search by it.
 - No punctuation for decoration, no ALL CAPS, no emoji, no "BNIB" or "FAST POST".
 - British spelling throughout: colour, flavour, fibre, litre.
 - The photographs are the manufacturer's packaging. A pack count or size printed
@@ -151,8 +183,17 @@ Rules:
   pain", "muscle therapy", "improves circulation", "speeds recovery", "heals",
   "treats" or "prevents". Say what the product does as a thing (percussion
   massage, 6 speeds, 4 heads), never what it does for the body's health.
-- Open with one sentence on what it is and who it is for.
-- Then a short list of what is in the pack and what matters about it.
+- Lay it out like this, leaving out any part the facts do not cover:
+  1. One or two sentences on what it is and who it is for.
+  2. A line reading "Key features", a blank line, then four to eight lines that each
+     start with "- ": what it does and what matters about it, most important first.
+  3. A line reading "What's in the box", a blank line, then a "- " line for each item,
+     only when the facts say what is included.
+  4. A line reading "Size and weight", a blank line, then "- " lines with the product's
+     own dimensions and weight from the facts, with their units.
+  5. A line reading "Good to know", a blank line, then "- " lines for care, use,
+     compatibility, batteries, ages or other suitability limits, when the facts give them.
+  Separate each part with a blank line.
 - No postage or returns copy: eBay shows those from the policies.
 - No marketing voice, no exclamation marks, no "grab yours today".
 - British spelling throughout: colour, flavour, fibre, litre, analyse. Never the
@@ -188,7 +229,7 @@ Deno.serve(async (req) => {
 
     const { data: c, error } = await db()
       .from('candidates')
-      .select('id, title, external_ref, listing, entry, margin, draft, photo_checks')
+      .select('id, title, external_ref, listing, entry, margin, draft, photo_checks, competition')
       .eq('id', candidateId)
       .eq('tenant_id', tenantId)
       .maybeSingle();
@@ -237,7 +278,11 @@ Deno.serve(async (req) => {
       }, 400);
     }
 
-    const known = facts(c);
+    // The selling listings' words, for the title only: the description is written from the facts alone.
+    const words = kind === 'title' ? sellingTitles(c) : null;
+    const known = words
+      ? `${facts(c)}\nWORDS BUYERS SEARCH (titles of listings selling this same product; words only, never facts): ${words}`
+      : facts(c);
     // First four photos: enough to reach the back panel without paying for every angle.
     // Photos Keepr passed and we copied (a format we know) first, then the page's own. A photo the model cannot read
     // is dropped and the call made again without photos, rather than failing the whole piece of writing.

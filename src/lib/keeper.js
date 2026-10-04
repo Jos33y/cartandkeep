@@ -30,6 +30,16 @@ export const SOURCE_TRAYS = [
   { key: 'unread', label: 'Could not read', stamp: 'Not read', hint: 'Amazon did not answer three times; the next run tries again', tone: 'negative' },
 ];
 
+/*
+ * Getting approved cards ready for eBay (keeper-task-03, 4 October). The same three tray keys again: ready to list,
+ * needs you (something Keeper could not fill, said on the card), and could not finish.
+ */
+export const READY_TRAYS = [
+  { key: 'ready', label: 'Ready to list', stamp: 'Ready', hint: 'Title, description, photos, eBay\'s details and the parcel in. Read it over, then list', tone: 'positive' },
+  { key: 'choose', label: 'Needs you', stamp: 'Needs you', hint: 'Something Keeper could not fill, said on the card', tone: 'info' },
+  { key: 'unread', label: 'Could not finish', stamp: 'Not finished', hint: 'Stopped three times; send it again from Approved', tone: 'negative' },
+];
+
 // Trays from the first version of the check, read as today's.
 const LEGACY = { not_chemical: 'ready' };
 // The trays whose drafts can go straight on sale.

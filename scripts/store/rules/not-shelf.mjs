@@ -16,6 +16,9 @@ const PARTS = String.raw`filters?|thermometers?|magnets?|bags?|seals?|gaskets?|s
 // A pet's bed, sofa or mattress is a pet bed, posted like one: "Crate Mattress", "Dog Sofa", "Cat Sofa".
 const PET = String.raw`dogs?|doggy|cats?|pets?|puppy|puppies|kittens?|crate|kennel|ramp|pet stairs`;
 
+// Camping and guest beds that pack into a bag: air beds, self-inflating mats, camping mattresses.
+const CAMP = String.raw`air ?beds?|air mattress(?:es)?|blow[- ]up|inflatable|self[- ]inflating|camping|campervan|sleeping (?:mats?|pads?)|roll ?mats?|foam mats?|hiking|backpacking|ultralight`;
+
 // A small or countertop version is a shelf product, whatever its name shares with the big one.
 const SMALL = String.raw`portable|mini|compact|camping|travel|slow|rice|pressure|multi|egg|pizza|air fryer|toaster|countertop|table ?top|12v|car|cosmetic|skincare|beauty|oil[- ]filled|electric heater`;
 
@@ -24,20 +27,20 @@ const BIG_APPLIANCE = String.raw`integrated|freestanding|free standing|built[- ]
 
 export const NOT_SHELF = [
   // Made to order and print on demand
-  ['blinds?', null, String.raw`brackets?|cords?|chains?|cleaner|fittings?|clips?|springs?|parts?|wands?|box(?:es)?|bags?|series|figures?|mystery|pendant`],
+  ['blinds?', null, String.raw`brackets?|cords?|chains?|cleaner|fittings?|clips?|springs?|parts?|wands?|box(?:es)?|bags?|series|figures?|mystery|pendant|fly|bug|insect|strip|door curtain`],
   ['made to measure'], ['personali[sz]ed'], ['photo ?book'], ['poster'], ['wallpaper', null, String.raw`cover[- ]up|strippers?|steamers?|paste|adhesive|scrapers?|scorers?|primer|remover|smoothers?|brush(?:es)?|cutters?|tools?|kit`], ['mural'],
   // "Print" only as a picture: leopard print and bow print bedding pass.
   [String.raw`(?:art|framed|photo|canvas|giclee|fine art|wall) prints?|prints? (?:a[1-5]|framed|unframed)`],
   ['prints?', String.raw`wall art|posters?|framed|unframed|a[1-5]|canvas|giclee|wall decor`],
   // Living plants and trees. Pots, feed, stands, lights, artificial plants and Christmas trees pass.
   ['plants?', null, String.raw`pots?|planters?|food|feed|fertili[sz]ers?|stands?|hangers?|labels?|supports?|saucers?|misters?|spray|lights?|lamps?|artificial|fake|faux|silk|troughs?|covers?|fleece|trays?|ties|cages?|watering|mats?|protection|shel(?:f|ves)|compost|nutrients?|plant[- ]based|powered|milk|protein|lego|botanicals?|bricks?|building|toys?|plush|zombies|jigsaws?|playsets?|plant fibre|plant-based litter|litter`],
-  ['trees?', null, String.raw`artificial|christmas|cat|lights?|skirts?|stands?|toppers?|decorations?|ornaments?|shoes?|coat|hat|jewell?ery|baubles?|guards?|ties?|stakes?|feed|pruners?|loppers?|saw|family tree|tree of life|pre-?lit|led|fibre optic|pop[- ]up|tinsel|pvc|tea tree|shoe tree|playsets?|play ?sets?|toys?|lego|tree ?house|figures?|jigsaws?|plush|bluey|sylvanian`],
+  ['trees?', null, String.raw`artificial|christmas|cat|lights?|skirts?|stands?|toppers?|decorations?|ornaments?|shoes?|coat|hat|jewell?ery|baubles?|guards?|ties?|stakes?|feed|pruners?|loppers?|saw|family tree|tree of life|pre-?lit|led|fibre optic|pop[- ]up|tinsel|pvc|tea tree|shoe tree|playsets?|play ?sets?|toys?|lego|tree ?house|figures?|jigsaws?|plush|bluey|sylvanian|dumbbells?|kettlebells?|weights?|racks?|barbells?`],
   ['bulbs? for planting'], ['bare roots?'],
   // Furniture and garden buildings
   // A shed's own parts: a "double door pent shed" is still a shed.
   ['shed', null, String.raw`felt|shed base|paint|treatment|locks?|hasps?|hinges?|shelving|shel(?:f|ves)|roof(?:ing)?|repair|stain|anchors?|lights?|alarm|guttering|storage bags?|grid|protectors?|preserver|fence|wood ?care`], ['sofa', null, `${PARTS}|${PET}`], ['bed frame', null, PARTS],
   ['wardrobe', null, String.raw`${PARTS}|portable|fabric|canvas|stackable|foldable|rails?`],
-  ['mattress', null, `${PARTS}|${PET}`],
+  ['mattress', null, `${PARTS}|${PET}|${CAMP}`],
   // Large appliances: only the appliance itself
   ['fridges?', BIG_APPLIANCE, `${PARTS}|${SMALL}`],
   ['freezers?', BIG_APPLIANCE, `${PARTS}|${SMALL}`],

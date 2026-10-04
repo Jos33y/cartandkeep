@@ -32,7 +32,7 @@ export function readOf(row) {
   return page?.asin && r?.asin === page.asin ? r : null;
 }
 
-// An Amazon UK page with no facts read yet: Get it ready reads it first.
+// An Amazon UK page with no facts read yet: Keeper reads it first when it gets the card ready.
 export function needsRead(row) {
   const page = amazonPageOf(row);
   return Boolean(page?.uk && page.asin && !readOf(row)?.facts);

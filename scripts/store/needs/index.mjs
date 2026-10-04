@@ -9,6 +9,7 @@ import * as hardware from './hardware.mjs';
 import * as toysGames from './toys-games.mjs';
 import * as babyToddler from './baby-toddler.mjs';
 import * as animalsPet from './animals-pet-supplies.mjs';
+import * as sportingGoods from './sporting-goods.mjs';
 
 const BY_CATEGORY = new Map([
   ['home and garden', homeGarden],
@@ -17,6 +18,7 @@ const BY_CATEGORY = new Map([
   ['toys and games', toysGames],
   ['baby and toddler', babyToddler],
   ['animals and pet supplies', animalsPet],
+  ['sporting goods', sportingGoods],
 ]);
 
 const key = (c) => String(c ?? '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim();

@@ -5,7 +5,7 @@ import { Icon } from '@components/ui/icons';
 import { subjectOf, useKeeperRun } from '@hooks/useKeeperRun';
 import { useAccount } from '@hooks/useAccount';
 import { PRODUCT_SELECT, blockers, isLive, isReady } from '@hooks/useCatalogue';
-import { REPORT_TRAYS, SELLABLE, SOURCE_TRAYS, TRAYS, placeOf, pounds, summarise, timeLeft, trayOf } from '@lib/keeper';
+import { READY_TRAYS, REPORT_TRAYS, SELLABLE, SOURCE_TRAYS, TRAYS, placeOf, pounds, summarise, timeLeft, trayOf } from '@lib/keeper';
 import { loadTenant } from '@lib/tenant';
 import { supabase } from '@lib/supabase';
 import { portalPath } from '@utils/constants';
@@ -14,7 +14,8 @@ import styles from '@styles/pages/portal/keeper-page.module.css';
 /*
  * The assistant's office (keeper-task-01-shop-drafts.md): the in-tray of drafts, the one on the desk, the stamp, and
  * the out-trays filling. Every movement is a job changing state on the server; nothing here is staged.
- * The same office looks candidates up on Amazon (keeper-task-02-amazon-sourcing.md) at /keeper/amazon.
+ * The same office looks candidates up on Amazon (keeper-task-02-amazon-sourcing.md) at /keeper/amazon, and gets
+ * approved cards ready for eBay (keeper-task-03, sent from Approved) at /keeper/ready.
  */
 
 const n = (v) => Number(v ?? 0).toLocaleString('en-GB');
@@ -29,12 +30,17 @@ const trayMeta = (key, trays = REPORT_TRAYS) => trays.find((t) => t.key === key)
 const PHASES = [['words', 'Reading', 'IconNote'], ['photos', 'Photos', 'IconEye'], ['writing', 'Writing', 'IconSpark']];
 // Looking a candidate up on Amazon (keeper-run/source.ts): the search, the product page, the rules.
 const SOURCE_PHASES = [['search', 'Searching', 'IconEye'], ['read', 'Reading', 'IconNote'], ['decide', 'Deciding', 'IconCheck']];
+// Getting a card ready (keeper-run/ready.ts): Amazon's page, the photos, the words, eBay's details, the parcel.
+const READY_PHASES = [['amazon', 'Amazon', 'IconNote'], ['photos', 'Photos', 'IconEye'], ['words', 'Writing', 'IconSpark'], ['ebay', 'eBay', 'IconTag'], ['parcel', 'Parcel', 'IconBox']];
 
 // What each task calls things. Portal copy says "you", never "she".
 const TASKS = {
   shop_check: {
     trays: TRAYS,
     phases: PHASES,
+    // The photos step runs only for a chemical or an unclear product, so it shows as passed over otherwise.
+    skipPhotos: true,
+    failed: 'Could not read it',
     one: 'A draft',
     title: ({ live, run, waiting, agent }) => (live ? 'Checking your shop drafts' : run && !waiting ? `${agent} has checked your drafts` : 'Get your drafts ready for sale'),
     sub: 'Returns, label warnings, a clean title and a short address for each draft. Nothing goes on sale until you say so.',
@@ -47,6 +53,7 @@ const TASKS = {
   amazon_source: {
     trays: SOURCE_TRAYS,
     phases: SOURCE_PHASES,
+    failed: 'Could not read it',
     one: 'A candidate',
     title: ({ live, run, waiting, agent }) => (live ? 'Looking up your candidates on Amazon' : run && !waiting ? `${agent} has looked up your candidates` : 'Find your candidates on Amazon'),
     sub: 'Each candidate with a barcode is searched on Amazon UK. Approved when the search finds it in the same pack. Who sells it, the stock and the delivery are saved on the card for you to decide in Approved.',
@@ -55,6 +62,19 @@ const TASKS = {
     next: 'Picking up the next candidate.',
     reading: (agent) => `${agent} is looking`,
     landed: 'Just looked up',
+  },
+  get_ready: {
+    trays: READY_TRAYS,
+    phases: READY_PHASES,
+    failed: 'Could not finish',
+    one: 'A card',
+    title: ({ live, run, agent }) => (live ? 'Getting your cards ready for eBay' : run ? `${agent} has got your cards ready` : 'Get your cards ready for eBay'),
+    sub: 'For each approved card, only what is missing: Amazon\'s facts, photos, the title and description, eBay\'s category and item details, and the parcel. Nothing you wrote is changed, and nothing is listed until you list it.',
+    stop: (agent) => `Stop? Cards already done keep what ${agent} wrote.`,
+    paused: (agent) => `Paused. ${agent} carries on from the next card when you press Carry on.`,
+    next: 'Picking up the next card.',
+    reading: (agent) => `${agent} is getting it ready`,
+    landed: 'Just got ready',
   },
 };
 
@@ -111,13 +131,15 @@ function Thumb({ url, size = 'md' }) {
 export function KeeperPage({ task = 'shop_check' }) {
   const t = TASKS[task] ?? TASKS.shop_check;
   const sourcing = task === 'amazon_source';
+  const readying = task === 'get_ready';
   const [tenant, setTenant] = useState(undefined);
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
   const agent = tenant?.store?.agent?.name || 'Your assistant';
   const account = useAccount();
   const studio = account.isStudio;
   // Nothing is read until the account is known, so she never glimpses a studio rehearsal.
-  const k = useKeeperRun(account.loading ? null : tenant?.id, { task, followPace: !account.loading && !studio, includeRehearsals: studio });
+  // Getting cards ready keeps its own pace (three cards side by side): each card takes a minute or two whoever watches.
+  const k = useKeeperRun(account.loading ? null : tenant?.id, { task, followPace: !account.loading && !studio && !readying, includeRehearsals: studio });
   const { run, jobs, products, totals, waiting } = k;
 
   if (tenant === undefined || account.loading || run === undefined) return <PageSkeleton rows={5} />;
@@ -128,12 +150,18 @@ export function KeeperPage({ task = 'shop_check' }) {
       <nav className={styles.switch} aria-label={`${agent}'s work`}>
         <Link to={portalPath('/keeper')} aria-current={sourcing ? undefined : 'page'}>Shop drafts</Link>
         <Link to={portalPath('/keeper/amazon')} aria-current={sourcing ? 'page' : undefined}>Amazon</Link>
+        <Link to={portalPath('/keeper/ready')} aria-current={readying ? 'page' : undefined}>Get it ready</Link>
       </nav>
       <Header t={t} agent={agent} run={run} live={live} totals={totals} studio={studio} waiting={waiting} />
       {k.error && <p className={styles.error} role="alert">{k.error}</p>}
       {live
         ? <Floor t={t} agent={agent} run={run} jobs={jobs} products={products} totals={totals} onSet={k.set} studio={studio} onUndo={sourcing ? k.undo : null} />
-        : sourcing ? (
+        : readying ? (
+          <>
+            {run && <ReadyReport agent={agent} run={run} jobs={jobs} products={products} totals={totals} studio={studio} />}
+            <ReadyStart agent={agent} last={run} />
+          </>
+        ) : sourcing ? (
           <>
             {run && <SourceReport agent={agent} run={run} jobs={jobs} products={products} totals={totals} studio={studio} onUndo={k.undo} />}
             <SourceStart agent={agent} waiting={waiting} last={run} onStart={k.start} studio={studio} />
@@ -288,11 +316,11 @@ function Floor({ t: task, agent, run, jobs, products, totals, onSet, studio, onU
                   </>
                 ) : <h2 className={styles.paperTitle}>{justDone?.result?.title ?? p?.title ?? task.one}</h2>}
                 {justDone ? (
-                  <p className={styles.verdictLine}>{justDone.state === 'failed' ? `Could not read it: ${justDone.error ?? 'try again'}` : justDone.result?.line}</p>
+                  <p className={styles.verdictLine}>{justDone.state === 'failed' ? `${task.failed}: ${justDone.error ?? 'try again'}` : justDone.result?.line}</p>
                 ) : (
                   <ol className={styles.phases} aria-label="Steps">
                     {task.phases.map(([key, label, icon], i) => {
-                      const state = i < at ? (key === 'photos' && !inHand?.result?.read_photos ? 'skipped' : 'done') : i === at ? 'now' : 'next';
+                      const state = i < at ? (task.skipPhotos && key === 'photos' && !inHand?.result?.read_photos ? 'skipped' : 'done') : i === at ? 'now' : 'next';
                       return (
                         <li key={key} data-state={state}>
                           <span className={styles.phaseDot}><Icon name={icon} /></span>
@@ -340,7 +368,7 @@ function Floor({ t: task, agent, run, jobs, products, totals, onSet, studio, onU
         </h2>
         {!log.length && <p className={styles.more}>Nothing yet.</p>}
         <ol className={styles.lines}>
-          {log.map((j) => <LogLine key={j.id} job={j} product={products.get(subjectOf(j))} trays={task.trays} onUndo={onUndo} />)}
+          {log.map((j) => <LogLine key={j.id} job={j} product={products.get(subjectOf(j))} trays={task.trays} onUndo={onUndo} failed={task.failed} />)}
         </ol>
       </section>
     </>
@@ -349,7 +377,7 @@ function Floor({ t: task, agent, run, jobs, products, totals, onSet, studio, onU
 
 // One checked draft or candidate: its photo, the title, the tray, the short line, and the reasons folded away.
 // A candidate links to its Amazon page; one Keeper approved can be undone while it is still Keeper's.
-function LogLine({ job, product, place = null, trays = REPORT_TRAYS, onUndo = null }) {
+function LogLine({ job, product, place = null, trays = REPORT_TRAYS, onUndo = null, failed = 'Could not read it' }) {
   const tray = place ?? trayOf(job);
   const meta = tray === 'undone' ? { label: 'Undone' } : trayMeta(tray, trays);
   const why = job.result?.why;
@@ -379,7 +407,13 @@ function LogLine({ job, product, place = null, trays = REPORT_TRAYS, onUndo = nu
           <span className={styles.lineName}>{job.result?.title ?? product?.title ?? (candidate ? 'A candidate' : 'A draft')}</span>
           <span className={styles.chip} data-tray={tray}>{meta?.label ?? 'Done'}</span>
         </p>
-        <p className={styles.lineWhy}>{job.state === 'failed' ? `Could not read it: ${job.error ?? 'try again'}` : job.result?.line}</p>
+        <p className={styles.lineWhy}>{job.state === 'failed' ? `${failed}: ${job.error ?? 'try again'}` : job.result?.line}</p>
+        {job.result?.short?.length > 0 && (
+          <details className={styles.reasons}>
+            <summary>Notes</summary>
+            <ul>{job.result.short.map((x) => <li key={x}>{x}</li>)}</ul>
+          </details>
+        )}
         {why && (
           <details className={styles.reasons}>
             <summary>Why</summary>
@@ -393,7 +427,9 @@ function LogLine({ job, product, place = null, trays = REPORT_TRAYS, onUndo = nu
         )}
         {said && <p className={styles.error} role="alert">{said}</p>}
       </div>
-      {candidate
+      {candidate && job.kind === 'get_ready'
+        ? <Link className={styles.open} to={portalPath(`/approved?card=${job.candidate_id}`)}>Open<span className="visually-hidden"> {job.result?.title ?? product?.title} in Approved</span></Link>
+        : candidate
         ? job.result?.url && <a className={styles.open} href={job.result.url} target="_blank" rel="noopener noreferrer">Amazon<span className="visually-hidden"> page for {job.result?.title ?? product?.title}, opens in a new tab</span></a>
         : <Link className={styles.open} to={productUrl(job.product_id)}>Open<span className="visually-hidden"> {product?.title}</span></Link>}
     </li>
@@ -636,6 +672,78 @@ function Start({ agent, waiting, last, onStart, studio }) {
           </div>
         )}
         {failed && <p className={styles.error} role="alert">{failed}</p>}
+      </div>
+    </section>
+  );
+}
+
+// After getting cards ready: ready to list, needing her, and the ones that could not be finished.
+function ReadyReport({ agent, run, jobs, products, totals, studio }) {
+  const [showing, setShowing] = useState(null);
+  const t = totals.trays;
+  const stopped = run.state === 'stopped';
+  const shown = READY_TRAYS.filter((x) => t[x.key] > 0);
+  const inTray = (key) => jobs.filter((j) => trayOf(j) === key);
+
+  return (
+    <section className={styles.report} aria-label="The last cards got ready">
+      <div className={styles.reportHead}>
+        <div>
+          <p className={styles.kicker}>{stopped ? 'Stopped' : 'Finished'}</p>
+          <h2 className={styles.reportTitle}>
+            {agent} got {plural(totals.done, 'card')} ready{stopped ? ` of ${n(run.total)}` : ''}{studio ? ` for ${pounds(run.spent_pence)}` : ''}.
+          </h2>
+        </div>
+        {t.ready > 0 && (
+          <Link className={styles.go} data-big to={portalPath('/approved?only=ready')}>List them from Approved</Link>
+        )}
+      </div>
+
+      <div className={styles.reportTrays} role="group" aria-label="Where the cards went">
+        {shown.map((x) => (
+          <button key={x.key} type="button" className={styles.reportTray} data-tray={x.key} aria-expanded={showing === x.key}
+            onClick={() => setShowing(showing === x.key ? null : x.key)}>
+            <TrayArt tray={x.key} count={t[x.key]} size={112} />
+            <span className={styles.reportCount} data-num>{n(t[x.key])}</span>
+            <span className={styles.trayLabel}>{x.label}</span>
+            <span className={styles.trayHint}>{x.hint}</span>
+          </button>
+        ))}
+      </div>
+
+      {showing && inTray(showing).length > 0 && (
+        <ol className={styles.lines} data-in-report>
+          {inTray(showing).map((j) => (
+            <LogLine key={j.id} job={j} product={products.get(subjectOf(j))} trays={READY_TRAYS} failed="Could not finish" />
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+// Nothing to start here: the cards are picked in Approved, where the market and the stock are read.
+function ReadyStart({ agent, last }) {
+  return (
+    <section className={styles.start} aria-label="Get cards ready">
+      <div className={styles.startArt} aria-hidden="true">
+        <Stamp state="idle" size={64} />
+      </div>
+      <div className={styles.startText}>
+        <h2 className={styles.startTitle}>{last ? 'Send more cards from Approved' : 'Cards are sent from Approved'}</h2>
+        <p className={styles.startBody}>
+          In Approved, {agent} offers the cards it can get ready by itself: still to list on eBay, up to 25% over the market,
+          in stock on Amazon and the pack confirmed. Or tick any cards and choose Get ready with {agent}. Each card is
+          worked on here: Amazon&apos;s page read again when its reading is more than two days old, photos checked, the title
+          and description written, eBay&apos;s category and item details filled, and the parcel from Amazon&apos;s package.
+          About 5p a card.
+        </p>
+        <div className={styles.startActions}>
+          <Link className={styles.go} data-big to={portalPath('/approved')}>
+            <Icon name="IconKeeper" className={styles.btnIcon} />
+            Choose cards in Approved
+          </Link>
+        </div>
       </div>
     </section>
   );

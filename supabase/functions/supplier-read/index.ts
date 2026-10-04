@@ -1,6 +1,7 @@
 // Her Amazon supplier's page read through Apify, for two callers:
 //   the portal  reads the cards it names (when she adds an Amazon link, or before Get it ready writes from it);
-//   the schedule  reads every card with an Amazon supplier once a day, 20 at a time, for the price and stock check.
+//   the schedule  reads every card live on eBay with an Amazon supplier once a day, 20 at a time, for the price and
+//                 stock check. Cards still waiting in Approved are read by Keeper when it gets them ready (48 hours).
 // The reading goes on the card (candidates.supplier_read) and into the history (supplier_checks). Her draft is never
 // written here: the portal puts the facts and photos in her draft, the way the Send button does.
 // Her supplier's cost follows Amazon's price where it came from Amazon (costFollow), and so does the shop product's
@@ -22,8 +23,9 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'content-type': 'application/json' } });
 const db = () => createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } });
 
-// A reading this recent is used again when the portal asks, rather than paying Apify twice for the same page.
-const FRESH_HOURS = 6;
+// A reading this recent is used again when the portal asks, rather than paying Apify twice for the same page. The same
+// 48 hours Keeper uses when it gets a card ready (keeper-run/ready.ts).
+const FRESH_HOURS = 48;
 // The most cards one shop is read for in a day, whatever the list grows to. About £0.35 a day at Apify's price.
 const DAILY_MAX = 240;
 
@@ -69,6 +71,16 @@ async function cardsWithAmazon(client: ReturnType<typeof db>, tenantId: string) 
   return [...new Set([...(src ?? []).map((s) => s.candidate_id), ...(sent ?? []).map((c) => c.id)])];
 }
 
+// Of those, the cards live on eBay: the card holds its listing id (ebay-list writes it on publishing). Only these are
+// read every morning (Joseey, 4 October): a card waiting in Approved is read when Keeper gets it ready.
+async function liveOnEbay(client: ReturnType<typeof db>, tenantId: string, ids: string[]) {
+  const { data, error } = await client.from('candidates').select('id').eq('tenant_id', tenantId)
+    .not('ebay->>listing_id', 'is', null).limit(5000);
+  if (error) throw new Error(error.message);
+  const live = new Set((data ?? []).map((c: Json) => c.id));
+  return ids.filter((id) => live.has(id));
+}
+
 async function load(client: ReturnType<typeof db>, tenantId: string, ids: string[]) {
   const cards: Json[] = [];
   const sources: Json[] = [];
@@ -109,7 +121,7 @@ Deno.serve(async (req) => {
     const skipped: Record<string, string> = {};
 
     if (daily) {
-      const all = await load(client, tenantId, await cardsWithAmazon(client, tenantId));
+      const all = await load(client, tenantId, await liveOnEbay(client, tenantId, await cardsWithAmazon(client, tenantId)));
       const { count } = await client.from('supplier_checks').select('id', { count: 'exact', head: true })
         .eq('tenant_id', tenantId).eq('started_by', 'schedule').gte('checked_at', new Date(Date.now() - 20 * 3600 * 1000).toISOString());
       const room = Math.max(0, DAILY_MAX - (count ?? 0));

@@ -3,6 +3,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { checkOne, contextFor } from '../_shared/keeper-check.ts';
 import { sourceBatch } from './source.ts';
+import { readyBatch, type Call } from './ready.ts';
 
 type Json = Record<string, any>;
 
@@ -31,6 +32,35 @@ export const message = (e: unknown) => (e instanceof Error ? e.message : String(
 // Normal: eight, one search and one read for all of them. The lease covers the slowest batch.
 const SOURCE_AT_ONCE = 8;
 const SOURCE_LEASE_S = 240;
+
+// Getting cards ready (task 03): one batch per call, each card as many steps as the call has time for. Watch: one card.
+// Normal: three side by side. The lease covers a slow photo check.
+const READY_AT_ONCE = 3;
+const READY_LEASE_S = 240;
+// One of our own functions, called as the service. Each step waits on one; the longest is the photo check.
+const CALL_TIMEOUT_MS = 110_000;
+
+export const callFunction: Call = async (fn, body, headers = {}) => {
+  const key = env('SUPABASE_SERVICE_ROLE_KEY');
+  const res = await fetch(`${env('SUPABASE_URL')}/functions/v1/${fn}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${key}`, apikey: key, ...headers },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
+  });
+  const text = await res.text();
+  let out: Json;
+  try { out = JSON.parse(text); } catch { out = { error: `${fn} answered ${res.status}: ${text.slice(0, 200)}` }; }
+  // A refusal in words (a conflict, nothing to write from) comes back as the answer; the step says it.
+  if (!res.ok && !out.error) out.error = `${fn} answered ${res.status}`;
+  return out;
+};
+
+async function schedulerSecret(client: Db) {
+  const { data, error } = await client.from('app_config').select('value').eq('key', 'scheduler_secret').maybeSingle();
+  if (error || !data?.value) throw new Error('The scheduler secret is not set (app_config.scheduler_secret).');
+  return String(data.value);
+}
 
 async function finishJob(client: Db, job: Json, out: { state: string; result: Json }) {
   await client.from('keeper_jobs').update({
@@ -81,9 +111,43 @@ async function workSource(client: Db, run: Json) {
   return looked;
 }
 
+// One batch of a get-ready run: claimed, each card taken as far as the call allows, the spend added. A card with
+// steps left goes back in the queue where it got to, its tries counted afresh, since it did not fail.
+async function workReady(client: Db, run: Json) {
+  let finished = 0;
+  try {
+    const { data: now } = await client.from('keeper_runs').select('state, pace').eq('id', run.id).single();
+    if (!now || now.state !== 'running') return 0;
+    await client.from('keeper_runs').update({ lease_until: new Date(Date.now() + READY_LEASE_S * 1000).toISOString() }).eq('id', run.id);
+    const { data: jobs, error } = await client.rpc('claim_run_jobs', { p_run: run.id, p_limit: now.pace === 'watch' ? 1 : READY_AT_ONCE });
+    if (error) throw new Error(error.message);
+    if (!jobs?.length) return 0;
+    let secret: string | null = null;
+    const outs = await readyBatch(client, jobs as Json[], { call: callFunction, secret: async () => (secret ??= await schedulerSecret(client)) });
+    let spent = 0;
+    let failures = 0;
+    let lastError = '';
+    for (let i = 0; i < outs.length; i += 1) {
+      const o = outs[i];
+      spent += o.cost ?? 0;
+      if ('error' in o) { lastError = o.error; failures += 1; await failJob(client, jobs[i], o.error); } else if ('again' in o) {
+        await client.from('keeper_jobs').update({ state: 'queued', attempts: 0, error: null, result: o.result }).eq('id', jobs[i].id);
+      } else { await finishJob(client, jobs[i], o); finished += 1; }
+    }
+    if (spent > 0) await client.rpc('add_keeper_spend', { p_run: run.id, p_pence: spent });
+    if (failures === outs.length && jobs.every((j: Json) => j.attempts >= 3)) {
+      await client.rpc('close_keeper_run', { p_run: run.id, p_pause_reason: `Cards could not be got ready three times. The last said: ${lastError}` });
+    }
+  } finally {
+    await client.rpc('close_keeper_run', { p_run: run.id });
+  }
+  return finished;
+}
+
 // Works one run until the budget, the run's state or the cap stops it.
 async function workRun(client: Db, run: Json, until: number) {
   if (run.task === 'amazon_source') return workSource(client, run);
+  if (run.task === 'get_ready') return workReady(client, run);
   const ctx = await contextFor(client, run.tenant_id, run.id);
   let streak = 0;
   let lastError = '';
@@ -155,7 +219,8 @@ export async function work(client: Db, tenant: string | null, budgetMs = BUDGET_
   const until = Date.now() + budgetMs;
   let checked = 0;
   let sourced = 0;
-  // A sourcing run gets one batch a call; the call then goes on to any other run.
+  let readied = 0;
+  // A sourcing or get-ready run gets one batch a call; the call then goes on to any other run.
   const worked: string[] = [];
   while (Date.now() < until) {
     const { data: runs, error } = await client.rpc('lease_keeper_run', { p_seconds: LEASE_S, p_tenant: tenant, p_skip: worked.length ? worked : null });
@@ -163,6 +228,7 @@ export async function work(client: Db, tenant: string | null, budgetMs = BUDGET_
     if (!runs?.length) break;
     const n = await workRun(client, runs[0], until);
     if (runs[0].task === 'amazon_source') { sourced += n; worked.push(runs[0].id); continue; }
+    if (runs[0].task === 'get_ready') { readied += n; worked.push(runs[0].id); continue; }
     checked += n;
     // Nothing could be taken (its drafts are still being written): leave it for the next call.
     if (n === 0) break;
@@ -173,6 +239,6 @@ export async function work(client: Db, tenant: string | null, budgetMs = BUDGET_
     const { error } = await client.rpc('keeper_open_sections', { p_tenant: tenant });
     if (error) console.error('[keeper-run] sections not opened:', error.message);
   }
-  return { checked, sourced };
+  return { checked, sourced, readied };
 }
 

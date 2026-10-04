@@ -16,7 +16,7 @@ const AT_ONCE = 3;
  * The bar along the bottom once she ticks cards. It says, per channel, how many of them can go and why the rest
  * cannot, so a bulk action never leaves a card behind without a reason.
  */
-export function BulkBar({ count, ebay, shop, ready, busy, onEbay, onShop, onReady, onStop, onClear }) {
+export function BulkBar({ count, ebay, shop, ready, busy, onEbay, onShop, onReady, onStop, onClear, agentName = 'Your assistant' }) {
   const outEbay = reasons(ebay.out);
   const outShop = reasons(shop.out);
   // Three reasons at most, then the rest as a count of cards, so the bar stays one line on a laptop.
@@ -32,7 +32,7 @@ export function BulkBar({ count, ebay, shop, ready, busy, onEbay, onShop, onRead
       {busy ? (
         <>
           <span className={styles.barCount}>
-            {busy.kind === 'ready' ? 'Getting ready' : 'Adding to your shop'}, <span data-num>{busy.done}</span> of <span data-num>{busy.total}</span>
+            Adding to your shop, <span data-num>{busy.done}</span> of <span data-num>{busy.total}</span>
           </span>
           <span className={styles.barTrack} aria-hidden="true"><i style={{ width: `${(busy.done / busy.total) * 100}%` }} /></span>
           <button type="button" className={styles.barQuiet} onClick={onStop}>Stop</button>
@@ -42,9 +42,9 @@ export function BulkBar({ count, ebay, shop, ready, busy, onEbay, onShop, onRead
           <span className={styles.barCount}><span data-num>{count}</span> selected</span>
           {ready.length > 0 && (
             <button type="button" className={`${styles.barQuiet} ${styles.barGo}`} onClick={onReady}
-              title="Writes a title and description, and finds photos, where a card has none">
-              <Icon name="IconSpark" className={styles.barIcon} />
-              Get {ready.length} ready
+              title={`${agentName} writes the title and description, finds photos, fills eBay's details and the parcel, where a card has none. In ${agentName}'s office; nothing is listed.`}>
+              <Icon name="IconKeeper" className={styles.barIcon} />
+              Get {ready.length} ready with {agentName}
             </button>
           )}
           <button type="button" className={`${styles.barQuiet} ${styles.barGo}`} disabled={!shop.in.length} onClick={onShop}>

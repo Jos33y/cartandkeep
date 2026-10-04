@@ -823,3 +823,15 @@
 /* Approved by Keeper from Amazon, not by her: the agent's own ink, the same size as Edited. */
 .keeperTag { flex-shrink: 0; display: inline-flex; align-items: center; color: #2d5592; }
 .keeperIcon { width: 17px; height: 17px; }
+
+/* Keeper gets cards ready (task 03): what it can take on its own, and what it is doing now. */
+.keeperStrip { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--s-3) var(--s-4); margin-bottom: var(--s-4); padding: var(--s-3) var(--s-4); border: 1px solid color-mix(in srgb, var(--c-action) 35%, transparent); border-radius: var(--r-lg); background: var(--c-action-wash); }
+.keeperStripIcon { width: 28px; height: 28px; color: var(--c-action-text); }
+.keeperStripText { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.keeperStripHead { font-size: var(--t-label); font-weight: 600; color: var(--c-ink); }
+.keeperStripMeta { font-size: var(--t-caption); color: var(--c-ink-soft); line-height: var(--lh-snug, 1.4); }
+.keeperStripActions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); justify-content: flex-end; }
+@media (max-width: 640px) {
+  .keeperStrip { grid-template-columns: auto minmax(0, 1fr); }
+  .keeperStripActions { grid-column: 1 / -1; justify-content: flex-start; }
+}

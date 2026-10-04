@@ -69,6 +69,14 @@ const PARCELS = {
   evri15: { length_cm: 60, width_cm: 45, height_cm: 30, label: 'Evri to 15kg' },
 };
 
+/*
+ * How far over the market a price can sit and still count as fine (Joseey, 4 October: "lets use 25% thats safer"). Many
+ * eBay listings sell over the market on a strong title, photos and free postage. Over this, the card needs a look.
+ */
+export const OVER_OK = 0.25;
+export const withinOver = (over, ref) => over != null && ref > 0 && over <= ref * OVER_OK + 0.005;
+const pctOver = (over, ref) => `${Math.round((over / ref) * 100)}%`;
+
 // Where a price sits in the shelf product's own eBay market, once she chose to list it as it is. In the market up to
 // the upper quartile of what the same product asks; over that, by how much. Null without that market.
 export function ownMarket(price, draft = {}) {
@@ -178,9 +186,13 @@ export function checksFor(channel, a, row, draft) {
     out.push(own
       ? (own.inMarket
         ? { key: 'price', hard: false, ok: true, text: `In its own market, median £${own.median.toFixed(2)} of ${own.n}`, to: 'price' }
-        : { key: 'price', hard: false, ok: false, text: `£${own.over.toFixed(2)} over its own market at £${own.ref.toFixed(2)}`, fix: 'Match the market', match: own.median, to: 'price' })
+        : withinOver(own.over, own.ref)
+          ? { key: 'price', hard: false, ok: true, text: `£${own.over.toFixed(2)} over its own market at £${own.ref.toFixed(2)}, ${pctOver(own.over, own.ref)}, within 25%`, to: 'price' }
+          : { key: 'price', hard: false, ok: false, text: `£${own.over.toFixed(2)} over its own market at £${own.ref.toFixed(2)}, ${pctOver(own.over, own.ref)}`, fix: 'Match the market', match: own.median, to: 'price' })
       : p && !p.inMarket
-        ? { key: 'price', hard: false, ok: false, text: `£${p.over.toFixed(2)} over the market at £${p.ref.toFixed(2)}`, fix: 'Match the market', match: p.ref, to: 'price' }
+        ? (withinOver(p.over, p.ref)
+          ? { key: 'price', hard: false, ok: true, text: `£${p.over.toFixed(2)} over the market at £${p.ref.toFixed(2)}, ${pctOver(p.over, p.ref)}, within 25%`, to: 'price' }
+          : { key: 'price', hard: false, ok: false, text: `£${p.over.toFixed(2)} over the market at £${p.ref.toFixed(2)}, ${pctOver(p.over, p.ref)}`, fix: 'Match the market', match: p.ref, to: 'price' })
         : { key: 'price', hard: false, ok: Boolean(p), text: p ? 'In the market' : 'No market price', to: 'price' });
     out.push(a.keep == null
       ? { key: 'profit', hard: true, ok: false, text: 'No cost, so nothing to keep', fix: 'Add a supplier', to: 'buy' }
@@ -218,7 +230,8 @@ export function checksFor(channel, a, row, draft) {
     // calculated by weight, which the eBay function checks against her policy; flat and free postage go without.
     const box = parcelOf(a, draft);
     const size = box.length_cm && box.width_cm && box.height_cm ? `${box.length_cm} x ${box.width_cm} x ${box.height_cm}cm` : null;
-    const from = draft.package ? '' : ', from the postage band';
+    // Where Keeper took it from, when it filled the parcel from her Amazon page: "from Amazon's package".
+    const from = draft.package ? (draft.parcel_from ? `, ${String(draft.parcel_from).split(':')[0].replace(/^From/, 'from')}` : '') : ', from the postage band';
     out.push(Number(box.weight_kg) > 0
       ? { key: 'parcel', hard: false, ok: true, text: `Parcel ${box.weight_kg}kg${size ? `, ${size}` : ''}${from}`, to: 'parcel' }
       : size

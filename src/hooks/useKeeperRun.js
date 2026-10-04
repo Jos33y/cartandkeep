@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@lib/supabase';
-import { SOURCE_TRAYS, TRAYS, summarise, unchecked } from '@lib/keeper';
+import { READY_TRAYS, SOURCE_TRAYS, TRAYS, summarise, unchecked } from '@lib/keeper';
 
 const POLL_MS = 2000;
 // Work waiting and nothing moved for this long: ask the server to carry on rather than wait for the minute.
 const STALL_MS = 8000;
-const JOB_FIELDS = 'id, product_id, candidate_id, state, result, error, attempts, started_at, finished_at, created_at';
+const JOB_FIELDS = 'id, kind, product_id, candidate_id, state, result, error, attempts, started_at, finished_at, created_at';
 // What a job is about: a shop product (the check), or a candidate (looked up on Amazon).
 export const subjectOf = (job) => job.product_id ?? job.candidate_id;
 const OPEN = new Set(['running', 'paused']);
@@ -15,10 +15,15 @@ const OPEN = new Set(['running', 'paused']);
  * while it is open. The work is on the server (keeper-run, 0123), so closing the page loses nothing.
  *   shop_check     her shop drafts (task 01); `products` holds the drafts;
  *   amazon_source  her candidates looked up on Amazon (task 02); `products` holds the candidates.
+ *   get_ready      her approved cards got ready for eBay (task 03); `products` holds the cards. Started from Approved,
+ *                  where the cards are picked, so nothing waits here.
  */
 // Rehearsals are the studio's: only the studio sees them (includeRehearsals), so she only ever sees her own real runs.
 export function useKeeperRun(tenantId, { task = 'shop_check', followPace = false, includeRehearsals = false } = {}) {
   const sourcing = task === 'amazon_source';
+  const readying = task === 'get_ready';
+  // Tasks over candidates rather than shop products.
+  const onCards = sourcing || readying;
   const [run, setRun] = useState(undefined);
   const [jobs, setJobs] = useState([]);
   const [products, setProducts] = useState(() => new Map());
@@ -31,6 +36,7 @@ export function useKeeperRun(tenantId, { task = 'shop_check', followPace = false
   // Drafts nobody has checked, or candidates with a barcode not looked up yet: what a new run would take.
   const countWaiting = useCallback(async () => {
     if (!tenantId) return;
+    if (readying) { setWaiting(0); return; }
     if (sourcing) {
       const { data, error: e } = await supabase.rpc('amazon_source_waiting', { p_tenant: tenantId });
       if (e) { setError(e.message); return; }
@@ -46,7 +52,7 @@ export function useKeeperRun(tenantId, { task = 'shop_check', followPace = false
       if (!data || data.length < 1000) break;
     }
     setWaiting(rows.filter(unchecked).length);
-  }, [tenantId, sourcing]);
+  }, [tenantId, sourcing, readying]);
 
   // The products the jobs are for, each read once while the run goes; again (fresh) when the report needs to know
   // where they are now, since putting them on sale or archiving them happens after the run.
@@ -56,7 +62,7 @@ export function useKeeperRun(tenantId, { task = 'shop_check', followPace = false
     missing.forEach((id) => known.current.add(id));
     const found = [];
     for (let i = 0; i < missing.length; i += 200) {
-      const { data } = sourcing
+      const { data } = onCards
         ? await supabase.from('candidates').select('id, title, image_url, decisions ( action, made_by )').in('id', missing.slice(i, i + 200))
         : await supabase.from('store_products').select('id, title, image_url, images, status, is_sample, archived_at')
           .in('id', missing.slice(i, i + 200));
@@ -67,7 +73,7 @@ export function useKeeperRun(tenantId, { task = 'shop_check', followPace = false
       for (const p of found) next.set(p.id, p);
       return next;
     });
-  }, [sourcing]);
+  }, [onCards]);
 
   const read = useCallback(async () => {
     if (!tenantId) return;
@@ -95,9 +101,9 @@ export function useKeeperRun(tenantId, { task = 'shop_check', followPace = false
     lastMove.current = Date.now();
     // Not awaited: the calls return when their share is done; the reads report progress meanwhile. The writer goes
     // too, since a run writes a draft first where nothing has been written (0128).
-    if (!sourcing) supabase.functions.invoke('draft', { body: { queue: true, tenant_id: tenantId } }).catch(() => {});
+    if (!onCards) supabase.functions.invoke('draft', { body: { queue: true, tenant_id: tenantId } }).catch(() => {});
     supabase.functions.invoke('keeper-run', { body: { queue: true, tenant_id: tenantId } }).catch(() => {});
-  }, [tenantId, sourcing]);
+  }, [tenantId, onCards]);
 
   useEffect(() => { read(); countWaiting(); }, [read, countWaiting]);
 
@@ -190,7 +196,7 @@ export function useKeeperRun(tenantId, { task = 'shop_check', followPace = false
     };
   }, [open, run, refresh]);
 
-  const totals = useMemo(() => summarise(jobs, null, sourcing ? SOURCE_TRAYS : TRAYS), [jobs, sourcing]);
+  const totals = useMemo(() => summarise(jobs, null, readying ? READY_TRAYS : sourcing ? SOURCE_TRAYS : TRAYS), [jobs, sourcing, readying]);
 
   return { run, jobs, products, totals, waiting, error, open, start, set, undo, reload: read, refresh, recount: countWaiting };
 }

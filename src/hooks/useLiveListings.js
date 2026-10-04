@@ -29,6 +29,8 @@ export function conditions({ tab = 'all', show = null, find = '' } = {}) {
   if (show === 'quiet') out.push(['eq', 'on_ebay', true], ['eq', 'views', 0]);
   if (show === 'noShop') out.push(['eq', 'on_ebay', true], ['is', 'shop_state', null]);
   if (show === 'selling') out.push(['gt', 'sold', 0]);
+  // Published from the portal: the card holds this very listing (marked in the browser, from candidates.ebay).
+  if (show === 'ours') out.push(['eq', 'on_ebay', true], ['eq', 'listed_here', true]);
   // On sale on her shop, saved or put in a basket, never bought: the Interest page's question, asked of the live list.
   if (show === 'wanted') out.push(['eq', 'on_shop', true], ['eq', 'shop_sold', 0], ['or', 'shop_adds.gt.0,shop_saves.gt.0']);
   const q = find.trim().replace(/[%,()*]/g, ' ').trim();
@@ -37,7 +39,7 @@ export function conditions({ tab = 'all', show = null, find = '' } = {}) {
 }
 
 export const TAB_IDS = ['all', 'both', 'ebayOnly', 'shopOnly'];
-export const SHOW_IDS = ['selling', 'noShop', 'out', 'low', 'quiet', 'wanted'];
+export const SHOW_IDS = ['ours', 'selling', 'noShop', 'out', 'low', 'quiet', 'wanted'];
 
 function filtered(q, choice) {
   for (const [op, col, val] of conditions(choice)) q = op === 'or' ? q.or(col) : q[op](col, val);
@@ -101,6 +103,7 @@ export function countsOf(rows, pulledAt = null) {
     low: c((r) => r.available != null && r.available >= 1 && r.available <= 2),
     quiet: c((r) => r.on_ebay && r.views === 0),
     selling: c((r) => r.sold > 0),
+    ours: c((r) => r.on_ebay && r.listed_here === true),
     wanted: c((r) => r.on_shop && Number(r.shop_sold ?? 0) === 0 && (r.shop_adds > 0 || r.shop_saves > 0)),
     ebay_impressions: sum('impressions'),
     ebay_views: sum('views'),
@@ -141,6 +144,22 @@ export function useLiveListings(tenantId, { tab, show, find, sort, dir }) {
       if (e) { setError(e.message); setStatus('error'); return; }
       rows.push(...(data ?? []));
       if (!data || data.length < 1000) break;
+    }
+    // The listings published from the portal. Only ebay-list writes candidates.ebay, at the moment it publishes, so a
+    // card holding a row's listing id is the one that listed it.
+    const ours = new Map();
+    for (let from = 0; ; from += 1000) {
+      const { data, error: e } = await supabase.from('candidates').select('id, ebay').eq('tenant_id', tenantId)
+        .not('ebay', 'is', null).order('id', { ascending: true }).range(from, from + 999).abortSignal(ctl.signal);
+      if (ctl.signal.aborted) return;
+      if (e) break;
+      for (const c of data ?? []) if (c.ebay?.listing_id) ours.set(c.id, { listing: String(c.ebay.listing_id), at: c.ebay.published_at ?? null });
+      if (!data || data.length < 1000) break;
+    }
+    for (const r of rows) {
+      const o = r.candidate_id ? ours.get(r.candidate_id) : null;
+      r.listed_here = Boolean(o && r.listing_id != null && o.listing === String(r.listing_id));
+      r.listed_at = r.listed_here ? o.at : null;
     }
     const [t, u] = await Promise.all([
       supabase.from('ebay_traffic').select('fetched_at').eq('tenant_id', tenantId).not('listing_id', 'is', null)

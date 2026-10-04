@@ -32,6 +32,7 @@ const TABS = [
 
 // One at a time, on top of the tab: the questions she asks of a long list.
 const SHOWS = [
+  { id: 'ours', label: 'Listed from Cart & Keep', count: 'ours' },
   { id: 'selling', label: 'Selling', count: 'selling' },
   { id: 'noShop', label: 'Not on your shop', count: 'no_shop' },
   { id: 'out', label: 'None left', count: 'out', tone: 'negative' },
@@ -53,6 +54,12 @@ const day = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'nu
 const at = (iso) => (iso
   ? `${day(iso)}, ${new Date(iso).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, ...London }).replace(/\s/g, '')}`
   : null);
+// "11 days ago", for how long a listing has been up.
+const ago = (iso) => {
+  if (!iso) return null;
+  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  return d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d} days ago`;
+};
 const monthOf = (ym) => new Date(`${String(ym).slice(0, 7)}-01T12:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const n = (v) => Number(v ?? 0).toLocaleString('en-GB');
 
@@ -590,6 +597,7 @@ function Detail({ r, avg, fees, onSale, onAdd, busy, list }) {
             )}
             <dl className={styles.facts}>
               <Fact label="Item number" value={r.listing_id} mono />
+              {r.listed_here && <Fact label="Listed from Cart & Keep" value={day(r.listed_at) ?? 'yes'} sub={ago(r.listed_at)} />}
               <Fact label="Left to sell" value={r.available ?? '--'} sub={r.available == null ? 'read on the next pull' : null} />
               <Fact label="Sold on eBay" value={`${n(ebaySold)}${r.refunded ? `, ${n(r.refunded)} refunded` : ''}`} sub="all time" />
             </dl>
