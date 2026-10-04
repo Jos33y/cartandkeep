@@ -6,7 +6,7 @@
 -- The cards are picked on Approved, where the market is worked out (up to 25% over it, in stock, pack confirmed), or
 -- ticked there; this file takes the ids. The worker is keeper-run/ready.ts. Her draft is written only through
 -- keeper_ready_fill, which fills a field only while it is still empty, so nothing she wrote is ever replaced.
-
+ 
 -- 1. A third kind of run, over candidates like Amazon sourcing --------------------------------------------------
 
 alter table keeper_runs drop constraint if exists keeper_runs_task_check;

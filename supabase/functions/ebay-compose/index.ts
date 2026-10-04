@@ -133,6 +133,7 @@ Rules:
   search by it.
 - No punctuation for decoration, no ALL CAPS, no emoji, no "BNIB" or "FAST POST".
 - British spelling throughout: colour, flavour, fibre, litre.
+- Sizes and weights in metric: convert pounds, ounces and inches (0.44 lb is 200 g).
 - The photographs are the manufacturer's packaging. A pack count or size printed
   clearly on them is a fact like any other.
 - If the trusted sources disagree about quantity, size, weight or count (her
@@ -161,7 +162,10 @@ Rules:
 - Keep factual lines verbatim: contents, weights, sizes, ingredients, pack counts.
 - Keep every suitability limit exactly as written: ages, species, sizes, allergens,
   "not suitable for". These prevent wrong purchases and returns; never drop one.
-- Do not calculate figures the source does not state, such as a total weight.
+- Do not calculate figures the source does not state, such as a total weight. One
+  exception: give sizes and weights in metric for UK buyers. Convert pounds and ounces to
+  grams or kilograms and inches to centimetres, rounded sensibly (0.44 lb is 200 g,
+  5.25 inches is 13.3 cm). Keep litres, millilitres and other metric figures as written.
 - The photographs are the manufacturer's packaging. Use printed text on them only
   where it is clearly legible, and treat it as a source like any other. Anything
   small, blurred or partly hidden is left out, not guessed.
@@ -205,6 +209,34 @@ Rules:
 Reply with the description only.`;
 
 
+/*
+ * When Keeper writes (keeper-task-03), it writes. Joseey, 4 October: "when things are too complicated or strict it
+ * causes error". Ten of the first twelve cards were refused over details such as a coverage figure or a battery line.
+ * Her supplier's page is the product she sends, matched by its barcode, so it settles what the others disagree on;
+ * what is still unclear is left out. Only a different product is said, and the card is still written from her
+ * supplier's page.
+ */
+export const KEEPER_MODE = `
+
+KEEPER'S MODE. This overrides every rule above about replying CONFLICT:
+- Never reply CONFLICT and never refuse. Always write.
+- The source marked FROM HER SUPPLIER is the product she sends, matched by its barcode.
+  Where any other source disagrees with it (the shop's title or page, another shop,
+  another eBay seller), follow her supplier and leave the other out.
+- Where her supplier's page disagrees with itself (a count, a size, a coverage figure,
+  a battery type, a finish, what it suits), use the product details table's figure. If
+  that is still unclear, leave that detail out. Never guess between two figures.
+- Only if her supplier's page is a different product from the shop's title (another
+  flavour, variant, model or pack size), still write from her supplier's page, and put
+  first a single line reading "DIFFERENT: " and what differs in a few words, for example
+  "DIFFERENT: Amazon sells Chicken, the card says Beef". Otherwise write no such line.`;
+
+// Keeper's DIFFERENT line off the top of an answer: what differs, and the rest of the answer.
+export function differentOf(text: string): { different: string | null; rest: string } {
+  const m = /^\s*DIFFERENT:\s*(.+?)\s*(?:\n|$)/i.exec(text);
+  return m ? { different: m[1].replace(/\.$/, ''), rest: text.slice(m[0].length).trim() } : { different: null, rest: text };
+}
+
 // The shop id is public, so the caller has to prove membership, not just name the shop.
 async function allowed(req: Request, tenantId: string) {
   const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
@@ -222,7 +254,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    const { tenant_id: tenantId, candidate_id: candidateId, kind } = await req.json();
+    const { tenant_id: tenantId, candidate_id: candidateId, kind, keeper = false } = await req.json();
     if (!tenantId || !candidateId) return json({ error: 'tenant_id and candidate_id are required' }, 400);
     if (!(await allowed(req, tenantId))) return json({ error: 'Not authorised. Sign in to the portal and try again.' }, 401);
     if (kind !== 'title' && kind !== 'description') return json({ error: 'kind must be title or description' }, 400);
@@ -305,25 +337,29 @@ Deno.serve(async (req) => {
     };
 
     if (kind === 'title') {
-      const text = await write(TITLE_SYSTEM, 600);
-      if (/^CONFLICT:/i.test(text.trim())) {
-        return json({ conflict: text.trim().replace(/^CONFLICT:\s*/i, ''), read: fresh });
+      const said = await write(keeper ? TITLE_SYSTEM + KEEPER_MODE : TITLE_SYSTEM, 600);
+      if (!keeper && /^CONFLICT:/i.test(said.trim())) {
+        return json({ conflict: said.trim().replace(/^CONFLICT:\s*/i, ''), read: fresh });
       }
+      const { different, rest: text } = keeper ? differentOf(said) : { different: null, rest: said };
       const titles = parseTitles(text);
       if (!titles?.length) return json({ error: 'The suggestion came back without titles. Try again.', read: fresh }, 502);
       // Over 80 is rejected by eBay, so a long one is a wasted option.
-      return json({ titles: titles.filter((t) => t.length <= 80).slice(0, 4), read: fresh });
+      return json({ titles: titles.filter((t) => t.length <= 80).slice(0, 4), different, read: fresh });
     }
 
-    const out = backstageOut(await write(DESC_SYSTEM, 1400));
+    const raw = await write(keeper ? DESC_SYSTEM + KEEPER_MODE : DESC_SYSTEM, 1400);
+    const { different, rest } = keeper ? differentOf(raw) : { different: null, rest: raw };
+    const out = backstageOut(rest);
 
-    // Writing through a conflict means picking whichever side makes the facts agree.
-    if (/^CONFLICT:/i.test(out)) {
+    // Writing through a conflict means picking whichever side makes the facts agree. Keeper's mode never stops here.
+    if (!keeper && /^CONFLICT:/i.test(out)) {
       return json({ conflict: out.replace(/^CONFLICT:\s*/i, '').trim(), read: fresh });
     }
+    if (!out.trim() || /^CONFLICT:/i.test(out)) return json({ error: 'No description came back. Try again.', read: fresh }, 502);
 
     // The page it read goes back too, so the open card gets the shop's facts and barcode without a reload.
-    return json({ description: out, read: fresh });
+    return json({ description: out, different, read: fresh });
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }

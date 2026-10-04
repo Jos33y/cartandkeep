@@ -160,3 +160,39 @@ export function parcelPatch(have: Json | null | undefined, p: Parcel | null) {
   if (!hasWeight && p.weight_kg) add.weight_kg = p.weight_kg;
   return Object.keys(add).length ? add : null;
 }
+
+/*
+ * The product's own size and weight, as Amazon's table gives them, for eBay's item details (Item Length, Width,
+ * Height, Weight): the measures in the order Amazon writes them (length, width, height), nothing added for packing.
+ */
+export function productSize(read: Json | null | undefined): { length_cm: number; width_cm: number; height_cm: number; weight_kg: number | null } | null {
+  const lines = ((read?.facts?.details ?? []) as string[]).map(String).map(split).filter(Boolean) as Array<{ key: string; value: string }>;
+  const line = lines.find((l) => /product dimensions|item dimensions|^dimensions|^item size/.test(l.key) && !/package|parcel|shipping/.test(l.key));
+  if (!line) return null;
+  const m = SIZE.exec(line.value);
+  if (!m) return null;
+  const unit = m[6] ?? m[4] ?? m[2];
+  const [length_cm, width_cm, height_cm] = [m[1], m[3], m[5]].map((v, i) => Math.round(toCm(Number(v.replace(',', '.')), [m[2], m[4], m[6]][i] ?? unit) * 10) / 10);
+  if (![length_cm, width_cm, height_cm].every((d) => d >= 0.1 && d <= 300)) return null;
+  const weightLine = lines.find((l) => /^(item weight|weight|product weight|net weight)$/.test(l.key));
+  const weight_kg = sane((weightLine ? weightKg(weightLine.value) : null)
+    ?? (line.value.includes(';') ? weightKg(line.value.split(';').slice(1).join(';')) : null));
+  return { length_cm, width_cm, height_cm, weight_kg };
+}
+
+// eBay's item details for size and weight that the product's own size answers: "Item Height" to "12 cm".
+export function sizeAspects(names: string[], size: ReturnType<typeof productSize>): Record<string, string> {
+  if (!size) return {};
+  const out: Record<string, string> = {};
+  const cm = (v: number) => `${v} cm`;
+  for (const name of names) {
+    const n = name.toLowerCase();
+    if (/\b(height|tall)\b/.test(n) && !/heel|seat|adjust/.test(n)) out[name] = cm(size.height_cm);
+    else if (/\bwidth\b/.test(n)) out[name] = cm(size.width_cm);
+    else if (/\b(length|depth)\b/.test(n) && !/cable|cord|blade|hose|strap/.test(n)) out[name] = cm(size.length_cm);
+    else if (/\bweight\b/.test(n) && !/capacity|max|load|paper/.test(n) && size.weight_kg) {
+      out[name] = size.weight_kg < 1 ? `${Math.round(size.weight_kg * 1000)} g` : `${size.weight_kg} kg`;
+    }
+  }
+  return out;
+}

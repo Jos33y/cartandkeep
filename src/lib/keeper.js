@@ -35,7 +35,7 @@ export const SOURCE_TRAYS = [
  * needs you (something Keeper could not fill, said on the card), and could not finish.
  */
 export const READY_TRAYS = [
-  { key: 'ready', label: 'Ready to list', stamp: 'Ready', hint: 'Title, description, photos, eBay\'s details and the parcel in. Read it over, then list', tone: 'positive' },
+  { key: 'ready', label: 'Ready to go live', stamp: 'Ready', hint: 'Everything Keeper can fill is in. Read it over, then list it on eBay or add it to your shop', tone: 'positive' },
   { key: 'choose', label: 'Needs you', stamp: 'Needs you', hint: 'Something Keeper could not fill, said on the card', tone: 'info' },
   { key: 'unread', label: 'Could not finish', stamp: 'Not finished', hint: 'Stopped three times; send it again from Approved', tone: 'negative' },
 ];

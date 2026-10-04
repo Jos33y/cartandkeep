@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { checkOne, contextFor } from '../_shared/keeper-check.ts';
 import { sourceBatch } from './source.ts';
 import { readyBatch, type Call } from './ready.ts';
+import { readSize } from '../_shared/parcel-read.ts';
 
 type Json = Record<string, any>;
 
@@ -123,7 +124,11 @@ async function workReady(client: Db, run: Json) {
     if (error) throw new Error(error.message);
     if (!jobs?.length) return 0;
     let secret: string | null = null;
-    const outs = await readyBatch(client, jobs as Json[], { call: callFunction, secret: async () => (secret ??= await schedulerSecret(client)) });
+    const outs = await readyBatch(client, jobs as Json[], {
+      call: callFunction,
+      secret: async () => (secret ??= await schedulerSecret(client)),
+      size: (read) => readSize(env('ANTHROPIC_API_KEY'), read),
+    });
     let spent = 0;
     let failures = 0;
     let lastError = '';

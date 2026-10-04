@@ -133,6 +133,18 @@ export function useKeeperRun(tenantId, { task = 'shop_check', followPace = false
     kick();
   }, [tenantId, task, sourcing, read, kick]);
 
+  // Getting cards ready (task 03): cards sent again from the office, the ones that need her or were never started.
+  // eBay's first, as they were sent. `again` takes cards Keeper finished before.
+  const send = useCallback(async (ids, { again = false } = {}) => {
+    setError(null);
+    const { error: e } = await supabase.rpc('start_ready_run', {
+      p_tenant: tenantId, p_ids: ids, p_pace: 'normal', p_cap_pence: Math.max(100, ids.length * 8), p_again: again,
+    });
+    if (e) { setError(e.message); throw new Error(e.message); }
+    await read();
+    kick();
+  }, [tenantId, read, kick]);
+
   // Undo one of Keeper's approvals from Amazon (keeper_source_undo, 0133): the card goes back to Candidates.
   const undo = useCallback(async (candidateId) => {
     const { error: e } = await supabase.rpc('keeper_source_undo', { p_candidate: candidateId });
@@ -198,5 +210,5 @@ export function useKeeperRun(tenantId, { task = 'shop_check', followPace = false
 
   const totals = useMemo(() => summarise(jobs, null, readying ? READY_TRAYS : sourcing ? SOURCE_TRAYS : TRAYS), [jobs, sourcing, readying]);
 
-  return { run, jobs, products, totals, waiting, error, open, start, set, undo, reload: read, refresh, recount: countWaiting };
+  return { run, jobs, products, totals, waiting, error, open, start, send, set, undo, reload: read, refresh, recount: countWaiting };
 }

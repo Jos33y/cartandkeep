@@ -62,3 +62,12 @@ Deno.test('the draft keeps what she set: a whole size, and a weight', () => {
   assertEquals(parcelPatch({ length_cm: 45, width_cm: 35, height_cm: 16 }, p), { weight_kg: 1.2 });
   assertEquals(parcelPatch({ length_cm: 45, width_cm: 35, height_cm: 16, weight_kg: 2 }, p), null);
 });
+
+Deno.test('the product\'s own size for eBay\'s item details, in Amazon\'s order, nothing added', async () => {
+  const { productSize, sizeAspects } = await import('./parcel.ts');
+  const s = productSize(read(['Product Dimensions: 25 x 18 x 30 cm; 450 g']));
+  assertEquals(s, { length_cm: 25, width_cm: 18, height_cm: 30, weight_kg: 0.45 });
+  assertEquals(sizeAspects(['Item Height', 'Item Width', 'Item Length', 'Item Weight', 'Cable Length', 'Colour'], s),
+    { 'Item Height': '30 cm', 'Item Width': '18 cm', 'Item Length': '25 cm', 'Item Weight': '450 g' });
+  assertEquals(productSize(read(['Package Dimensions: 30 x 20 x 10 cm'])), null);
+});

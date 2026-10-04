@@ -30,8 +30,8 @@ const trayMeta = (key, trays = REPORT_TRAYS) => trays.find((t) => t.key === key)
 const PHASES = [['words', 'Reading', 'IconNote'], ['photos', 'Photos', 'IconEye'], ['writing', 'Writing', 'IconSpark']];
 // Looking a candidate up on Amazon (keeper-run/source.ts): the search, the product page, the rules.
 const SOURCE_PHASES = [['search', 'Searching', 'IconEye'], ['read', 'Reading', 'IconNote'], ['decide', 'Deciding', 'IconCheck']];
-// Getting a card ready (keeper-run/ready.ts): Amazon's page, the photos, the words, eBay's details, the parcel.
-const READY_PHASES = [['amazon', 'Amazon', 'IconNote'], ['photos', 'Photos', 'IconEye'], ['words', 'Writing', 'IconSpark'], ['ebay', 'eBay', 'IconTag'], ['parcel', 'Parcel', 'IconBox']];
+// Getting a card ready (keeper-run/ready.ts): Amazon's page, Keepr's match, the photos, the words, eBay's details, the parcel.
+const READY_PHASES = [['amazon', 'Amazon', 'IconNote'], ['match', 'Matching', 'IconLayers'], ['photos', 'Photos', 'IconEye'], ['words', 'Writing', 'IconSpark'], ['ebay', 'eBay', 'IconTag'], ['parcel', 'Parcel', 'IconBox']];
 
 // What each task calls things. Portal copy says "you", never "she".
 const TASKS = {
@@ -68,8 +68,8 @@ const TASKS = {
     phases: READY_PHASES,
     failed: 'Could not finish',
     one: 'A card',
-    title: ({ live, run, agent }) => (live ? 'Getting your cards ready for eBay' : run ? `${agent} has got your cards ready` : 'Get your cards ready for eBay'),
-    sub: 'For each approved card, only what is missing: Amazon\'s facts, photos, the title and description, eBay\'s category and item details, and the parcel. Nothing you wrote is changed, and nothing is listed until you list it.',
+    title: ({ live, run, agent }) => (live ? 'Getting your cards ready' : run ? `${agent} has got your cards ready` : 'Get your cards ready to go live'),
+    sub: 'eBay cards first, then the cards for your shop. For each, only what is missing: Amazon\'s facts, photos, the title and description, the parcel, and eBay\'s category and item details for eBay cards. Nothing you wrote is changed, and nothing goes live until you list it or add it.',
     stop: (agent) => `Stop? Cards already done keep what ${agent} wrote.`,
     paused: (agent) => `Paused. ${agent} carries on from the next card when you press Carry on.`,
     next: 'Picking up the next card.',
@@ -148,7 +148,7 @@ export function KeeperPage({ task = 'shop_check' }) {
   return (
     <div className={styles.page} data-wide>
       <nav className={styles.switch} aria-label={`${agent}'s work`}>
-        <Link to={portalPath('/keeper')} aria-current={sourcing ? undefined : 'page'}>Shop drafts</Link>
+        <Link to={portalPath('/keeper')} aria-current={sourcing || readying ? undefined : 'page'}>Shop drafts</Link>
         <Link to={portalPath('/keeper/amazon')} aria-current={sourcing ? 'page' : undefined}>Amazon</Link>
         <Link to={portalPath('/keeper/ready')} aria-current={readying ? 'page' : undefined}>Get it ready</Link>
       </nav>
@@ -158,7 +158,7 @@ export function KeeperPage({ task = 'shop_check' }) {
         ? <Floor t={t} agent={agent} run={run} jobs={jobs} products={products} totals={totals} onSet={k.set} studio={studio} onUndo={sourcing ? k.undo : null} />
         : readying ? (
           <>
-            {run && <ReadyReport agent={agent} run={run} jobs={jobs} products={products} totals={totals} studio={studio} />}
+            {run && <ReadyReport agent={agent} run={run} jobs={jobs} products={products} totals={totals} studio={studio} onSend={k.send} />}
             <ReadyStart agent={agent} last={run} />
           </>
         ) : sourcing ? (
@@ -678,8 +678,24 @@ function Start({ agent, waiting, last, onStart, studio }) {
 }
 
 // After getting cards ready: ready to list, needing her, and the ones that could not be finished.
-function ReadyReport({ agent, run, jobs, products, totals, studio }) {
+function ReadyReport({ agent, run, jobs, products, totals, studio, onSend }) {
   const [showing, setShowing] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState(null);
+  // In the order they were first sent, so eBay's go first again: the ones that need her came first.
+  const needYou = jobs.filter((j) => trayOf(j) === 'choose' || j.state === 'failed').map((j) => j.candidate_id);
+  const notStarted = jobs.filter((j) => j.state === 'stopped').map((j) => j.candidate_id);
+  async function carryOn() {
+    setBusy(true);
+    setSaid(null);
+    try {
+      await onSend([...needYou, ...notStarted], { again: true });
+    } catch (e) {
+      setSaid(e?.message ?? 'That did not start.');
+    } finally {
+      setBusy(false);
+    }
+  }
   const t = totals.trays;
   const stopped = run.state === 'stopped';
   const shown = READY_TRAYS.filter((x) => t[x.key] > 0);
@@ -695,9 +711,22 @@ function ReadyReport({ agent, run, jobs, products, totals, studio }) {
           </h2>
         </div>
         {t.ready > 0 && (
-          <Link className={styles.go} data-big to={portalPath('/approved?only=ready')}>List them from Approved</Link>
+          <Link className={styles.go} data-big to={portalPath('/approved?only=ready')}>See them in Approved</Link>
         )}
       </div>
+
+      {(needYou.length > 0 || notStarted.length > 0) && (
+        <p className={styles.confirm} role="group" aria-label="Send cards again">
+          <button type="button" className={styles.go} disabled={busy} onClick={carryOn}>
+            {busy ? 'Starting' : `Carry on with ${plural(needYou.length + notStarted.length, 'card')}`}
+          </button>
+          <span>
+            {[needYou.length && `${n(needYou.length)} that need you, tried again`, notStarted.length && `${n(notStarted.length)} not started`].filter(Boolean).join(', ')}.
+            {' '}Only what is still missing is written; nothing you changed is touched.
+          </span>
+        </p>
+      )}
+      {said && <p className={styles.error} role="alert">{said}</p>}
 
       <div className={styles.reportTrays} role="group" aria-label="Where the cards went">
         {shown.map((x) => (
@@ -732,11 +761,11 @@ function ReadyStart({ agent, last }) {
       <div className={styles.startText}>
         <h2 className={styles.startTitle}>{last ? 'Send more cards from Approved' : 'Cards are sent from Approved'}</h2>
         <p className={styles.startBody}>
-          In Approved, {agent} offers the cards it can get ready by itself: still to list on eBay, up to 25% over the market,
-          in stock on Amazon and the pack confirmed. Or tick any cards and choose Get ready with {agent}. Each card is
-          worked on here: Amazon&apos;s page read again when its reading is more than two days old, photos checked, the title
-          and description written, eBay&apos;s category and item details filled, and the parcel from Amazon&apos;s package.
-          About 5p a card.
+          In Approved, {agent} offers the cards it can get ready by itself, eBay cards first: still to list on eBay, up to
+          25% over the market, in stock on Amazon and the pack confirmed. Then the cards for your shop, ready to add as
+          drafts. Or tick any cards and choose Get ready with {agent}. Each card is worked on here: Amazon&apos;s page read
+          again when its reading is more than two days old, photos checked, the title and description written, the
+          parcel from Amazon&apos;s package, and eBay&apos;s category and item details for eBay cards. About 5p a card.
         </p>
         <div className={styles.startActions}>
           <Link className={styles.go} data-big to={portalPath('/approved')}>

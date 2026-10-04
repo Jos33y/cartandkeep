@@ -109,7 +109,11 @@ Deno.serve(async (req) => {
 
     const { data: rules } = await client.from('photo_brand_rules').select('brand, rule, tenant_id')
       .or(`tenant_id.is.null,tenant_id.eq.${tenantId}`);
-    const rule = brandRuleFor(rules ?? [], brand, l.title ?? moved?.title ?? c.title);
+    // The brand list no longer holds photos back (Joseey, 1 October: any photo may go up except another eBay seller's
+    // own). A listed brand's photos are checked like any other; the brand is kept on the check as a note, so takedowns
+    // can be counted by brand later. Until 4 October a listed brand's photos were not looked at, so LEGO had none.
+    const listed = brandRuleFor(rules ?? [], brand, l.title ?? moved?.title ?? c.title);
+    const rule = null as typeof listed;
 
     // eBay's catalogue for the barcode, with her eBay connection when there is one.
     const gtin = gtinOf(c);
@@ -187,7 +191,7 @@ Deno.serve(async (req) => {
       };
       const kept = {
         version: READER, checked_at: new Date().toISOString(), page: prev?.page ?? page, product: productKey(c),
-        shop: prev?.shop ?? null, brand: prev?.brand ?? brand, brand_rule: rule ? rule.rule : null, gtin: prev?.gtin ?? null,
+        shop: prev?.shop ?? null, brand: prev?.brand ?? brand, brand_rule: null, brand_listed: listed ? listed.rule : null, gtin: prev?.gtin ?? null,
         catalogue: prev?.catalogue ?? null, catalogue_error: prev?.catalogue_error ?? null, images: prev?.images ?? [],
         others: [entry, ...((prev?.others ?? []) as Array<Record<string, unknown>>).filter((o) => o.url !== entry.url)],
         others_for: prev?.others_for ?? null, others_error: prev?.others_error ?? null, searches: prev?.searches ?? 0,
@@ -250,7 +254,8 @@ Deno.serve(async (req) => {
       product: productKey(c),
       shop,
       brand,
-      brand_rule: rule ? rule.rule : null,
+      brand_rule: null,
+      brand_listed: listed ? listed.rule : null,
       gtin,
       catalogue,
       catalogue_error: catalogueError,

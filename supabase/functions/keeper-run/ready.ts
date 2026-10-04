@@ -3,18 +3,25 @@
 //
 //   amazon  her Amazon page read again when the reading is more than 48 hours old (supplier-read), else the saved
 //           reading; Amazon's facts into an empty supplier box;
+//   match   eBay cards: Keepr asked to match (ebay-match), as "Ask Keepr to match" on the card. The card moves to the
+//           eBay listing that sells what she buys when Keepr is sure enough (keeper_ready_move, 0139); otherwise the
+//           listing is suggested on the card for her;
 //   photos  the photo check (photo-check) of her Amazon gallery, else of the shop page and eBay's catalogue; the
 //           photos that passed go in, plain shots first, up to 12;
 //   words   the title and the description (ebay-compose);
 //   ebay    eBay's category and the item details it asks for, filled from the facts (ebay-list, a dry run);
 //   parcel  the size and the weight from Amazon's package, else its product size, else the page's words.
 //
+// A card meant for her shop only (the Google research's store cards) skips eBay's step and is judged as a shop draft:
+// photos and a description of her own (Joseey, 4 October: "keep them for shop... ebay cards first").
+//
 // It never lists. Every write goes through keeper_ready_fill (0138), which fills a field only while it is still
 // empty, so nothing she wrote is replaced. A card takes a few calls of the worker: each call does the steps it has
 // time for and keeps its place (the job's result.progress), so no call runs past the function's limit.
 
 import { asSent, supplierPageOf } from '../_shared/amazon.ts';
-import { parcelFromRead, parcelPatch } from '../_shared/parcel.ts';
+import { parcelFromRead, parcelPatch, productSize, sizeAspects } from '../_shared/parcel.ts';
+import { parcelFromFacts, productOf, type SizeFacts } from '../_shared/parcel-read.ts';
 import { productKey, swappedTo } from '../_shared/product.ts';
 
 type Json = Record<string, any>;
@@ -33,6 +40,9 @@ export type ReadyDeps = {
   call: Call;
   // The scheduler secret, for supplier-read: it reads for the schedule or for a member, and Keeper is neither.
   secret: () => Promise<string>;
+  // Reads the size and weight off her Amazon page, in any units it is written (parcel-read.ts). Without it, or when it
+  // fails, the pattern reader in parcel.ts is used.
+  size?: (read: Json) => Promise<SizeFacts | null>;
   now?: () => number;
 };
 
@@ -40,13 +50,13 @@ export type ReadyDeps = {
 export const FRESH_MS = 48 * 3600 * 1000;
 // Each call stops starting new steps after this long on one card; the next call carries on.
 const STEP_BUDGET_MS = 30_000;
-export const STEPS = ['amazon', 'photos', 'words', 'ebay', 'parcel'] as const;
+export const STEPS = ['amazon', 'match', 'photos', 'words', 'ebay', 'parcel'] as const;
 
 /*
  * What each step costs, in pence, roughly: Apify's page read, and Claude for the photo check, each piece of writing
  * and the item details. About 5p a card when every step runs (keepr-agent-04: about $0.05 a card).
  */
-export const COST = { read: 0.12, photos: 2, title: 0.6, description: 0.9, details: 0.8 };
+export const COST = { read: 0.12, match: 1, photos: 2, title: 0.6, description: 0.9, details: 0.8, size: 0.4 };
 
 // The photo check's version and page rules, as src/lib/photos.js has them, so Keeper and the page agree.
 const PHOTO_CHECK_VERSION = 2;
@@ -135,23 +145,30 @@ export function lacking(d: Json): string[] {
   return ((cat.required ?? []) as string[]).filter((n) => !have.has(String(n).toLowerCase()));
 }
 
+// Whether a card is meant for eBay, as channelsOf (src/lib/assess.js): a card from the eBay route always is; a store
+// card only when the import recommended eBay too.
+export const forEbay = (c: Json) => c.margin?.channel !== 'store' || ((c.recommended_channels ?? []) as string[]).includes('ebay');
+
 /*
- * Where a card stands once Keeper has done what it can: ready to list, or what still needs her. The page's own
- * checklist (src/lib/golive.js) has the last word; these are the parts Keeper can fill.
+ * Where a card stands once Keeper has done what it can: ready, or what still needs her. The page's own checklist
+ * (src/lib/golive.js) has the last word; these are the parts Keeper can fill. A shop-only card needs no eBay details.
  */
-export function verdict(d: Json) {
+export function verdict(d: Json, ebay = true, different: string | null = null) {
   const need: string[] = [];
+  // Amazon's page is another product than the card: written from Amazon, but hers to check first.
+  if (different) need.push(`a check: ${different}`);
   if (blank(d.title)) need.push('a title');
-  else if (String(d.title).length > 80) need.push('a title of 80 characters or fewer');
+  else if (ebay && String(d.title).length > 80) need.push('a title of 80 characters or fewer');
   if (blank(d.description)) need.push('a description');
   if (!(d.images ?? []).length) need.push('photos');
+  if (!ebay) return need;
   if (!d.ebay_category) need.push("eBay's category");
   const still = lacking(d);
   if (still.length) need.push(`eBay's ${still.join(', ')}`);
   return need;
 }
 
-const CARD = 'id, tenant_id, title, image_url, external_ref, draft, supplier_read, photo_checks, listing, margin, ebay, decisions ( action )';
+const CARD = 'id, tenant_id, title, image_url, external_ref, draft, supplier_read, photo_checks, listing, margin, ebay, recommended_channels, decisions ( action )';
 
 async function load(client: Client, id: string) {
   const [{ data: c, error: e1 }, { data: sources, error: e2 }] = await Promise.all([
@@ -229,11 +246,42 @@ export async function readyOne(client: Client, job: Json, deps: ReadyDeps): Prom
             if (now() - Date.parse(now2.read_at) >= FRESH_MS) short(`Amazon could not be read today, so the reading from ${day(now2.read_at)} was used`);
             const applied = await fill(supplierPatch(card.c.draft ?? {}, now2));
             if (applied.includes('supplier_text')) done("Amazon's product details");
+            // The size and weight, read once and kept with the job for eBay's item details and the parcel.
+            if (deps.size && progress.size === undefined) {
+              cost += COST.size;
+              progress.size = await deps.size(now2).catch(() => null);
+            }
           } else short("Amazon's page could not be read, so the card was written from the shop's page");
         }
       }
 
-      if (step === 'photos' && !(d.images ?? []).length) {
+      // Keepr matches the eBay listing to the product she buys, once, on a card whose listing nobody has chosen.
+      if (step === 'match' && forEbay(c) && !c.draft?.entry && !c.draft?.entry_suggestion) {
+        cost += COST.match;
+        const m = await deps.call('ebay-match', { tenant_id: c.tenant_id, candidate_id: c.id });
+        const pct = (v: number) => `${Math.round(v * 100)}% sure`;
+        if (m?.error) short(`Keepr could not match the eBay listing: ${m.error}`);
+        else if (!m?.best) short(`Keepr looked at ${m?.considered ?? 0} eBay listings and none sells the product you buy`);
+        else if (!m.already) {
+          const sure = Number(m.best.entry?.sure ?? 0);
+          if (sure >= Number(m.auto ?? 0.95)) {
+            const { data, error } = await client.rpc('keeper_ready_move', {
+              p_candidate: c.id, p_entry: m.best.entry, p_facts: m.best.facts ?? null, p_other: Boolean(m.best.new_product), p_market: m.market ?? null,
+            });
+            if (error) throw new Error(error.message);
+            if (data?.status === 'moved') {
+              card.c.draft = data.draft;
+              done(`the eBay listing that sells your product (${m.best.entry.title}, ${pct(sure)})`);
+              if (data.other) short('That listing is another product than the card was, so the card was written again for it');
+            }
+          } else {
+            await fill({ entry_suggestion: { ...m.best, market: m.market ?? null, at: new Date(now()).toISOString() } });
+            short(`Keepr suggests the eBay listing ${m.best.entry.title}, ${pct(sure)}: yours to choose on the card`);
+          }
+        }
+      }
+
+      if (step === 'photos' && !(card.c.draft?.images ?? []).length) {
         const r = reading();
         const sent = r ? asSent(r) : null;
         const check = async (body: Json) => {
@@ -242,14 +290,22 @@ export async function readyOne(client: Client, job: Json, deps: ReadyDeps): Prom
           if (out?.error) throw new Error(`photo check: ${out.error}`);
           card!.c.photo_checks = out.photo_checks;
         };
-        if (sent && unchecked(c, sent)) await check({ supplied: sent });
-        else if (!freshChecks(c)) await check({});
+        // A check made while the brand list still skipped a brand's photos (before 4 October) is made again.
+        const skipped = Boolean(freshChecks(c)?.brand_rule);
+        if (sent && (skipped || unchecked(c, sent))) await check({ supplied: sent });
+        else if (!freshChecks(c) || skipped) await check({ again: skipped });
         let add = photosToAdd(card.c);
         // Nothing passed from her Amazon page: the shop's page, other UK shops and eBay's catalogue, once.
         if (!add?.images?.length && sent && !progress.wider) {
           progress.wider = true;
           await check({ wider: true });
           add = photosToAdd(card.c);
+        }
+        // Still none, on a card for eBay: eBay's own catalogue photos for the product, which eBay lets any seller use.
+        const cat = freshChecks(card.c)?.catalogue;
+        if (!add?.images?.length && forEbay(c) && (cat?.images ?? []).length) {
+          add = { ...(add ?? {}), images: (cat.images as string[]).slice(0, MAX_IMAGES),
+            catalogue: { epid: cat.epid, title: cat.title, images: cat.images } };
         }
         const before = (card.c.draft?.images ?? []).length;
         const applied = await fill(add);
@@ -261,12 +317,22 @@ export async function readyOne(client: Client, job: Json, deps: ReadyDeps): Prom
 
       if (step === 'words') {
         const want = { title: blank(d.title), words: blank(d.description) };
-        const [t, w] = await Promise.all([
-          want.title ? deps.call('ebay-compose', { tenant_id: c.tenant_id, candidate_id: c.id, kind: 'title' }) : null,
-          want.words ? deps.call('ebay-compose', { tenant_id: c.tenant_id, candidate_id: c.id, kind: 'description' }) : null,
-        ]);
-        if (want.title) cost += COST.title;
-        if (want.words) cost += COST.description;
+        // Keeper's mode: it writes, from her supplier's page where the sources disagree (ebay-compose KEEPER_MODE). An
+        // answer that came back empty is asked for once more.
+        const write = async (kind: string) => {
+          const ask = () => deps.call('ebay-compose', { tenant_id: c.tenant_id, candidate_id: c.id, kind, keeper: true });
+          cost += kind === 'title' ? COST.title : COST.description;
+          const first = await ask();
+          if (kind === 'title' ? first?.titles?.[0] : first?.description) return first;
+          cost += kind === 'title' ? COST.title : COST.description;
+          return ask();
+        };
+        const [t, w] = await Promise.all([want.title ? write('title') : null, want.words ? write('description') : null]);
+        const differs = t?.different ?? w?.different ?? null;
+        if (differs) {
+          progress.different = differs;
+          short(`Amazon's page is not quite the card's product: ${differs}. Written from Amazon; check it before it goes live`);
+        }
         const patch: Json = {};
         if (want.title) {
           if (t?.titles?.[0]) patch.title = t.titles[0];
@@ -281,7 +347,7 @@ export async function readyOne(client: Client, job: Json, deps: ReadyDeps): Prom
         if (applied.includes('description')) done('the description');
       }
 
-      if (step === 'ebay') {
+      if (step === 'ebay' && forEbay(c)) {
         const now3 = card.c.draft ?? {};
         if (blank(now3.title)) short("eBay's category waits for a title");
         else if (!now3.ebay_category || lacking(now3).length) {
@@ -295,6 +361,11 @@ export async function readyOne(client: Client, job: Json, deps: ReadyDeps): Prom
           else {
             if (Object.keys(dry?.filled ?? {}).length) cost += COST.details;
             const found = fromEbayCheck(dry, now3);
+            // The size and weight eBay asks for, from Amazon's own figures for the product.
+            if (found) {
+              const asked = ((dry.missing ?? []) as Json[]).map((a) => String(a.name)).filter((n) => !found.aspects[n]);
+              Object.assign(found.aspects, sizeAspects(asked, productOf(progress.size ?? null) ?? productSize(reading())));
+            }
             const applied = await fill(found);
             if (applied.includes('ebay_category')) done(`the eBay category (${found!.ebay_category.name ?? found!.ebay_category.id})`);
             const details = applied.filter((a) => a.startsWith('aspects.')).length;
@@ -305,7 +376,7 @@ export async function readyOne(client: Client, job: Json, deps: ReadyDeps): Prom
       }
 
       if (step === 'parcel') {
-        const p = parcelFromRead(reading());
+        const p = parcelFromFacts(progress.size ?? null) ?? parcelFromRead(reading());
         const add = parcelPatch(card.c.draft?.package, p);
         if (add) {
           const applied = await fill({ package: add, parcel_from: p!.from });
@@ -326,12 +397,14 @@ export async function readyOne(client: Client, job: Json, deps: ReadyDeps): Prom
   }
 
   // Keeper's own note on the card: what it did, and what is left for her.
-  const need = verdict(card.c.draft ?? {});
+  const ebay = forEbay(card.c);
+  const need = verdict(card.c.draft ?? {}, ebay, progress.different ?? null);
   await fill({ keeper_ready: { at: new Date(now()).toISOString(), run_id: job.run_id ?? null, done: progress.done, short: progress.short, need } });
   const did = progress.done.length ? `Keeper added ${progress.done.join(', ')}.` : 'Nothing was missing.';
   return finish({
     tray: need.length ? 'choose' : 'ready',
-    line: need.length ? `${did} Still needs ${need.join(', ')}.` : `${did} Ready to list.`,
+    line: need.length ? `${did} Still needs ${need.join(', ')}.` : `${did} ${ebay ? 'Ready to list.' : 'Ready to add to your shop.'}`,
+    channel: ebay ? 'ebay' : 'shop',
     done: progress.done,
     short: progress.short,
     need,

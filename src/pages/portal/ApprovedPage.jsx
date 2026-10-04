@@ -193,9 +193,12 @@ export function ApprovedPage() {
   }, [picked, jobOf]);
   const forEbay = useMemo(() => split('ebay'), [split]);
   const forShop = useMemo(() => split('shop'), [split]);
-  // Ticked cards Keeper can get ready: still to list on eBay, not in the eBay queue, not approved twice.
-  const forKeeper = useMemo(() => picked.filter(({ row, gl }) => gl.left.includes('ebay') && !jobOpen(jobOf(row.id)) && !row.duplicate_of),
-    [picked, jobOf]);
+  // Ticked cards Keeper can get ready: still to list on eBay or to add to her shop, not in the eBay queue, not approved
+  // twice. eBay's first: they matter most (Joseey, 4 October).
+  const forKeeper = useMemo(() => picked
+    .filter(({ row, gl }) => (gl.left.includes('ebay') || gl.left.includes('shop')) && !jobOpen(jobOf(row.id)) && !row.duplicate_of)
+    .sort((x, y) => Number(y.gl.left.includes('ebay')) - Number(x.gl.left.includes('ebay'))),
+  [picked, jobOf]);
   const waiting = Object.values(jobs).filter((j) => j.state === 'queued').length;
   const publishing = Object.values(jobs).filter((j) => j.state === 'working').length;
 
@@ -312,20 +315,33 @@ export function ApprovedPage() {
   }
 
   /*
-   * The cards Keeper can get ready by itself (Joseey, 4 October): still to list on eBay and missing something, up to
-   * 25% over the market (the price check), the pack confirmed, in stock on Amazon, not approved twice, and not got
-   * ready by Keeper before. The rest stay for her: a card she ticks goes whatever it is.
+   * The cards Keeper can get ready by itself (Joseey, 4 October), eBay's first:
+   *   eBay cards  still to list on eBay and missing something, up to 25% over the market (the price check), the pack
+   *               confirmed;
+   *   shop cards  meant for her shop only (the Google research's), still to add and missing something, not at a loss.
+   * Both: in stock on Amazon, no pack or bundle doubt, not approved twice, not got ready by Keeper before. A card she
+   * ticks goes whatever it is.
    */
-  const keeperPicks = useMemo(() => assessed.filter(({ row, gl }) => {
-    if (!gl.left.includes('ebay') || jobOpen(jobOf(row.id)) || row.duplicate_of || withKeeper.has(row.id)) return false;
-    if (row.draft?.keeper_ready || readyFor(gl, 'ebay')) return false;
-    const ebay = gl.checks.ebay ?? [];
-    if (!ebay.find((x) => x.key === 'price')?.ok) return false;
-    const pack = ebay.find((x) => x.key === 'pack');
-    if (pack && !pack.ok) return false;
+  const keeperOk = useCallback(({ row }) => {
+    if (jobOpen(jobOf(row.id)) || row.duplicate_of || withKeeper.has(row.id) || row.draft?.keeper_ready) return false;
     const said = supplierWarnings(readOf(row)).map((w) => w.short);
     return !said.some((w) => w === 'out of stock' || w === 'page gone' || w === 'check the pack' || w === 'a bundle');
-  }), [assessed, jobOf, withKeeper]);
+  }, [jobOf, withKeeper]);
+  const keeperEbay = useMemo(() => assessed.filter((x) => {
+    const { gl } = x;
+    if (!gl.left.includes('ebay') || readyFor(gl, 'ebay') || !keeperOk(x)) return false;
+    const ebay = gl.checks.ebay ?? [];
+    if (!ebay.find((c) => c.key === 'price')?.ok) return false;
+    const pack = ebay.find((c) => c.key === 'pack');
+    return !(pack && !pack.ok);
+  }), [assessed, keeperOk]);
+  const keeperShop = useMemo(() => assessed.filter((x) => {
+    const { gl } = x;
+    if (gl.wants.includes('ebay') || !gl.left.includes('shop') || readyFor(gl, 'shop') || !keeperOk(x)) return false;
+    const price = (gl.checks.shop ?? []).find((c) => c.key === 'price');
+    return !(price && price.hard && !price.ok);
+  }), [assessed, keeperOk]);
+  const keeperPicks = useMemo(() => [...keeperEbay, ...keeperShop], [keeperEbay, keeperShop]);
 
   /*
    * A card moved to another product's eBay listing is written again for it. The draft is passed in as saved, so the
@@ -515,10 +531,16 @@ export function ApprovedPage() {
             )}
             {keeperPicks.length > 0 && (
               <p className={withKeeper.size ? styles.keeperStripMeta : styles.keeperStripHead}>
-                {agentName} can get <span data-num>{keeperPicks.length}</span> more {keeperPicks.length === 1 ? 'card' : 'cards'} ready for eBay: up to 25% over the market, in stock, the pack confirmed.
+                {agentName} can get <span data-num>{keeperPicks.length}</span> more {keeperPicks.length === 1 ? 'card' : 'cards'} ready
+                {keeperEbay.length > 0 && keeperShop.length > 0
+                  ? <>: <span data-num>{keeperEbay.length}</span> for eBay first, then <span data-num>{keeperShop.length}</span> for your shop.</>
+                  : keeperEbay.length > 0 ? ' for eBay.' : ' for your shop.'}
               </p>
             )}
-            <p className={styles.keeperStripMeta}>Titles, descriptions, photos, eBay's details and the parcel, only where a card has none. Nothing goes live until you list it.</p>
+            <p className={styles.keeperStripMeta}>
+              Titles, descriptions, photos and the parcel, and eBay's details for eBay cards, only where a card has none.
+              eBay cards up to 25% over the market, in stock, the pack confirmed. Nothing goes live until you list it or add it.
+            </p>
           </div>
           <span className={styles.keeperStripActions}>
             {keeperPicks.length > 0 && (
@@ -1278,7 +1300,7 @@ function Pack({
               <span className={styles.actions}>
                 {withKeeper ? (
                   <span className={styles.lockNote}><Icon name="IconKeeper" className={styles.btnIcon} />With {agentName}, getting it ready</span>
-                ) : canReady && gl.left.includes('ebay') && !queued && (
+                ) : canReady && (gl.left.includes('ebay') || gl.left.includes('shop')) && !queued && (
                   <button type="button" className={styles.ghost} disabled={sendingKeeper || busy || shopping}
                     onClick={async () => { setSendingKeeper(true); try { await flush(); await onKeeper(); } finally { setSendingKeeper(false); } }}>
                     <Icon name="IconKeeper" className={styles.btnIcon} />{sendingKeeper ? 'Sending' : `Get ready with ${agentName}`}
