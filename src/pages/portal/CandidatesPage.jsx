@@ -213,6 +213,10 @@ export function CandidatesPage() {
   const liveIds = useMemo(() => (batches ?? []).map((b) => b.id), [batches]);
   const { suppliers, remember } = useSuppliers(tenant?.id);
   const { status, rows, index, decide, clear, addNote, addSource, setCategory } = useCandidates(liveIds, { top: tab });
+  // Two reads land at different times (useCandidates): the light index (every card's category and decision) first,
+  // then the full rows for this tab. Each part of the page waits for its own, so nothing reads as zero meanwhile.
+  const indexWaiting = index.status === 'loading';
+  const rowsWaiting = status === 'loading';
 
   // Names for the categories in use, and each card's own category (Healthcare filters one level deeper).
   useEffect(() => {
@@ -526,15 +530,19 @@ export function CandidatesPage() {
           <h1 className={styles.title}>Candidates</h1>
           <p className={styles.meta}>
             {tab !== 'all' && <span className={styles.metaTab}>{tabName}</span>}
-            <span><span data-num>{tabRows.length.toLocaleString('en-GB')}</span> {tabRows.length === 1 ? 'card' : 'cards'}</span>
+            {indexWaiting
+              ? <span className={styles.reading} role="status">Reading your candidates</span>
+              : <span><span data-num>{tabRows.length.toLocaleString('en-GB')}</span> {tabRows.length === 1 ? 'card' : 'cards'}</span>}
             {week && <span>latest {week}</span>}
           </p>
         </div>
 
         <div className={styles.stats}>
-          <ReviewProgress approve={tally3.approve} defer={tally3.defer} reject={tally3.reject} total={tabRows.length} today={today} />
+          {indexWaiting
+            ? <Waiting ring lines={['6.5rem', '8rem']} />
+            : <ReviewProgress approve={tally3.approve} defer={tally3.defer} reject={tally3.reject} total={tabRows.length} today={today} />}
 
-          {storeTab ? (
+          {rowsWaiting ? <Waiting lines={['6rem', ['7.5rem', 'big'], '8rem']} /> : storeTab ? (
             <div className={styles.worth}>
               <span className={styles.worthLabel}>Approved to list</span>
               <span className={styles.worthLine}>
@@ -574,7 +582,7 @@ export function CandidatesPage() {
           <p className={styles.keeperLine}>
             {sourcing.run
               ? `${agentName} is looking up your candidates on Amazon.`
-              : <><b data-num>{sourcing.waiting.toLocaleString('en-GB')}</b> {sourcing.waiting === 1 ? 'candidate has a barcode' : 'candidates have a barcode'} {agentName} can look up on Amazon.</>}
+              : <><b data-num>{sourcing.waiting.toLocaleString('en-GB')}</b> {sourcing.waiting === 1 ? 'eBay card has a barcode' : 'eBay cards have a barcode'} {agentName} can look up on Amazon. LEGO is left out.</>}
           </p>
           <Link className={styles.keeperGo} to={portalPath('/keeper/amazon')}>
             {sourcing.run ? `See ${agentName} at work` : `Let ${agentName} look them up`}
@@ -582,7 +590,9 @@ export function CandidatesPage() {
         </div>
       )}
 
-      <CategoryTabs groups={tabs} current={tab} onPick={pickCategory} />
+      {indexWaiting
+        ? <div className={styles.tabsWaiting} aria-hidden="true">{['4rem', '7rem', '6rem', '7.5rem', '6.5rem'].map((w) => <span key={w} className={styles.ph} style={{ width: w }} />)}</div>
+        : <CategoryTabs groups={tabs} current={tab} onPick={pickCategory} />}
 
       {(subs.length > 1 || sub.l2 != null || subs.some(([k]) => deepensAt(k))) && (
         <div className={styles.subs} role="tablist" aria-label={`Inside ${tabName}`}>
@@ -626,7 +636,9 @@ export function CandidatesPage() {
                 onClick={() => { setFilter(f.key); resetView(); }}>
                 {f.tone && <i className={styles.dot} aria-hidden="true" />}
                 {f.label}
-                <span className={styles.count} data-num>{counts[f.key].toLocaleString('en-GB')}</span>
+                {rowsWaiting
+                  ? <span className={`${styles.count} ${styles.countWaiting}`} aria-label="counting" />
+                  : <span className={styles.count} data-num>{counts[f.key].toLocaleString('en-GB')}</span>}
               </button>
             ))}
           </div>
@@ -836,6 +848,24 @@ export function CandidatesPage() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/*
+ * A part of the header still loading: soft bars where its figures will be, in the rows' own calm grey. `ring` puts
+ * the decided ring's circle beside the bars; each line is a width, or [width, 'big'] for a headline figure.
+ */
+function Waiting({ ring = false, lines }) {
+  return (
+    <div className={styles.waiting} aria-hidden="true">
+      {ring && <span className={`${styles.ph} ${styles.phRing}`} />}
+      <span className={styles.waitLines}>
+        {lines.map((l, i) => {
+          const [w, size] = Array.isArray(l) ? l : [l];
+          return <span key={i} className={`${styles.ph} ${size === 'big' ? styles.phBig : ''}`} style={{ width: w }} />;
+        })}
+      </span>
     </div>
   );
 }

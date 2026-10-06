@@ -11,6 +11,7 @@ import { PORTAL_ROUTES } from '@utils/constants';
 
 // Overview and Candidates are the week's work and load eagerly. The rest are
 // visited rarely, so they are split out of the first paint.
+const AlertsPage = lazy(() => import('@pages/portal/AlertsPage').then((m) => ({ default: m.AlertsPage })));
 const ApprovedPage = lazy(() => import('@pages/portal/ApprovedPage').then((m) => ({ default: m.ApprovedPage })));
 const ListingsPage = lazy(() => import('@pages/portal/ListingsPage').then((m) => ({ default: m.ListingsPage })));
 const ShopPage = lazy(() => import('@pages/portal/ShopPage').then((m) => ({ default: m.ShopPage })));
@@ -68,6 +69,7 @@ export const portalRouter = createBrowserRouter([{
       errorElement: <RouteError />,
       children: [
       { index: true, element: <OverviewPage /> },
+      { path: 'alerts', element: deferred(<AlertsPage />) },
       { path: 'candidates', element: <CandidatesPage /> },
       { path: 'approved', element: deferred(<ApprovedPage />) },
       { path: 'listings', element: deferred(<ListingsPage />) },

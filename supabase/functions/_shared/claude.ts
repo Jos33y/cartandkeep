@@ -9,6 +9,7 @@
 // The draft function keeps its own copy of this (it deploys as one folder); change both together.
 
 import { MODEL } from './model.ts';
+import { note } from './usage.ts';
 
 type Json = Record<string, any>;
 
@@ -54,6 +55,8 @@ export async function post(key: string, body: Json) {
     body: JSON.stringify(body),
   });
   const payload = await res.json().catch(() => ({}));
+  // Counted for whoever asked: the request, or the card Keeper is working on (usage.ts).
+  note(payload?.usage, body?.model);
   if (!res.ok) {
     const e = new Error(payload?.error?.message ?? `Anthropic returned ${res.status}`) as Error & { status?: number };
     e.status = res.status;
@@ -63,12 +66,14 @@ export async function post(key: string, body: Json) {
 }
 
 // The request body every call sends: the model, thinking kept low, the system as cached blocks.
-export function bodyFor({ system, content, maxTokens, tools, model = MODEL }: { system: string | Json[]; content: Content; maxTokens: number; tools?: Json[]; model?: string }) {
+export function bodyFor({ system, content, maxTokens, tools, model = MODEL }: { system: string | Json[]; content: Content; maxTokens: number; tools?: Json[]; model?: string | null }) {
+  model = model || MODEL;
   const sys = typeof system === 'string' ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }] : system;
   return {
     model,
     max_tokens: maxTokens,
-    thinking: THINKING,
+    // Haiku takes no thinking setting; Sonnet 5.5 is kept to its lowest.
+    ...(/haiku/i.test(model) ? {} : { thinking: THINKING }),
     system: sys,
     ...(tools ? { tools, tool_choice: { type: 'auto' } } : {}),
     messages: [{ role: 'user', content }],
@@ -76,7 +81,7 @@ export function bodyFor({ system, content, maxTokens, tools, model = MODEL }: { 
 }
 
 // A plain answer in text: titles, descriptions, the photo check.
-export async function askText(key: string, opts: { system: string | Json[]; content: Content; maxTokens: number }) {
+export async function askText(key: string, opts: { system: string | Json[]; content: Content; maxTokens: number; model?: string | null }) {
   const payload = await post(key, bodyFor(opts));
   return ((payload.content ?? []) as Json[]).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
 }
@@ -85,7 +90,7 @@ export async function askText(key: string, opts: { system: string | Json[]; cont
  * An answer through one tool. Offered, not forced; the prompt asks for it, and once more if the first reply came
  * back as prose. A schema eBay-style limits cannot compile is sent again unstrict rather than failing the job.
  */
-export async function askTool(key: string, opts: { system: string | Json[]; content: Content; maxTokens: number; tool: Json }): Promise<{ input: Json; payload: Json }> {
+export async function askTool(key: string, opts: { system: string | Json[]; content: Content; maxTokens: number; tool: Json; model?: string | null }): Promise<{ input: Json; payload: Json }> {
   const ask = `Answer with the ${opts.tool.name} tool.`;
   let tool: Json = strictTool(opts.tool);
   const once = async (content: Content) => {

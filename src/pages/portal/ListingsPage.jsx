@@ -9,6 +9,7 @@ import { PRODUCT_SELECT, blockers, isReady } from '@hooks/useCatalogue';
 import { stepsFor, STEPS, isOpen } from '@lib/readiness';
 import { formatGbp } from '@utils/formatGbp';
 import { portalPath } from '@utils/constants';
+import { ebayFeeAt, pricesFor } from '@lib/repricing';
 import styles from '@styles/pages/portal/listings-page.module.css';
 
 /*
@@ -108,6 +109,9 @@ function readUrl() {
   return {
     tab: TABS.some((t) => t.id === q.get('tab')) ? q.get('tab') : 'all',
     show: SHOWS.some((s) => s.id === q.get('show')) ? q.get('show') : null,
+    // From an alert: the listing by its item number, opened at Change price (Alerts, 5 October).
+    find: /^\d{9,15}$/.test(q.get('find') ?? '') ? q.get('find') : '',
+    price: q.get('price') === '1',
   };
 }
 
@@ -118,7 +122,7 @@ export function ListingsPage() {
   const start = useMemo(readUrl, []);
   const [tab, setTab] = useState(start.tab ?? 'all');
   const [show, setShow] = useState(start.show ?? null);
-  const [find, setFind] = useState('');
+  const [find, setFind] = useState(start.find ?? '');
   const [sort, setSort] = useState({ by: 'sold', dir: 'desc' });
   const [open, setOpen] = useState(() => new Set());
   const [picked, setPicked] = useState(() => new Map());
@@ -150,6 +154,20 @@ export function ListingsPage() {
 
   // A new list starts closed and unticked.
   useEffect(() => { setOpen(new Set()); }, [tab, show, find, sort.by, sort.dir]);
+
+  // Sent from an alert: that listing opens with Change price showing, once, when it has loaded.
+  const [priceFirst, setPriceFirst] = useState(start.price && start.find ? start.find : null);
+  useEffect(() => {
+    if (!priceFirst) return;
+    const r = rows.find((x) => String(x.listing_id) === priceFirst);
+    if (!r) return;
+    setOpen(new Set([r.key]));
+    const q = new URLSearchParams(window.location.search);
+    q.delete('price');
+    q.delete('find');
+    const s = q.toString().replace(/=(&|$)/g, '$1');
+    window.history.replaceState(null, '', `${window.location.pathname}${s ? `?${s}` : ''}`);
+  }, [priceFirst, rows]);
 
   // The next page as the end of the list comes into view.
   const sentinel = useRef(null);
@@ -405,6 +423,7 @@ export function ListingsPage() {
           </thead>
           {rows.map((r) => (
             <ListingRow key={r.key} r={r} avg={avg} fees={tenant?.fees} onSale={onSale} open={open.has(r.key)} picked={picked.has(r.key)}
+              priceFirst={priceFirst != null && String(r.listing_id) === priceFirst} onPriced={() => setPriceFirst(null)}
               onOpen={() => toggleOpen(r.key)} onPick={() => togglePick(r)}
               onAdd={() => addToShop([r.listing_id], r.title)} busy={Boolean(adding)} list={list} />
           ))}
@@ -458,7 +477,7 @@ function Stat({ icon, label, value, foot, tone }) {
   );
 }
 
-function ListingRow({ r, avg, fees, onSale, open, picked, onOpen, onPick, onAdd, busy, list }) {
+function ListingRow({ r, avg, fees, onSale, open, picked, onOpen, onPick, onAdd, busy, list, priceFirst = false, onPriced }) {
   const left = r.available;
   const leftTone = left === 0 ? 'negative' : left != null && left <= 2 ? 'warning' : null;
   const shopPriceDiffers = r.on_shop && r.on_ebay && r.shop_price != null && r.price != null && Math.abs(r.shop_price - r.price) >= 0.01;
@@ -535,7 +554,7 @@ function ListingRow({ r, avg, fees, onSale, open, picked, onOpen, onPick, onAdd,
       {open && (
         <tr className={styles.detailRow}>
           <td colSpan={7}>
-            <Detail r={r} avg={avg} fees={fees} onSale={onSale} onAdd={onAdd} busy={busy} list={list} />
+            <Detail r={r} avg={avg} fees={fees} onSale={onSale} onAdd={onAdd} busy={busy} list={list} priceFirst={priceFirst} onPriced={onPriced} />
           </td>
         </tr>
       )}
@@ -543,9 +562,12 @@ function ListingRow({ r, avg, fees, onSale, open, picked, onOpen, onPick, onAdd,
   );
 }
 
-function Detail({ r, avg, fees, onSale, onAdd, busy, list }) {
+function Detail({ r, avg, fees, onSale, onAdd, busy, list, priceFirst = false, onPriced }) {
   const [card, setCard] = useState(null);
   const [revising, setRevising] = useState(false);
+  const [pricing, setPricing] = useState(priceFirst);
+  // Opened from an alert: said once, so closing it and opening the row again starts as any row does.
+  useEffect(() => { if (priceFirst) onPriced?.(); }, [priceFirst, onPriced]);
   const [problem, setProblem] = useState(null);
   const { cardOf } = list;
   useEffect(() => {
@@ -601,7 +623,12 @@ function Detail({ r, avg, fees, onSale, onAdd, busy, list }) {
               <Fact label="Left to sell" value={r.available ?? '--'} sub={r.available == null ? 'read on the next pull' : null} />
               <Fact label="Sold on eBay" value={`${n(ebaySold)}${r.refunded ? `, ${n(r.refunded)} refunded` : ''}`} sub="all time" />
             </dl>
-            {card?.ebay && (
+            {!pricing && (
+              <button type="button" className={styles.revise} onClick={() => { setPricing(true); setRevising(false); }}>
+                <Icon name="IconTag" className={styles.btnIcon} />Change price
+              </button>
+            )}
+            {card?.ebay && !pricing && (
               revising
                 ? <Revise card={card} listingId={r.listing_id} onUpdate={(v) => list.updateOnEbay(card.id, v).then((d) => { list.reload(); return d; })}
                     onRead={() => list.readLive(r.listing_id)} onClose={() => setRevising(false)} />
@@ -619,9 +646,14 @@ function Detail({ r, avg, fees, onSale, onAdd, busy, list }) {
         )}
       </section>
 
-      {r.on_shop ? <ShopLive r={r} />
+      {r.on_shop ? <ShopLive r={r} onPrice={r.on_ebay || pricing ? null : () => setPricing(true)} />
         : r.shop_state === 'draft' ? <ShopDraft r={r} fees={fees} onSale={onSale} />
           : <ShopNone r={r} fees={fees} onAdd={onAdd} busy={busy} />}
+
+      {pricing && (
+        <Reprice r={r} card={r.candidate_id ? card : null} reading={Boolean(r.candidate_id) && !card && !problem}
+          fees={fees} onChange={(v) => list.changePrices(r, v)} onClose={() => setPricing(false)} />
+      )}
     </div>
   );
 }
@@ -639,7 +671,7 @@ function Rate({ label, value, line, against }) {
 }
 
 // On sale: her shop's own funnel since it went on sale, each step against the largest.
-function ShopLive({ r }) {
+function ShopLive({ r, onPrice }) {
   const steps = [
     { icon: 'IconOpened', label: 'Viewed', value: r.shop_views ?? 0 },
     { icon: 'IconHeart', label: 'Saved', value: r.shop_saves ?? 0 },
@@ -674,6 +706,11 @@ function ShopLive({ r }) {
         {r.on_ebay && r.price != null && <Fact label="On eBay" value={formatGbp(r.price)} mono />}
         {!r.on_ebay && <Fact label="Stock" value={r.available ?? 'not tracked'} />}
       </dl>
+      {onPrice && (
+        <button type="button" className={styles.revise} onClick={onPrice}>
+          <Icon name="IconTag" className={styles.btnIcon} />Change price
+        </button>
+      )}
     </section>
   );
 }
@@ -926,6 +963,149 @@ function Revise({ card, listingId, onUpdate, onRead, onClose }) {
         <button type="button" className={styles.primary}
           disabled={busy || !(Number(price) > 0) || !(Number(qty) >= 1) || !parcelOk} onClick={send}>
           {busy ? 'Updating eBay' : 'Update listing'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/*
+ * Change price (Joseey, 4 October): the price alone, on eBay and on her shop, for any live listing. Nothing else on
+ * the listing changes. Where the card has a cost, each price is worked out from it on its own terms (eBay's fees and
+ * postage, the shop's card fee), and two are offered: the lowest that keeps her profit, for more sales, and the price
+ * as it is. She picks either or types her own; a cost typed here shows the prices for it and is kept with the change,
+ * never saved to her suppliers. A listing made in Seller Hub has no cost here, so it shows eBay's fee alone.
+ */
+function Reprice({ r, card, reading, fees, onChange, onClose }) {
+  const [cost, setCost] = useState('');
+  const model = useMemo(() => pricesFor(card, { cost: Number(cost) > 0 ? Number(cost) : null }), [card, cost]);
+  const channels = [
+    r.on_ebay && { key: 'ebay', label: 'eBay', now: r.price, m: model.ebay },
+    r.on_shop && r.product_id && { key: 'shop', label: 'Your shop', now: r.shop_price, m: model.shop },
+  ].filter(Boolean);
+  const [typed, setTyped] = useState(() => Object.fromEntries(channels.map((c) => [c.key, c.now != null ? Number(c.now).toFixed(2) : ''])));
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  const [failed, setFailed] = useState(null);
+  const baseCost = model.ebay?.cost ?? model.shop?.cost ?? null;
+
+  const next = (c) => {
+    const v = Math.round(Number(typed[c.key]) * 100) / 100;
+    return Number.isFinite(v) && v > 0 ? v : null;
+  };
+  const changed = (c) => next(c) != null && (c.now == null || Math.abs(next(c) - Number(c.now)) >= 0.005);
+  const choiceOf = (c) => (c.m?.floor != null && next(c) === c.m.floor ? 'floor' : !changed(c) ? 'kept' : 'typed');
+  const anyChange = channels.some(changed);
+
+  async function send() {
+    setBusy(true);
+    setFailed(null);
+    try {
+      const pick = Object.fromEntries(channels.filter(changed).map((c) => [c.key, next(c)]));
+      const done = await onChange({
+        ebay: pick.ebay ?? null, shop: pick.shop ?? null, cost: Number(cost) > 0 ? Number(cost) : baseCost,
+        ebayChoice: channels.find((c) => c.key === 'ebay') ? choiceOf(channels.find((c) => c.key === 'ebay')) : undefined,
+        shopChoice: channels.find((c) => c.key === 'shop') ? choiceOf(channels.find((c) => c.key === 'shop')) : undefined,
+      });
+      setResult(done);
+    } catch (e) {
+      setFailed(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (result) {
+    const lines = channels.filter((c) => result[c.key]);
+    return (
+      <div className={styles.reprice}>
+        {lines.map((c) => (result[c.key].ok
+          ? (
+            <p key={c.key} className={styles.revised}>
+              <Icon name="IconCheck" className={styles.btnIcon} />
+              {c.label} is now {formatGbp(result[c.key].price)}.
+              {c.key === 'shop' && result.shop.options > 0 && ` ${result.shop.options === 1 ? 'One option keeps its own price' : `${result.shop.options} options keep their own prices`}; change those in Products.`}
+            </p>
+          )
+          : <p key={c.key} className={styles.failed}>{c.label} not changed. {result[c.key].error}</p>))}
+        <div className={styles.reviseActions}>
+          <button type="button" className={styles.ghostBtn} onClick={onClose}>Close</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.reprice}>
+      <header className={styles.repriceHead}>
+        <span className={styles.panelTitle}>Change price</span>
+        <span className={styles.reviseNote}>The price only. Title, photos, description and quantity stay as they are.</span>
+      </header>
+
+      {reading ? <p className={styles.reviseNote}>Reading the card</p> : (
+        <div className={styles.costLine}>
+          {baseCost != null || Number(cost) > 0 ? (
+            <>
+              <span>Cost <b data-num>{formatGbp(Number(cost) > 0 ? Number(cost) : baseCost)}</b></span>
+              <label className={styles.reviseField}>
+                <span>Try another cost</span>
+                <span className={styles.reviseControl}>
+                  <span className={styles.affix}>£</span>
+                  <input inputMode="decimal" value={cost} placeholder={baseCost != null ? baseCost.toFixed(2) : ''} onChange={(e) => setCost(e.target.value)} data-num aria-label="Try another cost, in pounds" />
+                </span>
+              </label>
+            </>
+          ) : (
+            <span className={styles.reviseNote}>{card ? 'No cost on this card yet, so only eBay\'s fee can be shown.' : 'Listed in Seller Hub, so there is no cost here. Type the new price; eBay\'s fee is shown.'}</span>
+          )}
+        </div>
+      )}
+
+      <div className={styles.priceRows}>
+        {channels.map((c) => {
+          const n = next(c);
+          const keepNow = c.m?.keepAt(c.now);
+          const keepNew = c.m && n != null ? c.m.keepAt(n) : null;
+          const fee = !c.m && c.key === 'ebay' && n != null ? ebayFeeAt(n, fees) : null;
+          const set = (v) => setTyped((t) => ({ ...t, [c.key]: v.toFixed(2) }));
+          return (
+            <div key={c.key} className={styles.priceRow}>
+              <span className={styles.priceChannel}>{c.label}</span>
+              <div className={styles.picks}>
+                {c.m?.floor != null && (
+                  <button type="button" className={styles.pick} aria-pressed={n === c.m.floor} onClick={() => set(c.m.floor)}>
+                    <span className={styles.pickLabel}>Lowest with your profit</span>
+                    <span data-num><b>{formatGbp(c.m.floor)}</b> keeps {formatGbp(c.m.keepAt(c.m.floor))}</span>
+                  </button>
+                )}
+                {c.now != null && (
+                  <button type="button" className={styles.pick} aria-pressed={!changed(c)} onClick={() => set(Number(c.now))}>
+                    <span className={styles.pickLabel}>As it is</span>
+                    <span data-num><b>{formatGbp(c.now)}</b>{keepNow != null && <> keeps {formatGbp(keepNow)}</>}</span>
+                  </button>
+                )}
+              </div>
+              <label className={styles.reviseField}>
+                <span>New price</span>
+                <span className={styles.reviseControl}>
+                  <span className={styles.affix}>£</span>
+                  <input inputMode="decimal" value={typed[c.key] ?? ''} onChange={(e) => setTyped((t) => ({ ...t, [c.key]: e.target.value }))} data-num aria-label={`New ${c.label} price, in pounds`} />
+                </span>
+              </label>
+              <span className={styles.keepAt} data-tone={keepNew == null ? undefined : keepNew < 0 ? 'negative' : 'positive'} data-num>
+                {keepNew != null ? (keepNew < 0 ? `Loses ${formatGbp(-keepNew)}` : `You keep ${formatGbp(keepNew)}`)
+                  : fee != null ? `eBay takes ${formatGbp(fee)}` : ''}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {failed && <p className={styles.failed}>{failed}</p>}
+      <div className={styles.reviseActions}>
+        <button type="button" className={styles.ghostBtn} onClick={onClose}>Cancel</button>
+        <button type="button" className={styles.primary} disabled={busy || !anyChange} onClick={send}>
+          {busy ? 'Changing' : channels.filter(changed).length > 1 ? 'Update both prices' : 'Update price'}
         </button>
       </div>
     </div>

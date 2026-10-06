@@ -227,7 +227,7 @@ export function useLiveListings(tenantId, { tab, show, find, sort, dir }) {
   // The card behind a listing published from the portal, read when its row is opened: Update on eBay needs it.
   const cardOf = useCallback(async (candidateId) => {
     const { data, error } = await supabase.from('candidates')
-      .select('id, title, image_url, listing, draft, ebay, margin')
+      .select('id, title, image_url, listing, draft, ebay, margin, entry, competition, sources:candidate_sources(id, supplier, fulfilment, url, unit_cost, landed_unit_cost, matched_on, note)')
       .eq('tenant_id', tenantId).eq('id', candidateId).maybeSingle();
     if (error) throw new Error(error.message);
     return data;
@@ -238,6 +238,30 @@ export function useLiveListings(tenantId, { tab, show, find, sort, dir }) {
       body: { tenant_id: tenantId, candidate_id: candidateId, update: true, price: Number(price), quantity: Number(quantity), package: parcel },
     });
     if (error || data?.error) throw new Error(data?.error ?? error.message);
+    return data;
+  }, [tenantId]);
+
+  /*
+   * New prices, the price alone, on eBay and her shop together (price-change). What eBay and the shop took goes onto
+   * the page's copy of the row straight away; a channel that refused keeps its old price and says why.
+   */
+  const changePrices = useCallback(async (r, { ebay = null, shop = null, cost = null, ebayChoice, shopChoice }) => {
+    const { data, error } = await supabase.functions.invoke('price-change', {
+      body: {
+        tenant_id: tenantId, listing_id: r.listing_id ?? null, product_id: shop != null ? r.product_id : null,
+        ebay_price: ebay, shop_price: shop, ebay_was: r.price, shop_was: r.shop_price, cost,
+        ebay_choice: ebayChoice, shop_choice: shopChoice,
+      },
+    });
+    if (error || data?.error) {
+      const said = error ? await error.context?.json?.().catch(() => null) : null;
+      throw new Error(data?.error ?? said?.error ?? error.message);
+    }
+    setAll((rows) => rows?.map((x) => (x.key === r.key ? {
+      ...x,
+      ...(data.ebay?.ok ? { price: data.ebay.price } : {}),
+      ...(data.shop?.ok ? { shop_price: data.shop.price } : {}),
+    } : x)) ?? rows);
     return data;
   }, [tenantId]);
 
@@ -255,7 +279,7 @@ export function useLiveListings(tenantId, { tab, show, find, sort, dir }) {
     total: list.length,
     more: rows.length < list.length,
     all: all ?? [],
-    counts, facets, sold, loadMore, reload: read, addToShop, cardOf, updateOnEbay, readLive,
+    counts, facets, sold, loadMore, reload: read, addToShop, cardOf, updateOnEbay, readLive, changePrices,
   };
 }
 

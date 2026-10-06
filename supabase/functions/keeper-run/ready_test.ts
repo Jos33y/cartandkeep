@@ -58,6 +58,7 @@ function fakeDb(cards: Json[]) {
       async maybeSingle() { return { data: rows()[0] ? structuredClone(rows()[0]) : null, error: null }; },
       then(ok: (v: Json) => unknown) {
         if (patch && table === 'keeper_jobs') progress.push(patch.result);
+        if (patch && table === 'candidate_sources') for (const c of cards) for (const x of c.sources ?? []) if (filters.every(([k, v]) => k === 'tenant_id' || x[k] === v)) Object.assign(x, patch);
         return Promise.resolve({ data: structuredClone(rows()), error: null }).then(ok);
       },
     };
@@ -354,4 +355,139 @@ Deno.test('a shop card or one whose listing she chose is not matched', async () 
   const f = fakeCalls(cards);
   await readyBatch(db.client, [{ id: 'J1', candidate_id: 'C1' }, { id: 'J2', candidate_id: 'C2' }], deps(f.call));
   assertEquals(f.calls.filter((c) => c.fn === 'ebay-match').length, 0);
+});
+
+Deno.test('what Keeper learned is used: the writing reads it, a brand\'s catalogue photos come first, the card says which', async () => {
+  const cards = [card({ supplier_read: reading('2026-10-04T08:00:00Z', { facts: { ...reading('x').facts, brand: 'LEGO' } }) })];
+  const db = fakeDb(cards);
+  const f = fakeCalls(cards, {
+    'photo-check': () => {
+      cards[0].photo_checks = { version: 2, product: null, images: [], others: [], catalogue: { epid: 'E1', title: 'LEGO', images: ['https://i.ebayimg.com/cat/1.jpg'] } };
+      return { photo_checks: cards[0].photo_checks };
+    },
+  });
+  const lessons = [
+    { key: 'pack', scope_kind: 'all', scope: '', area: 'writing', action: 'none', lesson: 'Pack size in the title.', evidence: 2, against: 0 },
+    { key: 'lego', scope_kind: 'brand', scope: 'LEGO', area: 'photos', action: 'catalogue_photos_first', lesson: 'LEGO: catalogue photos first.', evidence: 3, against: 0 },
+  ];
+  const out = await readyOne(db.client, { id: 'J1', candidate_id: 'C1' }, { ...deps(f.call), lessons });
+  const compose = f.calls.filter((c) => c.fn === 'ebay-compose');
+  assert(compose.every((c) => c.body.lessons === '- Pack size in the title.'), JSON.stringify(compose.map((c) => c.body.lessons)));
+  assertEquals(f.calls.filter((c) => c.fn === 'photo-check').length, 1);
+  assertEquals(cards[0].draft.images, ['https://i.ebayimg.com/cat/1.jpg']);
+  assertEquals((out as Json).result.lessons, ['lego', 'pack']);
+});
+
+Deno.test('Amazon\'s price becomes the cost when Keeper\'s Amazon supplier has none; a cost she set is left', async () => {
+  const cards = [
+    card({ id: 'C1', supplier_read: reading('2026-10-04T08:00:00Z', { source_id: 'S1', offer: { price: 25, stock: 'in', sold_by: 'Amazon', fulfilled_by: 'Amazon' } }),
+      sources: [{ id: 'S1', url: 'https://www.amazon.co.uk/dp/B0LAMP0001', unit_cost: null, cost_by: 'amazon', fulfilment: 'stock', status: 'unavailable' }] }),
+    card({ id: 'C2', supplier_read: reading('2026-10-04T08:00:00Z', { offer: { price: 25, stock: 'in' } }),
+      sources: [{ id: 'S2', url: 'https://www.amazon.co.uk/dp/B0LAMP0001', unit_cost: 19.5, cost_by: 'her', fulfilment: 'stock' }] }),
+  ];
+  const db = fakeDb(cards);
+  const f = fakeCalls(cards);
+  const [one] = await readyBatch(db.client, [{ id: 'J1', candidate_id: 'C1' }, { id: 'J2', candidate_id: 'C2' }], deps(f.call));
+  assertEquals([cards[0].sources[0].unit_cost, cards[0].sources[0].status], [25, 'quoted']);
+  assert((one as Json).result.done.includes("Amazon's price as the cost (£25.00)"), JSON.stringify((one as Json).result.done));
+  assertEquals(cards[1].sources[0].unit_cost, 19.5);
+});
+
+Deno.test('credit running out stops the card where it is: no note filed against it, the step kept for Carry on', async () => {
+  const LOW = 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.';
+  const cards = [card({ supplier_read: reading('2026-10-04T08:00:00Z') })];
+  const db = fakeDb(cards);
+  const f = fakeCalls(cards, { 'ebay-compose': () => ({ error: LOW }) });
+  const out = await readyOne(db.client, { id: 'J1', candidate_id: 'C1' }, deps(f.call));
+  assert('credit' in out, JSON.stringify(out));
+  assertEquals([(out as Json).service, (out as Json).credit], ['Claude', LOW]);
+  const p = (out as Json).result.progress;
+  assertEquals(p.step, 3);
+  assert(!p.short.some((s: string) => /credit/i.test(s)), JSON.stringify(p.short));
+  assert(!('tray' in (out as Json).result), 'not put in a tray');
+});
+
+Deno.test('photos refused for want of credit, or Apify out of credit: the same stop, named for whose credit', async () => {
+  const cards = [card({ supplier_read: reading('2026-10-04T08:00:00Z') }), card({ id: 'C2' })];
+  const db = fakeDb(cards);
+  const f = fakeCalls(cards, {
+    'photo-check': () => ({ error: 'Your credit balance is too low to access the Anthropic API.' }),
+    'supplier-read': () => ({ error: 'Monthly usage hard limit exceeded' }),
+  });
+  const [a, b] = await readyBatch(db.client, [{ id: 'J1', candidate_id: 'C1' }, { id: 'J2', candidate_id: 'C2' }], deps(f.call));
+  assertEquals([(a as Json).service, (b as Json).service], ['Claude', 'Apify']);
+});
+
+Deno.test('a busy moment is not a credit stop: still an ordinary error, tried again', async () => {
+  const cards = [card({ supplier_read: reading('2026-10-04T08:00:00Z') })];
+  const db = fakeDb(cards);
+  const f = fakeCalls(cards, { 'photo-check': () => ({ error: 'Rate limited: overloaded, try again' }) });
+  const out = await readyOne(db.client, { id: 'J1', candidate_id: 'C1' }, deps(f.call));
+  assert('error' in out && !('credit' in out), JSON.stringify(out));
+});
+
+Deno.test('an eBay card with no cost she pays is not ready: it needs what she pays, whatever else is in', async () => {
+  const cards = [card({ supplier_read: reading('2026-10-04T08:00:00Z'), sources: [{ id: 'S1', url: 'https://www.amazon.co.uk/dp/B0LAMP0001', unit_cost: null }] })];
+  const db = fakeDb(cards);
+  const f = fakeCalls(cards, { 'supplier-read': () => ({ read: 1 }) });
+  // Amazon showed no price either (no Buy Box), so nothing can stand in for the cost.
+  cards[0].supplier_read.offer = { price: null, stock: 'unknown' };
+  const out = await readyOne(db.client, { id: 'J1', candidate_id: 'C1' }, deps(f.call));
+  const r = (out as Json).result;
+  assertEquals(r.tray, 'choose');
+  assert(r.need.includes('what you pay for it: no cost on the card yet'), JSON.stringify(r.need));
+});
+
+Deno.test('costKnown: a supplier price, the shelf while it is still her product, a shop card cost', async () => {
+  const { costKnown } = await import('./ready.ts');
+  assertEquals(costKnown({ margin: { shelf: { price: 12 } }, draft: {} }, []), true);
+  assertEquals(costKnown({ margin: { shelf: { price: 12 } }, draft: { entry: { new_product: true } } }, []), false);
+  assertEquals(costKnown({ margin: { shelf: { price: 12 }, match: { level: 'different_product' } }, draft: {} }, []), false);
+  assertEquals(costKnown({ margin: { channel: 'store', cost: 50.4 }, draft: {} }, []), true);
+  assertEquals(costKnown({ margin: {}, draft: { entry: { new_product: true } } }, [{ landed_unit_cost: 39.99 }]), true);
+  assertEquals(costKnown({ margin: {}, draft: {} }, [{ landed_unit_cost: 10, matched_on: 'shelf' }]), false);
+});
+
+Deno.test('the listing that sells is kept when Keepr finds the same product unsold', async () => {
+  const cards = [card({ supplier_read: reading('2026-10-04T08:00:00Z') })];
+  const db = fakeDb(cards);
+  const f = fakeCalls(cards, {
+    'ebay-match': () => ({ auto: 0.95, already: false, keep_proved: { item_id: 'v1|5|0', title: 'Salus RT310RF Kit', price: 50.62 },
+      best: { entry: { item_id: 'v1|9|0', title: 'Salus RT310RF Wireless Kit, White', sure: 0.97, proved: false }, new_product: false } }),
+  });
+  const out = await readyOne(db.client, { id: 'J1', candidate_id: 'C1' }, deps(f.call));
+  const r = (out as Json).result;
+  assert(!cards[0].draft.entry, 'not moved');
+  assert(r.short.some((s: string) => s.startsWith('Kept the eBay listing that sells (Salus RT310RF Kit)')), JSON.stringify(r.short));
+});
+
+Deno.test('the cost is what the functions reported, not the estimate, where they report it', async () => {
+  const cards = [card({ supplier_read: reading('2026-10-04T08:00:00Z') })];
+  const db = fakeDb(cards);
+  const f = fakeCalls(cards);
+  const reported: Call = async (fn, body, headers) => {
+    const out = await f.call(fn, body, headers);
+    return fn === 'supplier-read' ? out : { ...out, _usage: { input: 10_000, output: 500, cache_write: 0, cache_read: 0 } };
+  };
+  const out = await readyOne(db.client, { id: 'J1', candidate_id: 'C1' }, { ...deps(reported), gbpPerUsd: 0.75 });
+  // Each reported call: (10,000 x $3 + 500 x $15) / 1M = $0.0375, about 2.8p.
+  const calls = f.calls.filter((x) => x.fn !== 'supplier-read').length;
+  const want = Math.round(calls * 2.8125 * 1000) / 1000;
+  if (Math.abs((out as Json).cost - want) > 0.01) throw new Error(`cost ${(out as Json).cost}, want ${want} for ${calls} calls`);
+});
+
+Deno.test('two Amazon products on one card: nothing written, she keeps the one she sells', async () => {
+  const c = card();
+  c.sources = [
+    { id: 'S1', url: 'https://www.amazon.co.uk/dp/B0FRSP6CDF/', landed_unit_cost: 8.97, unit_cost: 8.97, fulfilment: 'stock' },
+    { id: 'S2', url: 'https://www.amazon.co.uk/dp/B0C34HDDK9', landed_unit_cost: 14.99, unit_cost: 14.99, fulfilment: 'stock', cost_by: 'amazon' },
+  ];
+  const cards = [c];
+  const db = fakeDb(cards);
+  const f = fakeCalls(cards);
+  const out = await readyOne(db.client, { id: 'J1', candidate_id: 'C1', run_id: 'R1' }, deps(f.call));
+  const r = (out as Json).result;
+  assertEquals(r.tray, 'choose');
+  assert(/Two Amazon products/.test(r.line), r.line);
+  assertEquals(f.calls.length, 0);
 });

@@ -13,3 +13,4 @@ export { toShop } from './templates/toShop.ts';
 export { stock } from './templates/stock.ts';
 export { wants } from './templates/wants.ts';
 export { pull } from './templates/pull.ts';
+export { type PriceAlert, price } from './templates/price.ts';

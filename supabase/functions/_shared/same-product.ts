@@ -3,6 +3,7 @@
 
 import { askTool } from './claude.ts';
 import { matchScore } from './match.ts';
+import { forLooking } from './look-size.ts';
 
 type Json = Record<string, any>;
 
@@ -19,7 +20,7 @@ How sure, as a whole number from 0 to 100:
 - Under 50 when it is a different product, a different pack, an accessory for it, or a bundle with other things.
 A bundle, a refill, a spare part or a listing "for" or "compatible with" the product is never the same product.
 Photos are evidence like the text. Never raise a score because a listing sells well.
-Say why in one short plain sentence each, in British English.`;
+Say why in eight words or fewer each, in British English.`;
 
 const TOOL = {
   name: 'judge',
@@ -76,11 +77,14 @@ export function settle(product: Json, listings: Json[], said: Json[]): Json[] {
   }).sort((a, b) => b.sure - a.sure || Number(b.entry.proved) - Number(a.entry.proved) || (b.entry.per_day ?? 0) - (a.entry.per_day ?? 0));
 }
 
-export async function judgeSame(key: string, product: Json, listings: Json[]): Promise<Json[]> {
+export async function judgeSame(key: string, product: Json, listings: Json[], lessons: string | null = null): Promise<Json[]> {
   if (!listings.length) return [];
-  const images = [product.image, ...listings.map((l) => l.entry.image_url)].filter((u) => typeof u === 'string' && /^https:\/\//.test(u));
+  const images = [product.image, ...listings.map((l) => l.entry.image_url)].filter((u) => typeof u === 'string' && /^https:\/\//.test(u))
+    .map((u) => forLooking(u, 500) ?? u);
   const text = `The supplier product:\n${describeProduct(product)}\n\n${listings.map((l, i) => `Listing ${i + 1}\n${describeListing(l)}`).join('\n\n')}`
-    + (images.length ? `\n\nPhotos, in order: ${product.image ? 'the supplier product, then ' : ''}each listing that has one.` : '');
+    + (images.length ? `\n\nPhotos, in order: ${product.image ? 'the supplier product, then ' : ''}each listing that has one.` : '')
+    // What Keeper has learned about matching her cards (keeper_lessons, area match): how she judges, never facts.
+    + (lessons ? `\n\nWHAT KEEPER HAS LEARNED about matching her cards (follow where it fits; never facts about this product):\n${String(lessons).slice(0, 1500)}` : '');
   const ask = async (withImages: boolean) => {
     const { input } = await askTool(key, {
       system: SAME_SYSTEM,
@@ -93,11 +97,16 @@ export async function judgeSame(key: string, product: Json, listings: Json[]): P
     });
     return (input?.verdicts ?? []) as Json[];
   };
+  // The words first (4 October: photos were most of the bill). Only when they leave a listing in doubt, sure enough
+  // to matter but not enough to move the card, is it asked again with the photos.
+  const words = await ask(false);
+  const unsure = words.some((v) => Number(v?.sure) >= 50 && Number(v?.sure) < 95);
+  if (!images.length || !unsure) return words;
   try {
-    return await ask(images.length > 0);
+    return await ask(true);
   } catch (e) {
-    // A photo the model cannot fetch should not cost the judgement: ask again on the text.
-    if (images.length && /image|media|url|fetch/i.test(e instanceof Error ? e.message : String(e))) return ask(false);
+    // A photo the model cannot fetch should not cost the judgement: the words stand.
+    if (/image|media|url|fetch/i.test(e instanceof Error ? e.message : String(e))) return words;
     throw e;
   }
 }

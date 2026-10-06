@@ -76,15 +76,13 @@
 
 .grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   gap: var(--s-4);
   align-items: start;
 }
 
-.wide { grid-column: 1 / -1; }
-
-/* Tasks down the left, money and eBay stacked beside it. */
-.tasks { grid-row: span 2; }
+/* Each column stacks its own cards, so a long one never pushes the other column down. */
+.col { display: flex; flex-direction: column; gap: var(--s-4); min-width: 0; }
 
 .taskList { display: flex; flex-direction: column; gap: var(--s-2); }
 
@@ -118,7 +116,8 @@
 .taskGlyph { width: 17px; height: 17px; }
 .taskText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .taskTitle { font-size: var(--t-body); font-weight: 500; color: var(--c-ink); }
-.taskBody { font-size: var(--t-caption); color: var(--c-ink-faint); line-height: var(--lh-snug); }
+.taskBody { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-caption); color: var(--c-ink-faint); line-height: var(--lh-snug); }
+@media (max-width: 640px) { .taskBody { white-space: normal; } }
 
 .taskCta {
   display: inline-flex;
@@ -197,7 +196,6 @@
 
 @media (max-width: 900px) {
   .grid { grid-template-columns: 1fr; }
-  .tasks { grid-row: auto; }
   .pipeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stage:nth-child(3) { border-left: none; }
   .stage:nth-child(n + 3) { border-top: 1px solid var(--c-line); }
@@ -227,11 +225,18 @@
 .sparkAxis > span:nth-child(2) { text-align: center; }
 @media (max-width: 420px) { .sparkAxis > span:nth-child(2) { display: none; } }
 
-/* Her Amazon suppliers this morning: each card with what changed, worst first. */
-.suppliers { scroll-margin-top: 88px; }
-.supList { display: flex; flex-direction: column; gap: var(--s-2); margin: 0; padding: 0; list-style: none; }
-.supItem { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: var(--s-3); padding: var(--s-2) var(--s-3); border-left: 3px solid var(--c-warning); border-radius: var(--r-sm); background: var(--c-warning-wash); }
-.supItem[data-level='stop'] { border-left-color: var(--c-negative); background: var(--c-negative-wash); }
-.supText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.supTitle { font-size: var(--t-caption); font-weight: 600; color: var(--c-ink); overflow-wrap: anywhere; }
-.supWarn { font-size: var(--t-micro); line-height: var(--lh-snug); color: var(--c-ink-soft); }
+/* Alerts: the worst three, the rest a click away. */
+.alertList { margin: 0; padding: 0; }
+.quiet { display: flex; align-items: center; gap: var(--s-2); font-size: var(--t-caption); color: var(--c-ink-soft); }
+.quietIcon { width: 15px; height: 15px; flex-shrink: 0; color: var(--c-positive); }
+.seeAll {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: var(--s-3);
+  font-size: var(--t-caption);
+  font-weight: 600;
+  color: var(--c-action-text);
+  text-decoration: none;
+}
+.seeAll:hover .taskCaret { transform: rotate(-90deg) translateY(2px); }

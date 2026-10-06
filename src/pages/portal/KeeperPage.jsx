@@ -56,7 +56,7 @@ const TASKS = {
     failed: 'Could not read it',
     one: 'A candidate',
     title: ({ live, run, waiting, agent }) => (live ? 'Looking up your candidates on Amazon' : run && !waiting ? `${agent} has looked up your candidates` : 'Find your candidates on Amazon'),
-    sub: 'Each candidate with a barcode is searched on Amazon UK. Approved when the search finds it in the same pack. Who sells it, the stock and the delivery are saved on the card for you to decide in Approved.',
+    sub: 'Each eBay card with a barcode is searched on Amazon UK; LEGO is left out. Approved when the search finds it in the same pack. Who sells it, the stock and the delivery are saved on the card for you to decide in Approved.',
     stop: (agent) => `Stop? Candidates already looked up keep what ${agent} found.`,
     paused: (agent) => `Paused. ${agent} carries on from the next candidate when you press Carry on.`,
     next: 'Picking up the next candidate.',
@@ -158,6 +158,7 @@ export function KeeperPage({ task = 'shop_check' }) {
         ? <Floor t={t} agent={agent} run={run} jobs={jobs} products={products} totals={totals} onSet={k.set} studio={studio} onUndo={sourcing ? k.undo : null} />
         : readying ? (
           <>
+            <Lessons tenantId={tenant?.id} agent={agent} />
             {run && <ReadyReport agent={agent} run={run} jobs={jobs} products={products} totals={totals} studio={studio} onSend={k.send} />}
             <ReadyStart agent={agent} last={run} />
           </>
@@ -275,7 +276,8 @@ function Floor({ t: task, agent, run, jobs, products, totals, onSet, studio, onU
       {run.state === 'paused' && (
         <p className={styles.notice} role="status">
           <Icon name="IconInfo" className={styles.noticeIcon} />
-          {run.paused_reason && studio ? run.paused_reason : task.paused(agent)}
+          {/* A reason written for her (credit ran out, keeper-run/work.ts) starts "Paused:"; the rest are the studio's. */}
+          {run.paused_reason && (studio || run.paused_reason.startsWith('Paused:')) ? run.paused_reason : task.paused(agent)}
         </p>
       )}
 
@@ -751,6 +753,67 @@ function ReadyReport({ agent, run, jobs, products, totals, studio, onSend }) {
   );
 }
 
+/*
+ * What Keeper has learned (0140, keeper-run/review.ts): from its own work, from eBay's refusals and from her changes.
+ * In use once two cards or more back it; she can remove any, and a removed lesson stays removed.
+ */
+const LESSON_FROM = { keeper: 'From its own work', ebay: 'From eBay', her: 'From your changes' };
+function Lessons({ tenantId, agent }) {
+  const [rows, setRows] = useState(null);
+  const [busy, setBusy] = useState(null);
+  const [all, setAll] = useState(false);
+  useEffect(() => {
+    if (!tenantId) return;
+    supabase.from('keeper_lessons').select('id, scope_kind, scope, area, lesson, source, evidence, against, removed_at, updated_at')
+      .eq('tenant_id', tenantId).is('removed_at', null).order('evidence', { ascending: false }).limit(100)
+      .then(({ data }) => setRows(data ?? []));
+  }, [tenantId]);
+  if (!rows || !rows.length) return null;
+  const inUse = rows.filter((l) => l.evidence >= 2 && l.evidence > l.against);
+  const forming = rows.filter((l) => !inUse.includes(l));
+  const shown = all ? [...inUse, ...forming] : inUse;
+
+  async function remove(id) {
+    setBusy(id);
+    const { error } = await supabase.rpc('keeper_lesson_remove', { p_id: id });
+    setBusy(null);
+    if (!error) setRows((r) => r.filter((l) => l.id !== id));
+  }
+
+  return (
+    <section className={styles.log} aria-label={`What ${agent} has learned`}>
+      <h2 className={styles.colHead}>
+        What {agent} has learned
+        {forming.length > 0 && (
+          <button type="button" className={styles.link} onClick={() => setAll((v) => !v)}>
+            {all ? 'Only the ones in use' : `And ${n(forming.length)} seen once, not used yet`}
+          </button>
+        )}
+      </h2>
+      {!shown.length && <p className={styles.more}>Nothing in use yet. A lesson is used once two cards show it.</p>}
+      <ol className={styles.lines}>
+        {shown.map((l) => (
+          <li key={l.id} className={styles.line}>
+            <div className={styles.lineText}>
+              <p className={styles.lineHead}>
+                <span className={styles.lineName}>{l.lesson}</span>
+                <span className={styles.chip}>{l.scope_kind === 'all' ? 'Every card' : l.scope}</span>
+              </p>
+              <p className={styles.lineWhy}>
+                {LESSON_FROM[l.source] ?? 'Learned'}, seen on {plural(l.evidence, 'card')}{l.against ? `, ${n(l.against)} against` : ''}
+                {inUse.includes(l) ? '. In use.' : '. Not used until a second card shows it.'}
+              </p>
+            </div>
+            <button type="button" className={styles.link} disabled={busy === l.id} onClick={() => remove(l.id)}>
+              {busy === l.id ? 'Removing' : 'Remove'}
+            </button>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
 // Nothing to start here: the cards are picked in Approved, where the market and the stock are read.
 function ReadyStart({ agent, last }) {
   return (
@@ -762,7 +825,7 @@ function ReadyStart({ agent, last }) {
         <h2 className={styles.startTitle}>{last ? 'Send more cards from Approved' : 'Cards are sent from Approved'}</h2>
         <p className={styles.startBody}>
           In Approved, {agent} offers the cards it can get ready by itself, eBay cards first: still to list on eBay, up to
-          25% over the market, in stock on Amazon and the pack confirmed. Then the cards for your shop, ready to add as
+          100% over the market, in stock on Amazon and the pack confirmed. Then the cards for your shop, ready to add as
           drafts. Or tick any cards and choose Get ready with {agent}. Each card is worked on here: Amazon&apos;s page read
           again when its reading is more than two days old, photos checked, the title and description written, the
           parcel from Amazon&apos;s package, and eBay&apos;s category and item details for eBay cards. About 5p a card.
@@ -849,7 +912,7 @@ function SourceStart({ agent, waiting, last, onStart, studio }) {
     return (
       <p className={styles.allDone}>
         <Icon name="IconCheck" className={styles.noticeIcon} />
-        Every candidate with a barcode has been looked up. The ones left in Candidates wait for the full check.
+        Every eBay card with a barcode has been looked up (LEGO is left out). The ones left in Candidates wait for the full check.
       </p>
     );
   }
@@ -883,7 +946,7 @@ function SourceStart({ agent, waiting, last, onStart, studio }) {
       </div>
       <div className={styles.startText}>
         <h2 className={styles.startTitle}>
-          {last ? `${plural(waiting, 'candidate')} with a barcode left to look up` : `${plural(waiting, 'candidate')} with a barcode to look up`}
+          {last ? `${plural(waiting, 'eBay card')} with a barcode left to look up` : `${plural(waiting, 'eBay card')} with a barcode to look up`}
         </h2>
         <p className={styles.startBody}>
           {agent} searches Amazon UK for each barcode. One result is the product; with more than one, the title picks it.
@@ -901,7 +964,7 @@ function SourceStart({ agent, waiting, last, onStart, studio }) {
               <button type="button" aria-pressed={take === null} onClick={() => setBatch(null)}>All {n(waiting)}</button>
             </div>
             <span className={styles.fieldHint} id="source-batch-hint">
-              {take ? `The ${n(take)} that would make the most a month. The other ${n(waiting - take)} wait for the next look.` : 'Every candidate with a barcode, the ones that would make the most a month first.'}
+              {take ? `The ${n(take)} that would make the most a month. The other ${n(waiting - take)} wait for the next look.` : 'Every eBay card with a barcode, LEGO left out, the ones that would make the most a month first.'}
             </span>
           </div>
         )}

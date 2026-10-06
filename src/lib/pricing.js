@@ -55,6 +55,23 @@ export function bandFor(grams, bands) {
 export const storeBandFor = (grams) => bandFor(grams, STORE_BANDS);
 export const ebayBandFor = (grams) => bandFor(grams, EBAY_BANDS);
 
+/*
+ * The card's own parcel, when it has a weight, picks the postage band (Joseey, 4 October): Keeper read it from her
+ * supplier's page or she typed it, so it beats the band the research guessed from a name, up or down. Over 20kg is
+ * courier only, costed at the 20kg price as the least it will cost. No weight: the margin as the research costed it.
+ */
+export function atParcel(m, kg, store = false) {
+  const grams = Number(kg) * 1000;
+  if (!m || !(grams > 0)) return m;
+  const bands = store ? STORE_BANDS : EBAY_BANDS;
+  const b = bandFor(grams, bands)
+    ?? { ...bands[bands.length - 1], key: 'courier', label: 'Courier, over 20kg', grams, basis: 'courier' };
+  const out = { ...m, postage: b.postage, packaging: b.packaging, postage_from_parcel: true };
+  return store
+    ? { ...out, postage_band: { ...b, from: 'parcel' } }
+    : { ...out, band: b.key, band_label: b.label, headroom_band: b.key, postage_basis: b.basis === 'courier' ? 'over 20kg' : 'weight', grams };
+}
+
 // A channel's costs as two numbers: the share of the price taken, and the pounds taken per order, goods aside.
 export function storeCosts({ postage, packaging, returns = STORE.returns, cardPct = STORE.cardPct, cardFixed = STORE.cardFixed }) {
   return { pct: cardPct, fixed: round2(cardFixed + Number(postage ?? 0) + Number(packaging ?? 0) + Number(returns ?? 0)) };

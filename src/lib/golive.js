@@ -1,6 +1,7 @@
 import { SHOP_NAME_LIST, channelsOf, shopName } from './assess.js';
 import { freshChecks, isHers, noShopPhotos, pageOf, passedPhotos, sourceOf } from './photos.js';
 import { listingOf, swappedTo } from './product.js';
+import { isBladed } from './blades.js';
 
 /*
  * What stands between an approved card and going live, per channel. One place, so the row, the checklist, the
@@ -70,12 +71,15 @@ const PARCELS = {
 };
 
 /*
- * How far over the market a price can sit and still count as fine (Joseey, 4 October: "lets use 25% thats safer"). Many
- * eBay listings sell over the market on a strong title, photos and free postage. Over this, the card needs a look.
+ * How far over the market a price can sit and still count as fine. 25% at first (4 October), then 100% the same day
+ * (Joseey): "regardless of the price a product is not too expensive even at 50% over or 100% over... we can list to
+ * even know the product analytics... then we will work on the price". Keepr's match brings many cards to the real
+ * product's market, and a cheaper cost found later moves the price on eBay and the shop. Over this, it needs a look.
  */
-export const OVER_OK = 0.25;
+export const OVER_OK = 1;
 export const withinOver = (over, ref) => over != null && ref > 0 && over <= ref * OVER_OK + 0.005;
 const pctOver = (over, ref) => `${Math.round((over / ref) * 100)}%`;
+export const OVER_OK_TEXT = `${Math.round(OVER_OK * 100)}%`;
 
 // Where a price sits in the shelf product's own eBay market, once she chose to list it as it is. In the market up to
 // the upper quartile of what the same product asks; over that, by how much. Null without that market.
@@ -187,15 +191,19 @@ export function checksFor(channel, a, row, draft) {
       ? (own.inMarket
         ? { key: 'price', hard: false, ok: true, text: `In its own market, median £${own.median.toFixed(2)} of ${own.n}`, to: 'price' }
         : withinOver(own.over, own.ref)
-          ? { key: 'price', hard: false, ok: true, text: `£${own.over.toFixed(2)} over its own market at £${own.ref.toFixed(2)}, ${pctOver(own.over, own.ref)}, within 25%`, to: 'price' }
+          ? { key: 'price', hard: false, ok: true, text: `£${own.over.toFixed(2)} over its own market at £${own.ref.toFixed(2)}, ${pctOver(own.over, own.ref)}, within ${OVER_OK_TEXT}`, to: 'price' }
           : { key: 'price', hard: false, ok: false, text: `£${own.over.toFixed(2)} over its own market at £${own.ref.toFixed(2)}, ${pctOver(own.over, own.ref)}`, fix: 'Match the market', match: own.median, to: 'price' })
       : p && !p.inMarket
         ? (withinOver(p.over, p.ref)
-          ? { key: 'price', hard: false, ok: true, text: `£${p.over.toFixed(2)} over the market at £${p.ref.toFixed(2)}, ${pctOver(p.over, p.ref)}, within 25%`, to: 'price' }
+          ? { key: 'price', hard: false, ok: true, text: `£${p.over.toFixed(2)} over the market at £${p.ref.toFixed(2)}, ${pctOver(p.over, p.ref)}, within ${OVER_OK_TEXT}`, to: 'price' }
           : { key: 'price', hard: false, ok: false, text: `£${p.over.toFixed(2)} over the market at £${p.ref.toFixed(2)}, ${pctOver(p.over, p.ref)}`, fix: 'Match the market', match: p.ref, to: 'price' })
         : { key: 'price', hard: false, ok: Boolean(p), text: p ? 'In the market' : 'No market price', to: 'price' });
     out.push(a.keep == null
       ? { key: 'profit', hard: true, ok: false, text: 'No cost, so nothing to keep', fix: 'Add a supplier', to: 'buy' }
+      // Priced from what the market leaves, not from what she pays (the Salus, 4 October): what it keeps is a guess,
+      // so it is not ready. Not hard: she can still list it, knowing.
+      : a.costBasis === 'market'
+        ? { key: 'profit', hard: false, ok: false, text: `No cost yet: keeps £${a.keep.toFixed(2)} only if it costs you under £${Number(a.assumed).toFixed(2)}`, fix: 'Add what you pay', to: 'buy' }
       : a.keep < 0
         ? { key: 'profit', hard: true, ok: false, text: `Loses £${Math.abs(a.keep).toFixed(2)} a sale`, fix: 'Raise the price', to: 'price' }
         : a.target != null && a.keep < a.target
@@ -264,7 +272,12 @@ export function goLive(views, row, draft) {
   const dupe = row.duplicate_of
     ? [{ key: 'dupe', hard: true, ok: false, text: `Approved twice: also "${row.duplicate_of.title}"`, fix: 'Show both', dupe: true }]
     : [];
-  const checks = Object.fromEntries(ch.left.map((c) => [c, [...dupe, ...checksFor(c, views[c], row, draft)]]));
+  // A blade, knife or cutting tool holds both channels: eBay UK refuses them without age-checked delivery, and her shop
+  // has no age check at the door either (Joseey, 6 October: "shouldn't allow blades, knives or sharp cutting objects").
+  const blade = isBladed(row, draft)
+    ? [{ key: 'blade', hard: true, ok: false, text: 'A blade or cutting tool: not sold on eBay or your shop. Reject it.' }]
+    : [];
+  const checks = Object.fromEntries(ch.left.map((c) => [c, [...blade, ...dupe, ...checksFor(c, views[c], row, draft)]]));
   const can = Object.fromEntries(ch.left.map((c) => [c, checks[c].every((x) => !x.hard || x.ok)]));
   // Ready to go live on a channel: every check on it met. The card is Ready when at least one channel is, so a card
   // her shop can take now is not held back by eBay, and the other way round. `complete` is every channel left.

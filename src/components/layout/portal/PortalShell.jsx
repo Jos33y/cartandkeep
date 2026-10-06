@@ -7,6 +7,7 @@ import { PortalTopbar } from '@components/layout/portal/PortalTopbar';
 import { CommandPalette } from '@components/layout/portal/CommandPalette';
 import { useAccount } from '@hooks/useAccount';
 import { useAwaitingCount } from '@hooks/useThreads';
+import { useAlertCount } from '@hooks/useAlerts';
 import { useRecordVisit, screenFor } from '@hooks/usePortalVisits';
 import { loadTenant } from '@lib/tenant';
 import { useNoIndex } from '@hooks/useNoIndex';
@@ -38,7 +39,7 @@ export function PortalShell({ children }) {
   useEffect(() => {
     loadTenant().then((t) => { setTenantId(t?.id ?? null); setAgentName(t?.store?.agent?.name || null); });
   }, []);
-  const badges = { awaiting: useAwaitingCount(tenantId) };
+  const badges = { awaiting: useAwaitingCount(tenantId), alerts: useAlertCount(tenantId) };
   const previousAt = useRecordVisit(tenantId, pathname);
 
   const openSearch = useCallback(() => {
@@ -136,7 +137,7 @@ export function PortalShell({ children }) {
                   {item.badge && badges[item.badge] > 0 && (
                     <span className={styles.badge} data-num>
                       {badges[item.badge]}
-                      <span className={styles.srOnly}> waiting on you</span>
+                      <span className={styles.srOnly}>{item.badge === 'alerts' ? ' alerts' : ' waiting on you'}</span>
                     </span>
                   )}
                 </NavLink>

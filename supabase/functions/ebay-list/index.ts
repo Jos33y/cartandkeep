@@ -14,6 +14,7 @@ import {
 } from '../_shared/ebay/listing.ts';
 import { aspectFacts, fillAspects } from '../_shared/aspects.ts';
 import { marketFor } from '../_shared/ebay/market.ts';
+import { metered } from '../_shared/usage.ts';
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -42,7 +43,8 @@ async function allowed(req: Request, tenantId: string) {
   return !error && data === true;
 }
 
-Deno.serve(async (req) => {
+// Its Claude use handed back to Keeper in the x-claude-usage header (usage.ts).
+Deno.serve(metered(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
@@ -126,7 +128,10 @@ Deno.serve(async (req) => {
       const wanted = [...preview.missing.map((a) => ({ ...a, required: true })), ...preview.recommended.map((a) => ({ ...a, required: false }))];
       if (fill && wanted.length) {
         try {
-          filled = await fillAspects(env('ANTHROPIC_API_KEY'), aspectFacts(c, { ...(c.draft ?? {}), title: body.title ?? c.draft?.title, description: body.description ?? c.draft?.description }, preview.category?.name ?? null), wanted);
+          const facts = aspectFacts(c, { ...(c.draft ?? {}), title: body.title ?? c.draft?.title, description: body.description ?? c.draft?.description }, preview.category?.name ?? null);
+          // What Keeper has learned about item details, when Keeper asks (keeper-run/ready.ts).
+          const learned = body.lessons ? `\nWhat Keeper has learned (follow where it fits): ${String(body.lessons).slice(0, 1500)}` : '';
+          filled = await fillAspects(env('ANTHROPIC_API_KEY'), facts + learned, wanted);
         } catch (e) {
           fillError = e instanceof Error ? e.message : String(e);
         }
@@ -180,4 +185,4 @@ Deno.serve(async (req) => {
     const status = err instanceof EbayError && err.status >= 400 && err.status < 500 ? 400 : 500;
     return json({ error: err instanceof Error ? err.message : String(err) }, status);
   }
-});
+}));

@@ -196,3 +196,27 @@ export function sizeAspects(names: string[], size: ReturnType<typeof productSize
   }
   return out;
 }
+
+/*
+ * A size that cannot be right for the product is left out (4 October: a 150ml tan gel at 165 x 51 x 51cm, read in the
+ * wrong unit, and an umbrella at its open size, 110cm each way at 500g). Read against the weight: under 2g a litre of
+ * parcel is lighter than an empty box of foam (a 300g lampshade in a 40cm box is about 5g), so the size is wrong, not
+ * the product. With no weight, the size the title
+ * gives ("150ml", "2kg") stands in for one, only for this test. The weight is kept; the postage is costed by it.
+ */
+export function sensibleParcel(p: Parcel | null, title: unknown): Parcel | null {
+  if (!p || !(p.length_cm && p.width_cm && p.height_cm)) return p;
+  const litres = (p.length_cm * p.width_cm * p.height_cm) / 1000;
+  const m = /(\d+(?:\.\d+)?)\s?(ml|l|litres?|g|kg)\b/i.exec(String(title ?? ''));
+  const fromTitle = m ? Number(m[1]) * (/^(l|litre|litres|kg)$/i.test(m[2]) ? 1000 : 1) : null;
+  const grams = p.weight_kg ? p.weight_kg * 1000 : fromTitle;
+  if (!grams || grams / litres >= 2) return p;
+  const size = `${p.length_cm} x ${p.width_cm} x ${p.height_cm}cm`;
+  const why = `Amazon's size, ${size}, cannot be right for something ${p.weight_kg ? `of ${p.weight_kg}kg` : `of ${m![1]}${m![2]}`}, so it was left out`;
+  if (p.weight_kg == null) return { ...p, length_cm: null, width_cm: null, height_cm: null, size_from: null, from: '', note: `${why}. Add the parcel's size and weight` };
+  return {
+    ...p, length_cm: null, width_cm: null, height_cm: null, size_from: null,
+    from: p.from.replace(/:\s.*$/, `: ${p.weight_kg}kg`).replace("Amazon's product size and ", '').replace("Amazon's package and ", ''),
+    note: `${why}: only the weight is used`,
+  };
+}

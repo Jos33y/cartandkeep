@@ -1,3 +1,4 @@
+import { hasHerEdits, hersOf } from '@lib/edits';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@lib/supabase';
 
@@ -71,11 +72,23 @@ export function useDraft(candidate, tenantId, { onSaved, onRead } = {}) {
     await save(latest.current);
   }, [save]);
 
+  /*
+   * Clear my edits: only hers. A field Keeper wrote goes back to what Keeper wrote; a field only she set goes. Keeper's
+   * work, Amazon's facts and Keeper's own notes stay (until 4 October this emptied the whole draft, Keeper's work too).
+   */
   const revert = useCallback(async () => {
     clearTimeout(timer.current);
-    latest.current = {};
-    setDraft({});
-    await save(null);
+    const now = latest.current ?? {};
+    const wrote = now.keeper_ready?.wrote ?? {};
+    const next = { ...now };
+    for (const k of hersOf(now)) {
+      if (wrote[k] != null) next[k] = wrote[k];
+      else delete next[k];
+    }
+    const value = Object.keys(next).length ? next : null;
+    latest.current = next;
+    setDraft(next);
+    await save(value);
   }, [save]);
 
   const generate = useCallback(async (kind) => {
@@ -110,7 +123,8 @@ export function useDraft(candidate, tenantId, { onSaved, onRead } = {}) {
     return data.publicUrl;
   }, [candidate?.id, tenantId]);
 
-  const edited = Object.keys(draft).length > 0;
+  // Hers only: Keeper's work and Amazon's facts are not her edits (lib/edits.js).
+  const edited = hasHerEdits(draft);
 
   return { draft, change, flush, revert, generate, upload, saving, failed, edited };
 }

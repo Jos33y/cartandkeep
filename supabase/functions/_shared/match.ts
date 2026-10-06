@@ -79,7 +79,14 @@ export function matchScore(a: Side, b: Side): Reading {
   }
 
   const brand = squash(a.brand) || squash(ta.split(/\s+/)[0]);
-  const brandOn = brand.length >= 3 && (squash(tb).includes(brand) || squash(b.brand) === brand);
+  const other = squash(b.brand);
+  // The brand's first word too: "Salus Controls" on her page is "Salus" on eBay (the Salus RT310RF, 4 October), and
+  // one name inside the other is the same maker, not another one.
+  const lead = squash(String(a.brand ?? ta).trim().split(/\s+/)[0]);
+  const names = [brand, ...(lead.length >= 4 && !STOP.has(lead) ? [lead] : [])].filter((n) => n.length >= 3);
+  const alike = (x: string, y: string) => x.length >= 3 && y.length >= 3 && (x.includes(y) || y.includes(x));
+  const brandOn = names.some((n) => squash(tb).includes(n) || alike(n, other));
+  const anotherBrand = Boolean(other) && names.length > 0 && !names.some((n) => alike(n, other));
   const wa = words(ta);
   const wb = words(tb);
   const shared = [...wa].filter((w) => wb.has(w)).length;
@@ -87,9 +94,9 @@ export function matchScore(a: Side, b: Side): Reading {
   const model = ma.some((m) => mb.includes(m));
 
   if (brandOn && model) return { score: pa && pb ? 0.9 : 0.85, via: 'brand and model', rules_out: false };
+  // The same model number with no brand against it is the same product, whatever else the titles say.
+  if (model && !anotherBrand) return { score: 0.85, via: 'model', rules_out: false };
   if (brandOn) return { score: Math.round((0.4 + 0.4 * overlap) * 100) / 100, via: 'brand and words', rules_out: false };
-  if (brand.length >= 3 && squash(b.brand) && squash(b.brand) !== brand) {
-    return { score: 0.15, via: 'another brand', rules_out: false };
-  }
+  if (anotherBrand) return { score: 0.15, via: 'another brand', rules_out: false };
   return { score: Math.round(0.6 * overlap * 100) / 100, via: 'words only', rules_out: false };
 }

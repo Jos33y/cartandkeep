@@ -6,7 +6,7 @@ const args = Object.fromEntries(
 );
 const base = String(args.base || '').replace(/\/$/, '');
 if (!base) {
-  console.error('usage: node scripts/shelf-shopify.mjs --base=https://www.qdstores.co.uk [--tag=qdstores] [--sample] [--pause=1000]');
+  console.error('usage: node scripts/shelf-shopify.mjs --base=https://www.qdstores.co.uk [--tag=qdstores] [--sample] [--pause=1000] [--brand="Core Balance"] [--any-currency]');
   process.exit(1);
 }
 const tag = args.tag || new URL(base).hostname.replace(/^www\./, '').split('.')[0];
@@ -20,6 +20,13 @@ const csvFile = join(dir, `shelf-${tag}.csv`);
 const probeUrls = join('research', 'probes', tag, 'sitemap-urls.tsv');
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36';
+/*
+ * Prices in pounds. A shop with international markets prices products.json for the visitor's country: on
+ * 4 October Yogamatters served a bra at 89000.00 (naira) to a request from Nigeria. The cookies ask for the UK
+ * market, and checkCurrency() reads the shop's own cart before anything is kept, so a shop that still answers in
+ * another currency stops instead of filling the shelf with wrong costs. --any-currency skips the check.
+ */
+const HEADERS = { 'user-agent': UA, accept: 'application/json', 'accept-language': 'en-GB', cookie: 'localization=GB; cart_currency=GBP' };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const exists = p => access(p).then(() => true, () => false);
 const num = v => (v === null || v === undefined || v === '' ? null : Number(v));
@@ -30,7 +37,7 @@ class Cap extends Error {}
 
 async function page(n, from = '') {
   const url = `${base}${from}/products.json?limit=${perPage}&page=${n}`;
-  const res = await fetch(url, { headers: { 'user-agent': UA, accept: 'application/json', 'accept-language': 'en-GB' } });
+  const res = await fetch(url, { headers: HEADERS });
   const text = await res.text();
   if (res.status === 429) throw new Stop(`rate limited (429) on page ${n}`);
   if (res.status === 400 && /25000/.test(text)) throw new Cap(text.slice(0, 120));
@@ -43,6 +50,36 @@ async function page(n, from = '') {
 
 const strip = html => (html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
+// The shop's own currency for a UK visitor, from its cart. null when the cart can't be read (some shops block it).
+async function checkCurrency() {
+  const res = await fetch(`${base}/cart.js`, { headers: HEADERS }).catch(() => null);
+  if (!res?.ok) return null;
+  const cur = await res.json().then((c) => c?.currency ?? null, () => null);
+  if (cur && cur !== 'GBP' && !args['any-currency']) {
+    throw new Stop(`the shop prices in ${cur} for this request, not GBP, so its costs would be wrong. Nothing kept. --any-currency to collect anyway.`);
+  }
+  return cur;
+}
+
+/*
+ * The maker, as Google's Brand column names it, so store-picks finds the shop's rows under the right brand.
+ * - --brand= names it for a single-brand shop whose vendor field differs ("Corebalance" for Core Balance).
+ * - A "Brand:" or "Manufacturer:" tag names the maker where the vendor is a distributor (Reptile Centre's
+ *   Peregrine) or a code (Yogamatters' VARLEY01).
+ * - Otherwise the vendor, without a shop trailer ("RDX Sports | UK") or a stock-code number ("VARLEY01").
+ */
+function brandOf(p) {
+  if (args.brand && args.brand !== true) return String(args.brand);
+  const tagged = [].concat(p.tags || []).map((t) => String(t).match(/^\s*(?:brand|manufacturer)\s*:\s*(.+?)\s*$/i)?.[1]).find(Boolean);
+  const name = tagged || p.vendor || null;
+  if (!name) return null;
+  return String(name)
+    .replace(/\s*[|\-\u2013]\s*(?:uk|gb|united kingdom|official(?: store| shop)?|store|shop|online)\s*$/i, '')
+    .replace(/\s+(?:uk|ltd|limited)\.?$/i, '')
+    .replace(/^([a-z][a-z &'.]*?[a-z])\d{2,}$/i, '$1')
+    .trim() || null;
+}
+
 function rows(p) {
   const now = new Date().toISOString();
   const single = p.variants.length === 1 && /^default title$/i.test(p.variants[0].title || '');
@@ -50,7 +87,7 @@ function rows(p) {
     shop: tag,
     url: `${base}/products/${p.handle}${single ? '' : `?variant=${v.id}`}`,
     name: single ? p.title : `${p.title} - ${v.title}`,
-    brand: p.vendor || null,
+    brand: brandOf(p),
     price: num(v.price),
     was: num(v.compare_at_price) > num(v.price) ? num(v.compare_at_price) : null,
     available: v.available ?? null,
@@ -113,7 +150,7 @@ async function byCollection(seen) {
   const handles = [];
   for (let k = 1; ; k++) {
     await sleep(pause);
-    const res = await fetch(`${base}/collections.json?limit=250&page=${k}`, { headers: { 'user-agent': UA, accept: 'application/json' } });
+    const res = await fetch(`${base}/collections.json?limit=250&page=${k}`, { headers: HEADERS });
     if (res.status === 429) throw new Stop(`rate limited (429) on collections page ${k}`);
     if (!res.ok) throw new Stop(`collections.json status ${res.status}`);
     const list = (await res.json()).collections ?? [];
@@ -154,6 +191,8 @@ process.on('SIGINT', async () => {
 });
 
 try {
+  const currency = await checkCurrency();
+  console.log(`currency: ${currency ?? 'not shown (cart.js unreadable); check the prices in the sample'}`);
   if (args.sample) {
     const first = await page(1);
     console.log(`page 1: ${first.length} products`);

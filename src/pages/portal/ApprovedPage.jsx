@@ -10,11 +10,12 @@ import { CostTry } from '@components/ui/portal/CostTry';
 import { BriefStrip, ComparePanel } from '@components/ui/portal/CandidateBrief';
 import { ShelfLabel, confirmSource } from '@components/ui/portal/CandidateRow';
 import { assess, shopName } from '@lib/assess';
-import { STATE_WORD, goLive, ownMarket, parcelFor, parcelOf, viewsOf, withinOver } from '@lib/golive';
+import { isBladed } from '@lib/blades';
+import { OVER_OK_TEXT, STATE_WORD, goLive, ownMarket, parcelFor, parcelOf, viewsOf, withinOver } from '@lib/golive';
 import { freshChecks, isHers, noShopPhotos, pageOf, photosAdded, photosToAdd, sourceOf } from '@lib/photos';
 import { PRODUCT_FIELDS, sameListing } from '@lib/product';
 import { bookmarkletFor, likelyCard, readSent } from '@lib/sendToCart';
-import { amazonPageOf, amazonWeight, isAmazonUk, packedKg, readOf, sentOf, supplierPatch, supplierWarnings, weightKg } from '@lib/supplierWatch';
+import { amazonPageOf, amazonWeight, costedNow, isAmazonUk, packedKg, readOf, sentOf, supplierPatch, warningsOf, weightKg } from '@lib/supplierWatch';
 import { SupplierWatch } from '@components/ui/portal/SupplierWatch';
 import { CostEdit } from '@components/ui/portal/CostEdit';
 import { KeeprSuggestion } from '@components/ui/portal/MarketListings';
@@ -83,14 +84,21 @@ export function ApprovedPage() {
   const agentName = tenant?.store?.agent?.name || 'Your assistant';
 
   const {
-    status, rows, month, jobs, reload, addSource, updateSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, marketCheck, matchListing, readSupplier,
+    status, rows, month, jobs, reload, addSource, updateSource, removeSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, marketCheck, matchListing, readSupplier,
   } = useApproved(tenant?.id);
   const { suppliers, remember } = useSuppliers(tenant?.id);
   const [find, setFind] = useState('');
   // A link can open one tab: Keeper's report sends ?only=keeper, so the cards it just approved are what she sees.
   // Keeper's office sends ?only=ready (cards it got ready), and ?card=<id> for one card from its log.
   const asked = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-  const [only, setOnly] = useState(() => (asked.get('card') ? 'held' : ['keeper', 'ready', 'check'].includes(asked.get('only')) ? asked.get('only') : null));
+  const [only, setOnly] = useState(() => (asked.get('card') ? 'held' : ['keeper', 'ready', 'check', 'readyEbay', 'readyShop', 'noAmazonPrice', 'supplierWarn'].includes(asked.get('only')) ? asked.get('only') : null));
+  /*
+   * One channel at a time (Joseey, 5 October: "no way to see the ones we want to add to shop and the ones for ebay",
+   * "for the ebay we can't know live and not live"). eBay: not listed, or live and waiting only for the shop. Your
+   * shop: to add, or already in it. Every tab, count and quick pick below reads within the channel picked.
+   */
+  const [side, setSide] = useState(() => (['ebay', 'shop'].includes(asked.get('side')) ? asked.get('side') : null));
+  const [where, setWhere] = useState(() => (asked.get('where') === 'done' ? 'done' : 'todo'));
   const [listed, setListed] = useState(null);
   const [notice, setNotice] = useState(null);
   const [selected, setSelected] = useState(() => new Set());
@@ -144,10 +152,43 @@ export function ApprovedPage() {
   // Cards she has opened, or that are being written, stay in the list she is on until she changes it: an edit that
   // takes a card out of Ready should not make it vanish under her.
   const [stay, setStay] = useState(() => new Set());
-  useEffect(() => { setStay(new Set()); }, [only]);
+  useEffect(() => { setStay(new Set()); }, [only, side, where]);
   // A bulk action running from the bar: adding to the shop, or finding photos. One at a time.
   const [busy, setBusy] = useState(null);
   const stopBusy = useRef(false);
+
+  /*
+   * Amazon read again for the cards showing no Amazon price (Joseey, 5 October: "most already have everything filled
+   * jst the cost"). Apify only, no Claude, 20 cards a call. A reading with no price is always read again, whatever its
+   * age. Where Amazon's price becomes the supplier's cost and it is the cheapest, the card prices from Amazon, as ZURU
+   * did; nothing she wrote or set changes.
+   */
+  const [rereading, setRereading] = useState(null);
+  const stopRead = useRef(false);
+  async function readAgainAll(ids) {
+    stopRead.current = false;
+    const tally = { done: 0, total: ids.length, priced: 0, moved: 0, failed: 0 };
+    setRereading({ ...tally });
+    for (let i = 0; i < ids.length && !stopRead.current; i += 20) {
+      const part = ids.slice(i, i + 20);
+      try {
+        const got = await readSupplier(part);
+        tally.priced += Object.values(got.reads).filter((r) => r?.offer?.price != null).length;
+        tally.moved += Object.keys(got.moved).length;
+      } catch {
+        tally.failed += part.length;
+      }
+      tally.done += part.length;
+      setRereading({ ...tally });
+    }
+    setRereading(null);
+    const left = tally.done - tally.priced - tally.failed;
+    setNotice({
+      title: `Read ${tally.done} on Amazon`,
+      body: `${tally.priced} now ${tally.priced === 1 ? 'shows' : 'show'} a price, and ${tally.moved} ${tally.moved === 1 ? 'card is' : 'cards are'} now costed from it.${left > 0 ? ` ${left} still ${left === 1 ? 'shows' : 'show'} no price on Amazon: no Buy Box, or not sold new.` : ''}${tally.failed ? ` ${tally.failed} could not be read; try again in a minute.` : ''}`,
+      tone: tally.failed ? 'warning' : 'positive',
+    });
+  }
 
   useEffect(() => {
     if (!listed && !notice) return undefined;
@@ -161,25 +202,36 @@ export function ApprovedPage() {
     return { row: r, a, gl: goLive(viewsOf(a), r, r.draft ?? {}) };
   }), [rows]);
 
+  const onSide = useCallback(({ gl }) => !side
+    || (gl.wants.includes(side) && (where === 'todo' ? gl.state[side] === 'todo' : gl.state[side] !== 'todo')), [side, where]);
+  const sided = useMemo(() => assessed.filter(onSide), [assessed, onSide]);
+  const sides = useMemo(() => {
+    const of = (c, todo) => assessed.filter(({ gl }) => gl.wants.includes(c) && (todo ? gl.state[c] === 'todo' : gl.state[c] !== 'todo')).length;
+    return { ebay: { todo: of('ebay', true), done: of('ebay', false) }, shop: { todo: of('shop', true), done: of('shop', false) } };
+  }, [assessed]);
+  // Ready and Needs a look for the channel picked: a card ready for her shop is not ready for eBay.
+  const readyHere = useCallback(({ gl }) => (side ? gl.readyOn.includes(side) : gl.ready), [side]);
+  const checkHere = useCallback(({ gl }) => (side ? gl.left.includes(side) && !gl.readyOn.includes(side) : !gl.ready), [side]);
+
   // Where the eBay queue has each card: waiting, publishing, or refused with eBay's words.
   const jobOf = useCallback((id) => jobs[id] ?? null, [jobs]);
   const refused = ({ row, gl }) => jobOf(row.id)?.state === 'failed' && gl.state.ebay === 'todo';
 
   const counts = useMemo(() => ({
-    ready: assessed.filter(({ gl }) => gl.ready).length,
-    check: assessed.filter(({ gl }) => !gl.ready).length,
+    ready: sided.filter(readyHere).length,
+    check: sided.filter(checkHere).length,
     // Of the Ready ones, which channel each is ready for, for the tab's own count.
-    readyShopAll: assessed.filter(({ gl }) => gl.readyOn.includes('shop')).length,
-    readyEbayAll: assessed.filter(({ gl }) => gl.readyOn.includes('ebay')).length,
-    half: assessed.filter(({ gl }) => gl.started.length > 0).length,
-    edited: assessed.filter(({ a }) => a.edited).length,
+    readyShopAll: sided.filter(({ gl }) => gl.readyOn.includes('shop')).length,
+    readyEbayAll: sided.filter(({ gl }) => gl.readyOn.includes('ebay')).length,
+    half: sided.filter(({ gl }) => gl.started.length > 0).length,
+    edited: sided.filter(({ a }) => a.edited).length,
     // Approved by Keeper from Amazon (keeper-task-02), not by her.
-    keeper: assessed.filter(({ row }) => row.decision?.made_by === 'keeper').length,
-    queued: assessed.filter(({ row }) => jobOpen(jobOf(row.id))).length,
-    refused: assessed.filter((x) => refused(x)).length,
-    readyEbay: assessed.filter(({ row, gl }) => readyFor(gl, 'ebay') && !jobOpen(jobOf(row.id))).length,
-    readyShop: assessed.filter(({ row, gl, a }) => readyFor(gl, 'shop') && a.goods != null && !jobOpen(jobOf(row.id))).length,
-  }), [assessed, jobOf]);
+    keeper: sided.filter(({ row }) => row.decision?.made_by === 'keeper').length,
+    queued: sided.filter(({ row }) => jobOpen(jobOf(row.id))).length,
+    refused: sided.filter((x) => refused(x)).length,
+    readyEbay: sided.filter(({ row, gl }) => readyFor(gl, 'ebay') && !jobOpen(jobOf(row.id))).length,
+    readyShop: sided.filter(({ row, gl, a }) => readyFor(gl, 'shop') && a.goods != null && !jobOpen(jobOf(row.id))).length,
+  }), [sided, jobOf, readyHere, checkHere]);
 
   // What the ticked cards can do on each channel, and why the rest cannot.
   const picked = useMemo(() => assessed.filter(({ row }) => selected.has(row.id)), [assessed, selected]);
@@ -316,15 +368,15 @@ export function ApprovedPage() {
 
   /*
    * The cards Keeper can get ready by itself (Joseey, 4 October), eBay's first:
-   *   eBay cards  still to list on eBay and missing something, up to 25% over the market (the price check), the pack
+   *   eBay cards  still to list on eBay and missing something, up to 100% over the market (the price check), the pack
    *               confirmed;
    *   shop cards  meant for her shop only (the Google research's), still to add and missing something, not at a loss.
    * Both: in stock on Amazon, no pack or bundle doubt, not approved twice, not got ready by Keeper before. A card she
    * ticks goes whatever it is.
    */
   const keeperOk = useCallback(({ row }) => {
-    if (jobOpen(jobOf(row.id)) || row.duplicate_of || withKeeper.has(row.id) || row.draft?.keeper_ready) return false;
-    const said = supplierWarnings(readOf(row)).map((w) => w.short);
+    if (jobOpen(jobOf(row.id)) || row.duplicate_of || isBladed(row) || withKeeper.has(row.id) || row.draft?.keeper_ready) return false;
+    const said = warningsOf(readOf(row), row.sources).map((w) => w.short);
     return !said.some((w) => w === 'out of stock' || w === 'page gone' || w === 'check the pack' || w === 'a bundle');
   }, [jobOf, withKeeper]);
   const keeperEbay = useMemo(() => assessed.filter((x) => {
@@ -405,27 +457,48 @@ export function ApprovedPage() {
     );
   }
 
+  // Amazon read, its page found, and no price on it (no Buy Box, or read while Apify was out): the cost cannot follow
+  // Amazon until it is read again (Joseey, 4 October). Keeper reads these again whatever their age.
+  const noAmazonPriceTest = ({ row }) => {
+    const r = readOf(row);
+    // Only low-rated sellers is an answer already (a red warning on the card), so it is not read again for nothing.
+    return Boolean(r?.found) && r?.offer?.price == null && r?.offer?.others == null && !row.ebay?.listing_id;
+  };
+  const noAmazonPrice = sided.filter(noAmazonPriceTest).length;
+  // Her Amazon supplier says something to settle before listing: out of stock, gone, dearer than her cost, a pack to
+  // check. The Alerts page sends her here with it picked (Joseey, 5 October).
+  const supplierWarnTest = ({ row }) => !row.ebay?.listing_id
+    && warningsOf(readOf(row), row.sources).some((w) => w.level === 'stop' || w.level === 'warn');
+  const supplierWarn = sided.filter(supplierWarnTest).length;
+  const readyEbayTest = ({ row, gl }) => readyFor(gl, 'ebay') && !jobOpen(jobOf(row.id));
+  const readyShopTest = ({ row, gl, a }) => readyFor(gl, 'shop') && a.goods != null && !jobOpen(jobOf(row.id));
   const match = (x) => {
     const { gl, a, row } = x;
     switch (only) {
       case null: return true;
-      case 'ready': return gl.ready;
-      case 'check': return !gl.ready;
+      case 'ready': return readyHere(x);
+      case 'check': return checkHere(x);
       case 'half': return gl.started.length > 0;
       case 'edited': return a.edited;
       case 'keeper': return row.decision?.made_by === 'keeper';
       case 'queued': return jobOpen(jobOf(row.id));
       case 'refused': return refused(x);
       case 'held': return held?.ids.has(row.id);
+      // Ready for one channel alone (Joseey, 4 October: "how do I see the ones ready for eBay alone"), as the quick
+      // picks count them, so the list and the number agree.
+      case 'readyEbay': return readyEbayTest(x);
+      case 'readyShop': return readyShopTest(x);
+      case 'noAmazonPrice': return noAmazonPriceTest(x);
+      case 'supplierWarn': return supplierWarnTest(x);
       default: return true;
     }
   };
-  const shown = assessed
+  const shown = sided
     .filter((x) => match(x) || stay.has(x.row.id))
     .filter(({ a, row }) => !find.trim() || `${row.draft?.title ?? ''} ${a.title}`.toLowerCase().includes(find.trim().toLowerCase()));
   const shownIds = shown.map(({ row }) => row.id);
   const allShown = shown.length > 0 && shown.every(({ row }) => selected.has(row.id));
-  const selectWhere = (test) => setSelected(new Set(assessed.filter(test).map(({ row }) => row.id)));
+  const selectWhere = (test) => setSelected(new Set(sided.filter(test).map(({ row }) => row.id)));
 
   return (
     <div className={styles.page} data-bulk={selected.size > 0 || undefined}>
@@ -478,16 +551,43 @@ export function ApprovedPage() {
         </section>
       )}
 
+      {/* Which channel: every card, eBay's, or her shop's. Then where each stands on it. */}
+      <div className={styles.chanRow}>
+        <div className={styles.chanSwitch} role="group" aria-label="Channel">
+          {[[null, 'Every card', assessed.length], ['ebay', 'eBay', sides.ebay.todo + sides.ebay.done], ['shop', 'Your shop', sides.shop.todo + sides.shop.done]].map(([id, label, n]) => (
+            <button key={label} type="button" className={styles.chan} aria-pressed={side === id}
+              onClick={() => { setSide(id); setWhere('todo'); setSelected(new Set()); }}>
+              {label} <span data-num>{n}</span>
+            </button>
+          ))}
+        </div>
+        {side && (
+          <div className={styles.standSwitch} role="group" aria-label={side === 'ebay' ? 'On eBay' : 'On your shop'}>
+            {[['todo', side === 'ebay' ? 'Not listed' : 'To add', sides[side].todo], ['done', side === 'ebay' ? 'Live' : 'In your shop', sides[side].done]].map(([id, label, n]) => (
+              <button key={id} type="button" className={styles.stand} aria-pressed={where === id}
+                onClick={() => { setWhere(id); setSelected(new Set()); }}>
+                <i data-where={id} aria-hidden="true" />{label} <span data-num>{n}</span>
+              </button>
+            ))}
+            <span className={styles.standNote}>
+              {side === 'ebay'
+                ? where === 'todo' ? 'Approved, not on eBay yet.' : 'Live on eBay, still to add to your shop.'
+                : where === 'todo' ? 'Not on your shop yet.' : 'A draft or on sale on your shop, still to list on eBay.'}
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* The state of the queue, and the way into it. At four rows it is a
           summary; at a hundred it is the only way to find anything. */}
       <div className={styles.states} role="tablist" aria-label="Filter">
         <StateTab id={null} only={only} setOnly={setOnly} icon="IconLayers"
-          label="All" count={rows.length} />
-        <StateTab id="ready" only={only} setOnly={setOnly} icon="IconCheck"
+          label="All" count={sided.length} />
+        {!(side && where === 'done') && <><StateTab id="ready" only={only} setOnly={setOnly} icon="IconCheck"
           label="Ready to go live" count={counts.ready} tone="positive"
-          detail={counts.ready > 0 && counts.readyShopAll !== counts.readyEbayAll ? `Shop ${counts.readyShopAll} · eBay ${counts.readyEbayAll}` : null} />
+          detail={!side && counts.ready > 0 && counts.readyShopAll !== counts.readyEbayAll ? `Shop ${counts.readyShopAll} · eBay ${counts.readyEbayAll}` : null} />
         <StateTab id="check" only={only} setOnly={setOnly} icon="IconInfo"
-          label="Needs a look" count={counts.check} tone="warning" />
+          label="Needs a look" count={counts.check} tone="warning" /></>}
         {counts.half > 0 && (
           <StateTab id="half" only={only} setOnly={setOnly} icon="IconShop"
             label="One channel left" count={counts.half} />
@@ -520,7 +620,8 @@ export function ApprovedPage() {
         </span>
       </div>
 
-      {(keeperPicks.length > 0 || withKeeper.size > 0) && (
+      {/* Keeper's offer is about cards still to go somewhere, so not on Live or In your shop. */}
+      {!(side && where === 'done') && (keeperPicks.length > 0 || withKeeper.size > 0) && (
         <section className={styles.keeperStrip} aria-label={`${agentName} gets cards ready`}>
           <Icon name="IconKeeper" className={styles.keeperStripIcon} />
           <div className={styles.keeperStripText}>
@@ -538,8 +639,11 @@ export function ApprovedPage() {
               </p>
             )}
             <p className={styles.keeperStripMeta}>
-              Titles, descriptions, photos and the parcel, and eBay's details for eBay cards, only where a card has none.
-              eBay cards up to 25% over the market, in stock, the pack confirmed. Nothing goes live until you list it or add it.
+              {keeperEbay.length > 0
+                ? `eBay cards up to ${OVER_OK_TEXT} over the market, in stock, the pack confirmed. `
+                : 'Cards for your shop, in stock and not at a loss. '}
+              Photos, the title, the description and the parcel{keeperEbay.length > 0 ? ', and eBay\'s details and listing match for eBay cards' : ''}, only where a card has none.
+              {keeperEbay.length > 0 ? ' Nothing goes live until you list it or add it.' : ' Each is then ready to add to your shop as a draft; nothing goes on sale until you add it.'}
             </p>
           </div>
           <span className={styles.keeperStripActions}>
@@ -571,16 +675,61 @@ export function ApprovedPage() {
               })} />
             <span>{allShown ? 'Clear these' : `Select ${only || find.trim() ? 'these' : 'all'}`} <span className={styles.pickCount} data-num>{shown.length}</span></span>
           </label>
-          {counts.readyEbay > 0 && (
-            <button type="button" className={styles.pickQuick}
-              onClick={() => selectWhere(({ row, gl }) => readyFor(gl, 'ebay') && !jobOpen(jobOf(row.id)))}>
+          {/* Each shows its cards alone and ticks them for the bulk bar; pressed again, back to every card. */}
+          {(counts.readyEbay > 0 || only === 'readyEbay') && (
+            <button type="button" className={styles.pickQuick} aria-pressed={only === 'readyEbay'}
+              onClick={() => {
+                if (only === 'readyEbay') { setOnly(null); setSelected(new Set()); return; }
+                setOnly('readyEbay');
+                selectWhere(readyEbayTest);
+              }}>
               <Icon name="IconTag" className={styles.pickIcon} />Ready for eBay <span data-num>{counts.readyEbay}</span>
             </button>
           )}
-          {counts.readyShop > 0 && (
-            <button type="button" className={styles.pickQuick}
-              onClick={() => selectWhere(({ row, gl, a }) => readyFor(gl, 'shop') && a.goods != null && !jobOpen(jobOf(row.id)))}>
+          {(counts.readyShop > 0 || only === 'readyShop') && (
+            <button type="button" className={styles.pickQuick} aria-pressed={only === 'readyShop'}
+              onClick={() => {
+                if (only === 'readyShop') { setOnly(null); setSelected(new Set()); return; }
+                setOnly('readyShop');
+                selectWhere(readyShopTest);
+              }}>
               <Icon name="IconShop" className={styles.pickIcon} />Ready for your shop <span data-num>{counts.readyShop}</span>
+            </button>
+          )}
+          {(noAmazonPrice > 0 || only === 'noAmazonPrice') && (
+            <button type="button" className={styles.pickQuick} aria-pressed={only === 'noAmazonPrice'}
+              title={`Amazon was read and showed no price. Get them ready with ${agentName} to read them again.`}
+              onClick={() => {
+                if (only === 'noAmazonPrice') { setOnly(null); setSelected(new Set()); return; }
+                setOnly('noAmazonPrice');
+                selectWhere(noAmazonPriceTest);
+              }}>
+              <Icon name="IconFlag" className={styles.pickIcon} />No Amazon price <span data-num>{noAmazonPrice}</span>
+            </button>
+          )}
+          {only === 'noAmazonPrice' && (noAmazonPrice > 0 || rereading) && (
+            rereading ? (
+              <span className={styles.queueNote} role="status">
+                <i aria-hidden="true" />
+                <span>Reading Amazon: <b data-num>{rereading.done}</b> of <b data-num>{rereading.total}</b>.</span>
+                <button type="button" className={styles.revert} onClick={() => { stopRead.current = true; }}>Stop</button>
+              </span>
+            ) : (
+              <button type="button" className={styles.pickRead}
+                title="Reads each Amazon page again for its price. Apify only, no Claude, under a penny a card. Nothing you wrote or set changes."
+                onClick={() => readAgainAll(sided.filter(noAmazonPriceTest).map(({ row }) => row.id))}>
+                <Icon name="IconRefresh" className={styles.pickIcon} />Read {noAmazonPrice} again on Amazon
+              </button>
+            )
+          )}
+          {(supplierWarn > 0 || only === 'supplierWarn') && (
+            <button type="button" className={styles.pickQuick} aria-pressed={only === 'supplierWarn'}
+              title="Out of stock, gone, dearer than your cost, or a pack to check on Amazon. Settle these before listing."
+              onClick={() => {
+                setSelected(new Set());
+                setOnly(only === 'supplierWarn' ? null : 'supplierWarn');
+              }}>
+              <Icon name="IconFlag" className={styles.pickIcon} />Supplier warnings <span data-num>{supplierWarn}</span>
             </button>
           )}
           {(waiting > 0 || publishing > 0) && (
@@ -625,6 +774,7 @@ export function ApprovedPage() {
             onStay={() => setStay((x) => (x.has(row.id) ? x : new Set(x).add(row.id)))}
             onShowIds={(ids, label) => { setHeld({ ids: new Set(ids), label }); setOnly('held'); }}
             onCost={(sourceId, fields) => updateSource(row.id, sourceId, fields)}
+            onRemoveSource={(sourceId) => removeSource(row.id, sourceId)}
             onSource={async (fields) => {
               await addSource({ candidateId: row.id, tenantId: tenant.id, ...fields });
               await remember({ tenantId: tenant.id, name: fields.supplier, country: fields.ships_from });
@@ -733,7 +883,7 @@ const joinFixes = (xs) => {
 
 function Pack({
   row, base, baseGl, job, selected, onSelect, onCancelJob, onRetryJob, onSaved, onRead,
-  tenantId, fees, suppliers, onSource, onCost, onList, onShop, onCheckPhotos, onAmazon, onShowIds, onMarket, onMatch,
+  tenantId, fees, suppliers, onSource, onCost, onRemoveSource, onList, onShop, onCheckPhotos, onAmazon, onShowIds, onMarket, onMatch,
   onRebuild, rebuilt = null, onStay, agentName = 'Your assistant', withKeeper = false, onKeeper,
 }) {
   const [open, setOpen] = useState(false);
@@ -870,7 +1020,7 @@ function Pack({
     const add = photosToAdd(row, draft);
     if (add?.images) change({ images: add.images, photos_offered: add.photos_offered });
   }, [open, row.photo_checks]); // eslint-disable-line react-hooks/exhaustive-deps
-  const supplierFlag = useMemo(() => supplierWarnings(readOf(row)).find((w) => w.level !== 'note') ?? null, [row]);
+  const supplierFlag = useMemo(() => warningsOf(readOf(row), row.sources).find((w) => w.level !== 'note') ?? null, [row]);
 
   // eBay's check with Keepr filling the item details: the category it settles on and the values go on her draft.
   // `over` is the draft as it will be, so a title just written is the one eBay files by.
@@ -1020,7 +1170,8 @@ function Pack({
     setPendingPage(null);
     setReadyNote({ done: [], short: [`The listing now comes from ${url ? host(url) : 'the card\'s own page'}. ${agentName} writes it from there when it gets the card ready.`] });
     // Her supplier's product may not be the one the card prices from: Keepr checks, once the page is saved.
-    if (url) flush().then(() => askKeepr({ quiet: true }));
+    // Only a card going to eBay prices from an eBay listing; a shop card has none to match.
+    if (url && gl.wants.includes('ebay')) flush().then(() => askKeepr({ quiet: true }));
   }
 
   // A supplier with a link: Keepr checks the card prices from the eBay listing for that product. An Amazon UK link
@@ -1038,7 +1189,7 @@ function Pack({
         setProblem(`Amazon's page: ${e.message}`);
       }
     }
-    if (/^https?:\/\//.test(url) && !draft.entry) askKeepr({ quiet: true });
+    if (/^https?:\/\//.test(url) && !draft.entry && gl.wants.includes('ebay')) askKeepr({ quiet: true });
   }
 
   /*
@@ -1250,7 +1401,7 @@ function Pack({
           <span className={styles.fig} data-num>{a.price != null ? formatGbp(a.price) : '--'}</span>
           {rowPos && (
             <span className={styles.status} data-tone={rowPos.inMarket || withinOver(rowPos.over, rowPos.ref) ? 'positive' : 'warning'}
-              title={rowPos.inMarket ? undefined : withinOver(rowPos.over, rowPos.ref) ? 'Within 25% of the market: fine to list' : 'More than 25% over the market'}>
+              title={rowPos.inMarket ? undefined : withinOver(rowPos.over, rowPos.ref) ? `Within ${OVER_OK_TEXT} of the market: fine to list` : `More than ${OVER_OK_TEXT} over the market`}>
               <i />{rowPos.inMarket ? 'In the market' : <><span data-num>{formatGbp(rowPos.over)}</span> over</>}
             </span>
           )}
@@ -1583,7 +1734,7 @@ function Pack({
                 <header className={styles.panelHead}>
                   <span className={styles.panelTitle}><Icon name="IconNote" className={styles.panelIcon} />The listing</span>
                   <span className={styles.panelNote}>
-                    {[a.l?.brand ?? (a.moved ? draft.item_facts?.brand : null), (a.moved ? draft.item_facts?.category?.split('|').join(' > ') : breadcrumb(row.ebay_category_path)) || a.l?.shop_category, band(a.m.headroom_band)].filter(Boolean).join(' · ')}
+                    {[a.l?.brand ?? (a.moved ? draft.item_facts?.brand : null), draft.ebay_category?.name || (a.moved ? draft.item_facts?.category?.split('|').join(' > ') : breadcrumb(row.ebay_category_path)) || a.l?.shop_category, band(a.m.headroom_band)].filter(Boolean).join(' · ')}
                     {edited && (
                       <span className={styles.draftState}>
                         {saving ? 'Saving' : 'Saved'}
@@ -1665,7 +1816,7 @@ function Pack({
                   </div>
                 )}
                 {amazonPage && (
-                  <SupplierWatch page={amazonPage} read={amazonRead} costed={amazonRead?.costed ?? null}
+                  <SupplierWatch page={amazonPage} read={amazonRead} costed={costedNow(row.sources, amazonRead)}
                     reading={readingAmazon} onRead={() => readAmazon(amazonPage.uk ? null : amazonPage.url)}
                     source={(row.sources ?? []).find((src) => src.id === amazonRead?.source_id) ?? null} onCost={onCost} />
                 )}
@@ -1697,7 +1848,7 @@ function Pack({
                 )}
                 {others.length > 1 && (
                   <SourceList candidate={row} onAdd={onSource} suppliers={suppliers} compact canAdd={false}
-                    onCost={onCost}
+                    onCost={onCost} onRemove={onRemoveSource}
                     keepOf={(src) => assess({ ...row, draft }, {
                       tryCost: Number(src.landed_unit_cost), tryPosted: src.fulfilment === 'stock' ? 'you' : 'supplier', holdPrice: true,
                     }).keep} />

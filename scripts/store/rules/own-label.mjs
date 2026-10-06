@@ -27,4 +27,7 @@ export const OWN_LABEL = [
   // Health and beauty
   'holland & barrett', 'holland and barrett', 'boots', 'no7', 'no 7', 'superdrug', 'myprotein', 'weightworld',
   'the body shop', 'lush', 'kiko milano', 'noted. aromas', 'noted aromas',
+  // Frasers Group (Sports Direct, Studio, Evans Cycles) own brands, and Yogamatters' own range (5 October)
+  // Gelert is kept to Sporting Goods: Gelert pet food is another company.
+  'slazenger', 'karrimor', 'everlast', 'donnay', 'lonsdale', 'muddyfox', 'pinnacle', 'sports direct', 'yogamatters',
 ];

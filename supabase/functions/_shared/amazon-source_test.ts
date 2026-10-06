@@ -295,3 +295,16 @@ Deno.test('no seller shown is said so, not "another seller"', () => {
   const v = judge(nutella, '3017620422003', page({ soldBy: null, fulfilledBy: null, price: null, warehouseAvailability: null }));
   assert(v.ok && /no price now, no seller shown, stock not shown/.test(v.line), JSON.stringify(v));
 });
+
+Deno.test('a barcode that points to another product is left, not approved (Tonies, 6 October)', () => {
+  const tonie = judge({ title: 'Tonies Enid Blyton One-A-Day Christmas Stories Audio Character' }, '3017620422003',
+    page({ asin: 'B0C34HDDK9', title: 'tonies Sleepy Friends Lullaby Melodies with Sleepy Sheep Audio Character', price: 14.99 }));
+  assert(!tonie.ok && tonie.line === 'Another product on Amazon.', JSON.stringify(tonie));
+  const colour = judge({ title: 'Heatmiser NeoStat V2 Black Thermostat' }, '3017620422003',
+    page({ title: 'Heatmiser NeoStat V3 White Thermostat' }));
+  assert(!colour.ok && colour.line === 'Another variant on Amazon.', JSON.stringify(colour));
+  // The same product in Amazon's longer words still passes.
+  const makita = judge({ title: 'Makita DC18SD 18V Charger Li-ion' }, '3017620422003',
+    page({ title: 'Makita DC18SD 14.4V-18V Li-ion Charger, Blue' }));
+  assert(makita.ok, JSON.stringify(makita));
+});

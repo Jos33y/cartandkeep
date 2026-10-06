@@ -13,7 +13,7 @@ import {
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-headers':
-    'authorization, content-type, apikey, x-client-info, x-supabase-api-version',
+    'authorization, content-type, apikey, x-client-info, x-supabase-api-version, x-scheduler-secret',
   'access-control-allow-methods': 'POST, OPTIONS',
 };
 
@@ -28,8 +28,26 @@ const BUDGET_MS = 110_000;
 // At most this many a run, whatever the pace allows: the next minute takes the rest.
 const PER_RUN = 10;
 
-// The schedule calls with the service role; a member may kick her own shop's queue.
+// Compared in constant time, so a wrong guess learns nothing from how long the answer took.
+function sameSecret(a: string, b: string) {
+  if (!a || !b || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+/*
+ * The schedule proves itself with the scheduler secret (0100, scheduler_headers), as every scheduled function does:
+ * the service key stored for the schedule stopped matching the functions' own, and the minute's call was refused
+ * from then on, so a queued card waited until the portal kicked the queue (Joseey, 5 October: two cards queued since
+ * the day before). The service key still counts; a member may kick her own shop's queue.
+ */
 async function caller(req: Request): Promise<{ service: boolean; tenants?: (t: string) => Promise<boolean> } | null> {
+  const sent = req.headers.get('x-scheduler-secret');
+  if (sent) {
+    const { data } = await db().from('app_config').select('value').eq('key', 'scheduler_secret').maybeSingle();
+    return sameSecret(sent, data?.value ?? '') ? { service: true } : null;
+  }
   const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
   if (!token) return null;
   if (token === env('SUPABASE_SERVICE_ROLE_KEY')) return { service: true };

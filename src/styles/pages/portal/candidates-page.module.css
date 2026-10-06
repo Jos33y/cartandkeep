@@ -581,3 +581,21 @@
 .bulkHead { font-size: var(--t-label); font-weight: 600; color: var(--c-base); }
 .bulkDetail { font-size: var(--t-label); line-height: 1.45; color: rgba(250, 246, 239, 0.86); }
 .bulkActions { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+
+/* Loading: each part of the header waits for its own read (CandidatesPage Waiting), in the rows' calm grey. */
+.reading { color: var(--c-ink-faint); }
+.reading::after { content: ''; display: inline-block; width: 1.2em; text-align: left; animation: dots 1.2s steps(4, end) infinite; }
+@keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
+.waiting { display: flex; align-items: center; gap: var(--s-3); min-width: 11rem; }
+.waitLines { display: flex; flex-direction: column; gap: var(--s-2); }
+.ph { display: inline-block; height: 0.75rem; border-radius: var(--r-sm, 4px); background: var(--c-sunk); animation: breathe 1.4s ease-in-out infinite; }
+.phBig { height: 1.5rem; }
+.phRing { width: 2.75rem; height: 2.75rem; border-radius: 50%; }
+.tabsWaiting { display: flex; flex-wrap: wrap; gap: var(--s-2); padding-bottom: var(--s-2); border-bottom: 1px solid var(--c-line); }
+.tabsWaiting .ph { height: 2.25rem; border-radius: var(--r-md); }
+.countWaiting { display: inline-block; width: 1.75rem; min-height: 1.1em; background: var(--c-line-mid); animation: breathe 1.4s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) {
+  .ph, .countWaiting, .reading::after { animation: none; }
+  .reading::after { content: '...'; }
+}

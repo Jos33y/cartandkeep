@@ -3,6 +3,7 @@ import { formatGbp } from '@utils/formatGbp';
 import { isPackCheck } from '@lib/pricing';
 import { CostEdit } from '@components/ui/portal/CostEdit';
 import styles from '@styles/ui/portal/source-list.module.css';
+import rm from '@styles/ui/portal/source-remove.module.css';
 
 const EMPTY = {
   supplier: '',
@@ -33,7 +34,7 @@ const SLOW_DAYS = 30;
 
 // keepOf(source) is what she keeps a sale with that source's cost, from assess(), so a supplier line and the card agree.
 // onCost(sourceId, fields), when given, lets each supplier's cost be changed in place.
-export function SourceList({ candidate, onAdd, suppliers = [], compact = false, canAdd = true, keepOf = null, onCost = null }) {
+export function SourceList({ candidate, onAdd, suppliers = [], compact = false, canAdd = true, keepOf = null, onCost = null, onRemove = null }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
@@ -129,7 +130,12 @@ export function SourceList({ candidate, onAdd, suppliers = [], compact = false, 
                   s.note,
                 ].filter(Boolean).join(' · ')}
               </p>
-              {onCost && <CostEdit source={s} onSave={(fields) => onCost(s.id, fields)} />}
+              {(onCost || onRemove) && (
+                <span className={rm.rowActions}>
+                  {onCost && <CostEdit source={s} onSave={(fields) => onCost(s.id, fields)} />}
+                  {onRemove && <RemoveSource name={display(s.supplier, suppliers)} onRemove={() => onRemove(s.id)} />}
+                </span>
+              )}
             </div>
 
             <div className={styles.money}>
@@ -197,5 +203,30 @@ export function SourceList({ candidate, onAdd, suppliers = [], compact = false, 
 
       {failed && <p className={styles.failed} role="alert">{failed}</p>}
     </div>
+  );
+}
+
+// Off the card, asked once: a supplier she does not buy from, or another product the barcode found.
+function RemoveSource({ name, onRemove }) {
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  if (!asking) {
+    return <button type="button" className={rm.remove} onClick={() => setAsking(true)}>Remove</button>;
+  }
+  return (
+    <span className={rm.removeAsk} role="group" aria-label={`Remove ${name}`}>
+      Remove {name} from this card?
+      <button type="button" className={rm.removeYes} disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setError(null);
+          try { await onRemove(); } catch (e) { setError(e.message); setBusy(false); }
+        }}>
+        {busy ? 'Removing' : 'Remove'}
+      </button>
+      <button type="button" className={rm.remove} disabled={busy} onClick={() => setAsking(false)}>Keep</button>
+      {error && <span className={rm.removeError}>{error}</span>}
+    </span>
   );
 }

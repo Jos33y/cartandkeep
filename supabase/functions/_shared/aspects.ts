@@ -4,6 +4,7 @@
 import { itemFactsOf, listingOf, swappedTo } from './product.ts';
 import { cleanAspects } from './ebay/item.ts';
 import { askTool } from './claude.ts';
+import { LIGHT_MODEL } from './model.ts';
 
 type Json = Record<string, any>;
 export type Wanted = { name: string; mode: string; values: string[]; required: boolean };
@@ -18,7 +19,15 @@ Rules:
 - When allowed values are listed, answer with one of them exactly as written. Pick the closest honest one; if none
   honestly fits, leave it out.
 - Otherwise a short value in British English, under 65 characters.
-- Never invent, never pad. Leaving a specific out is always better than a guess: the seller fills it in.`;
+- A fact that cannot belong to this kind of product is not a fact about it, even when a supplier's table states it:
+  those tables are often filled from a template or another product (lumens or a bulb type on a smoke alarm module, a
+  screen size on a pillow). Leave such a specific out.
+- A specific marked (required) stops the listing until it is filled. For a required classification specific (Type,
+  Product type, Style, Department, Room), give the closest honest value: what the product plainly is, from the list
+  when there is one, otherwise its plain name (a square shovel is Shovel; a tanning gel is Gel). Leave a required one
+  out only when nothing about the product could answer it.
+- Never invent, never pad. Outside the rule above, leaving a specific out is always better than a guess: the seller
+  fills it in.`;
 
 const TOOL = {
   name: 'fill',
@@ -86,6 +95,7 @@ export function aspectFacts(c: Json, draft: Json = {}, category: string | null =
 export async function fillAspects(key: string, facts: string, wanted: Wanted[]): Promise<Record<string, string>> {
   if (!wanted.length || !facts) return {};
   const list = wanted.map((w) => `- ${w.name}${w.required ? ' (required)' : ''}${w.values.length ? `: ${w.mode === 'SELECTION_ONLY' ? 'one of' : 'for example'} ${w.values.join(' | ')}` : ''}`).join('\n');
-  const { input } = await askTool(key, { system: ASPECT_SYSTEM, content: `Facts:\n${facts}\n\nItem specifics to fill:\n${list}`, maxTokens: 800, tool: TOOL });
+  // Form-filling: the light model when it is switched on (model.ts LIGHT_MODEL).
+  const { input } = await askTool(key, { system: ASPECT_SYSTEM, content: `Facts:\n${facts}\n\nItem specifics to fill:\n${list}`, maxTokens: 800, tool: TOOL, model: LIGHT_MODEL });
   return keepValid(input?.values ?? [], wanted);
 }

@@ -1,5 +1,5 @@
-// Sends every email the platform sends. Seven kinds: four write an order_emails row, which is
-// what makes a resend safe. low_stock and message carry their own guard; pull_alert is the studio's.
+// Sends every email the platform sends. Eight kinds: four write an order_emails row, which is
+// what makes a resend safe. low_stock, price_alert and message carry their own guard; pull_alert is the studio's.
 //
 // What each email says and looks like lives in ../_shared/email, one file per email, with the
 // rights wording there too. This file loads the data, decides who hears what, and records it.
@@ -221,6 +221,32 @@ Deno.serve(async (req) => {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('[notify] low_stock', message);
+      return json({ error: message }, 500, origin);
+    }
+  }
+
+  // A live listing's cost changed (supplier-read, after the morning check). To the shop's own address only, so the
+  // caller names the shop, never the address. Trusted callers only. Nothing recorded here: the reading on the card
+  // says what was last told (supplier_read.told), which is what stops a repeat.
+  if (kind === 'price_alert') {
+    if (!trusted) return json({ error: 'Not authorised' }, 401, origin);
+    const items = (Array.isArray(body.items) ? body.items : [])
+      .filter((i: any) => i && i.title && i.listing_id && Number(i.to) > 0);
+    if (items.length === 0) return json({ sent: 'nothing', count: 0 }, 200, origin);
+
+    const tenantId = String((body as Record<string, any>).tenant_id ?? '');
+    const { data: tenant } = tenantId
+      ? await db.from('tenants').select('store').eq('id', tenantId).maybeSingle()
+      : await db.from('tenants').select('store').eq('slug', Deno.env.get('FEED_TENANT_SLUG') ?? 'cart-and-keep').maybeSingle();
+    const to = tenant?.store?.email ?? tenant?.store?.trader?.email ?? 'support@cartandkeep.com';
+
+    const m = mail.price(items, mail.shopFrom(tenant?.store ?? {}, PORTAL));
+    try {
+      const providerId = await send(to, m, to);
+      return json({ sent: 'price_alert', count: items.length, id: providerId }, 200, origin);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[notify] price_alert', message);
       return json({ error: message }, 500, origin);
     }
   }

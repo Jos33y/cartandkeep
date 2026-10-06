@@ -6,6 +6,7 @@ import { askText } from '../_shared/claude.ts';
 import { backstageOut } from '../_shared/copy.ts';
 import { itemFactsOf, listingOf, productKey, swappedTo } from '../_shared/product.ts';
 import { cleanAspects } from '../_shared/ebay/item.ts';
+import { metered } from '../_shared/usage.ts';
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -85,7 +86,7 @@ export function sellingTitles(c: Record<string, any>, n = 8): string | null {
 // that listing (brand, model, barcode, item details, its seller's description) is a source of facts; its wording
 // never is, and the research's search words are the old product's.
 // deno-lint-ignore no-explicit-any
-function facts(c: Record<string, any>) {
+function facts(c: Record<string, any>, keeper = false) {
   const l = listingOf(c) ?? {};
   const f = itemFactsOf(c) ?? {};
   const moved = Boolean(swappedTo(c));
@@ -107,7 +108,9 @@ function facts(c: Record<string, any>) {
     ['ANOTHER EBAY SELLER\'S item details (typed by hand, often incomplete or wrong; use only what agrees with the rest)', held || null],
     ['ANOTHER EBAY SELLER\'S description (same caution; facts only, never their wording)', f.description],
     ...othersFacts(c),
-    ['Search this was found by', moved ? null : c.external_ref],
+    // Keeper judges the product by the card and her supplier, never by the research's search words: a search for one
+    // thing often found another (the Kylie bed pad, 4 October), and the words read as a different product when they are not.
+    ['Search this was found by', moved || keeper ? null : c.external_ref],
     ['ANOTHER EBAY SELLER\'S listing title (same caution)', (c.draft?.entry ?? c.entry)?.title],
   ]
     .filter(([, v]) => v)
@@ -136,10 +139,14 @@ Rules:
 - Sizes and weights in metric: convert pounds, ounces and inches (0.44 lb is 200 g).
 - The photographs are the manufacturer's packaging. A pack count or size printed
   clearly on them is a fact like any other.
-- If the trusted sources disagree about quantity, size, weight or count (her
-  supplier, the shop's page, the packaging in the photographs), write no titles.
-  Reply with a single line starting CONFLICT: saying what disagrees, for example
-  "CONFLICT: title says 8 x 150g, the pack shows 4x".
+- The source marked FROM HER SUPPLIER is the product she sends. Where the shop's page
+  or another UK shop's page disagrees with it (a size, a grade, a pack, a variant),
+  that page is another product: follow her supplier and leave the other out. That is
+  never a conflict.
+- Only if her supplier and the packaging in the photographs disagree about quantity,
+  size, weight or count, write no titles. With no supplier source, the same goes for
+  the shop's page against the packaging. Reply with a single line starting CONFLICT:
+  saying what disagrees, for example "CONFLICT: title says 8 x 150g, the pack shows 4x".
 - Anything marked ANOTHER EBAY SELLER is that seller's say-so and is often wrong.
   Where it disagrees with a trusted source or makes no sense, leave it out; that
   is never a conflict. A detail only that seller gives is used only if it is
@@ -151,7 +158,7 @@ Rules:
 - Never put a health or medical claim in a title: pain relief, therapy,
   circulation, recovery, healing, treats or prevents, even when a source says it.
 
-Otherwise reply with JSON only, no preamble and no markdown fence: an array of 4 strings.`;
+Otherwise reply with JSON only, no preamble and no markdown fence: an array of 2 strings.`;
 
 const DESC_SYSTEM = `You write eBay UK listing descriptions.
 
@@ -169,11 +176,15 @@ Rules:
 - The photographs are the manufacturer's packaging. Use printed text on them only
   where it is clearly legible, and treat it as a source like any other. Anything
   small, blurred or partly hidden is left out, not guessed.
-- If the trusted sources (her supplier, the shop's page, the packaging in the
-  photographs) disagree about quantity, size, weight, count or contents, do not
-  reconcile them and do not write a description. Reply with a single line that
-  starts CONFLICT: and says what disagrees, for example
-  "CONFLICT: title says 8 x 150g, the pack shows 4x".
+- The source marked FROM HER SUPPLIER is the product she sends. Where the shop's page
+  or another UK shop's page disagrees with it (a size, a grade, a pack, a variant),
+  that page is another product: follow her supplier and leave the other out. That is
+  never a conflict (6 October: her 1 litre 5W-30 oil, another shop's 5 litre 15W-50).
+- Only if her supplier and the packaging in the photographs disagree about quantity,
+  size, weight, count or contents, do not reconcile them and do not write a
+  description. With no supplier source, the same goes for the shop's page against the
+  packaging. Reply with a single line that starts CONFLICT: and says what disagrees,
+  for example "CONFLICT: title says 8 x 150g, the pack shows 4x".
 - Anything marked ANOTHER EBAY SELLER is that seller's say-so and is often wrong:
   sizes with no units, a figure in the wrong box, a feature their title claims.
   Leave out whatever makes no sense or disagrees with a trusted source; that is
@@ -229,7 +240,23 @@ KEEPER'S MODE. This overrides every rule above about replying CONFLICT:
 - Only if her supplier's page is a different product from the shop's title (another
   flavour, variant, model or pack size), still write from her supplier's page, and put
   first a single line reading "DIFFERENT: " and what differs in a few words, for example
-  "DIFFERENT: Amazon sells Chicken, the card says Beef". Otherwise write no such line.`;
+  "DIFFERENT: Amazon sells Chicken, the card says Beef". Otherwise write no such line.
+  Judge that only from the shop's title and her supplier's page, never from how the
+  product was found. These are NOT a different product, so write no DIFFERENT line for
+  them: the brand written differently or left out ("HydroSnake" against "Gravitas
+  HydroSnake"), other words for the same thing, or details you left out because the
+  sources disagree (say nothing of those; they are simply not written).
+- Leave out any detail that cannot belong to this kind of product, even when a table
+  states it: a supplier's details table is often filled from a template or another
+  product (lumens or a bulb type on a smoke alarm module, a screen size on a pillow, a
+  wattage on a soft toy). Write only what a buyer of this product would expect to read.`;
+
+// A title cut to eBay's 80 at the last whole word, without a dangling joiner or mark.
+export function cutTitle(t: string, max = 80) {
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max + 1).replace(/\s+\S*$/, '');
+  return cut.replace(/[\s,;:&/+-]+(and|with|for|in|of)?$/i, '').replace(/[\s,;:&/+-]+$/, '').slice(0, max);
+}
 
 // Keeper's DIFFERENT line off the top of an answer: what differs, and the rest of the answer.
 export function differentOf(text: string): { different: string | null; rest: string } {
@@ -250,11 +277,12 @@ async function allowed(req: Request, tenantId: string) {
   return !error && data === true;
 }
 
-Deno.serve(async (req) => {
+// Its Claude use handed back to Keeper in the x-claude-usage header (usage.ts).
+Deno.serve(metered(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    const { tenant_id: tenantId, candidate_id: candidateId, kind, keeper = false } = await req.json();
+    const { tenant_id: tenantId, candidate_id: candidateId, kind, keeper = false, lessons = null } = await req.json();
     if (!tenantId || !candidateId) return json({ error: 'tenant_id and candidate_id are required' }, 400);
     if (!(await allowed(req, tenantId))) return json({ error: 'Not authorised. Sign in to the portal and try again.' }, 401);
     if (kind !== 'title' && kind !== 'description') return json({ error: 'kind must be title or description' }, 400);
@@ -312,9 +340,10 @@ Deno.serve(async (req) => {
 
     // The selling listings' words, for the title only: the description is written from the facts alone.
     const words = kind === 'title' ? sellingTitles(c) : null;
-    const known = words
-      ? `${facts(c)}\nWORDS BUYERS SEARCH (titles of listings selling this same product; words only, never facts): ${words}`
-      : facts(c);
+    const learned = keeper && lessons ? `\nWHAT KEEPER HAS LEARNED from her past cards and her changes (follow these where they fit this product; they are how she wants it written, never facts about it):\n${String(lessons).slice(0, 2000)}` : '';
+    const known = (words
+      ? `${facts(c, keeper)}\nWORDS BUYERS SEARCH (titles of listings selling this same product; words only, never facts): ${words}`
+      : facts(c, keeper)) + learned;
     // First four photos: enough to reach the back panel without paying for every angle.
     // Photos Keepr passed and we copied (a format we know) first, then the page's own. A photo the model cannot read
     // is dropped and the call made again without photos, rather than failing the whole piece of writing.
@@ -326,7 +355,10 @@ Deno.serve(async (req) => {
     const wider = ours ? ((pc.others ?? []) as any[]).filter((o) => o.ok).flatMap((o) => o.images ?? []) : [];
     const passed = ((ours ? [...(pc.images ?? []), ...wider] : []) as Array<{ ok?: boolean; copy?: string }>)
       .filter((i) => i.ok && i.copy).map((i) => i.copy as string);
-    const shots = (passed.length ? passed : ((c.listing as { images?: string[] } | null)?.images ?? [])).slice(0, 4);
+    // The writing works from the facts in words (4 October: photos were most of the bill, and every one had been
+    // checked already). Photos only when there are no words to go on: no supplier text, no shop page, no eBay details.
+    const hasWords = Boolean(String(c.draft?.supplier_text ?? '').trim() || c.listing || itemFactsOf(c));
+    const shots = hasWords ? [] : (passed.length ? passed : ((c.listing as { images?: string[] } | null)?.images ?? [])).slice(0, 2);
     const write = async (system: string, max: number) => {
       try {
         return await claude(system, known, max, shots);
@@ -342,9 +374,18 @@ Deno.serve(async (req) => {
         return json({ conflict: said.trim().replace(/^CONFLICT:\s*/i, ''), read: fresh });
       }
       const { different, rest: text } = keeper ? differentOf(said) : { different: null, rest: said };
-      const titles = parseTitles(text);
+      let titles = parseTitles(text);
       if (!titles?.length) return json({ error: 'The suggestion came back without titles. Try again.', read: fresh }, 502);
-      // Over 80 is rejected by eBay, so a long one is a wasted option.
+      // Over 80 is rejected by eBay, so a long one is a wasted option. Every one over (a long product name, the KSR
+      // downlight on 4 October) is asked for once more with the lengths said, then the shortest is cut at a word.
+      if (!titles.some((t) => t.length <= 80)) {
+        const again = await write(`${keeper ? TITLE_SYSTEM + KEEPER_MODE : TITLE_SYSTEM}
+
+YOUR LAST TITLES WERE TOO LONG (${titles.map((t) => t.length).join(', ')} characters). eBay refuses anything over 80.
+Write them again, every one 80 characters or fewer: drop the least searched words first.`, 600);
+        const more = parseTitles(keeper ? differentOf(again).rest : again) ?? [];
+        titles = more.some((t) => t.length <= 80) ? more : [cutTitle([...titles, ...more].sort((x, y) => x.length - y.length)[0])];
+      }
       return json({ titles: titles.filter((t) => t.length <= 80).slice(0, 4), different, read: fresh });
     }
 
@@ -363,4 +404,4 @@ Deno.serve(async (req) => {
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }
-});
+}));

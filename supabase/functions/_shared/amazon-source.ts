@@ -35,6 +35,16 @@ export function titleMatch(cardTitle: unknown, resultTitle: unknown) {
 // Below this share of the card's words, a title does not match.
 export const TITLE_MATCH = 0.6;
 
+// Under this share of the card's words on Amazon's page, it is another product, whatever the barcode says. Only on a
+// card title with three words or more (or a model number, which has to be there); a short title says too little.
+export const NAME_FLOOR = 0.34;
+export function otherProduct(cardTitle: unknown, pageTitle: unknown) {
+  if (!String(pageTitle ?? '').trim()) return false;
+  if (modelsIn(cardTitle).length) return titleMatch(cardTitle, pageTitle) === 0;
+  if (new Set(wordsOf(cardTitle)).size < 3) return false;
+  return titleMatch(cardTitle, pageTitle) < NAME_FLOOR;
+}
+
 export function pickResult(cardTitle: unknown, results: Json[]): { asin: string; via: 'only' | 'title' } | { asin: null; why: string } {
   if (!results.length) return { asin: null, why: 'none' };
   if (results.length === 1) return { asin: results[0].asin, via: 'only' };
@@ -271,6 +281,14 @@ export function judge(candidate: { title?: string | null; margin?: Json | null }
   const pack = packDoubt(candidate.title, read);
   if (pack) return no('Another pack on Amazon.', `${pack}.`);
   if (notNew(read)) return no('Not new on Amazon.', `Amazon's page is a renewed or used listing: "${read.facts.title}".`);
+  // The barcode can belong to another product: a seller's listing typed with the wrong code (6 October: a Christmas
+  // Stories Tonie whose barcode found Sleepy Friends on Amazon). Another colour or size, or a page that shares almost
+  // none of the card's words, is left for the full check, not approved.
+  const variant = variantConflict(candidate.title, read.facts.title);
+  if (variant) return no('Another variant on Amazon.', `${variant}: "${read.facts.title}".`);
+  if (otherProduct(candidate.title, read.facts.title)) {
+    return no('Another product on Amazon.', `Amazon's page is "${read.facts.title}", the card is "${candidate.title}": its barcode points to another product.`);
+  }
   const offer = read.offer;
   const cost = goodsOf(offer);
   // What Approved should check by eye: saved with the reading and shown on the card there.

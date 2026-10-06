@@ -1,10 +1,10 @@
 # Keepr Agent-01: store card reviewer
 
-Version 3.4, 3 October 2026. Cart & Keep, Brick Dev Commerce.
+Version 3.5, 5 October 2026. Cart & Keep, Brick Dev Commerce.
 
 Version 2 adds what the first two live reviews taught: Home & Garden (57 cards) and Health & Beauty (483 cards). These cover the working method, the flags that find problems fast, the patterns for a wrong match, the sourcing and legal lists, and the lessons that became pipeline rules.
 
-Version 3 adds VAT on shelf prices, how to read a re-source results file, generic titles, barcodes for eBay catalogue listing, and a watch list for each category still to run. Version 3.1 adds the Hardware review (752 cards, 1 October). Version 3.2 adds the Toys & Games review (1,026 cards, 2 October). Version 3.3 adds the Baby & Toddler review (255 cards, 2 October) and postage by weight on eBay cards. Version 3.4 adds the Animals & Pet Supplies review (381 cards, 3 October).
+Version 3 adds VAT on shelf prices, how to read a re-source results file, generic titles, barcodes for eBay catalogue listing, and a watch list for each category still to run. Version 3.1 adds the Hardware review (752 cards, 1 October). Version 3.2 adds the Toys & Games review (1,026 cards, 2 October). Version 3.3 adds the Baby & Toddler review (255 cards, 2 October) and postage by weight on eBay cards. Version 3.4 adds the Animals & Pet Supplies review (381 cards, 3 October). Version 3.5 adds the Sporting Goods review (609 cards, 5 October).
 
 ## What it is
 
@@ -306,7 +306,7 @@ node scripts/store/key-check.mjs --google=research/google/<category>
 | Animals & Pet Supplies | done 3 October, see below | |
 | Electronics (222) | cables, batteries, chargers, ink and toner, big-button phones | counterfeit chargers and cables (authorised sources only); loose lithium batteries can't be posted; Apple and Samsung enforce on eBay; compatible ink is fine, fake branded ink is not |
 | Office Supplies (922) | label tape, ink, shredders, label printers | compatible against original consumables (say which); heavy paper boxes |
-| Sporting Goods (988) | care-adjacent fitness only (hand exercisers, resistance bands) | sized clothing and footwear; heavy weights; gas cylinders for camping stoves |
+| Sporting Goods | done 5 October, see below | |
 | Baby & Toddler | done 2 October, see below | |
 | Vehicles & Parts (888) | car care only | parts for one vehicle; car batteries and aerosols can't post; screenwash and de-icer may be flammable |
 
@@ -371,7 +371,20 @@ Every pattern Keepr rejected by hand twice was moved upstream, so the next batch
 - **Pet food needs feed business registration** with her council, like human food. Say so in the legal column.
 - **Re-source leads repeat the breed mistake.** 14 of 26 leads were wrong (Boxer for five different cards, Duck & Rice for Fish & Rice, a Home Bargains pouch pack for tins). Read every one.
 
-**Upstream fixes from the Pet run** (see the Animals & Pet Supplies section of `store-rules-2026-09-30.md`): vet prescription and vet counter stops, pet own label and `BRANDED`, pet food KINDS and VERSION words in `match.mjs`, pet beds and plant litter through the not-shelf rule. Still open: breed and size words in `match.mjs`, Lords & Labradors as own label, the Reptile Centre brand tag.
+**Upstream fixes from the Pet run** (see the Animals & Pet Supplies section of `store-rules-2026-09-30.md`): vet prescription and vet counter stops, pet own label and `BRANDED`, pet food KINDS and VERSION words in `match.mjs`, pet beds and plant litter through the not-shelf rule. Breed and size words in `match.mjs` were fixed the same day; the Reptile Centre brand tag is read by `shelf-shopify.mjs` since 4 October (collect it again to use it). Still open: Lords & Labradors as own label.
+
+**Sporting Goods review patterns (5 October), 609 cards: 395 keep, 137 notes, 37 re-source, 40 rejects:**
+- **Studio sells Frasers Group's own brands.** Slazenger, Everlast, Gelert, Karrimor, Donnay, Lonsdale and Pinnacle (Evans) are Frasers brands, sold in Sports Direct, Studio and Evans. Reject as not sourceable and give the count (22, a judgment call: Everlast turns up elsewhere now and then).
+- **Brands that sell direct.** Core Balance and Yogamatters' own range sell from their own sites. Yogamatters' own range is own label; Core Balance is a note: trade account needed.
+- **Tyres and reels come in close variants.** Halfords names every version: GP 5000 against GP 5000 TT TR, Corsa Pro against Corsa Pro Control, G-One Allround against G-One R and Bite, Cinturato Road against All Road, Sonik Xtractor against Xtractor+. Several Google titles land on one page; check identical page names first.
+- **Fishing is a new range.** Tackle brands (Korda, Nash, Daiwa, Shimano, Preston) sell through approved dealers: fit "maybe", sourcing "trade account needed". Angling Direct gives names only, so every match is a name match: read the model word by word.
+- **Long, not heavy.** Landing nets and handles, rod pods, tripods, tele whips and windbreaks pack over 61cm: Evri to 1.2m or a courier. Scooters, balance bikes, trikes, tents and golf bags with no weight are costed as a small parcel and need a medium one.
+- **What the rules missed:** freezer boilies (the rule said "frozen"), a game rod ("Ultra Light" read as a light), a fishing umbrella ("umbrella" only stopped as "umbrella shelter").
+- **Generic titles:** "Dynamite Baits Boilies", "Micro Helmet", "Victorinox Swiss Army Knife" and "Korum Avon" (the Avon rod against a £1.75 float).
+- **Golf balls** are often counterfeit: authorised sources only.
+- **Re-source leads land on parts.** The search found a spare spool for a reel, bar tape plugs for bar tape and brake pads for a brake. A lead at a third of the card's price is a part.
+
+**Upstream fixes from the Sporting run** (see the Sporting Goods section of `store-rules-2026-09-30.md`): sized kit and fixed-blade knives stopped; fishing rods, bivvies and frozen bait stopped with tackle passing; Decathlon, Argos, Go Outdoors and Mountain Warehouse own label; `shelf-shopify.mjs` reads in pounds and cleans the brand. Still open: Frasers brands and Yogamatters as own label, "freezer", the rod rule's "Ultra Light", Ridge Monkey.
 
 **Watch on eBay cards: the postage band.** On 2 October a Sika jointing compound eBay card (15kg tub on the shelf, 14kg on eBay) was costed at "Evri to 5kg, £2.62". A heavy product priced in the small band makes "You keep" look like profit when it is a loss. On any eBay card, read the weight in the title or pack chip ("Shelf 15000, eBay 14000" means 15kg against 14kg: the chip's numbers are grams or millilitres) against the postage line on the receipt. Fixed the same day: the importers now cost eBay postage by weight, and `scripts/recost-ebay-weight.mjs` re-costed 50 cards already in her queue (see `postage-by-weight-2026-10-02.md`). A weight read from a title can still be wrong (a damaged-box listing read as 22kg for a steam iron): read the courier and negative-keep lists before `--apply`.
 

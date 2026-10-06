@@ -1,0 +1,76 @@
+/* One alert, one line: dot, product, what is wrong, the fix. Neutral rows; the dot carries the colour. */
+.row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  list-style: none;
+}
+
+.row + .row { border-top: 1px solid var(--c-line); }
+.row[data-compact] { padding: var(--s-2) 0; }
+.row[data-compact] .line { flex-direction: column; align-items: stretch; gap: 1px; }
+.row[data-compact] .what { max-width: none; font-size: var(--t-micro); }
+
+.dot { width: 8px; height: 8px; border-radius: var(--r-full); background: var(--c-warning); }
+.row[data-level='stop'] .dot { background: var(--c-negative); box-shadow: 0 0 0 3px var(--c-negative-wash); }
+.row[data-level='warn'] .dot { box-shadow: 0 0 0 3px var(--c-warning-wash); }
+
+.body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.line { display: flex; align-items: baseline; gap: var(--s-3); min-width: 0; }
+
+.title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--t-caption);
+  font-weight: 600;
+  color: var(--c-ink);
+}
+
+.what { flex: none; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-caption); font-weight: 500; color: var(--c-warning); }
+.row[data-level='stop'] .what { color: var(--c-negative); }
+
+.sub { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; font-size: var(--t-micro); line-height: var(--lh-snug); }
+.where { flex: none; font-weight: 600; color: var(--c-ink-faint); }
+.text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--c-ink-soft); }
+
+.actions { display: flex; align-items: center; gap: var(--s-2); }
+
+.act {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--c-line-mid);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  color: var(--c-ink);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.act:hover { border-color: var(--c-control); background: var(--c-raised); }
+.act[data-main] { border-color: transparent; background: var(--c-action-wash); color: var(--c-action-text); }
+.act[data-main]:hover { border-color: var(--c-action); }
+.act:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+
+/* A phone: the sentence wraps instead of being cut, and the buttons go under it. */
+@media (max-width: 640px) {
+  .row { grid-template-columns: 10px minmax(0, 1fr); align-items: start; }
+  .dot { margin-top: 6px; }
+  .line { flex-wrap: wrap; gap: 2px var(--s-2); }
+  .title { white-space: normal; }
+  .what { max-width: none; white-space: normal; }
+  .sub { flex-direction: column; gap: 2px; }
+  .text { white-space: normal; }
+  .actions { grid-column: 2; flex-wrap: wrap; }
+}
+
+@media (prefers-reduced-motion: reduce) { .act { transition: none; } }

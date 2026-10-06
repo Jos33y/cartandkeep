@@ -82,11 +82,14 @@ for (const g of wanted) {
 }
 
 // Only shelf products that could match a wanted best seller are kept: its barcode, or its brand's key.
+// A brand of two or more words is also looked for written as one: Google files "Ridge Monkey" while shops and most
+// titles say "RidgeMonkey", so the shop rows were filed under a key nobody asked for (5 October).
+const joinedOf = (brand) => (brand.includes(' ') ? brand.replace(/ /g, '') : '');
 const shelf = loadShelves({
   dir: shelfDir,
   wantGtins: new Set(wanted.flatMap((g) => g.gtins)),
-  wantKeys: new Set(wanted.flatMap((g) => [g.brand, g.brand.split(' ')[0], ...g.lines]).filter(Boolean)),
-  wantBrands: new Set(wanted.flatMap((g) => [g.brand, ...g.lines]).filter(Boolean)),
+  wantKeys: new Set(wanted.flatMap((g) => [g.brand, g.brand.split(' ')[0], joinedOf(g.brand), ...g.lines]).filter(Boolean)),
+  wantBrands: new Set(wanted.flatMap((g) => [g.brand, joinedOf(g.brand), ...g.lines]).filter(Boolean)),
   skipShops,
 });
 const { byGtin, byBrand, weighed } = shelf;
@@ -115,6 +118,8 @@ for (const g of wanted) {
     const firstWord = g.brand.split(' ')[0];
     const own = byBrand.get(g.brand);
     const pools = [[own ?? (byBrand.get(firstWord) ?? []).filter((s) => (s.brand && s.brand === firstWord) || ` ${squash(s.name)} `.includes(` ${g.brand} `)), g.Brand]];
+    const joined = joinedOf(g.brand);
+    if (joined) pools.push([byBrand.get(joined) ?? [], g.Brand]);
     for (const l of g.lines) pools.push([byBrand.get(l) ?? [], l]);
     const looked = new Set();
     for (const [pool, brandAs] of pools) for (const s of pool) {

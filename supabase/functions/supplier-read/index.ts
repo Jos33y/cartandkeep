@@ -6,11 +6,14 @@
 // written here: the portal puts the facts and photos in her draft, the way the Send button does.
 // Her supplier's cost follows Amazon's price where it came from Amazon (costFollow), and so does the shop product's
 // cost where it came from the supplier. A cost she set herself is never moved: she is told, and offered the price.
+// A live listing whose cost changed is emailed to the shop's own address, once per change (Joseey, 5 October: only
+// price changes reach her by email). Through the notify function, which owns every email.
 // Needs APIFY_TOKEN in the function secrets.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { env } from '../_shared/ebay/listing.ts';
 import { BATCH, costFollow, failedRead, londonDay, nextRead, runAxesso, supplierPageOf } from '../_shared/amazon.ts';
+import { priceAlert } from './alert.ts';
 
 type Json = Record<string, any>;
 
@@ -87,7 +90,7 @@ async function load(client: ReturnType<typeof db>, tenantId: string, ids: string
   for (let i = 0; i < ids.length; i += 200) {
     const part = ids.slice(i, i + 200);
     const [{ data: c, error: e1 }, { data: s, error: e2 }] = await Promise.all([
-      client.from('candidates').select('id, draft, supplier_read, decisions!inner ( action )')
+      client.from('candidates').select('id, title, draft, ebay, supplier_read, decisions!inner ( action )')
         .eq('tenant_id', tenantId).eq('decisions.action', 'approve').in('id', part),
       client.from('candidate_sources').select(SOURCE_FIELDS).eq('tenant_id', tenantId).in('candidate_id', part),
     ]);
@@ -139,7 +142,8 @@ Deno.serve(async (req) => {
       todo = [];
       for (const x of loaded) {
         const r = x.c.supplier_read;
-        const fresh = !again && r?.asin === x.page.asin && r?.found && r?.read_at && Date.now() - Date.parse(r.read_at) < FRESH_HOURS * 3600 * 1000;
+        // A reading that found no price is never fresh: read again, whatever its age (the Salus, 4 October).
+        const fresh = !again && r?.asin === x.page.asin && r?.found && r?.offer?.price != null && r?.read_at && Date.now() - Date.parse(r.read_at) < FRESH_HOURS * 3600 * 1000;
         if (!x.page.asin) skipped[x.c.id] = x.page.reason === 'not_uk' ? 'Only amazon.co.uk pages are read: another Amazon prices in another currency.' : 'No Amazon link on this card.';
         else if (!fresh) todo.push(x);
       }
@@ -150,6 +154,7 @@ Deno.serve(async (req) => {
 
     const out: Record<string, Json> = {};
     const moved: Record<string, Json> = {};
+    const tell: Json[] = [];
     const history: Json[] = [];
     for (const { c, page, sources } of todo) {
       const r = reads.get(page.asin);
@@ -179,6 +184,14 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Live on eBay and the cost changed: she hears about it once. Followed (her cost moved with Amazon), or Amazon
+      // now dearer than a cost she set herself, told once per new price.
+      const alert = r ? priceAlert(c, source, moved[c.id] ?? null, follow, r, page.costed, next.told) : null;
+      if (alert) {
+        tell.push(alert);
+        next.told = { price: alert.to, at: r!.read_at };
+      }
+
       const { error } = await client.from('candidates').update({ supplier_read: next }).eq('id', c.id).eq('tenant_id', tenantId);
       if (error) throw new Error(error.message);
       out[c.id] = next;
@@ -194,6 +207,26 @@ Deno.serve(async (req) => {
       if (error) console.error('[supplier-read] history not written', error.message);
     }
 
+    // Sent after the readings are saved. A send that fails is logged, not retried: the same trade every email here makes.
+    if (tell.length) {
+      // The price it sells at on eBay: on the card once changed from the portal, else the latest pull.
+      for (const t of tell.filter((x) => x.price == null)) {
+        const { data } = await client.from('ebay_traffic').select('price').eq('tenant_id', tenantId).eq('listing_id', t.listing_id)
+          .not('price', 'is', null).order('fetched_at', { ascending: false }).limit(1).maybeSingle();
+        t.price = data?.price != null ? Number(data.price) : null;
+      }
+      try {
+        const res = await fetch(`${env('SUPABASE_URL')}/functions/v1/notify`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${env('SUPABASE_SERVICE_ROLE_KEY')}` },
+          body: JSON.stringify({ kind: 'price_alert', tenant_id: tenantId, items: tell }),
+        });
+        if (!res.ok) console.error('[supplier-read] price email', res.status, await res.text().catch(() => ''));
+      } catch (e) {
+        console.error('[supplier-read] price email', e instanceof Error ? e.message : String(e));
+      }
+    }
+
     // The cards that were fresh enough come back as they are.
     if (!daily) {
       for (const id of (asked as string[]).slice(0, BATCH)) {
@@ -203,7 +236,7 @@ Deno.serve(async (req) => {
         }
       }
     }
-    return json({ read: reads.size, failed: failed.length, reads: out, skipped, moved });
+    return json({ read: reads.size, failed: failed.length, reads: out, skipped, moved, told: tell.length });
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }

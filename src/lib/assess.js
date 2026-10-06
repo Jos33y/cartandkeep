@@ -1,6 +1,7 @@
+import { hasHerEdits } from './edits.js';
 import { chosenEntry, listingOf, swappedTo } from './product.js';
 import {
-  PROFIT, breakEvenFor, cheapestCost, dropshipCosts, ebayCosts, floorFor, goodsToList, isPackCheck, keepAt as keepFor, listFor, marketAllows, positionOf, profitAt, storeCosts,
+  PROFIT, atParcel, breakEvenFor, cheapestCost, dropshipCosts, ebayCosts, floorFor, goodsToList, isPackCheck, keepAt as keepFor, listFor, marketAllows, positionOf, profitAt, storeCosts,
 } from './pricing.js';
 
 // Above this many variations the price is a blend.
@@ -127,8 +128,9 @@ export function channelsOf(row) {
 
 // A store card: her own price from the cheapest real cost (where it was seen, or a supplier she added).
 function assessStore(row, tryCost = null, holdPrice = false, tryPosted = 'supplier') {
-  const m = row.margin ?? {};
   const d = row.draft ?? {};
+  // Postage from the card's own parcel when it has a weight; the eBay reading inside is re-costed by assess.
+  const m = atParcel(row.margin ?? {}, d.package?.weight_kg, true);
   const g = m.google ?? {};
   const from = m.cost_from ?? {};
   const returns = Number(m.returns_allowance ?? 0);
@@ -155,6 +157,7 @@ function assessStore(row, tryCost = null, holdPrice = false, tryPosted = 'suppli
     keep != null && keep < 0 && 'Loses money at this price.',
     keep != null && keep >= 0 && floor != null && price < floor && `Under your floor of £${floor.toFixed(2)}, so it keeps less than your profit.`,
     m.postage_band?.basis === 'assumed' && 'No weight on file, so postage is costed as a small parcel (up to 2kg, 45 x 35 x 16cm). Check it fits before listing.',
+    m.postage_band?.basis === 'courier' && 'Your parcel is over 20kg, so it goes by courier. Postage is costed at the 20kg price as the least it will cost; check the courier\'s price.',
   ].filter(Boolean);
   // The same card read as an eBay listing, once the gate has priced it for eBay. Its own price, never the shop's.
   const ebay = m.ebay ? assess({ ...row, margin: m.ebay, draft: { ...d, price: d.ebay_price ?? undefined } }) : null;
@@ -192,7 +195,8 @@ function assessStore(row, tryCost = null, holdPrice = false, tryPosted = 'suppli
     month: null,
     title: d.title ?? row.title,
     images: d.images ?? [],
-    edited: Object.keys(d).length > 0,
+    // Hers only: what Keeper or a reading filled is not her edit (lib/edits.js).
+    edited: hasHerEdits(d),
   };
 }
 
@@ -200,8 +204,9 @@ function assessStore(row, tryCost = null, holdPrice = false, tryPosted = 'suppli
 // holdPrice keeps her own draft price while trying it.
 export function assess(row, { tryCost = null, tryPosted = 'supplier', holdPrice = false } = {}) {
   if (row.margin?.channel === 'store') return assessStore(row, tryCost, holdPrice, tryPosted);
-  const m = row.margin ?? {};
   const d = row.draft ?? {};
+  // Postage from the card's own parcel when it has a weight, as on shop cards.
+  const m = atParcel(row.margin ?? {}, d.package?.weight_kg);
   // A listing she or Keepr chose over the research's prices the card now. When it is another product, the shelf and
   // the page the card was costed from are the old product's: only her supplier prices it, and its own market.
   const chosen = chosenEntry(d);
@@ -289,7 +294,8 @@ export function assess(row, { tryCost = null, tryPosted = 'supplier', holdPrice 
         : 'Priced at the median, which no small seller has been paid.'),
     l?.in_stock === 'no' && 'Out of stock at the shop.',
     row.variation_count >= BLENDED && `Sold in ${row.variation_count} variations, so the price is an average.`,
-    row.bulky && 'Costed as a small parcel and this one is bulky.',
+    row.bulky && !m.postage_from_parcel && 'Costed as a small parcel and this one is bulky.',
+    m.postage_basis === 'over 20kg' && m.postage_from_parcel && 'Your parcel is over 20kg, so it goes by courier. Postage is costed at the 20kg price as the least it will cost; check the courier\'s price.',
     packCheck && `Converting at ${ratio} times the shelf price. Check it is the same pack.`,
     keep != null && keep < 0 && 'Loses money at this price.',
     modelled && goods == null && assumed == null && market != null && 'The eBay price does not cover fees and postage, so no cost can pay here.',
@@ -344,6 +350,7 @@ export function assess(row, { tryCost = null, tryPosted = 'supplier', holdPrice 
     ready: warnings.length === 0 && entry?.proved === true && keep != null && keep > 0,
     title: d.title ?? l?.title ?? moved?.title ?? row.title,
     images: d.images ?? l?.images ?? [],
-    edited: Object.keys(d).length > 0,
+    // Hers only: what Keeper or a reading filled is not her edit (lib/edits.js).
+    edited: hasHerEdits(d),
   };
 }

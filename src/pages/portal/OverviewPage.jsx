@@ -4,11 +4,12 @@ import { useOverview, nextMonday } from '@hooks/useOverview';
 import { useLiveCounts } from '@hooks/useLiveListings';
 import { useFinance } from '@hooks/useFinance';
 import { useApproved } from '@hooks/useApproved';
-import { useSupplierWatch } from '@hooks/useSupplierWatch';
+import { useAlerts } from '@hooks/useAlerts';
 import { assess } from '@lib/assess';
 import { goLive, viewsOf } from '@lib/golive';
 import { PageSkeleton } from '@components/ui/portal/Skeleton';
 import { Card, CardHead } from '@components/ui/portal/primitives';
+import { AlertRow } from '@components/ui/portal/AlertRow';
 import { Icon } from '@components/ui/icons';
 import { loadTenant } from '@lib/tenant';
 import { formatGbp } from '@utils/formatGbp';
@@ -34,7 +35,7 @@ export function OverviewPage() {
   const live = useLiveCounts(tenant?.id);
   const f = useFinance(tenant?.id);
   const ap = useApproved(tenant?.id);
-  const sw = useSupplierWatch(tenant?.id);
+  const al = useAlerts(tenant?.id, { agent: tenant?.store?.agent?.name || null });
   const monday = useMemo(() => nextMonday(), []);
 
   // Approved, not yet listed, read by the same assess() as the Approved page, so "ready" here is the Approved page's
@@ -75,21 +76,8 @@ export function OverviewPage() {
   const sold$ = f.products ?? [];
   const uncosted = sold$.filter((p) => !p.costed).length;
 
-  // Her Amazon suppliers this morning: out of stock or dearer than costed comes before anything else, because a
-  // live listing keeps selling what she may not be able to buy at that price.
-  const supStop = sw.items.filter((x) => x.warnings[0].level === 'stop').length;
-
   // What needs her, in the order it costs money to leave it.
   const tasks = [
-    sw.items.length > 0 && {
-      icon: 'IconFlag',
-      tone: supStop ? 'negative' : 'warning',
-      count: sw.items.length,
-      title: `${n(sw.items.length)} Amazon ${plural(sw.items.length, 'supplier needs', 'suppliers need')} a look`,
-      body: `${sw.items[0].title}: ${sw.items[0].warnings[0].text}${sw.items.length > 1 ? ` And ${sw.items.length - 1} more.` : ''}`,
-      anchor: 'suppliers',
-      cta: 'See them',
-    },
     approved.ready > 0 && {
       icon: 'IconTag',
       tone: 'action',
@@ -186,138 +174,146 @@ export function OverviewPage() {
         </Card>
       ) : (
         <div className={styles.grid}>
-          <Card className={styles.tasks}>
-            <CardHead title="Needs you" note={tasks.length ? 'Most valuable first' : undefined} />
-            {tasks.length ? (
-              <ul className={styles.taskList}>
-                {tasks.map((t) => (
-                  <li key={t.title}>
-                    <TaskLink t={t} className={styles.task}>
-                      <span className={`${styles.taskIcon} ${t.tone ? styles[t.tone] : ''}`}>
-                        <Icon name={t.icon} className={styles.taskGlyph} />
-                      </span>
-                      <span className={styles.taskText}>
-                        <span className={styles.taskTitle}>{t.title}</span>
-                        <span className={styles.taskBody}>{t.body}</span>
-                      </span>
-                      <span className={styles.taskCta}>
-                        {t.cta}
-                        <Icon name="IconCaret" className={styles.taskCaret} />
-                      </span>
-                    </TaskLink>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className={styles.clear}>
-                <Icon name="IconCheck" className={styles.clearIcon} />
-                Everything is reviewed, listed or waiting on the next batch.
-              </p>
-            )}
-          </Card>
-
-          {sw.items.length > 0 && (
-            <Card className={styles.suppliers} id="suppliers">
-              <CardHead title="Amazon suppliers today"
-                note={sw.checked ? `Checked ${fmt(new Date(sw.checked), { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s(am|pm)$/i, '$1')}` : undefined} />
-              <ul className={styles.supList}>
-                {sw.items.map((x) => (
-                  <li key={x.id} className={styles.supItem} data-level={x.warnings[0].level}>
-                    <span className={styles.supText}>
-                      <span className={styles.supTitle}>{x.title}</span>
-                      {x.warnings.map((w) => <span key={w.text} className={styles.supWarn}>{w.text}</span>)}
-                    </span>
-                    {x.url && <a className={styles.more} href={x.url} target="_blank" rel="noreferrer">Amazon</a>}
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
-
-          <Card>
-            <CardHead
-              title="Money"
-              note={!f.totals.lines ? 'No sales yet'
-                : f.showing === 'all' ? 'All time'
-                  : new Date(`${String(f.showing).slice(0, 7)}-01T00:00:00Z`)
-                    .toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })}
-              aside={<Link to={portalPath('/finance')} className={styles.more}>Finance</Link>}
-            />
-            {/* No sales is not an unknown profit. Unknown is for sales with no
-                cost behind them. */}
-            {f.totals.lines ? (
-              <div className={styles.funnel}>
-                <Mini icon="IconChart" label="Taken" value={formatGbp(f.totals.revenue)} />
-                {/* A profit over some products is not her profit. With costs missing it says so, not a figure. */}
-                {uncosted ? (
-                  <Mini icon="IconCheck" label="Kept" value="Costs missing" tone="warning"
-                    foot={`${uncosted} of ${sold$.length} products sold have no cost yet${f.totals.net != null ? `. ${formatGbp(f.totals.net)} on the rest` : ''}.`}
-                    to={portalPath('/finance')} cta="Add costs" />
-                ) : (
-                  <Mini icon="IconCheck" label="Kept" value={f.totals.net == null ? 'Unknown' : formatGbp(f.totals.net)}
-                    tone={f.totals.net > 0 ? 'positive' : null} />
-                )}
-                <Mini icon="IconBought" label="Units" value={n(f.totals.units)} />
-              </div>
-            ) : (
-              <p className={styles.empty}>
-                No sales recorded yet. Shop orders appear here on their own; eBay sales come in from an export on the Finance page.
-              </p>
-            )}
-          </Card>
-
-          <Card>
-            <CardHead
-              title="eBay, last 90 days"
-              aside={<Link to={portalPath('/ebay/traffic')} className={styles.more}>Traffic</Link>}
-            />
-            {o.traffic ? (
-              <>
-                <div className={styles.funnel}>
-                  <Mini icon="IconImpression" label="Shown" value={n(o.traffic.impressions)} />
-                  <Mini icon="IconOpened" label="Opened" value={n(o.traffic.views)} foot={pct(o.traffic.click_rate)} />
-                  <Mini icon="IconBought" label="Orders" value={n(o.traffic.transactions)} foot={pct(o.traffic.conversion_rate)} tone="positive" />
-                </div>
-                <Spark days={o.days} />
-                {o.days.length > 1 && (
-                  <p className={styles.sparkAxis}>
-                    <span>{fmt(new Date(`${o.days[0].day}T12:00:00Z`), { day: 'numeric', month: 'short' })}</span>
-                    <span>a mark on each day with an order</span>
-                    <span>{fmt(new Date(`${o.days[o.days.length - 1].day}T12:00:00Z`), { day: 'numeric', month: 'short' })}</span>
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className={styles.empty}>Pull traffic once from the Traffic page and this fills in.</p>
-            )}
-          </Card>
-
-          {o.reasons.length > 0 && (
-            <Card className={styles.wide}>
-              <CardHead title="Why products were rejected"
-                note="Used to adjust what the research looks for." />
-              <ul className={styles.reasons}>
-                {o.reasons.map(({ reason, count }) => {
-                  const label = REJECTION_REASONS.find((r) => r.value === reason)?.label ?? reason;
-                  const top = o.reasons[0].count || 1;
-                  return (
-                    <li key={reason} className={styles.reason}>
-                      <span className={styles.reasonLabel}>{label}</span>
-                      <span className={styles.reasonTrack}>
-                        <span className={styles.reasonFill} style={{ width: `${(count / top) * 100}%` }} />
-                      </span>
-                      <span className={styles.reasonCount} data-num>{count}</span>
+          {/* Two columns that stack on their own: a long card on one side never leaves a hole on the other. */}
+          <div className={styles.col}>
+            <Card>
+              <CardHead title="Needs you" note={tasks.length ? 'Most valuable first' : undefined} />
+              {tasks.length ? (
+                <ul className={styles.taskList}>
+                  {tasks.map((t) => (
+                    <li key={t.title}>
+                      <TaskLink t={t} className={styles.task}>
+                        <span className={`${styles.taskIcon} ${t.tone ? styles[t.tone] : ''}`}>
+                          <Icon name={t.icon} className={styles.taskGlyph} />
+                        </span>
+                        <span className={styles.taskText}>
+                          <span className={styles.taskTitle}>{t.title}</span>
+                          <span className={styles.taskBody}>{t.body}</span>
+                        </span>
+                        <span className={styles.taskCta}>
+                          {t.cta}
+                          <Icon name="IconCaret" className={styles.taskCaret} />
+                        </span>
+                      </TaskLink>
                     </li>
-                  );
-                })}
-              </ul>
+                  ))}
+                </ul>
+              ) : (
+                <p className={styles.clear}>
+                  <Icon name="IconCheck" className={styles.clearIcon} />
+                  Everything is reviewed, listed or waiting on the next batch.
+                </p>
+              )}
             </Card>
-          )}
+            <Card>
+              <CardHead
+                title="eBay, last 90 days"
+                aside={<Link to={portalPath('/ebay/traffic')} className={styles.more}>Traffic</Link>}
+              />
+              {o.traffic ? (
+                <>
+                  <div className={styles.funnel}>
+                    <Mini icon="IconImpression" label="Shown" value={n(o.traffic.impressions)} />
+                    <Mini icon="IconOpened" label="Opened" value={n(o.traffic.views)} foot={pct(o.traffic.click_rate)} />
+                    <Mini icon="IconBought" label="Orders" value={n(o.traffic.transactions)} foot={pct(o.traffic.conversion_rate)} tone="positive" />
+                  </div>
+                  <Spark days={o.days} />
+                  {o.days.length > 1 && (
+                    <p className={styles.sparkAxis}>
+                      <span>{fmt(new Date(`${o.days[0].day}T12:00:00Z`), { day: 'numeric', month: 'short' })}</span>
+                      <span>a mark on each day with an order</span>
+                      <span>{fmt(new Date(`${o.days[o.days.length - 1].day}T12:00:00Z`), { day: 'numeric', month: 'short' })}</span>
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className={styles.empty}>Pull traffic once from the Traffic page and this fills in.</p>
+              )}
+            </Card>
+            {o.reasons.length > 0 && (
+              <Card>
+                <CardHead title="Why products were rejected"
+                  note="Used to adjust what the research looks for." />
+                <ul className={styles.reasons}>
+                  {o.reasons.map(({ reason, count }) => {
+                    const label = REJECTION_REASONS.find((r) => r.value === reason)?.label ?? reason;
+                    const top = o.reasons[0].count || 1;
+                    return (
+                      <li key={reason} className={styles.reason}>
+                        <span className={styles.reasonLabel}>{label}</span>
+                        <span className={styles.reasonTrack}>
+                          <span className={styles.reasonFill} style={{ width: `${(count / top) * 100}%` }} />
+                        </span>
+                        <span className={styles.reasonCount} data-num>{count}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Card>
+            )}
+          </div>
+          <div className={styles.col}>
+            <Card>
+              <CardHead title="Alerts"
+                note={al.status !== 'ready' ? 'Checking' : al.badge ? `${al.counts.stop ? `${n(al.counts.stop)} need action now` : 'Nothing urgent'}` : 'Nothing on what is selling'}
+                aside={<Link to={portalPath('/alerts')} className={styles.more}>{al.alerts.length > ALERTS_SHOWN ? `All ${n(al.alerts.length)}` : 'All alerts'}</Link>} />
+              {al.alerts.length ? (
+                <ul className={styles.alertList}>
+                  {al.alerts.slice(0, ALERTS_SHOWN).map((a) => <AlertRow key={a.key} a={a} compact />)}
+                </ul>
+              ) : al.status === 'ready' ? (
+                <p className={styles.quiet}>
+                  <Icon name="IconCheck" className={styles.quietIcon} />
+                  Suppliers, the eBay queue, {tenant?.store?.agent?.name || 'Keeper'} and stock are all fine.
+                </p>
+              ) : null}
+              {al.alerts.length > ALERTS_SHOWN && (
+                <Link to={portalPath('/alerts')} className={styles.seeAll}>
+                  See all {n(al.alerts.length)} alerts
+                  <Icon name="IconCaret" className={styles.taskCaret} />
+                </Link>
+              )}
+            </Card>
+            <Card>
+              <CardHead
+                title="Money"
+                note={!f.totals.lines ? 'No sales yet'
+                  : f.showing === 'all' ? 'All time'
+                    : new Date(`${String(f.showing).slice(0, 7)}-01T00:00:00Z`)
+                      .toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })}
+                aside={<Link to={portalPath('/finance')} className={styles.more}>Finance</Link>}
+              />
+              {/* No sales is not an unknown profit. Unknown is for sales with no
+                  cost behind them. */}
+              {f.totals.lines ? (
+                <div className={styles.funnel}>
+                  <Mini icon="IconChart" label="Taken" value={formatGbp(f.totals.revenue)} />
+                  {/* A profit over some products is not her profit. With costs missing it says so, not a figure. */}
+                  {uncosted ? (
+                    <Mini icon="IconCheck" label="Kept" value="Costs missing" tone="warning"
+                      foot={`${uncosted} of ${sold$.length} products sold have no cost yet${f.totals.net != null ? `. ${formatGbp(f.totals.net)} on the rest` : ''}.`}
+                      to={portalPath('/finance')} cta="Add costs" />
+                  ) : (
+                    <Mini icon="IconCheck" label="Kept" value={f.totals.net == null ? 'Unknown' : formatGbp(f.totals.net)}
+                      tone={f.totals.net > 0 ? 'positive' : null} />
+                  )}
+                  <Mini icon="IconBought" label="Units" value={n(f.totals.units)} />
+                </div>
+              ) : (
+                <p className={styles.empty}>
+                  No sales recorded yet. Shop orders appear here on their own; eBay sales come in from an export on the Finance page.
+                </p>
+              )}
+            </Card>
+          </div>
         </div>
       )}
     </div>
   );
 }
+
+// The Overview shows the worst few; the Alerts page has the rest.
+const ALERTS_SHOWN = 3;
 
 function Step({ icon, title, body }) {
   return (

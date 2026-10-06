@@ -5,6 +5,8 @@ import { checkOne, contextFor } from '../_shared/keeper-check.ts';
 import { sourceBatch } from './source.ts';
 import { readyBatch, type Call } from './ready.ts';
 import { readSize } from '../_shared/parcel-read.ts';
+import { askLessons, review } from './review.ts';
+import { pence, tallied, used } from '../_shared/usage.ts';
 
 type Json = Record<string, any>;
 
@@ -54,6 +56,9 @@ export const callFunction: Call = async (fn, body, headers = {}) => {
   try { out = JSON.parse(text); } catch { out = { error: `${fn} answered ${res.status}: ${text.slice(0, 200)}` }; }
   // A refusal in words (a conflict, nothing to write from) comes back as the answer; the step says it.
   if (!res.ok && !out.error) out.error = `${fn} answered ${res.status}`;
+  // What Claude was used for in that call, as the function counted it (usage.ts), for Keeper's spend.
+  const usage = res.headers.get('x-claude-usage');
+  if (usage) { try { out._usage = JSON.parse(usage); } catch { /* counted at the estimate instead */ } }
   return out;
 };
 
@@ -112,6 +117,15 @@ async function workSource(client: Db, run: Json) {
   return looked;
 }
 
+/*
+ * What she reads when a run stops for want of credit: whose, where to top up, and that nothing was lost. The cards
+ * not yet done wait in the queue and Carry on picks them up from where each got to.
+ */
+export function creditPause({ service, title }: { service: string; title: string | null }) {
+  const where = service === 'Apify' ? 'console.apify.com, under Billing' : 'console.anthropic.com, under Plans & Billing';
+  return `Paused: ${service} has run out of credit${title ? `, while getting ${title} ready` : ''}. Top it up at ${where}, then press Carry on. Nothing was lost: the cards not done are still in the queue, each from where it got to.`;
+}
+
 // One batch of a get-ready run: claimed, each card taken as far as the call allows, the spend added. A card with
 // steps left goes back in the queue where it got to, its tries counted afresh, since it did not fail.
 async function workReady(client: Db, run: Json) {
@@ -124,7 +138,12 @@ async function workReady(client: Db, run: Json) {
     if (error) throw new Error(error.message);
     if (!jobs?.length) return 0;
     let secret: string | null = null;
+    // What Keeper has learned for this shop, read once for the batch.
+    const { data: lessons } = await client.from('keeper_lessons').select('key, scope_kind, scope, area, action, lesson, evidence, against, removed_at')
+      .eq('tenant_id', run.tenant_id).is('removed_at', null).gte('evidence', 2).limit(200);
     const outs = await readyBatch(client, jobs as Json[], {
+      lessons: (lessons ?? []) as Json[],
+      gbpPerUsd: Number(Deno.env.get('KEEPER_GBP_PER_USD') ?? 0.75) || 0.75,
       call: callFunction,
       secret: async () => (secret ??= await schedulerSecret(client)),
       size: (read) => readSize(env('ANTHROPIC_API_KEY'), read),
@@ -132,19 +151,40 @@ async function workReady(client: Db, run: Json) {
     let spent = 0;
     let failures = 0;
     let lastError = '';
+    let credit: { service: string; said: string; title: string | null } | null = null;
     for (let i = 0; i < outs.length; i += 1) {
       const o = outs[i];
       spent += o.cost ?? 0;
-      if ('error' in o) { lastError = o.error; failures += 1; await failJob(client, jobs[i], o.error); } else if ('again' in o) {
+      if ('credit' in o) {
+        // Not the card's fault: back in the queue where it got to, its tries untouched, for when the credit is back.
+        credit ??= { service: o.service, said: o.credit, title: o.result?.title ?? null };
+        await client.from('keeper_jobs').update({ state: 'queued', attempts: 0, error: null, result: o.result }).eq('id', jobs[i].id);
+      } else if ('error' in o) { lastError = o.error; failures += 1; await failJob(client, jobs[i], o.error); } else if ('again' in o) {
         await client.from('keeper_jobs').update({ state: 'queued', attempts: 0, error: null, result: o.result }).eq('id', jobs[i].id);
       } else { await finishJob(client, jobs[i], o); finished += 1; }
     }
     if (spent > 0) await client.rpc('add_keeper_spend', { p_run: run.id, p_pence: spent });
+    if (credit) {
+      await client.rpc('close_keeper_run', { p_run: run.id, p_pause_reason: creditPause(credit) });
+      return finished;
+    }
     if (failures === outs.length && jobs.every((j: Json) => j.attempts >= 3)) {
       await client.rpc('close_keeper_run', { p_run: run.id, p_pause_reason: `Cards could not be got ready three times. The last said: ${lastError}` });
     }
   } finally {
     await client.rpc('close_keeper_run', { p_run: run.id });
+  }
+  // The run over (done, or stopped by her): Keeper looks back on it once and learns (review.ts).
+  const { data: after } = await client.from('keeper_runs').select('id, tenant_id, state, reviewed_at').eq('id', run.id).single();
+  if (after && ['done', 'stopped'].includes(after.state) && !after.reviewed_at) {
+    try {
+      // The look back's own Claude use, counted as it happened (nothing when it had nothing to look at).
+      const [, spentOn] = await tallied(() => review(client, after, askLessons(env('ANTHROPIC_API_KEY'))));
+      const p = used(spentOn) ? pence(spentOn, Number(Deno.env.get('KEEPER_GBP_PER_USD') ?? 0.75) || 0.75) : 0;
+      if (p > 0) await client.rpc('add_keeper_spend', { p_run: run.id, p_pence: p });
+    } catch (e) {
+      console.error('[keeper-run] look back failed:', message(e));
+    }
   }
   return finished;
 }
@@ -239,6 +279,16 @@ export async function work(client: Db, tenant: string | null, budgetMs = BUDGET_
     if (n === 0) break;
   }
   if (Date.now() < until) checked += await workLoose(client, tenant, until);
+  // A get-ready run she stopped, or one that finished between calls, not looked back on yet: one a call.
+  if (Date.now() < until) {
+    let q = client.from('keeper_runs').select('id, tenant_id, state, reviewed_at').eq('task', 'get_ready')
+      .in('state', ['done', 'stopped']).is('reviewed_at', null).order('created_at', { ascending: true }).limit(1);
+    if (tenant) q = q.eq('tenant_id', tenant);
+    const { data: left } = await q;
+    if (left?.[0]) {
+      try { await review(client, left[0], askLessons(env('ANTHROPIC_API_KEY'))); } catch (e) { console.error('[keeper-run] look back failed:', message(e)); }
+    }
+  }
   // Three or more checked products waiting in a Google branch no section covers get a section (0129).
   if (checked > 0) {
     const { error } = await client.rpc('keeper_open_sections', { p_tenant: tenant });

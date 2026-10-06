@@ -12,7 +12,11 @@ import {
   MAX_BYTES, MAX_PHOTOS, PHOTO_SYSTEM, brandRuleFor, imageSize, judge, parseSeen, smaller, toBase64,
 } from '../_shared/photos.ts';
 import { askText } from '../_shared/claude.ts';
+import { LIGHT_MODEL } from '../_shared/model.ts';
 import { ENOUGH_PHOTOS, PHOTOS_PER_PAGE, findPages, samePage } from '../_shared/other-shops.ts';
+import { isCredit } from '../_shared/credit.ts';
+import { forLooking } from '../_shared/look-size.ts';
+import { metered } from '../_shared/usage.ts';
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -59,6 +63,8 @@ async function look(photos: Array<{ type: string; data: string }>, context: stri
   const text = await askText(env('ANTHROPIC_API_KEY'), {
     system: PHOTO_SYSTEM,
     maxTokens: 1200,
+    // Looking at photos: the light model when it is switched on (model.ts LIGHT_MODEL).
+    model: LIGHT_MODEL,
     content: [
       ...photos.flatMap((p, i) => [
         { type: 'text', text: `Photo ${i + 1}:` },
@@ -70,7 +76,8 @@ async function look(photos: Array<{ type: string; data: string }>, context: stri
   return parseSeen(text);
 }
 
-Deno.serve(async (req) => {
+// Its Claude use handed back to Keeper in the x-claude-usage header (usage.ts).
+Deno.serve(metered(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
@@ -146,8 +153,20 @@ Deno.serve(async (req) => {
       if (!urls.length) return out;
       const got = await Promise.all(urls.map((u) => fetchImage(u).catch(() => null)));
       const sendable = urls.map((url, i) => ({ url, got: got[i] })).filter((x) => x.got && !x.got.heavy && x.got.size);
+      // Claude looks at an 800px copy where the shop serves one (look-size.ts); the full photo is still what is
+      // measured and saved.
+      const small = await Promise.all(sendable.map(async (x) => {
+        // 512px is enough to tell the product and a sticker on it; a photo's size for eBay is measured on the full one.
+        const s = forLooking(x.url, 512);
+        const g = s ? await fetchImage(s).catch(() => null) : null;
+        return g && !g.heavy && g.size ? g : x.got!;
+      }));
       const seen = sendable.length
-        ? await look(sendable.map((x) => ({ type: x.got!.size!.type, data: toBase64(x.got!.bytes) })), expectedFor(from)).catch(() => null)
+        ? await look(small.map((g) => ({ type: g.size!.type, data: toBase64(g.bytes) })), expectedFor(from)).catch((e) => {
+          // No credit is not a verdict on the photos: said as it is, so Keeper stops rather than file them as failed.
+          if (isCredit(e)) throw e;
+          return null;
+        })
         : null;
       for (const [i, url] of urls.entries()) {
         const g = got[i];
@@ -241,6 +260,7 @@ Deno.serve(async (req) => {
           });
         }
       } catch (e) {
+        if (isCredit(e)) throw e;
         othersError = e instanceof Error ? e.message : String(e);
         others = before?.others ?? [];
       }
@@ -273,4 +293,4 @@ Deno.serve(async (req) => {
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }
-});
+}));

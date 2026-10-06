@@ -13,6 +13,7 @@ import { listingOf } from '../_shared/product.ts';
 import { readShopPage } from '../_shared/shop-page.ts';
 import { asinOf, isAmazon } from '../_shared/amazon.ts';
 import { AUTO_SWAP, judgeSame, settle, titleFromUrl } from '../_shared/same-product.ts';
+import { metered } from '../_shared/usage.ts';
 
 type Json = Record<string, any>;
 
@@ -68,7 +69,8 @@ async function marketOf(title: string, app: string, brand: string | null) {
   }
 }
 
-Deno.serve(async (req) => {
+// Its Claude use handed back to Keeper in the x-claude-usage header (usage.ts).
+Deno.serve(metered(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
     const body = await req.json();
@@ -97,9 +99,11 @@ Deno.serve(async (req) => {
     }
 
     // Keepr looks. First what she buys: her supplier's page, read, or the words in its address.
-    const { data: sources } = await client.from('candidate_sources').select('url, supplier, created_at')
-      .eq('candidate_id', c.id).not('url', 'is', null).order('created_at', { ascending: false }).limit(1);
-    const page: string | null = body.product_url ?? c.draft?.page ?? sources?.[0]?.url ?? null;
+    const { data: sources } = await client.from('candidate_sources').select('url, supplier, found_at')
+      .eq('candidate_id', c.id).not('url', 'is', null).order('found_at', { ascending: false }).limit(1);
+    // Her supplier's link on the draft first: it is the product she sends, where the newest source may be a shop she
+    // only compared.
+    const page: string | null = body.product_url ?? c.draft?.supplier_url ?? c.draft?.page ?? sources?.[0]?.url ?? null;
     if (!page) return json({ error: 'Keepr needs the page of the product you buy. Add your supplier\'s link first.' }, 400);
     // Amazon cannot be read here; its page read through Apify is used when it is the same product.
     const az = isAmazon(page) && asinOf(page) && asinOf(page) === c.supplier_read?.asin ? amazonFacts(c) : null;
@@ -109,6 +113,12 @@ Deno.serve(async (req) => {
       : read
       ? { title: read.title, brand: read.brand, gtin: read.gtin, mpn: read.product_code, description: read.description, image: read.images?.[0] ?? null }
       : { title: titleFromUrl(page), brand: null, gtin: null, mpn: null, description: null, image: null };
+    // No reading of her Amazon page (none yet, or of another ASIN) and nothing in its address: the card's own name
+    // stands in, so the match still runs (6 October: "Keepr could not read the product at amazon.co.uk").
+    if (!product.title) {
+      const name = String(c.draft?.title || c.title || c.listing?.title || '').trim();
+      if (name) Object.assign(product, { title: name, brand: product.brand ?? c.listing?.brand ?? null, gtin: product.gtin ?? c.listing?.gtin ?? null });
+    }
     if (!product.title) {
       return json({ error: `Keepr could not read the product at ${new URL(page).hostname.replace(/^www\./, '')}. Open a listing on the chart and choose it yourself.` }, 400);
     }
@@ -129,11 +139,19 @@ Deno.serve(async (req) => {
       .flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
     if (!reads.length) return json({ best: null, considered: pool.size, product: { title: product.title, page } });
 
-    const said = await judgeSame(env('ANTHROPIC_API_KEY'), product, reads);
+    const said = await judgeSame(env('ANTHROPIC_API_KEY'), product, reads, typeof body.lessons === 'string' ? body.lessons : null);
     const settled = settle(product, reads, said);
     const best = settled[0];
     const current = c.draft?.entry ?? c.entry ?? null;
     const already = current?.item_id && legacyId(current.item_id) === legacyId(best.entry.item_id);
+    const newProduct = isNewProduct(c, best);
+    /*
+     * The research's listing already sells her product and Keepr's find, the same product, has not sold: the card
+     * keeps the listing that sells (the Salus, 4 October: 10 sold swapped for none in 31 days). Keeper does not move
+     * it; she still sees Keepr's find when she asks on the card.
+     */
+    const research = c.entry ?? null;
+    const keepProved = !already && !c.draft?.entry && !newProduct && Boolean(research?.proved) && !best.entry.proved;
 
     return json({
       product: { title: product.title, page },
@@ -143,12 +161,13 @@ Deno.serve(async (req) => {
       best: {
         entry: { ...best.entry, by: 'keepr', sure: best.sure, why: best.why },
         facts: best.facts,
-        new_product: isNewProduct(c, best),
+        new_product: newProduct,
       },
+      keep_proved: keepProved ? { item_id: research.item_id, title: research.title ?? null, price: research.price ?? null } : null,
       others: settled.slice(1, 3).map((x) => ({ item_id: x.entry.item_id, title: x.entry.title, price: x.entry.price, url: x.entry.url, sure: x.sure, why: x.why })),
       market: await marketOf(best.entry.title, app, best.facts.brand),
     });
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }
-});
+}));

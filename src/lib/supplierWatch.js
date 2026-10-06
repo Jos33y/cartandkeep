@@ -90,6 +90,38 @@ export function costOffer(r, source) {
 const followed = (r, cost) => r?.cost_change?.to != null && r.cost_change.at === r.read_at
   && Math.abs(Number(r.cost_change.to) + Number(r.offer?.shipping ?? 0) - cost) < 0.015;
 
+/*
+ * Her cost on the supplier the reading belongs to, as it is now. The reading keeps the cost it was compared with when
+ * it was taken (`costed`), and that copy goes stale the moment she changes her cost: SHAVINGFUN, 5 October, still
+ * said "now £17.98" after she had set £17.98. The supplier's own figure wins; the copy is kept for a card whose
+ * supplier is not loaded.
+ */
+export function costedNow(sources, r) {
+  if (!r) return null;
+  const list = Array.isArray(sources) ? sources : [];
+  const s = list.find((x) => r.source_id && x.id === r.source_id)
+    ?? list.find((x) => r.asin && asinOf(x.url) === r.asin);
+  const v = Number(s?.landed_unit_cost ?? s?.unit_cost);
+  if (s && Number.isFinite(v) && v > 0) return v;
+  return r.costed ?? null;
+}
+
+// How long Amazon says it takes to send, in days, from its own words: the far end of "6 to 7 months".
+export function dispatchDays(text) {
+  const m = /(\d+)(?:\s*(?:to|-)\s*(\d+))?\s*(day|week|month)s?/i.exec(String(text ?? ''));
+  if (!m) return null;
+  const n = Number(m[2] ?? m[1]);
+  const per = { day: 1, week: 7, month: 30 }[m[3].toLowerCase()];
+  return n * per;
+}
+const dispatchWords = (text) => {
+  const m = /(\d+(?:\s*(?:to|-)\s*\d+)?\s*(?:day|week|month)s?)/i.exec(String(text ?? ''));
+  return m ? m[1].replace(/\s*-\s*/, ' to ') : 'later';
+};
+
+// What she needs telling about a card's supplier, against her cost as it is now.
+export const warningsOf = (r, sources, now = Date.now()) => supplierWarnings(r, costedNow(sources, r), now);
+
 export const STOCK = { in: 'In stock', low: 'Running low', slow: 'Slow to dispatch', out: 'Out of stock', unknown: 'Stock not shown' };
 
 /*
@@ -110,21 +142,36 @@ export function supplierWarnings(r, costed = r?.costed ?? null, now = Date.now()
     const cost = o.price != null ? Math.round((o.price + (o.shipping ?? 0)) * 100) / 100 : null;
     if (o.stock === 'out' && r.found !== false) out.push({ level: 'stop', short: 'out of stock', text: `Out of stock on Amazon${said ? `: "${said}"` : ''}.` });
     if (o.stock === 'low') out.push({ level: 'warn', short: 'running low', text: `Amazon says "${said}".` });
-    if (o.stock === 'slow') out.push({ level: 'warn', short: 'slow to dispatch', text: `Amazon says "${said}". Your buyers would wait.` });
+    if (o.stock === 'slow') {
+      // Weeks or months away (Croydex, 5 October: "6 to 7 months") is a listing she cannot fill: red, not amber.
+      const days = dispatchDays(said);
+      const long = days != null && days > 14;
+      out.push({
+        level: long ? 'stop' : 'warn',
+        short: long ? `dispatch ${dispatchWords(said)}` : 'slow to dispatch',
+        text: `Amazon says "${said}". ${long ? 'Your buyers would wait longer than eBay allows.' : 'Your buyers would wait.'}`,
+      });
+    }
     // Sourced on Amazon whoever sells it (task 02): who sends it is hers to weigh here. Not Amazon means delivery to
     // her is the seller's, not Prime's.
     if (o.sold_by && !/amazon/i.test(String(o.fulfilled_by ?? '')) && !/^amazon/i.test(String(o.sold_by))) {
       out.push({
         level: 'warn',
         short: 'not sent by Amazon',
-        text: `Sold and sent by ${o.sold_by}, not Amazon${Number(o.shipping) > 0 ? `: ${formatGbp(Number(o.shipping))} delivery to you, counted in your cost` : ', so delivery may not be free on Prime'}.`,
+        text: `Sold and sent by ${o.sold_by}${o.from_offers?.seller_pct != null ? ` (${o.from_offers.seller_pct}% positive)` : ''}, not Amazon${Number(o.shipping) > 0 ? `: ${formatGbp(Number(o.shipping))} delivery to you, counted in your cost` : ', so delivery may not be free on Prime'}.`,
       });
     }
     if (cost != null && costed != null && cost > costed + 0.01) {
       const up = (cost - costed) / costed;
       out.push({ level: up >= 0.1 ? 'stop' : 'warn', short: `now ${formatGbp(cost)}`, text: `Costs ${formatGbp(cost)} today. You costed it at ${formatGbp(costed)}.` });
     } else if (cost != null && b?.price != null && cost > b.price + 0.01 && !followed(r, cost)) {
-      out.push({ level: 'warn', short: `up to ${formatGbp(cost)}`, text: `Up from ${formatGbp(b.price)} on ${day(b.read_at)} to ${formatGbp(cost)}.` });
+      // Her cost already covers it: worth knowing, nothing to do.
+      const covered = costed != null && cost <= costed + 0.01;
+      out.push({
+        level: covered ? 'note' : 'warn',
+        short: `up to ${formatGbp(cost)}`,
+        text: `Up from ${formatGbp(b.price)} on ${day(b.read_at)} to ${formatGbp(cost)}.${covered ? ' Your cost already allows for it.' : ''}`,
+      });
     }
     // A deal is a cost while it lasts. Its end is what needs telling.
     if (b?.deal && !o.deal && o.price != null && b.price != null && o.price > b.price + 0.01) {
@@ -134,6 +181,16 @@ export function supplierWarnings(r, costed = r?.costed ?? null, now = Date.now()
     }
     if (cost != null && b?.price != null && cost < b.price - 0.01) out.push({ level: 'note', text: `Down from ${formatGbp(b.price)} on ${day(b.read_at)}.` });
     if (b?.stock === 'out' && o.stock === 'in') out.push({ level: 'note', text: 'Back in stock.' });
+    // No Buy Box, and the price came from the sellers' list (amazon.ts withOffer).
+    if (o.from_offers && o.price != null) out.push({ level: 'note', text: `No main offer on Amazon: the price is the best of ${o.from_offers.count} ${o.from_offers.count === 1 ? 'seller' : 'sellers'} under "See all buying options".` });
+    // No Buy Box, and every seller left is one she should not buy from.
+    if (o.price == null && o.others?.price != null) {
+      out.push({
+        level: 'stop',
+        short: 'only low-rated sellers',
+        text: `No main offer on Amazon, and the cheapest seller is ${o.others.seller ?? 'unnamed'}${o.others.pct != null ? ` at ${o.others.pct}% positive` : ''}: ${formatGbp(Number(o.others.price))}. Under 80% is not used as your supplier.`,
+      });
+    }
     if (b?.sold_by && o.sold_by && b.sold_by !== o.sold_by) out.push({ level: 'note', text: `Now sold by ${o.sold_by}, not ${b.sold_by}.` });
   }
   // Her cost moved with Amazon's price in a morning read. Up is worth a look for three days, then it is only said.

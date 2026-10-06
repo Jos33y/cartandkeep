@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@lib/supabase';
 import { readPages } from '@lib/readPages';
 import { channelStates, gtinOf } from '@lib/golive';
+import { asinOf, isAmazon } from '@lib/supplierWatch';
 
 // Same to-one embed as the candidates read.
 function one(decisions) {
@@ -142,31 +143,6 @@ export function useApproved(tenantId) {
 
   // She prices from this page, so a supplier has to be addable here rather than
   // only on the candidate queue.
-  const addSource = useCallback(
-    async ({ candidateId, tenantId, ...fields }) => {
-      const { data, error } = await supabase
-        .from('candidate_sources')
-        .insert({ candidate_id: candidateId, tenant_id: tenantId, ...fields })
-        .select(SOURCE_COLUMNS)
-        .single();
-
-      if (error) throw error;
-
-      setState((s) => ({
-        ...s,
-        rows: s.rows.map((r) => (r.id === candidateId
-          ? {
-            ...r,
-            sources: [...(r.sources ?? []), data].sort(
-              (a, b) => Number(a.landed_unit_cost ?? 1e9) - Number(b.landed_unit_cost ?? 1e9),
-            ),
-          }
-          : r)),
-      }));
-    },
-    [],
-  );
-
   // One supplier, new or changed, into the page's copy of its card, cheapest first as the page loads them.
   const putSource = useCallback((candidateId, source) => {
     setState((s) => ({
@@ -176,6 +152,37 @@ export function useApproved(tenantId) {
         : r)),
     }));
   }, []);
+
+  // The same Amazon product already on the card (Keeper sourced it, or she added it before) is the one supplier, so
+  // her new figures go on that row rather than a second one: two rows for one page split the cost and the checks.
+  const addSource = useCallback(
+    async ({ candidateId, tenantId: tenant, ...fields }) => {
+      const asin = isAmazon(fields.url) ? asinOf(fields.url) : null;
+      if (asin) {
+        const { data: have } = await supabase.from('candidate_sources').select('id, url')
+          .eq('candidate_id', candidateId).not('url', 'is', null);
+        const same = (have ?? []).find((x) => isAmazon(x.url) && asinOf(x.url) === asin);
+        if (same) {
+          const given = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined && v !== null && v !== ''));
+          const { data, error } = await supabase.from('candidate_sources').update(given).eq('id', same.id)
+            .select(SOURCE_COLUMNS).single();
+          if (error) throw error;
+          putSource(candidateId, data);
+          return data;
+        }
+      }
+      const { data, error } = await supabase
+        .from('candidate_sources')
+        .insert({ candidate_id: candidateId, tenant_id: tenant, ...fields })
+        .select(SOURCE_COLUMNS)
+        .single();
+
+      if (error) throw error;
+      putSource(candidateId, data);
+      return data;
+    },
+    [putSource],
+  );
 
   // A supplier's cost changed from the card, by her or by taking Amazon's price. Only her own shop's row.
   const updateSource = useCallback(async (candidateId, sourceId, fields) => {
@@ -190,6 +197,19 @@ export function useApproved(tenantId) {
     putSource(candidateId, data);
     return data;
   }, [tenantId, putSource]);
+
+  /*
+   * A supplier she does not buy from, taken off the card (6 October: a second Amazon product the barcode found sat
+   * beside the one she sells). Only the row goes; the card is priced again from what is left.
+   */
+  const removeSource = useCallback(async (candidateId, sourceId) => {
+    const { error } = await supabase.from('candidate_sources').delete().eq('id', sourceId).eq('tenant_id', tenantId);
+    if (error) throw error;
+    setState((s) => ({
+      ...s,
+      rows: s.rows.map((r) => (r.id === candidateId ? { ...r, sources: (r.sources ?? []).filter((x) => x.id !== sourceId) } : r)),
+    }));
+  }, [tenantId]);
 
   // Her saved draft, back into the page's copy of the card.
   const noteDraft = useCallback((candidateId, draft) => {
@@ -235,7 +255,7 @@ export function useApproved(tenantId) {
     }
     // A supplier whose cost followed Amazon's price in this read, so the card's keep moves with it.
     for (const [candidateId, source] of Object.entries(data?.moved ?? {})) putSource(candidateId, source);
-    return { reads, skipped: data?.skipped ?? {} };
+    return { reads, skipped: data?.skipped ?? {}, moved: data?.moved ?? {} };
   }, [tenantId, putSource]);
 
   const marketCheck = useCallback(async (candidateId, query = null) => {
@@ -354,5 +374,5 @@ export function useApproved(tenantId) {
     [tenantId],
   );
 
-  return { ...state, month, jobs, reload: load, addSource, updateSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose, marketCheck, matchListing, readSupplier };
+  return { ...state, month, jobs, reload: load, addSource, updateSource, removeSource, list, addToShop, queue, cancel, retry, noteDraft, noteListing, saveAspects, patchDraft, checkPhotos, compose, marketCheck, matchListing, readSupplier };
 }

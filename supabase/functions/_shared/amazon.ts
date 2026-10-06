@@ -130,6 +130,24 @@ function variantOf(item: Json) {
   return picked.length ? picked : null;
 }
 
+/*
+ * With no price on the page's main offer (no Buy Box: "See All Buying Options", the Salus on 4 October), what else the
+ * reader said about prices and sellers, kept as it came: the other sellers' price may be in it, and it is read before
+ * anything is built on it. Plain values only, the selected variation's own, at most 1,500 characters.
+ */
+export function priceFieldsOf(item: Json): Json | null {
+  const out: Json = {};
+  for (const [k, v] of Object.entries(item ?? {})) {
+    if (!/price|offer|buy.?box|seller|sold|availab|lowest|minimum|deal|shipping|prime|fulfil/i.test(k)) continue;
+    if (v == null || ['string', 'number', 'boolean'].includes(typeof v)) out[k] = typeof v === 'string' ? clip(v, 160) : v;
+    else out[k] = clip(JSON.stringify(v), 400);
+  }
+  const chosen = ((item?.variations ?? []) as Json[]).flatMap((v) => ((v.values ?? []) as Json[]).filter((x) => x.selected));
+  if (chosen.length) out.variation_selected = clip(JSON.stringify(chosen), 400);
+  const text = JSON.stringify(out);
+  return Object.keys(out).length ? (text.length > 1500 ? { cut: text.slice(0, 1500) } : out) : null;
+}
+
 /* One Axesso result as the card keeps it. */
 export function fromAxesso(item: Json, at = new Date().toISOString()) {
   const asin = String(item.asin ?? asinOf(item.url) ?? '').toUpperCase() || null;
@@ -179,6 +197,8 @@ export function fromAxesso(item: Json, at = new Date().toISOString()) {
       sold_by: clip(item.soldBy, 80) || null,
       fulfilled_by: clip(item.fulfilledBy, 80) || null,
       prime: Boolean(item.prime),
+      // No price on the main offer: what the reader did say, to learn where the other sellers' price is.
+      ...(price == null ? { seen: priceFieldsOf(item) } : {}),
     },
     risk: riskOf(item),
   };
@@ -193,10 +213,101 @@ export const asSent = (r: Read) => (r.facts ? {
 } : null);
 
 /*
+ * A page with no main price (no Buy Box: "No featured offers available") still has sellers under "See all buying
+ * options". Those are read by Axesso's offers reader, only for such pages, and the best one stands in as the price
+ * (Joseey, 5 October: LEGO City F1, Firehawk, Luceco). Which one:
+ *   - new only; used never;
+ *   - a seller rated under 80% positive is never her supplier (Semantic UK, 66%); one with no rating counts only when
+ *     Amazon sends it;
+ *   - the cheapest, with postage; but one Amazon sends wins when it is within 10% of that, for Prime delivery and
+ *     fewer late dispatches.
+ * None good enough: no price, and the cheapest refused is kept as `others` so the card can say why.
+ */
+export const OFFERS_ACTOR = 'axesso_data~amazon-product-offers-scraper';
+export const SELLER_FLOOR = 80;
+export const AMAZON_MARGIN = 0.1;
+
+const sentByAmazon = (o: Json) => /amazon/i.test(String(o.fulfilledBy ?? '')) || /^amazon/i.test(String(o.sellerName ?? ''));
+
+export function bestOffer(items: Json[]) {
+  const offers = (items ?? [])
+    .filter((o) => /^new/i.test(String(o.condition ?? '')) && money(o.price) != null)
+    .map((o) => {
+      const price = money(o.price)!;
+      const shipping = money(o.shippingPrice) ?? 0;
+      const pct = o.sellerRatingPercentage == null || o.sellerRatingPercentage === '' ? null : Number(o.sellerRatingPercentage);
+      const amazon = sentByAmazon(o);
+      return {
+        price, shipping, total: r2(price + shipping), amazon, pct: Number.isFinite(pct) ? pct : null,
+        seller: clip(o.sellerName, 80) || null, sent_by: amazon ? 'Amazon' : clip(o.fulfilledBy, 80) || clip(o.sellerName, 80) || null,
+        prime: Boolean(o.prime), delivery: clip([].concat(o.shippingDescription ?? []).join(' '), 160) || null,
+      };
+    })
+    .sort((a, b) => a.total - b.total);
+  const ok = offers.filter((o) => (o.pct == null ? o.amazon : o.pct >= SELLER_FLOOR));
+  const cheapest = ok[0] ?? null;
+  const viaAmazon = ok.find((o) => o.amazon) ?? null;
+  const pick = viaAmazon && cheapest && viaAmazon.total <= r2(cheapest.total * (1 + AMAZON_MARGIN)) ? viaAmazon : cheapest;
+  return { pick, refused: pick ? null : offers[0] ?? null, count: offers.length };
+}
+
+// The reading with its price from the best other seller, or with why there is none.
+export function withOffer(r: Read, items: Json[]): Read {
+  const { pick, refused, count } = bestOffer(items);
+  if (!pick) {
+    return refused ? ({ ...r, offer: { ...r.offer, others: { price: refused.total, seller: refused.seller, pct: refused.pct, count } } }) as Read : r;
+  }
+  const stock = pick.delivery ? stockOf(pick.delivery) : 'unknown';
+  return {
+    ...r,
+    offer: {
+      ...r.offer,
+      price: pick.price,
+      was: r.offer.was && r.offer.was > pick.price ? r.offer.was : null,
+      deal: false,
+      shipping: pick.shipping,
+      stock: stock === 'unknown' || stock === 'out' ? 'in' : stock,
+      stock_text: pick.delivery,
+      sold_by: pick.seller,
+      fulfilled_by: pick.sent_by,
+      prime: pick.prime,
+      // Read from the sellers' list, not the main offer: the card says whose price it is and how they are rated.
+      from_offers: { count, seller_pct: pick.pct },
+    },
+  } as Read;
+}
+
+// The sellers' list for the pages that came back with no price. A failure leaves those readings as they were.
+export async function readOffers(asins: string[], token: string, { timeoutSecs = 120, fetcher = fetch } = {}) {
+  const out = new Map<string, Json[]>();
+  for (let i = 0; i < asins.length; i += BATCH) {
+    const batch = asins.slice(i, i + BATCH);
+    try {
+      const res = await fetcher(`https://api.apify.com/v2/acts/${OFFERS_ACTOR}/run-sync-get-dataset-items?timeout=${timeoutSecs}&clean=true`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ input: batch.map((asin) => ({ asin, domainCode: 'co.uk', startPage: 1 })) }),
+        signal: AbortSignal.timeout((timeoutSecs + 15) * 1000),
+      });
+      if (!res.ok) { console.error('[apify offers]', res.status, (await res.text().catch(() => '')).slice(0, 300)); continue; }
+      const items = (await res.json().catch(() => [])) as Json[];
+      for (const it of Array.isArray(items) ? items : []) {
+        const a = String(it.asin ?? '').toUpperCase();
+        if (!batch.includes(a) || Number(it.statusCode ?? 200) !== 200) continue;
+        out.set(a, [...(out.get(a) ?? []), it]);
+      }
+    } catch (e) {
+      console.error('[apify offers]', e instanceof Error ? e.message : String(e));
+    }
+  }
+  return out;
+}
+
+/*
  * Read pages through Apify, in batches, and match each answer back to its ASIN. The token goes in the header, never
  * in the address, so it stays out of any log of the request.
  */
-export async function runAxesso(urls: string[], token: string, { timeoutSecs = 120, fetcher = fetch } = {}) {
+export async function runAxesso(urls: string[], token: string, { timeoutSecs = 120, fetcher = fetch, offers = true } = {}) {
   const wanted = [...new Set(urls.map((u) => asinOf(u)).filter(Boolean) as string[])];
   const out = new Map<string, Read>();
   const failed: string[] = [];
@@ -224,6 +335,12 @@ export async function runAxesso(urls: string[], token: string, { timeoutSecs = 1
       if (key && batch.includes(key) && !out.has(key)) out.set(key, r);
     }
     for (const a of batch) if (!out.has(a)) failed.push(a);
+  }
+  // No main price: the other sellers, read in one more call for those pages only.
+  const priceless = [...out.values()].filter((r) => r.found && r.offer.price == null && r.asin).map((r) => r.asin!) as string[];
+  if (priceless.length && offers) {
+    const lists = await readOffers(priceless, token, { timeoutSecs, fetcher });
+    for (const a of priceless) if (lists.has(a)) out.set(a, withOffer(out.get(a)!, lists.get(a)!));
   }
   return { reads: out, failed };
 }
@@ -262,6 +379,8 @@ export function nextRead(prev: Json | null, r: Read, page: { source_id: string |
     cost_change: prev?.asin === r.asin ? prev?.cost_change ?? null : null,
     // What Keeper asked her to check when it sourced the card (task 02), kept until the page changes.
     keeper_warnings: prev?.asin === r.asin ? prev?.keeper_warnings ?? null : null,
+    // The price she was last emailed about (supplier-read), so a cost she set below Amazon's is told once per price.
+    told: prev?.asin === r.asin ? prev?.told ?? null : null,
     tried_at: r.read_at,
     error: null,
   };

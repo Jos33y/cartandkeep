@@ -293,4 +293,52 @@ Six exports (October to December 2025, July to September 2026), 29,122 products.
 - **Rejects:** the 10 Lords & Labradors own-range cards; shared-page duplicates; Indorex flea spray (two cards) and Pet Corrector, both compressed gas; Royal Canin Glycobalance (vet diet); generic "Royal Canin Cat Food" and "Feliway Diffuser".
 - **Re-source:** 26 leads found by name, 12 right. The 14 wrong ones were turned to "not found" before `--apply` (`resource-animals-and-pet-supplies-2026-10-03-checked.csv`): 17 noted not found, 12 left to check.
 
-**Still to fix in `match.mjs`:** "Royal Canin Adult Dry Dog Food" overlaps enough words with any breed or size page to confirm. The re-source search sent Medium, Giant, Maxi, Bulldog and Dachshund all to the Boxer page. Needed: size words (mini, medium, maxi, giant, small breed, large breed) as VERSION; a breed group in KINDS; fish and ocean fish in the protein pairs; a flavour group for supplements (pumpkin, calming, deer antler).
+**Fixed in `match.mjs` the same day (`ck-pet-match2-2026-10-03`):** breeds (two different breeds are wrong), dog sizes and life stages on food titles, fish and mixed in the recipe pairs, tins against pouches, and supplement types. Before the fix, "Royal Canin Adult Dry Dog Food" overlaps enough words with any breed or size page to confirm. The re-source search sent Medium, Giant, Maxi, Bulldog and Dachshund all to the Boxer page. On re-test all 12 right leads still confirmed and none of the 14 wrong ones did.
+
+## Sporting Goods (4 to 5 October)
+
+Six exports (October to December 2025, July to September 2026), 33,731 products. 3,386 considered in the £8 to £60 window after the rules; 2,254 seen in a shop; 609 new cards went to her queue.
+
+**Decided 3 to 4 October:**
+- Sized clothing and footwear stop (wetsuits, rash vests, swimwear, riding tights and breeches, waders, surf and sailing boots, skates). Gloves, socks, caps, helmets, life jackets and swim vests pass, and so do adjustable skates.
+- Fixed-blade, hunting, bushcraft, survival and tactical knives stop (`knives_fixed`). Pocket knives and multi-tools pass with the age-check postage note.
+- Fishing tackle is hers. Only what can't go by parcel stops: rods, poles, whips and combos (1.8m or more), holdalls, bivvies, brollies, shelters, bedchairs, seat boxes and barrows, and frozen or live bait. Telescopic and travel rods, quiver tips, elastic kits, rigs and shelf-life bait pass. The rod rule fires only on a fishing title, so a riding whip or a trekking pole passes.
+- Equestrian is left alone: feed in 15 to 20kg sacks needs feed registration, rugs are bulky, riding wear is sized.
+
+**Rules, `rules/categories/sporting-goods.mjs`:**
+- **Not shelf:** complete pedal bikes and e-bikes (balance bikes, trikes and 2 in 1 training bikes pass); gym machines and benches; trampolines (not trampoline scooters); pool, snooker, football and air hockey tables (table-top versions pass); roof tents; paddleboards, kayaks and canoes; the sized kit and the fishing items above.
+- **Own label:** Decathlon's ranges (Quechua, Forclaz, Kalenji, Nabaiji, Kuikma, Canaveral, Rockrider, Triban, Van Rysel, Oxelo, Caperlan and the rest), Argos's Zinc, Hy-Pro, Pro Fitness and Opti, Myprotein's MP, Mountain Warehouse, Angling Direct's Advanta, and Go Outdoors' Eurohike, OEX and Hi Gear. `OWN_TITLE` catches the same names in the title.
+- **`BRANDED`:** real makers sold through B&Q's marketplace or listed under Argos (Gym Sets, RDX, Winmau, Target and Unicorn darts, and others), so they pass own label.
+- **Need words, `needs/sporting-goods.mjs`:** safety (helmets, life jackets, lights, locks, mouthguards), care (supports, foam rollers, resistance bands), part (tyres, tubes, chains, lines, hooks, spools), pest (midge and insect repellent).
+
+**Shared changes:** camping air beds and self-inflating mats pass the mattress rule; dumbbell trees pass the plant rule; fly-strip door curtains pass the blinds rule; air rifle targets and pumps pass the weapons rule; CO2 cartridge holders and Zippo hand warmers pass the gas rule; fishing, bubble and fidget poppers pass; "Gloss" in bike colours no longer adds the paint note; Condor "Axe" dart flights and herb "Cleavers" no longer add the knife note. None changed a Baby or Pet result.
+
+**`shelf-shopify.mjs` (4 October, `ck-shopify-brand-gbp`):**
+- Asks the shop for its UK market in pounds and reads `cart.js` before keeping anything. A shop that still answers in another currency stops (Yogamatters served naira to a request from Nigeria: a bra at 89,000.00). `--any-currency` skips the check.
+- Brand: `--brand=` for a single-brand shop; a "Brand:" or "Manufacturer:" tag when present; otherwise the vendor without a shop trailer ("RDX Sports | UK") or a stock-code number ("VARLEY01").
+
+**Shops:**
+- **Shopify, with barcodes:** Darts Corner (6,214 products, 5,426 barcodes), Red Dragon Darts (992, 1,310), Peaty's (104, 614), Core Balance (49, 229, `--brand="Core Balance"`), RDX Sports (1,027, 5,380), Yogamatters (1,570, 866).
+- **Angling Direct, names from the sitemap:** 41,547 products. Products are one level deep; category pages are nested. Filter: `--match="^https://www\.anglingdirect\.co\.uk/(?![a-z-]*fishing-tackle(?:-brands)?$)[^/?#]+$"`. No barcodes or weights; the page check reads the price.
+- **Blocked or not Shopify, don't retry:** Mirafit (Cloudflare 403), Burgtec (404), Fishing Tackle and Bait (403), Tacklebox (no products.json, sitemap is a web page), Matchman Supplies (fetch failed).
+
+**Picks:** barcode matches went from 5 to 127 and not-seen from 1,646 to 1,107 as the shops came in. The gap left is mostly equestrian, golf (Titleist, TaylorMade), Mirafit and Specialized.
+
+**Page check:** 657 confirmed (265 barcode, 382 name, 10 model), 297 wrong (289 by barcode, mostly Studio and Halfords), 1,288 unsure (1,188 "names too far apart, not read": genuine misses on a sample). Angling Direct gave 232 confirmed, a price read on 229.
+
+**Import:** 609 kept; 12 bigger pack, 4 no price, 2 over 20kg. 495 had no weight and were costed as a small parcel (mostly Angling Direct). 580 of 609 sit above Google's lowest.
+
+**Review:** 395 keep, 137 notes, 37 re-source, 40 rejects (26 not sourceable, 14 other).
+- **Rejects:** 22 Frasers Group own brands sold at Studio (Slazenger, Everlast, Gelert, Pinnacle, Karrimor, Donnay; judgment call), 4 Yogamatters own range, 4 generic titles, 5 shared-page duplicates, 2 freezer boilies, a fishing umbrella and a game rod (can't post), and a Nash work box on two pages.
+- **Re-source:** 29 leads, 15 right (1 by barcode, repointed: the Kickmaster 6ft goal). The 14 wrong ones were spare spools, bar tape plugs, brake pads and sister models; turned to "not found" before `--apply`: 1 repointed, 14 left to check, 22 noted not found.
+
+**Fixed 5 October (`ck-sport-fixes-2026-10-05`):**
+- **Own label, shared:** Slazenger, Karrimor, Everlast, Donnay, Lonsdale, Muddyfox, Pinnacle, Sports Direct, Yogamatters. Everlast, Slazenger and Eurohike came out of Sporting's `BRANDED`, which would have let them back through.
+- **Own label, Sporting only:** Gelert. Gelert pet food is another company, and the shared list stopped 4 of its pet titles.
+- **Freezer and frozen bait:** its own entry, so "boilies" or "pop ups" in the title no longer exempts it. Only cool bags, bait bags, freezer bags and imitation bait pass. Shelf-life boilies and pop-ups still pass.
+- **Rod rule:** "light" lets a rod through only when it isn't "Ultra Light" and isn't followed by game, lure, spin or rod. The Savage Gear Ultra Light Game Rod stops; a bite alarm rod light passes.
+- **store-picks:** a brand of two or more words is also searched written as one ("Ridge Monkey" and "RidgeMonkey"). Google files the brand spaced while shops and 35 of 37 titles write it joined, so the shop rows were dropped before matching. The name check already tolerated the spelling.
+
+**Tested on the Sporting exports:** new own-label stops Slazenger 68 (17 in the window), Everlast 60 (10), Yogamatters 44 (7), Pinnacle 16 (5), Gelert 12 (4), Karrimor 8 (2), Donnay 7 (1), Lonsdale 5, Muddyfox 1; 6 rods; 1 freezer boilie. Nothing freed. Baby and Pet: 0 changes.
+
+**Not covered:** the reverse case, Google writing a brand joined while a shop spaces it. None seen yet.

@@ -71,3 +71,15 @@ Deno.test('the product\'s own size for eBay\'s item details, in Amazon\'s order,
     { 'Item Height': '30 cm', 'Item Width': '18 cm', 'Item Length': '25 cm', 'Item Weight': '450 g' });
   assertEquals(productSize(read(['Package Dimensions: 30 x 20 x 10 cm'])), null);
 });
+
+Deno.test('a parcel far too big for its weight, or its title size, loses its size and keeps the weight', async () => {
+  const { sensibleParcel } = await import('./parcel.ts');
+  const base = { from: "From Amazon's product size: 110 x 110 x 110cm (2cm added each way), 500g packed", size_from: 'product', weight_from: 'product', note: null } as const;
+  const umbrella = sensibleParcel({ ...base, weight_kg: 0.5, length_cm: 110, width_cm: 110, height_cm: 110 }, 'Totes X-TRA STRONG Umbrella');
+  if (umbrella!.length_cm !== null || umbrella!.weight_kg !== 0.5 || !/only the weight/.test(umbrella!.note!)) throw new Error(JSON.stringify(umbrella));
+  const gel = sensibleParcel({ ...base, weight_kg: null, length_cm: 165, width_cm: 51, height_cm: 51 }, 'Ultrasun Body Tan Activator SPF30 150ml');
+  if (gel!.length_cm !== null || !/150ml/.test(gel!.note!)) throw new Error(JSON.stringify(gel));
+  const shovel = sensibleParcel({ ...base, weight_kg: 3.1, length_cm: 148, width_cm: 25, height_cm: 12 }, 'Roughneck shovel');
+  const shade = sensibleParcel({ ...base, weight_kg: 0.3, length_cm: 40, width_cm: 40, height_cm: 40 }, 'Lampshade');
+  if (shovel!.length_cm !== 148 || shade!.length_cm !== 40) throw new Error('a real long or light parcel was dropped');
+});

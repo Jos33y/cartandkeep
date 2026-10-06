@@ -43,6 +43,8 @@ export const STORE_ROUTES = {
 export const PORTAL_ROUTES = {
   LOGIN: '/login',
   OVERVIEW: '/',
+  // Everything that needs a look, in one place. Each alert clears itself once its cause is fixed.
+  ALERTS: '/alerts',
   // The shop's own front door. Overview stays where it is: this portal holds
   // two businesses and moving one of them's front door to make room for the
   // other is a change nobody asked for.
@@ -95,6 +97,7 @@ export const PORTAL_NAV_SECTIONS = [
     label: 'Review',
     items: [
       { route: PORTAL_ROUTES.OVERVIEW, label: 'Overview', icon: 'IconGrid' },
+      { route: PORTAL_ROUTES.ALERTS, label: 'Alerts', icon: 'IconFlag', badge: 'alerts' },
       { route: PORTAL_ROUTES.CANDIDATES, label: 'Candidates', icon: 'IconLayers' },
       { route: PORTAL_ROUTES.APPROVED, label: 'Approved', icon: 'IconCheck' },
       { route: PORTAL_ROUTES.COVERAGE, label: 'Coverage', icon: 'IconMap' },

@@ -1,0 +1,33 @@
+/* Change the cost and Remove side by side under a supplier; Remove asks once before it goes. */
+.rowActions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+
+.remove {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--t-micro);
+  color: var(--c-ink-faint);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.remove:hover { color: var(--c-negative); }
+
+.removeAsk { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); font-size: var(--t-micro); color: var(--c-ink-soft); }
+
+.removeYes {
+  padding: 2px var(--s-2);
+  border: 1px solid var(--c-negative);
+  border-radius: var(--r-sm);
+  background: var(--c-negative-wash);
+  font: inherit;
+  font-weight: 600;
+  color: var(--c-negative);
+  cursor: pointer;
+}
+
+.removeYes:disabled { opacity: 0.6; cursor: default; }
+.remove:focus-visible, .removeYes:focus-visible { outline: 2px solid var(--c-action-strong); outline-offset: 2px; }
+.removeError { flex-basis: 100%; color: var(--c-negative); }
