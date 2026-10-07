@@ -129,6 +129,8 @@ export const STOCK = { in: 'In stock', low: 'Running low', slow: 'Slow to dispat
  *   stop  she would sell something she cannot get, or at a loss she did not cost for
  *   warn  it costs more, or may soon
  *   note  worth knowing, nothing to do
+ * Each stop and warn says what kind of fix it wants (Alerts sorts by it): stock (Amazon cannot supply it), price (the
+ * cost moved), seller (who sends it, or how slowly), pack (the page may not be the product).
  * `costed` is the unit cost she put on the supplier the card prices from.
  */
 export function supplierWarnings(r, costed = r?.costed ?? null, now = Date.now()) {
@@ -136,18 +138,19 @@ export function supplierWarnings(r, costed = r?.costed ?? null, now = Date.now()
   const out = [];
   const o = r.offer;
   const b = r.before;
-  if (r.found === false) out.push({ level: 'stop', short: 'page gone', text: 'The Amazon page has gone. It may be withdrawn or moved.' });
+  if (r.found === false) out.push({ level: 'stop', kind: 'stock', short: 'page gone', text: 'The Amazon page has gone. It may be withdrawn or moved.' });
   if (o) {
     const said = String(o.stock_text ?? '').trim().replace(/\.+$/, '');
     const cost = o.price != null ? Math.round((o.price + (o.shipping ?? 0)) * 100) / 100 : null;
-    if (o.stock === 'out' && r.found !== false) out.push({ level: 'stop', short: 'out of stock', text: `Out of stock on Amazon${said ? `: "${said}"` : ''}.` });
-    if (o.stock === 'low') out.push({ level: 'warn', short: 'running low', text: `Amazon says "${said}".` });
+    if (o.stock === 'out' && r.found !== false) out.push({ level: 'stop', kind: 'stock', short: 'out of stock', text: `Out of stock on Amazon${said ? `: "${said}"` : ''}.` });
+    if (o.stock === 'low') out.push({ level: 'warn', kind: 'stock', short: 'running low', text: `Amazon says "${said}".` });
     if (o.stock === 'slow') {
       // Weeks or months away (Croydex, 5 October: "6 to 7 months") is a listing she cannot fill: red, not amber.
       const days = dispatchDays(said);
       const long = days != null && days > 14;
       out.push({
         level: long ? 'stop' : 'warn',
+        kind: 'seller',
         short: long ? `dispatch ${dispatchWords(said)}` : 'slow to dispatch',
         text: `Amazon says "${said}". ${long ? 'Your buyers would wait longer than eBay allows.' : 'Your buyers would wait.'}`,
       });
@@ -157,25 +160,27 @@ export function supplierWarnings(r, costed = r?.costed ?? null, now = Date.now()
     if (o.sold_by && !/amazon/i.test(String(o.fulfilled_by ?? '')) && !/^amazon/i.test(String(o.sold_by))) {
       out.push({
         level: 'warn',
+        kind: 'seller',
         short: 'not sent by Amazon',
         text: `Sold and sent by ${o.sold_by}${o.from_offers?.seller_pct != null ? ` (${o.from_offers.seller_pct}% positive)` : ''}, not Amazon${Number(o.shipping) > 0 ? `: ${formatGbp(Number(o.shipping))} delivery to you, counted in your cost` : ', so delivery may not be free on Prime'}.`,
       });
     }
     if (cost != null && costed != null && cost > costed + 0.01) {
       const up = (cost - costed) / costed;
-      out.push({ level: up >= 0.1 ? 'stop' : 'warn', short: `now ${formatGbp(cost)}`, text: `Costs ${formatGbp(cost)} today. You costed it at ${formatGbp(costed)}.` });
+      out.push({ level: up >= 0.1 ? 'stop' : 'warn', kind: 'price', short: `now ${formatGbp(cost)}`, text: `Costs ${formatGbp(cost)} today. You costed it at ${formatGbp(costed)}.` });
     } else if (cost != null && b?.price != null && cost > b.price + 0.01 && !followed(r, cost)) {
       // Her cost already covers it: worth knowing, nothing to do.
       const covered = costed != null && cost <= costed + 0.01;
       out.push({
         level: covered ? 'note' : 'warn',
+        kind: 'price',
         short: `up to ${formatGbp(cost)}`,
         text: `Up from ${formatGbp(b.price)} on ${day(b.read_at)} to ${formatGbp(cost)}.${covered ? ' Your cost already allows for it.' : ''}`,
       });
     }
     // A deal is a cost while it lasts. Its end is what needs telling.
     if (b?.deal && !o.deal && o.price != null && b.price != null && o.price > b.price + 0.01) {
-      out.push({ level: 'warn', short: 'deal ended', text: `Amazon's deal has ended: now ${formatGbp(o.price)}, was ${formatGbp(b.price)} on ${day(b.read_at)}.` });
+      out.push({ level: 'warn', kind: 'price', short: 'deal ended', text: `Amazon's deal has ended: now ${formatGbp(o.price)}, was ${formatGbp(b.price)} on ${day(b.read_at)}.` });
     } else if (o.deal && o.was && o.price != null) {
       out.push({ level: 'note', text: `On a deal at ${formatGbp(o.price)}, usually ${formatGbp(o.was)}. You will be told when it ends.` });
     }
@@ -187,6 +192,7 @@ export function supplierWarnings(r, costed = r?.costed ?? null, now = Date.now()
     if (o.price == null && o.others?.price != null) {
       out.push({
         level: 'stop',
+        kind: 'seller',
         short: 'only low-rated sellers',
         text: `No main offer on Amazon, and the cheapest seller is ${o.others.seller ?? 'unnamed'}${o.others.pct != null ? ` at ${o.others.pct}% positive` : ''}: ${formatGbp(Number(o.others.price))}. Under 80% is not used as your supplier.`,
       });
@@ -202,6 +208,7 @@ export function supplierWarnings(r, costed = r?.costed ?? null, now = Date.now()
       const after = moved.why === 'deal_ended' ? ', when its deal ended' : '';
       out.push({
         level: up && age < 3 * 24 * 3600 * 1000 ? 'warn' : 'note',
+        kind: 'price',
         short: `cost now ${formatGbp(moved.to)}`,
         text: moved.from == null
           ? `Your cost is set from Amazon's price: ${formatGbp(moved.to)}${after}.`
@@ -210,7 +217,7 @@ export function supplierWarnings(r, costed = r?.costed ?? null, now = Date.now()
     }
   }
   // What Keeper asked her to check when it sourced the card on Amazon (task 02): a pack, a bundle, a price.
-  for (const text of r.keeper_warnings ?? []) out.push({ level: 'warn', short: /bundle/i.test(text) ? 'a bundle' : 'check the pack', text });
+  for (const text of r.keeper_warnings ?? []) out.push({ level: 'warn', kind: 'pack', short: /bundle/i.test(text) ? 'a bundle' : 'check the pack', text });
   // A reading that keeps failing: the figures above are old.
   if (r.error && r.read_at && now - Date.parse(r.read_at) > 36 * 3600 * 1000) {
     out.push({ level: 'note', text: `Not read since ${day(r.read_at)}. ${r.error}` });

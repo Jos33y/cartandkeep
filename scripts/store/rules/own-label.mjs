@@ -30,4 +30,6 @@ export const OWN_LABEL = [
   // Frasers Group (Sports Direct, Studio, Evans Cycles) own brands, and Yogamatters' own range (5 October)
   // Gelert is kept to Sporting Goods: Gelert pet food is another company.
   'slazenger', 'karrimor', 'everlast', 'donnay', 'lonsdale', 'muddyfox', 'pinnacle', 'sports direct', 'yogamatters',
+  // Stationery and gift shops' own ranges (7 October, Office Supplies)
+  'smiggle', 'whsmith', 'sainsburys', 'flying tiger copenhagen', 'flying tiger', 'muji', 'typo', 'tesco', 'the works', 'hobbycraft', 'paperchase', 'moo', 'vistaprint', 'snapfish',
 ];

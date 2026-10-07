@@ -342,3 +342,21 @@ Six exports (October to December 2025, July to September 2026), 33,731 products.
 **Tested on the Sporting exports:** new own-label stops Slazenger 68 (17 in the window), Everlast 60 (10), Yogamatters 44 (7), Pinnacle 16 (5), Gelert 12 (4), Karrimor 8 (2), Donnay 7 (1), Lonsdale 5, Muddyfox 1; 6 rods; 1 freezer boilie. Nothing freed. Baby and Pet: 0 changes.
 
 **Not covered:** the reverse case, Google writing a brand joined while a shop spaces it. None seen yet.
+
+**Follow-up import, 6 October:** store-picks after the fixes: 3,338 considered, 2,227 seen, not seen 1,083 (from 1,107). All 15 RidgeMonkey best sellers in the window became picks; the page check confirmed 12 at Angling Direct (Fluorocast line, Boilie Crusher and CrimPanZee stayed unsure). With Fitness Mad Foam Roller, Fizik Tempo tape and Spatzwear Aquasokz shoe covers (sized: check), 14 new cards went in, in a 2026-10-06 batch under the same "Sporting Goods" tab. Sporting now has 623 cards. The 28 confirmed picks the fixes stopped were all rejected in her review already.
+
+## Re-importing a category that has been reviewed (6 October)
+
+`import-store.mjs` upserts on `batch_id,external_ref` and replaces the whole card row: `reference_url`, `image_url` and the entire `margin`. Notes (`candidate_notes`) and her decisions survive, but a re-source repoint (resource.mjs `--apply`) and anything apply-review or resource.mjs stored inside `margin` would be overwritten from `checked.csv`.
+
+To add only the new cards, import under a new batch date and skip coverage:
+
+```
+node scripts/store/import-store.mjs --category=<category> --label="<Label>" --big-brands --date=<today> --coverage=skip --dry
+```
+
+- Store cards from the earlier batch count as another import and are left there (fresh cards never carry `margin.store_import`).
+- Pass `--date` explicitly: the default is today in UTC, which just after midnight in Lagos is still yesterday's batch, and that turns the run back into a refresh.
+- `--coverage=skip` stops 33,000 coverage rows being re-pointed at a batch of a few cards. The earlier import's coverage stands.
+- The dry run must say "makes a new batch", the expected new count, and "store cards already, left there". Any "refreshed" line means stop.
+- `check-picks` and `import-store` need `--category=<category>`. Without it they read the old shared `research/picks/` files (Hardware).

@@ -27,6 +27,11 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
  * another currency stops instead of filling the shelf with wrong costs. --any-currency skips the check.
  */
 const HEADERS = { 'user-agent': UA, accept: 'application/json', 'accept-language': 'en-GB', cookie: 'localization=GB; cart_currency=GBP' };
+// Some shops (Cult Pens, Papersmiths, Scribble & Dot on 7 October) ignore the cookies and price for the visitor's IP.
+// So every request also names the UK market in its address, and checkCurrency() first chooses the UK the way the
+// shop's own country selector does (POST /localization) and keeps the cookies the shop sends back.
+const UK = 'currency=GBP&country=GB';
+const withUk = (url) => `${url}${url.includes('?') ? '&' : '?'}${UK}`;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const exists = p => access(p).then(() => true, () => false);
 const num = v => (v === null || v === undefined || v === '' ? null : Number(v));
@@ -36,7 +41,7 @@ class Stop extends Error {}
 class Cap extends Error {}
 
 async function page(n, from = '') {
-  const url = `${base}${from}/products.json?limit=${perPage}&page=${n}`;
+  const url = withUk(`${base}${from}/products.json?limit=${perPage}&page=${n}`);
   const res = await fetch(url, { headers: HEADERS });
   const text = await res.text();
   if (res.status === 429) throw new Stop(`rate limited (429) on page ${n}`);
@@ -51,8 +56,28 @@ async function page(n, from = '') {
 const strip = html => (html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
 // The shop's own currency for a UK visitor, from its cart. null when the cart can't be read (some shops block it).
+// The shop's answer to "ship to the United Kingdom": its localization and currency cookies, added to every request.
+async function chooseUk() {
+  const res = await fetch(`${base}/localization`, {
+    method: 'POST',
+    redirect: 'manual',
+    headers: { ...HEADERS, 'content-type': 'application/x-www-form-urlencoded', accept: 'text/html' },
+    body: 'form_type=localization&utf8=%E2%9C%93&_method=put&country_code=GB&return_to=%2F',
+  }).catch(() => null);
+  if (!res) return false;
+  const raw = typeof res.headers.getSetCookie === 'function' ? res.headers.getSetCookie() : String(res.headers.get('set-cookie') ?? '').split(/,(?=\s*[A-Za-z0-9_]+=)/);
+  const got = raw.map((c) => c.split(';')[0].trim()).filter((c) => c.includes('='));
+  if (!got.length) return false;
+  const jar = new Map(HEADERS.cookie.split(/;\s*/).map((c) => [c.split('=')[0], c]));
+  for (const c of got) jar.set(c.split('=')[0], c);
+  HEADERS.cookie = [...jar.values()].join('; ');
+  return true;
+}
+
 async function checkCurrency() {
-  const res = await fetch(`${base}/cart.js`, { headers: HEADERS }).catch(() => null);
+  const chose = await chooseUk();
+  if (chose) console.log('UK market chosen through the shop\'s country selector');
+  const res = await fetch(withUk(`${base}/cart.js`), { headers: HEADERS }).catch(() => null);
   if (!res?.ok) return null;
   const cur = await res.json().then((c) => c?.currency ?? null, () => null);
   if (cur && cur !== 'GBP' && !args['any-currency']) {
@@ -150,7 +175,7 @@ async function byCollection(seen) {
   const handles = [];
   for (let k = 1; ; k++) {
     await sleep(pause);
-    const res = await fetch(`${base}/collections.json?limit=250&page=${k}`, { headers: HEADERS });
+    const res = await fetch(withUk(`${base}/collections.json?limit=250&page=${k}`), { headers: HEADERS });
     if (res.status === 429) throw new Stop(`rate limited (429) on collections page ${k}`);
     if (!res.ok) throw new Stop(`collections.json status ${res.status}`);
     const list = (await res.json()).collections ?? [];

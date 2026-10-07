@@ -28,7 +28,8 @@ const BIG_APPLIANCE = String.raw`integrated|freestanding|free standing|built[- ]
 export const NOT_SHELF = [
   // Made to order and print on demand
   ['blinds?', null, String.raw`brackets?|cords?|chains?|cleaner|fittings?|clips?|springs?|parts?|wands?|box(?:es)?|bags?|series|figures?|mystery|pendant|fly|bug|insect|strip|door curtain`],
-  ['made to measure'], ['personali[sz]ed'], ['photo ?book'], ['poster'], ['wallpaper', null, String.raw`cover[- ]up|strippers?|steamers?|paste|adhesive|scrapers?|scorers?|primer|remover|smoothers?|brush(?:es)?|cutters?|tools?|kit`], ['mural'],
+  ['made to measure'], ['digital download|instant download|pdf download|downloadable|digital (?:file|planner|product)|printable pdf|pdf (?:file|planner|calendar|template|printable)'], ['pdf', null, String.raw`scanners?|readers?|printers?|software|converters?`],
+  ['printable', null, String.raw`vinyl|paper|stickers?|labels?|sheets?|cards?|transfers?|fabric|magnet(?:ic)?|film|tattoo|canvas|iron[- ]on`], ['personali[sz]ed'], ['photo ?book'], ['poster'], ['wallpaper', null, String.raw`cover[- ]up|strippers?|steamers?|paste|adhesive|scrapers?|scorers?|primer|remover|smoothers?|brush(?:es)?|cutters?|tools?|kit`], ['mural'],
   // "Print" only as a picture: leopard print and bow print bedding pass.
   [String.raw`(?:art|framed|photo|canvas|giclee|fine art|wall) prints?|prints? (?:a[1-5]|framed|unframed)`],
   ['prints?', String.raw`wall art|posters?|framed|unframed|a[1-5]|canvas|giclee|wall decor`],

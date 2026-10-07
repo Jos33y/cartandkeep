@@ -13,14 +13,29 @@ import { portalPath } from '@utils/constants';
 
 const DAY = 24 * 3600 * 1000;
 export const RECENT_DAYS = 14;
+/*
+ * The chips, by what she has to do rather than where it came from (Joseey, 7 October: "Suppliers 53" held stock,
+ * prices and sellers together). A live listing's supplier alert sits in one chip only, its most urgent kind.
+ */
 export const GROUPS = [
-  { id: 'suppliers', label: 'Suppliers' },
+  { id: 'amazon', label: 'Amazon stock' },
+  { id: 'price', label: 'Price' },
+  { id: 'seller', label: 'Seller and dispatch' },
+  { id: 'pack', label: 'Pack' },
   { id: 'ebay', label: 'eBay' },
   { id: 'keeper', label: 'Keeper' },
-  { id: 'stock', label: 'Stock' },
+  { id: 'shop', label: 'Your shop stock' },
 ];
+// A supplier warning's kind (supplierWatch.js) to its chip, and which wins when one listing has several at the same
+// level: one Amazon cannot supply first, then money, then who sends it, then the pack.
+const CHIP = { stock: 'amazon', price: 'price', seller: 'seller', pack: 'pack' };
+const KIND_RANK = { stock: 0, price: 1, seller: 2, pack: 3 };
 const RANK = { stop: 0, warn: 1 };
-const ORDER = Object.fromEntries(GROUPS.map((g, i) => [g.id, i]));
+const ORDER = { ...Object.fromEntries(GROUPS.map((g, i) => [g.id, i])), approved: GROUPS.length };
+
+// Most urgent first: red before amber, then by kind. The first one is the chip, and leads the few words.
+export const byUrgency = (ws) => [...ws].sort((x, y) => RANK[x.level] - RANK[y.level]
+  || (KIND_RANK[x.kind] ?? 9) - (KIND_RANK[y.kind] ?? 9));
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const titleOf = (c) => c?.draft_title || c?.title || 'Untitled card';
@@ -31,7 +46,7 @@ const MONEY = /^(now |cost now |up to |deal ended)/;
 // Her live listing's Amazon supplier. A cost that moved is settled once she has changed the price since.
 function supplierAlert(c, priced, now) {
   const r = c.supplier_read;
-  let ws = warningsOf(r, c.candidate_sources ?? c.sources, now).filter((w) => w.level === 'stop' || w.level === 'warn');
+  let ws = byUrgency(warningsOf(r, c.candidate_sources ?? c.sources, now).filter((w) => w.level === 'stop' || w.level === 'warn'));
   const movedAt = r?.cost_change?.at ? Date.parse(r.cost_change.at) : null;
   const listing = c.ebay?.listing_id ? String(c.ebay.listing_id) : null;
   if (movedAt && listing && priced.some((p) => String(p.listing_id) === listing && Date.parse(p.created_at) >= movedAt)) {
@@ -44,7 +59,7 @@ function supplierAlert(c, priced, now) {
   if (r?.url) actions.push({ label: 'Amazon', href: r.url });
   return {
     key: `sup:${c.id}`,
-    group: 'suppliers',
+    group: CHIP[ws[0].kind] ?? 'seller',
     level: ws[0].level,
     title: titleOf(c),
     what: ws.map((w) => w.short).filter(Boolean).join(', ') || ws[0].text,
@@ -64,7 +79,7 @@ function approvedAlert(cards, now) {
   const red = flagged.filter((ws) => ws[0].level === 'stop').length;
   return {
     key: 'sup:approved',
-    group: 'suppliers',
+    group: 'approved',
     level: red ? 'stop' : 'warn',
     quiet: true,
     title: `${plural(flagged.length, 'approved card', 'approved cards')} with supplier warnings`,
@@ -124,7 +139,7 @@ function stockAlerts(low) {
     const left = Number(l.stock);
     return {
       key: `stock:${l.variant_id ?? l.product_id}`,
-      group: 'stock',
+      group: 'shop',
       level: left <= 0 ? 'stop' : 'warn',
       title: l.label ? `${l.title}, ${l.label}` : l.title,
       what: left <= 0 ? 'None left' : `${left} left`,
@@ -153,8 +168,10 @@ export function buildAlerts({ live = [], approved = [], jobs = [], runs = [], lo
 // What the sidebar counts: red and amber on things that are selling. Approved warnings are a heads-up.
 export const badgeOf = (alerts) => alerts.filter((a) => !a.quiet).length;
 
+// The chips' numbers. All is what the sidebar says; the quiet heads-up is counted on its own, never in All.
 export function countsOf(alerts) {
+  const loud = alerts.filter((a) => !a.quiet);
   const by = Object.fromEntries(GROUPS.map((g) => [g.id, 0]));
-  for (const a of alerts) by[a.group] += 1;
-  return { all: alerts.length, stop: alerts.filter((a) => a.level === 'stop').length, ...by };
+  for (const a of loud) by[a.group] = (by[a.group] ?? 0) + 1;
+  return { all: loud.length, stop: loud.filter((a) => a.level === 'stop').length, quiet: alerts.length - loud.length, ...by };
 }

@@ -3,7 +3,7 @@
 // judge the same way.
 import { askTool } from './claude.ts';
 import { itemFactsOf, listingOf } from './product.ts';
-import { CHECK_SYSTEM, CHECK_TOOL, LABEL_SYSTEM, LABEL_TOOL, checkFacts, costPence, duplicates, liveMatches, settle, tokensOf } from './shop-check.ts';
+import { CHECK_SYSTEM, CHECK_TOOL, LABEL_SYSTEM, LABEL_TOOL, checkFacts, costPence, duplicates, googlePath, liveMatches, settle, tokensOf } from './shop-check.ts';
 
 type Json = Record<string, any>;
 // The calls made on the database here: any Supabase client works.
@@ -157,6 +157,14 @@ export async function checkOne(client: Db, job: Json, run: Json | null, ctx: Awa
       return { state: 'queued', result: { ...result, tray: null, line: 'Changed while Keeper was reading it. Checked again at the end.' }, cost };
     }
     if (wrote !== 'written') return { state: 'done', result: { ...result, tray: 'skipped', line: 'No longer a draft, so left alone.' }, cost };
+    // A product that came in with only the stand-in category (a card from Approved has no eBay path) gets the one
+    // Keeper read from it, and finds its section as it is saved (0145). A category set any other way is left alone.
+    const path = googlePath(first.input.google_category);
+    if (path) {
+      const { data: gid, error: ge } = await client.rpc('set_product_google_ai', { p_id: p.id, p_path: path });
+      if (ge) console.error('[keeper-check] category not set:', ge.message);
+      else result.google = { path, id: gid ?? null };
+    }
   }
   return { state: 'done', result, cost };
 }

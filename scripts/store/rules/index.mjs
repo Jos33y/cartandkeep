@@ -22,6 +22,7 @@ import * as toysGames from './categories/toys-games.mjs';
 import * as babyToddler from './categories/baby-toddler.mjs';
 import * as animalsPet from './categories/animals-pet-supplies.mjs';
 import * as sportingGoods from './categories/sporting-goods.mjs';
+import * as officeSupplies from './categories/office-supplies.mjs';
 
 const BY_CATEGORY = new Map([
   ['health and beauty', healthBeauty],
@@ -30,6 +31,7 @@ const BY_CATEGORY = new Map([
   ['baby and toddler', babyToddler],
   ['animals and pet supplies', animalsPet],
   ['sporting goods', sportingGoods],
+  ['office supplies', officeSupplies],
 ]);
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

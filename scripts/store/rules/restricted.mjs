@@ -26,9 +26,15 @@ export const RESTRICTED = {
   licensed: String.raw`\b(melatonin|vapes?|e-liquids?|cbd|shisha|rolling tobacco)\b|^(?!.*\b(?:candles?|scents?|scented|fragrance|diffusers?|wax|melts?|bins?|ashtrays?|incense|carpets?|flooring|laminate|vinyl|rugs?|paint|colou?r|leather|oak|tiles?|fabric|sofa|curtains?|toys?|plush|chew|squeaky|teething|dogs?|cats?|pets?)\b).*\b(?:tobacco|cigarettes?|cigars?)\b(?! (?:cases?|holders?|box(?:es)?|tins?|lighters?|cutters?|humidors?))`,
   // Alcohol needs a premises licence. Only the drink itself: a drink word with a size, a pack or a tasting, and no
   // barware in the title (glasses, cups, smoker kits, barrels, figures and lights named after a drink all pass).
-  alcohol: String.raw`^(?!.*\b(?:glass(?:es|ware)?|cups?|tumblers?|goblets?|flutes?|decanters?|smoker|smoking|barrels?|kegs?|racks?|openers?|coolers?|chillers?|stoppers?|pourers?|carriers?|holders?|stands?|displays?|figures?|ornaments?|leds?|lights?|candles?|scented|signs?|mugs?|stones?|molds?|moulds?|making kit|essence|flavou?rings?|cake|fudge|truffles?|chocolates?|sauce|vinegar)\b).*\b(vodka|gin|whisk(?:e)?y|rum|tequila|liqueur|prosecco|champagne|cava|cider|brandy|cognac|bourbon|sake|(?:red|white|ros[eé]|sparkling|mulled) wine|pre-?mixed|cocktail cans?)\b.*\b(\d+(?:\.\d+)? ?(?:cl|ml|l|litres?)|cans?|\d+ ?(?:x|pack|pk)|tasting|miniatures?|bottles?|abv|vol)\b|\b\d+(\.\d+)?% (?:abv|vol)\b`,
+  alcohol: String.raw`^(?!.*\b(?:glass(?:es|ware)?|cups?|tumblers?|goblets?|flutes?|decanters?|smoker|smoking|barrels?|kegs?|racks?|openers?|coolers?|chillers?|stoppers?|pourers?|carriers?|holders?|stands?|displays?|figures?|ornaments?|leds?|lights?|candles?|scented|signs?|mugs?|stones?|molds?|moulds?|making kit|essence|flavou?rings?|cake|fudge|truffles?|chocolates?|sauce|vinegar|note ?books?|journals?|diar(?:y|ies)|log ?books?|planners?|cards?)\b).*\b(vodka|gin|whisk(?:e)?y|rum|tequila|liqueur|prosecco|champagne|cava|cider|brandy|cognac|bourbon|sake|(?:red|white|ros[eé]|sparkling|mulled) wine|pre-?mixed|cocktail cans?)\b.*\b(\d+(?:\.\d+)? ?(?:cl|ml|l|litres?)|cans?|\d+ ?(?:x|pack|pk)|tasting|miniatures?|bottles?|abv|vol)\b|\b\d+(\.\d+)?% (?:abv|vol)\b`,
+  // No blades, knives or sharp cutting tools (Joseey, 6 October): neither eBay nor her shop has an age check. The same
+  // words as src/lib/blades.js and candidate_is_bladed (0144), so nothing reaches her queue that golive would block.
+  bladed: String.raw`\b(knife|knives|blades?|razors?|scalpels?|machetes?|swords?|daggers?|axe|hatchets?|cleavers?|box cutters?|craft knife|utility knife|stanley knife|multi-?tools?|secateurs|pruning saws?|loppers|scissors|shears)\b`,
+  // Laser pointers over 1mW are not legal to sell to the public in the UK, and the green "303" kind run far above it.
+  // Presenters and clickers pass, and so do laser labels, levels and engravers (the word "pointer" or "pen" is needed).
+  laser_pointer: String.raw`^(?!.*\b(?:presenters?|presentation|clickers?|remotes?|page turners?)\b).*\b(?:laser|lazer) (?:pointers?|pens?|torch(?:es)?)\b|\b(?:green|303|532 ?nm|high power|burning) (?:laser|lazer)\b(?!.*\b(?:levels?|line|labels?|printers?|engrav\w+)\b)`,
   // Weapons and knives need age checks she is not set up for
-  weapons: String.raw`^(?!.*\b(?:toys?|games?|catapults?|suction|foam|nerf|darts?|rc|truck|truggy|lego|fake|prop|plastic|costume|cosplay|kids?|children'?s?)\b).*\b(crossbows?|machetes?)\b|\b(air (?:rifles?|pistols?)(?![^|]*\b(?:targets?|spinners?|knock ?downs?|pellet traps?|compressors?|pumps?|scopes?|mounts?|slings?|bags?|cases?|cleaning|stands?|holders?)\b)|pepper spray|stun guns?|tasers?|knuckle dusters?|flick knives?)\b`,
+  weapons: String.raw`^(?!.*\b(?:crossbow education|irlen|reading rulers?|overlays?|notebooks?|toys?|games?|catapults?|suction|foam|nerf|darts?|rc|truck|truggy|lego|fake|prop|plastic|costume|cosplay|kids?|children'?s?)\b).*\b(crossbows?|machetes?)\b|\b(air (?:rifles?|pistols?)(?![^|]*\b(?:targets?|spinners?|knock ?downs?|pellet traps?|compressors?|pumps?|scopes?|mounts?|slings?|bags?|cases?|cleaning|stands?|holders?)\b)|pepper spray|stun guns?|tasers?|knuckle dusters?|flick knives?)\b`,
 };
 // Titles that name alcohol but are not it.
 // Titles that name alcohol or nicotine but are not it. They clear only that one rule: a nicotine-free vape still
@@ -38,4 +44,8 @@ export const NOT_RESTRICTED = {
   nicotine: String.raw`\b(nicotine[- ]free|0 ?mg nicotine)\b`,
   // Baby & Toddler: an anti-roll wedge on a changing mat is not a sleep product.
   sleep_safety: String.raw`\bchang(?:e|ing)\b`,
+  // The same exceptions as src/lib/blades.js: blades that are not a cutting edge, and shaver heads.
+  bladed: String.raw`\b(wiper|fan|propeller|rotor|blender|turbine)\s+blades?\b|\b(shaver|shaving|trimmer|epilator|clipper)s?\b`,
+  // A case, bag or log for a medicine is not the medicine (a Mounjaro pen case, a medication log book).
+  medicines: String.raw`\b(?:pen|injection|insulin|medication|medicine|pill) (?:cases?|bags?|cool(?:er|ing) (?:bags?|cases?)|travel cases?|holders?|pouch(?:es)?|wallets?)\b|\b(?:log ?books?|trackers?|journals?|planners?|record books?)\b`,
 };

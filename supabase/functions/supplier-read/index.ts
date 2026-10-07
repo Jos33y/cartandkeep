@@ -1,7 +1,7 @@
 // Her Amazon supplier's page read through Apify, for two callers:
 //   the portal  reads the cards it names (when she adds an Amazon link, or before Get it ready writes from it);
-//   the schedule  reads every card live on eBay with an Amazon supplier once a day, 20 at a time, for the price and
-//                 stock check. Cards still waiting in Approved are read by Keeper when it gets them ready (48 hours).
+//   the schedule  reads the cards live on eBay with an Amazon supplier for the price and stock check, 20 at a time:
+//                 daily while one needs watching, every third day once steady (readEvery in _shared/amazon.ts). Cards still waiting in Approved are read by Keeper when it gets them ready (48 hours).
 // The reading goes on the card (candidates.supplier_read) and into the history (supplier_checks). Her draft is never
 // written here: the portal puts the facts and photos in her draft, the way the Send button does.
 // Her supplier's cost follows Amazon's price where it came from Amazon (costFollow), and so does the shop product's
@@ -12,7 +12,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { env } from '../_shared/ebay/listing.ts';
-import { BATCH, costFollow, failedRead, londonDay, nextRead, runAxesso, supplierPageOf } from '../_shared/amazon.ts';
+import { BATCH, costFollow, failedRead, londonDay, nextRead, readDue, runAxesso, supplierPageOf } from '../_shared/amazon.ts';
 import { priceAlert } from './alert.ts';
 
 type Json = Record<string, any>;
@@ -129,7 +129,8 @@ Deno.serve(async (req) => {
         .eq('tenant_id', tenantId).eq('started_by', 'schedule').gte('checked_at', new Date(Date.now() - 20 * 3600 * 1000).toISOString());
       const room = Math.max(0, DAILY_MAX - (count ?? 0));
       const tried = (c: Json) => c.supplier_read?.tried_at ?? c.supplier_read?.read_at ?? null;
-      todo = all.filter(({ c, page }) => page.asin && londonDay(tried(c)) !== today)
+      // Due today only: a steady listing waits its three days (readDue), so Apify is paid for what may have moved.
+      todo = all.filter(({ c, page }) => page.asin && londonDay(tried(c)) !== today && (c.supplier_read?.asin !== page.asin || readDue(c.supplier_read)))
         .sort((a, b) => String(tried(a.c) ?? '').localeCompare(String(tried(b.c) ?? '')))
         .slice(0, Math.min(BATCH, room));
       if (!todo.length) return json({ read: 0, left: 0 });

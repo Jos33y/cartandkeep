@@ -447,3 +447,39 @@ export function failedRead(prev: Json | null, page: { url: string; asin: string 
 
 // London's date, so "read today" turns over at midnight here, not in UTC.
 export const londonDay = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString('en-GB', { timeZone: 'Europe/London' }) : null);
+
+/*
+ * How often the morning check reads a live listing's supplier, in days (Joseey, 7 October: $6 of $10 of Apify gone in
+ * days). Daily while there is something to watch: a price or stock that may move, a seller other than Amazon, no main
+ * offer (which also costs a second read of the sellers' list), a deal that can end, a cost that moved this week, a
+ * reading that failed. Every third day once it is steady: in stock, sent by Amazon, the price as before.
+ */
+export const WATCH_DAYS = 1;
+export const STEADY_DAYS = 3;
+const WEEK = 7 * 24 * 3600 * 1000;
+
+export function readEvery(r: Json | null | undefined, now = Date.now()): number {
+  if (!r || r.error || r.found === false || !r.offer) return WATCH_DAYS;
+  const o = r.offer;
+  if (o.price == null || o.from_offers || o.others) return WATCH_DAYS;
+  if (['low', 'out', 'slow'].includes(o.stock)) return WATCH_DAYS;
+  if (o.deal) return WATCH_DAYS;
+  const byAmazon = /amazon/i.test(String(o.fulfilled_by ?? '')) || /^amazon/i.test(String(o.sold_by ?? ''));
+  if (o.sold_by && !byAmazon) return WATCH_DAYS;
+  if (r.cost_change?.at && now - Date.parse(r.cost_change.at) < WEEK) return WATCH_DAYS;
+  if (r.before?.price != null && Math.abs(Number(o.price) - Number(r.before.price)) > 0.01) return WATCH_DAYS;
+  return STEADY_DAYS;
+}
+
+// Whole UK days between two times: a read at 11pm and one at 7am the next morning are a day apart.
+const dayNumber = (iso: string) => {
+  const [d, m, y] = String(londonDay(iso)).split('/').map(Number);
+  return Date.UTC(y, m - 1, d) / 86400000;
+};
+
+// Due this morning: never read, or its days are up.
+export function readDue(r: Json | null | undefined, now = Date.now()): boolean {
+  const last = r?.tried_at ?? r?.read_at ?? null;
+  if (!last) return true;
+  return dayNumber(new Date(now).toISOString()) - dayNumber(last) >= readEvery(r, now);
+}

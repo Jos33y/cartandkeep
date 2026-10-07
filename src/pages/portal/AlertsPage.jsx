@@ -24,12 +24,15 @@ export function AlertsPage() {
   const [checked, setChecked] = useState(null);
   useEffect(() => { if (al.status === 'ready') setChecked(new Date()); }, [al.status, al.alerts]);
 
-  const shown = useMemo(() => (group === 'all' ? al.alerts : al.alerts.filter((a) => a.group === group)), [al.alerts, group]);
+  // What needs a look, by chip; the heads-up on cards not selling yet sits under its own heading, under All only.
+  const loud = useMemo(() => al.alerts.filter((a) => !a.quiet), [al.alerts]);
+  const quiet = useMemo(() => al.alerts.filter((a) => a.quiet), [al.alerts]);
+  const shown = useMemo(() => (group === 'all' ? loud : loud.filter((a) => a.group === group)), [loud, group]);
 
   if (tenant === undefined || al.status === 'loading') return <PageSkeleton rows={4} />;
 
   const { counts } = al;
-  const all = al.alerts.length;
+  const all = counts.all;
   const label = (g) => (g.id === 'keeper' && agent ? agent : g.label);
 
   return (
@@ -48,7 +51,7 @@ export function AlertsPage() {
         </p>
       </header>
 
-      {al.alerts.length > 0 && (
+      {all > 0 && (
         <div className={styles.chips} role="group" aria-label="Show">
           <button type="button" className={styles.chip} aria-pressed={group === 'all'} onClick={() => setGroup('all')}>
             All <span data-num>{counts.all}</span>
@@ -79,9 +82,20 @@ export function AlertsPage() {
         <p className={styles.clear}>
           <Icon name="IconCheck" className={styles.clearIcon} />
           {group === 'all'
-            ? 'Your suppliers, the eBay queue, Keeper and your stock are all fine.'
+            ? 'Your suppliers, the eBay queue, Keeper and your shop stock are all fine.'
             : 'Nothing here now.'}
         </p>
+      )}
+
+      {group === 'all' && quiet.length > 0 && (
+        <section className={styles.later} aria-label="Not selling yet">
+          <h2 className={styles.laterHead}>Not selling yet</h2>
+          <Card pad={false}>
+            <ul className={styles.list}>
+              {quiet.map((a) => <AlertRow key={a.key} a={a} />)}
+            </ul>
+          </Card>
+        </section>
       )}
     </div>
   );

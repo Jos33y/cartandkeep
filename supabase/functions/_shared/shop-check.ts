@@ -37,13 +37,22 @@ BIOCIDES. For a biocide (an insect, rodent or weed killer, a repellent, a disinf
 
 FACTS. You are also given Keeper's own unsaved draft (a description and title choices written earlier). Read them against the facts. For every number, size, count or pack in the draft that disagrees with the facts, give the field, what the draft says and what the facts say. When the description has such an error, give corrected_description: the same description with only those errors put right, nothing else changed. Never correct something the facts do not settle.
 
+GOOGLE CATEGORY. Give the product's category in Google's product taxonomy (the UK English list), as the full path from the top level, written as Google writes it with " > " between levels: "Health & Beauty > Health Care > Biometric Monitors > Blood Pressure Monitors". Judge what the product is, not where it is used or who buys it. Go as deep as the product clearly fits and stop at the last level you are sure of; never give only the top level. The shop places the product in a section by this.
+
 Her past changes, when given, show how the shop owner decides. Follow them where they apply.
 
 Write every reason as you would say it to the shop owner across the counter: one short plain sentence about the goods, in British English, with no law names, codes, agency names or field names, never about the shop owner.`;
 
+// Google's path as the model wrote it, tidied: levels trimmed, joined the way google_id_of reads them (0129), two
+// levels at least, since a top level alone places nothing. Null when there is nothing to use.
+export function googlePath(v: unknown): string | null {
+  const parts = String(v ?? '').split('>').map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  return parts.length >= 2 ? parts.slice(0, 7).join(' > ') : null;
+}
+
 export const CHECK_TOOL = {
   name: 'check',
-  description: 'The returns class, whether it is a chemical, the shop title, any match already on the shop, answers to questions left earlier, and any errors in the unsaved draft.',
+  description: 'The returns class, whether it is a chemical, the shop title, any match already on the shop, answers to questions left earlier, any errors in the unsaved draft, and the Google category.',
   input_schema: {
     type: 'object',
     properties: {
@@ -73,8 +82,9 @@ export const CHECK_TOOL = {
         },
       },
       corrected_description: { type: 'string' },
+      google_category: { type: 'string', description: 'The full Google product taxonomy path, top level first, levels joined with " > ".' },
     },
-    required: ['returns_class', 'returns_sure', 'returns_reason', 'chemical', 'chemical_reason', 'biocide', 'biocide_kind', 'needs_photos', 'title', 'title_reason', 'title_clear', 'brand_is_seller', 'same_as', 'answers', 'facts_errors', 'corrected_description'],
+    required: ['returns_class', 'returns_sure', 'returns_reason', 'chemical', 'chemical_reason', 'biocide', 'biocide_kind', 'needs_photos', 'title', 'title_reason', 'title_clear', 'brand_is_seller', 'same_as', 'answers', 'facts_errors', 'corrected_description', 'google_category'],
   },
 };
 

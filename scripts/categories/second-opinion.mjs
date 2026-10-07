@@ -10,6 +10,12 @@
  * Only a disagreement that would move a product to another section counts: a different top-level category, or a
  * different second level. A deeper or sibling leaf in the same place is left alone. Her own choices (manual) and
  * the ones already checked by hand are never asked about.
+ *
+ * A product on the stand-in category (source "default", Home & Garden, given when nothing better was found) is asked
+ * as unfiled, and any answer two levels deep or more is listed: the stand-in places nothing, so any real category is
+ * a move (7 October: 199 cards added from Approved landed there).
+ *
+ * A refused call prints what Claude said. Out of credit stops the run at once instead of trying every batch.
  */
 import fs from 'node:fs';
 import { parseCsv } from '../lib/sources.js';
@@ -79,14 +85,18 @@ for (const line of fs.readFileSync(TAXONOMY, 'utf8').split(/\r?\n/)) {
 const ask = products.filter((p) => p.google_category_id && !['manual', 'checked'].includes(p.google_category_source));
 const cache = (() => { try { return JSON.parse(fs.readFileSync(CACHE, 'utf8')); } catch { return {}; } })();
 const cacheKey = (p) => `${p.google_category_id}|${String(p.title).toLowerCase()}`;
-const todo = ask.filter((p) => cache[cacheKey(p)] === undefined);
+const depthOf = (id) => (id && tax.pathOf(id) ? tax.pathOf(id).split(' > ').length : 0);
+// An earlier answer that left a stand-in product at the top level is asked again, now as unfiled.
+const todo = ask.filter((p) => cache[cacheKey(p)] === undefined
+  || (p.google_category_source === 'default' && depthOf(cache[cacheKey(p)]) < 2));
 const apiKey = envKey('ANTHROPIC_API_KEY');
 if (todo.length && !apiKey) { console.error('\n  No ANTHROPIC_API_KEY, so nothing could be read.\n'); process.exit(1); }
 
 let calls = 0;
 for (let i = 0; i < todo.length; i += BATCH) {
   const part = todo.slice(i, i + BATCH);
-  const lines = part.map((p, n) => `${n + 1}. ${String(p.title).split('#')[0].trim()}  [filed: ${tax.pathOf(p.google_category_id)}]`).join('\n');
+  const filed = (p) => (p.google_category_source === 'default' ? 'not filed yet' : tax.pathOf(p.google_category_id));
+  const lines = part.map((p, n) => `${n + 1}. ${String(p.title).split('#')[0].trim()}  [filed: ${filed(p)}]`).join('\n');
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
@@ -95,14 +105,24 @@ for (let i = 0; i < todo.length; i += BATCH) {
       max_tokens: 2000,
       thinking: { type: 'between_tools' },
       system: [
-        { type: 'text', text: 'You check where products are filed in Google\'s product taxonomy. For each product you get its title and the category it is filed under now. Choose the category from the list that best describes what the product itself is (not where it is used or who buys it). If the category it is filed under is right, or as good as any on the list, answer the id on the list that matches it or contains it. Reply with one line per product and nothing else: the product number, a tab, the category ID.' },
+        { type: 'text', text: 'You check where products are filed in Google\'s product taxonomy. For each product you get its title and the category it is filed under now. Choose the category from the list that best describes what the product itself is (not where it is used or who buys it). If the category it is filed under is right, or as good as any on the list, answer the id on the list that matches it or contains it. A product marked "not filed yet" has no category: choose the best one on the list, at least two levels deep. Reply with one line per product and nothing else: the product number, a tab, the category ID.' },
         { type: 'text', text: `Categories:\n${list.join('\n')}`, cache_control: { type: 'ephemeral' } },
       ],
       messages: [{ role: 'user', content: `Products:\n${lines}` }],
     }),
   });
   calls += 1;
-  if (!res.ok) { console.error(`  Call failed (${res.status}); ${part.length} products not read this time. Run again to finish.`); continue; }
+  if (!res.ok) {
+    // Claude's own words, so a refusal explains itself: credit, a model name, a setting.
+    const said = await res.json().then((b) => b?.error?.message ?? '').catch(() => '');
+    console.error(`  Call failed (${res.status})${said ? `: ${said}` : ''}`);
+    if (/credit balance|billing|purchase credits/i.test(said)) {
+      console.error('  Out of Claude credit, so the rest were not asked. Top up at console.anthropic.com, then run again.');
+      break;
+    }
+    console.error(`  ${part.length} products not read this time. Run again to finish.`);
+    continue;
+  }
   const text = (await res.json())?.content?.map((c) => c.text ?? '').join('') ?? '';
   const answers = new Map([...text.matchAll(/^\s*(\d+)\s*[\t:|,.-]\s*(\d+)\s*$/gm)].map((m) => [Number(m[1]), Number(m[2])]));
   part.forEach((p, n) => { const id = answers.get(n + 1); cache[cacheKey(p)] = id && tax.has(id) ? id : 0; });
@@ -118,7 +138,9 @@ for (const p of ask) {
   const now = p.google_category_id;
   const deep = (id) => tax.pathOf(id).split(' > ').length;
   const care = 'Health & Beauty > Healthcare';
-  const moves = level(s, 1) !== level(now, 1)
+  const stand = p.google_category_source === 'default';
+  const moves = (stand && deep(s) >= 2)
+    || level(s, 1) !== level(now, 1)
     || (deep(s) >= 2 && deep(now) >= 2 && level(s, 2) !== level(now, 2))
     // Healthcare splits a level deeper on the shop (DEEPER in shop-sort), so a move inside it counts there.
     || (level(s, 2) === care && level(now, 2) === care && deep(s) >= 3 && deep(now) >= 3 && level(s, 3) !== level(now, 3));

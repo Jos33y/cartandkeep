@@ -62,6 +62,16 @@
 
 .list { margin: 0; padding: 0; }
 
+/* Cards not selling yet: below what is, under a small heading, out of every count. */
+.later { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-2); }
+.laterHead {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
 .partial { padding: var(--s-2) var(--s-3); border-radius: var(--r-md); background: var(--c-warning-wash); font-size: var(--t-caption); color: var(--c-ink-soft); }
 
 .clear {

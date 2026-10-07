@@ -7,6 +7,7 @@ import { readyBatch, type Call } from './ready.ts';
 import { readSize } from '../_shared/parcel-read.ts';
 import { askLessons, review } from './review.ts';
 import { pence, tallied, used } from '../_shared/usage.ts';
+import { creditOf, isCredit } from '../_shared/credit.ts';
 
 type Json = Record<string, any>;
 
@@ -84,6 +85,21 @@ async function failJob(client: Db, job: Json, why: string) {
     : { state: 'queued', error: why }).eq('id', job.id);
 }
 
+// Back in the queue as it was, its tries counted afresh: for work stopped by something that is not the card.
+async function requeue(client: Db, job: Json) {
+  await client.from('keeper_jobs').update({ state: 'queued', attempts: 0, error: null }).eq('id', job.id);
+}
+
+/*
+ * The shop's monthly Keeper budget (0145). Over it, the run pauses before it spends anything, with the reason she
+ * reads. Null while there is budget left, or when the check itself cannot be read (the run's own cap still holds).
+ */
+async function overBudget(client: Db, tenantId: string): Promise<string | null> {
+  const { data, error } = await client.rpc('keeper_over_budget', { p_tenant: tenantId });
+  if (error) { console.error('[keeper-run] budget not read:', error.message); return null; }
+  return typeof data === 'string' && data ? data : null;
+}
+
 // One batch of a sourcing run: claimed, looked up, each job finished or sent round again, the spend added.
 async function workSource(client: Db, run: Json) {
   let looked = 0;
@@ -101,12 +117,21 @@ async function workSource(client: Db, run: Json) {
     let spent = 0;
     let lastError = '';
     let failures = 0;
+    let credit = false;
     for (let i = 0; i < outs.length; i += 1) {
       const o = outs[i];
       spent += o.cost ?? 0;
-      if ('error' in o) { lastError = o.error; failures += 1; await failJob(client, jobs[i], o.error); } else { await finishJob(client, jobs[i], o); looked += 1; }
+      if ('error' in o && isCredit(o.error)) {
+        // Apify out of credit is not the card's fault: back in the queue, its tries untouched.
+        credit = true;
+        await requeue(client, jobs[i]);
+      } else if ('error' in o) { lastError = o.error; failures += 1; await failJob(client, jobs[i], o.error); } else { await finishJob(client, jobs[i], o); looked += 1; }
     }
     if (spent > 0) await client.rpc('add_keeper_spend', { p_run: run.id, p_pence: spent });
+    if (credit) {
+      await client.rpc('close_keeper_run', { p_run: run.id, p_pause_reason: creditPause({ service: creditOf('supplier-read'), title: null }) });
+      return looked;
+    }
     // Every one in a batch failing is Amazon or Apify, not the candidates: pause and say why rather than spend again.
     if (failures === outs.length && failures >= Math.min(FAIL_STREAK, outs.length) && jobs.every((j: Json) => j.attempts >= 3)) {
       await client.rpc('close_keeper_run', { p_run: run.id, p_pause_reason: `Amazon could not be read three times. The last said: ${lastError}` });
@@ -191,6 +216,11 @@ async function workReady(client: Db, run: Json) {
 
 // Works one run until the budget, the run's state or the cap stops it.
 async function workRun(client: Db, run: Json, until: number) {
+  const budget = await overBudget(client, run.tenant_id);
+  if (budget) {
+    await client.rpc('close_keeper_run', { p_run: run.id, p_pause_reason: budget });
+    return 0;
+  }
   if (run.task === 'amazon_source') return workSource(client, run);
   if (run.task === 'get_ready') return workReady(client, run);
   const ctx = await contextFor(client, run.tenant_id, run.id);
@@ -209,6 +239,7 @@ async function workRun(client: Db, run: Json, until: number) {
       const started = Date.now();
       const outs = await Promise.allSettled((jobs as Json[]).map((j) => checkOne(client, j, { ...run, ...now }, ctx)));
       let spent = 0;
+      let credit = false;
       for (let i = 0; i < outs.length; i += 1) {
         const o = outs[i];
         if (o.status === 'fulfilled') {
@@ -216,6 +247,10 @@ async function workRun(client: Db, run: Json, until: number) {
           spent += o.value.cost ?? 0;
           streak = 0;
           checked += 1;
+        } else if (isCredit(o.reason)) {
+          // Claude out of credit: nothing wrong with the draft, so it waits for the top-up, its tries untouched.
+          credit = true;
+          await requeue(client, jobs[i]);
         } else {
           lastError = message(o.reason);
           await failJob(client, jobs[i], lastError);
@@ -223,6 +258,10 @@ async function workRun(client: Db, run: Json, until: number) {
         }
       }
       if (spent > 0) await client.rpc('add_keeper_spend', { p_run: run.id, p_pence: spent });
+      if (credit) {
+        await client.rpc('close_keeper_run', { p_run: run.id, p_pause_reason: creditPause({ service: 'Claude', title: null }) });
+        return checked;
+      }
       if (streak >= FAIL_STREAK) {
         await client.rpc('close_keeper_run', { p_run: run.id, p_pause_reason: `${FAIL_STREAK} drafts in a row could not be read. The last said: ${lastError}` });
         return checked;
@@ -252,10 +291,16 @@ async function workLoose(client: Db, tenant: string | null, until: number) {
       if (!ctxByTenant.has(job.tenant_id)) ctxByTenant.set(job.tenant_id, await contextFor(client, job.tenant_id, null));
     }
     const outs = await Promise.allSettled((jobs as Json[]).map((j) => checkOne(client, j, null, ctxByTenant.get(j.tenant_id)!)));
+    let credit = false;
     for (let i = 0; i < outs.length; i += 1) {
       const o = outs[i];
-      if (o.status === 'fulfilled') { await finishJob(client, jobs[i], o.value); checked += 1; } else await failJob(client, jobs[i], message(o.reason));
+      if (o.status === 'fulfilled') { await finishJob(client, jobs[i], o.value); checked += 1; } else if (isCredit(o.reason)) {
+        credit = true;
+        await requeue(client, jobs[i]);
+      } else await failJob(client, jobs[i], message(o.reason));
     }
+    // Out of credit: these wait for the top-up rather than being tried until they fail.
+    if (credit) break;
   }
   return checked;
 }
