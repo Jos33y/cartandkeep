@@ -11,6 +11,7 @@ import { formatGbp } from '@utils/formatGbp';
 import { portalPath } from '@utils/constants';
 import { ebayFeeAt, pricesFor } from '@lib/repricing';
 import { buyersSee, ebayFeeRate } from '@lib/ebayAccount';
+import { LowerBanner, LowerPrices, MatchBanner, MatchShop, useLowerable, useShopAbove } from '@components/ui/portal/LowerPrices';
 import styles from '@styles/pages/portal/listings-page.module.css';
 
 /*
@@ -247,6 +248,13 @@ export function ListingsPage() {
   // Read again with the list, so a draft put on sale anywhere leaves the banner.
   useEffect(() => { loadDrafts(); }, [loadDrafts]);
 
+  // Listings priced above the new floor (private seller, Royal Mail), to bring down in one go with her say on each.
+  const lower = useLowerable(tenant?.id, list.all, status === 'ready');
+  const [lowering, setLowering] = useState(false);
+  // Shop prices above her own eBay price for the same product, to bring level with eBay.
+  const shopAbove = useShopAbove(tenant?.id, list.all, status === 'ready', tenant?.fees);
+  const [matching, setMatching] = useState(false);
+
   async function sellReady() {
     setNotice(null);
     setAdding({ done: 0, total: drafts.ready.length, verb: 'Putting on sale' });
@@ -390,6 +398,15 @@ export function ListingsPage() {
             {drafts.waiting > 0 && <a className={styles.out} href={portalPath('/products')}>Work through them in Products</a>}
           </span>
         </div>
+      )}
+      {!lowering && !matching && !adding && !show && <LowerBanner found={lower.found} onOpen={() => setLowering(true)} />}
+      {!lowering && !matching && !adding && !show && <MatchBanner found={shopAbove} onOpen={() => setMatching(true)} />}
+      {matching && shopAbove && (
+        <MatchShop found={shopAbove} change={list.changePrices} onClose={() => setMatching(false)} />
+      )}
+      {lowering && lower.found && (
+        <LowerPrices found={lower.found} change={list.changePrices}
+          onDone={lower.recheck} onClose={() => setLowering(false)} />
       )}
       {adding && (
         <p className={styles.hint} role="status">

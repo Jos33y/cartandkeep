@@ -49,8 +49,8 @@ const D = {
   maxCats: 120,
   queryWords: 3,        // eBay matches every word, so a query is short or it is nothing
   minProfit: 2.00,
-  postage: 2.62, packaging: 0.40,   // Evri to 5kg, the gate's default band
-  fvfPct: 0.128, fvfFixed: 0.30, adRate: 0.03,
+  postage: 2.99, packaging: 0.30,   // Royal Mail small parcel, her UK eBay labels' average (8 October 2026)
+  fvfPct: 0, fvfFixed: 0, adRate: 0.03, // a private seller: no selling fee; the ad rate if promoted
   returnRate: 0.05, returnCost: 6.00,
 };
 

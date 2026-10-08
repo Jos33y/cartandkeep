@@ -35,13 +35,19 @@ export const D = {
   // chair costed as an Evri parcel is where a £558 buying ceiling came from.
   bandTrustAbove: 80.00,
   minAgeDays: 7,       // a rate from a listing younger than this is noise
-  band: 'evri5',       // cheapest real route for most of what we sell. --band overrides
+  // Royal Mail small parcel (8 October 2026): she posts by Royal Mail on labels bought through eBay, £2.99 a parcel
+  // on average over her UK labels. An Evri band asked for (--band=evri5) is costed as the Royal Mail parcel of its size (asRoyalMail).
+  band: 'rm-small',
   // The scan judges new fixed price listings, so the gate has to judge the same
   // market or the two disagree on how crowded it is. --condition=any turns it off.
   // UK-located sellers only: a US seller's backpack at $37 once "proved" a UK market for patient slings.
   filter: 'conditions:{NEW},buyingOptions:{FIXED_PRICE},itemLocationCountry:GB',
-  fvfPct: 0.128,
-  fvfFixed: 0.30,
+  // A private seller on eBay UK (8 October 2026): no selling fee and no per-order fee; the buyer pays eBay's
+  // Buyer Protection fee on top of her price. The ad rate stays as the cost of promoting, which is what she would
+  // pay on a promoted sale. Selling as a business again: fvfPct 0.128, fvfFixed 0.30.
+  account: 'private',
+  fvfPct: 0,
+  fvfFixed: 0,
   adRate: 0.03,
   returnRate: 0.05,
   returnCost: 6.00,
@@ -52,6 +58,12 @@ export const D = {
 // floor came from, and costing everything at Royal Mail was the next error:
 // Evri takes 5kg and a 120x60x60 box for less than Royal Mail's 2kg parcel.
 export const BANDS = {
+  // Royal Mail, the way she posts. The small parcel is her own average from eBay's labels; the medium ones are
+  // Royal Mail's online Tracked 48 prices. Same keys and figures as EBAY_BANDS in src/lib/pricing.js.
+  'rm-small': { postage: 2.99, packaging: 0.30, label: 'Royal Mail small parcel, to 2kg' },
+  'rm-medium-10': { postage: 7.35, packaging: 0.50, label: 'Royal Mail medium parcel, to 10kg' },
+  'rm-medium-20': { postage: 11.85, packaging: 0.60, label: 'Royal Mail medium parcel, to 20kg' },
+  // Kept for old rows and runs that name them; costed as Royal Mail through asRoyalMail.
   letter100: { postage: 1.52, packaging: 0.15, label: 'large letter to 100g' },
   letter250: { postage: 1.81, packaging: 0.15, label: 'large letter to 250g' },
   letter500: { postage: 2.30, packaging: 0.20, label: 'large letter to 500g' },
@@ -75,8 +87,17 @@ export function stats(nums) {
   return { n: xs.length, min: xs[0], p25: at(0.25), median: at(0.5), p75: at(0.75), max: xs[xs.length - 1] };
 }
 
+// A band from before Royal Mail, as the Royal Mail parcel of the same size. Large letters are Royal Mail already.
+export const AS_ROYAL_MAIL = {
+  evri5: 'rm-small', parcel: 'rm-small', evri10: 'rm-medium-10', rmMedium: 'rm-medium-10', evri15: 'rm-medium-20',
+};
+export const bandKeyOf = (c = D) => {
+  const k = AS_ROYAL_MAIL[c.band] ?? c.band;
+  return BANDS[k] ? k : 'rm-small';
+};
+
 export function bandOf(c = D) {
-  return BANDS[c.band] ?? BANDS.parcel;
+  return BANDS[bandKeyOf(c)];
 }
 
 // What is left of the selling price before goods cost. Same definition the

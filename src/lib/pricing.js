@@ -37,13 +37,24 @@ export const STORE_BANDS = [
   { key: 'rm-medium-20', upTo: 20000, postage: 11.85, packaging: 0.6, label: 'Royal Mail medium parcel, to 20kg' },
 ];
 
-// eBay: the same Evri bands the gate uses (scripts/lib/cost.js), picked by weight. Evri stops at 15kg.
+/*
+ * eBay: Royal Mail, picked by weight (8 October 2026). She posts by Royal Mail on labels bought through eBay. Her 23
+ * UK labels from July to October: £2.85 on 13, £2.94 on 6, £3.10 to £3.65 on 4 bigger items; £2.99 on average,
+ * which the small parcel is costed at. One international label (£15.65) is left out: abroad is not the usual parcel.
+ * The medium ones are Royal Mail's online Tracked 48 prices, as on the shop (STORE_BANDS).
+ */
 export const EBAY_BANDS = [
-  { key: 'evri5', upTo: 5000, postage: 2.62, packaging: 0.4, label: 'Evri to 5kg' },
-  { key: 'evri10', upTo: 10000, postage: 5.87, packaging: 0.5, label: 'Evri 5 to 10kg' },
-  { key: 'evri15', upTo: 15000, postage: 9.01, packaging: 0.6, label: 'Evri 10 to 15kg' },
+  { key: 'rm-small', upTo: 2000, postage: 2.99, packaging: 0.3, label: 'Royal Mail small parcel, to 2kg' },
+  { key: 'rm-medium-10', upTo: 10000, postage: 7.35, packaging: 0.5, label: 'Royal Mail medium parcel, to 10kg' },
   { key: 'rm-medium-20', upTo: 20000, postage: 11.85, packaging: 0.6, label: 'Royal Mail medium parcel, to 20kg' },
 ];
+
+// The research costed every card on a band of its own (scripts/lib/cost.js); each is read as the Royal Mail parcel
+// of the same size. A card with a weight is priced from the weight instead.
+const GATE_BAND = {
+  letter100: 'rm-small', letter250: 'rm-small', letter500: 'rm-small', evri5: 'rm-small', parcel: 'rm-small',
+  evri10: 'rm-medium-10', rmMedium: 'rm-medium-10', evri15: 'rm-medium-20',
+};
 
 // The band a weight falls in. No weight: the first band, marked assumed. Over the last band: null, not postable.
 export function bandFor(grams, bands) {
@@ -62,7 +73,8 @@ export const ebayBandFor = (grams) => bandFor(grams, EBAY_BANDS);
  */
 export function atParcel(m, kg, store = false) {
   const grams = Number(kg) * 1000;
-  if (!m || !(grams > 0)) return m;
+  if (!m) return m;
+  if (!(grams > 0)) return store ? m : atPostedBand(m);
   const bands = store ? STORE_BANDS : EBAY_BANDS;
   const b = bandFor(grams, bands)
     ?? { ...bands[bands.length - 1], key: 'courier', label: 'Courier, over 20kg', grams, basis: 'courier' };
@@ -70,6 +82,13 @@ export function atParcel(m, kg, store = false) {
   return store
     ? { ...out, postage_band: { ...b, from: 'parcel' } }
     : { ...out, band: b.key, band_label: b.label, headroom_band: b.key, postage_basis: b.basis === 'courier' ? 'over 20kg' : 'weight', grams };
+}
+
+// An eBay margin with no weight, on the Royal Mail parcel of the size the research costed it at.
+function atPostedBand(m) {
+  const b = EBAY_BANDS.find((x) => x.key === GATE_BAND[m.band]);
+  if (!b) return m;
+  return { ...m, postage: b.postage, packaging: b.packaging, band: b.key, band_label: b.label, headroom_band: b.key };
 }
 
 // A channel's costs as two numbers: the share of the price taken, and the pounds taken per order, goods aside.

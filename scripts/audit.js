@@ -4,7 +4,7 @@
  * could this ever have made money.
  *
  *   node scripts/audit.js --file=bellatiquelistings.csv --csv=audit.csv
- *   node scripts/audit.js --file=listings.csv --band=evri5 --target=5
+ *   node scripts/audit.js --file=listings.csv --band=rm-small --target=5
  *
  * Takes the listings export, reads the item id out of each eBay URL, and asks
  * eBay what each one has actually sold. The Browse sellers filter cannot do
@@ -28,6 +28,9 @@ import { pathToFileURL } from 'node:url';
 const BROWSE = 'https://api.ebay.com/buy/browse/v1';
 
 const BANDS = {
+  // Royal Mail, the way she posts (8 October 2026): the small parcel is her eBay labels' average.
+  'rm-small': { postage: 2.99, packaging: 0.30, label: 'Royal Mail small parcel, to 2kg' },
+  'rm-medium-10': { postage: 7.35, packaging: 0.50, label: 'Royal Mail medium parcel, to 10kg' },
   letter100: { postage: 1.52, packaging: 0.15, label: 'large letter to 100g' },
   letter250: { postage: 1.81, packaging: 0.15, label: 'large letter to 250g' },
   letter500: { postage: 2.30, packaging: 0.20, label: 'large letter to 500g' },
@@ -38,9 +41,10 @@ const BANDS = {
 
 const D = {
   marketplace: 'EBAY_GB',
-  band: 'evri5',
+  band: 'rm-small',
   target: 5.00,
-  fvfPct: 0.128, fvfFixed: 0.30, adRate: 0.03,
+  // A private seller (8 October 2026): no selling fee, no per-order fee; the ad rate if promoted.
+  fvfPct: 0, fvfFixed: 0, adRate: 0.03,
   returnRate: 0.05, returnCost: 6.00,
   minAgeDays: 7,
   marketSample: 20,   // listings to read when checking an item's own market

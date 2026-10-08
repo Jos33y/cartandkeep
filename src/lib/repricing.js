@@ -47,6 +47,9 @@ function priced(rowAt, card, cost) {
   if (!a || (a.goods == null && a.cost == null)) return null;
   return {
     cost: a.goods ?? a.cost ?? null,
+    // Whether that cost is known (a supplier of hers, or a pack she checked) or the shelf standing in.
+    confirmed: Boolean(a.costConfirmed),
+    from: a.costFrom?.from ?? null,
     floor: a.floor ?? null,
     breakEven: a.breakEven ?? null,
     keepAt: (price) => (Number(price) > 0 ? at(Number(price))?.keep ?? null : null),
@@ -59,6 +62,9 @@ export function pricesFor(card, { cost = null } = {}) {
   const shop = priced((p) => shopRow(card, p), card, c);
   // A shop card's eBay reading carries no cost of its own: the shop's cost is what she pays either way.
   const ebay = priced((p) => ebayRow(card, p), card, c ?? (isStore(card) ? shop?.cost ?? null : null));
+  // A shop card's eBay reading is priced from the shop's cost, passed in as a figure: say where that cost came from,
+  // not "At that cost".
+  if (ebay && shop && isStore(card) && c == null) Object.assign(ebay, { from: shop.from, confirmed: shop.confirmed });
   return { ebay, shop };
 }
 

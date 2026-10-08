@@ -305,7 +305,7 @@ export function FinancePage() {
                 <Line label="Revenue" value={c.revenue} />
                 <Line label={FEE_LABEL[c.channel] ?? 'Platform fee'} value={-c.fees} />
                 {c.ads > 0 && <Line label="Promoted listings" value={-c.ads} />}
-                <Line label={c.labelled > 0 ? `Postage, eBay labels on ${c.labelled} of ${c.lines}` : 'Postage'} value={-c.postage} zero={!c.postage} />
+                <Line label={c.labelled > 0 ? `Postage, eBay labels on ${c.labelled} ${c.labelled === 1 ? 'sale' : 'sales'}` : 'Postage'} value={-c.postage} zero={!c.postage} />
                 <Line label="Packaging" value={-c.packaging} zero={!c.packaging} />
                 <Line label="Returns provision" value={-c.returns} zero={!c.returns} />
                 <Line label="Cost of goods" value={c.netCovers ? -c.cost : null} />

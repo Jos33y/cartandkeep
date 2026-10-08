@@ -5,11 +5,14 @@
  * functions, same behaviour.
  */
 
-import { D, BANDS, headroomAt, maxGoodsCost } from './cost.js';
+import { D, bandKeyOf, bandOf, headroomAt, maxGoodsCost } from './cost.js';
 import { entryKeepOf, listingsOf, refusalsOf } from './refusals.js';
 import { num, int, yes } from './sources.js';
 
 export const BAND_LABEL = {
+  'rm-small': 'Royal Mail small parcel, to 2kg',
+  'rm-medium-10': 'Royal Mail medium parcel, to 10kg',
+  'rm-medium-20': 'Royal Mail medium parcel, to 20kg',
   letter100: 'large letter to 100g',
   letter250: 'large letter to 250g',
   letter500: 'large letter to 500g',
@@ -232,7 +235,9 @@ export function buildRow({ r, tenant, cluster, checkedAt, shelf = null, shops = 
   });
   const headroom = headroomAt(price, costs);
   const maxGoods = maxGoodsCost(price, costs);
-  const bandCosts = BANDS[costs.band] ?? BANDS[D.band];
+  // Costed and written as Royal Mail, whatever band the run named (cost.js asRoyalMail).
+  const posted = bandKeyOf(costs);
+  const bandCosts = bandOf(costs);
 
   // The shelf turns a ceiling into a profit. maxGoods already has the target
   // profit taken out of it, so it goes back in before the shelf comes off.
@@ -333,9 +338,9 @@ export function buildRow({ r, tenant, cluster, checkedAt, shelf = null, shops = 
         fixed: D.fvfFixed,
       },
 
-      band,
-      band_label: band ? BAND_LABEL[band] ?? band : null,
-      headroom_band: band,
+      band: posted,
+      band_label: BAND_LABEL[posted] ?? posted,
+      headroom_band: posted,
       landed_cost: exact ? shelf.price : null,
       cost_source: exact ? 'shelf' : 'not_quoted',
       net,
