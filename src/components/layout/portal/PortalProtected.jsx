@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router';
 import { supabase } from '@lib/supabase';
 import { loadTenant } from '@lib/tenant';
+import { loadEbayAccount, refreshEbayAccountIfOld } from '@lib/ebayAccountRead';
 import { PortalShell } from './PortalShell';
 import { portalPath } from '@utils/constants';
 import { PageSkeleton } from '@components/ui/portal/Skeleton';
@@ -34,7 +35,11 @@ export function PortalProtected() {
       }
 
       try {
-        await loadTenant();
+        const tenant = await loadTenant();
+        // The eBay account prices every card, so it is read before any page draws. It never fails the portal: with
+        // nothing read, cards price as they always have. A read a day old is refreshed from eBay behind the page.
+        await loadEbayAccount(tenant?.id);
+        refreshEbayAccountIfOld(tenant?.id);
       } catch {
         // Signed in, entitled, and the tenant row will not load. Saying "no
         // access" here would be a lie that sends her to the wrong person.

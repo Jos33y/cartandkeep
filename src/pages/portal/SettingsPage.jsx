@@ -4,6 +4,7 @@ import { loadTenant } from '@lib/tenant';
 import { useAccount } from '@hooks/useAccount';
 import { StoreSettings } from '@components/ui/portal/StoreSettings';
 import { EbayConnection } from '@components/ui/portal/EbayConnection';
+import { EbayAccount } from '@components/ui/portal/EbayAccount';
 import { Icon } from '@components/ui/icons';
 import styles from '@styles/pages/portal/settings-page.module.css';
 
@@ -12,6 +13,7 @@ const SECTIONS = [
   { id: 'shop', label: 'Your shop', icon: 'IconShop' },
   { id: 'about', label: 'About page', icon: 'IconInfo' },
   { id: 'channels', label: 'Channels', icon: 'IconTag' },
+  { id: 'ebay', label: 'Selling on eBay', icon: 'IconGauge' },
   { id: 'rules', label: 'How we choose', icon: 'IconLayers' },
 ];
 
@@ -190,6 +192,11 @@ export function SettingsPage() {
                 <span className={styles.channelNote}>Not connected yet</span>
               </div>
             </div>
+          </Section>
+
+          <Section id="ebay" title="Selling on eBay"
+            note="The account you sell on decides what eBay takes. Every eBay price and keep in the portal follows it.">
+            <EbayAccount tenantId={tenant?.id} />
           </Section>
 
           <Section id="rules" title="How we choose"

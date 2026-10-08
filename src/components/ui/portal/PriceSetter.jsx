@@ -51,6 +51,12 @@ export function PriceSetter({ a, market, listings = [], medianLabel, onChange, c
               <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6h7M6 2.5v7" /></svg>
             </button>
           </span>
+          {/* A private account: eBay adds its Buyer Protection fee for the buyer. Shown, never taken from her price. */}
+          {!store && a.buyersSee != null && (
+            <span className={styles.keepFoot} data-num title="eBay adds its Buyer Protection fee on top. The buyer pays it, not you.">
+              Buyers see {formatGbp(a.buyersSee)}
+            </span>
+          )}
         </label>
         <div className={styles.keepBox} data-tone={a.keep == null ? undefined : a.keep < 0 ? 'negative' : a.target != null && a.keep < a.target ? 'warning' : 'positive'}>
           <span className={styles.label}>You keep</span>

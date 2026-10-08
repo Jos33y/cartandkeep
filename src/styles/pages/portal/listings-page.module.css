@@ -404,7 +404,9 @@ a.mark:focus-visible { outline: 2px solid var(--c-control); outline-offset: 1px;
 .pick[aria-pressed='true'] { border-color: var(--c-control); background: var(--c-raised); color: var(--c-ink); }
 .pickLabel { font-size: var(--t-micro); color: var(--c-ink-faint); }
 .pick b { color: var(--c-ink); font-weight: 600; }
-.keepAt { align-self: center; font-size: var(--t-caption); color: var(--c-ink-soft); }
+.keepAt { align-self: center; display: flex; flex-direction: column; gap: 2px; font-size: var(--t-caption); color: var(--c-ink-soft); }
+/* What the buyer pays on a private account: information, not her money, so it stays quiet under the keep. */
+.buyersSee { font-size: var(--t-micro); color: var(--c-ink-faint); white-space: nowrap; }
 .keepAt[data-tone='positive'] { color: var(--c-positive); }
 .keepAt[data-tone='negative'] { color: var(--c-negative); }
 

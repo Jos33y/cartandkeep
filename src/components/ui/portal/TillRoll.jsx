@@ -29,7 +29,10 @@ export function TillRoll({ a }) {
       <p className={styles.head}>One sale</p>
       <div className={styles.rule} />
       <dl className={styles.lines}>
-        <div className={styles.sale}><dt>Sale</dt><dd data-num>{formatGbp(a.price)}</dd></div>
+        <div className={styles.sale}>
+          <dt>Sale{a.buyersSee != null && <small>Buyers see {formatGbp(a.buyersSee)}, eBay&apos;s protection fee on top</small>}</dt>
+          <dd data-num>{formatGbp(a.price)}</dd>
+        </div>
         {lines.map((l) => (
           <div key={l.key} data-key={l.key}>
             <dt>{l.label}{l.sub && <small>{l.sub}</small>}</dt>
@@ -71,11 +74,20 @@ function ebayLines(a, m) {
   const r = m.rates;
   const goods = a.costBasis === 'market' ? a.assumed : a.goods;
   return [
-    { key: 'fees', label: 'eBay fees', sub: r ? `${pct(r.fvf)}, ${pct(r.ad)} promoted, ${formatGbp(r.fixed)} an order` : null, value: a.fees },
+    r?.private
+      ? { key: 'fees', label: r.ad > 0 ? 'Promoted listing' : 'eBay fees', sub: privateSub(r), value: a.fees }
+      : { key: 'fees', label: 'eBay fees', sub: r ? `${pct(r.fvf)}, ${pct(r.ad)} promoted, ${formatGbp(r.fixed)} an order` : null, value: a.fees },
     ...postLines(a, 'Postage', band, m),
     { key: 'returns', label: 'Returns allowance', value: Number(m.returns_allowance ?? 0) },
     { key: 'goods', label: goodsLabel(a), sub: goodsSub(a), value: goods },
   ];
+}
+
+// A private seller pays no selling fee; what is left is the ad rate, and where it came from.
+function privateSub(r) {
+  if (!(r.ad > 0)) return 'No selling fee, private seller';
+  const where = { listing: r.campaign ? `in ${r.campaign}` : 'its campaign rate', usual: 'your usual rate', card: 'not read from eBay yet' }[r.adFrom];
+  return `${pct(r.ad)}${where ? `, ${where}` : ''}. No selling fee`;
 }
 
 function storeLines(a, m) {

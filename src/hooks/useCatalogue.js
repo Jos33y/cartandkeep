@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@lib/supabase';
 import { deleteProductImage } from '@lib/productImages';
 import { mergeDerived, overridesFor } from '@lib/keeper';
+import { ebayFeeRate, isPrivate } from '@lib/ebayAccount';
 
 /*
  * The catalogue, and what stops a product going public.
@@ -216,7 +217,8 @@ export function marginFor({ price, landedCost, postageCost, fees }) {
 
   const channels = {
     store: rate('store', 0.015, 0.20),
-    ebay: rate('ebay', 0.128, 0.30),
+    // On a private account eBay takes no selling fee; the ad rate she usually runs stands in (lib/ebayAccount.js).
+    ebay: isPrivate() ? ebayFeeRate(fees) : rate('ebay', 0.128, 0.30),
     tiktok: rate('tiktok', 0.065, 0),
   };
 

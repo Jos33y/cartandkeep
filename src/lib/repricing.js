@@ -1,4 +1,5 @@
 import { assess } from './assess.js';
+import { ebayFeeRate } from './ebayAccount.js';
 import { STORE, atParcel, storeBandFor } from './pricing.js';
 
 /*
@@ -61,7 +62,10 @@ export function pricesFor(card, { cost = null } = {}) {
   return { ebay, shop };
 }
 
-// eBay's take at a price for a listing with no card: the tenant's rates, with the defaults the Listings page uses.
-export const ebayFeeAt = (price, fees) => (Number(price) > 0
-  ? Math.round((Number(price) * Number(fees?.ebay?.pct ?? 0.128) + Number(fees?.ebay?.fixed ?? 0.3)) * 100) / 100
-  : null);
+// eBay's take at a price for a listing with no card: the tenant's rates, with the defaults the Listings page uses. On a
+// private account, the listing's ad rate alone (lib/ebayAccount.js).
+export const ebayFeeAt = (price, fees, listingId = null) => {
+  if (!(Number(price) > 0)) return null;
+  const r = ebayFeeRate(fees, listingId);
+  return Math.round((Number(price) * r.pct + r.fixed) * 100) / 100;
+};

@@ -7,6 +7,7 @@ import { Icon } from '@components/ui/icons';
 import { useFinance, CHANNEL_LABEL } from '@hooks/useFinance';
 import { FAULT, moneyBack } from '@lib/refunds';
 import { loadTenant } from '@lib/tenant';
+import { isPrivate } from '@lib/ebayAccount';
 import { formatGbp } from '@utils/formatGbp';
 import { portalPath } from '@utils/constants';
 import { Link } from 'react-router';
@@ -18,11 +19,9 @@ const monthName = (iso, short) => (iso === 'all' ? 'All time'
   : new Date(`${String(iso).slice(0, 7)}-01T00:00:00Z`)
     .toLocaleDateString('en-GB', { month: short ? 'short' : 'long', year: short ? '2-digit' : 'numeric', timeZone: 'UTC' }));
 
-// What the board budgets on eBay: 12.8% plus 30p an order in fees, and 3% for
-// promoted listings, which eBay bills separately from the order fee.
-const BUDGET_FVF = 0.128;
-const BUDGET_FIXED = 0.3;
-const BUDGET_ADS = 0.03;
+// What the board budgets on eBay: 12.8% plus 30p an order in fees on a business account, nothing on a private one
+// (lib/ebayAccount.js). Promoted listings are counted on their own, from eBay's own ad fee where it booked one.
+const feeBudget = () => (isPrivate() ? { fvf: 0, fixed: 0 } : { fvf: 0.128, fixed: 0.3 });
 
 export function FinancePage() {
   const [tenant, setTenant] = useState(undefined);
@@ -144,7 +143,7 @@ export function FinancePage() {
   const multi = byChannel.length > 1;
   const first = series[0]?.month;
   const period = showing === 'all' && first ? `Since ${monthName(first)}` : monthName(showing);
-  const budgetOf = (c) => (BUDGET_FVF * c.revenue + BUDGET_FIXED * c.units) / c.revenue;
+  const budgetOf = (c) => (feeBudget().fvf * c.revenue + feeBudget().fixed * c.units) / c.revenue;
   const inLine = ebayRate != null && ebay.units >= 5 && Math.abs(ebay.fees / ebay.revenue - budgetOf(ebay)) < 0.005;
 
   return (
@@ -231,7 +230,7 @@ export function FinancePage() {
             <span>
               eBay's selling fees came to <strong>{(ebay.fees / ebay.revenue * 100).toFixed(1)}%</strong> across {ebay.units} sales,
               against the {(budget * 100).toFixed(1)}% the board budgets for them.
-              Promoted listings are billed separately and aren't in that figure; the board budgets a further {(BUDGET_ADS * 100).toFixed(0)}%.
+              Promoted listings are counted on their own{ebay.ads > 0 ? <>: <strong>{formatGbp(ebay.ads)}</strong>, {(ebay.ads / ebay.revenue * 100).toFixed(1)}% of eBay sales</> : ', and none were charged'}.
             </span>
           </p>
         );
@@ -570,7 +569,7 @@ function SellingCosts({ costs, onSave }) {
         <Field label="Returns provision" suffix="%" value={returns} onChange={setReturns}
           hint="Of revenue, held back for the ones that come back." />
         <Field label="Promoted listings" suffix="%" value={ads} onChange={setAds}
-          hint="eBay only. An export's real figure replaces it." />
+          hint="eBay only, for a sale eBay has not booked yet. eBay's own ad fee replaces it." />
       </div>
 
       <div className={styles.costActions}>

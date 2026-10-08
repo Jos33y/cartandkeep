@@ -10,6 +10,7 @@ import { stepsFor, STEPS, isOpen } from '@lib/readiness';
 import { formatGbp } from '@utils/formatGbp';
 import { portalPath } from '@utils/constants';
 import { ebayFeeAt, pricesFor } from '@lib/repricing';
+import { buyersSee, ebayFeeRate } from '@lib/ebayAccount';
 import styles from '@styles/pages/portal/listings-page.module.css';
 
 /*
@@ -82,13 +83,13 @@ const oneIn = (opens, orders) => (orders > 0 && opens > 0 ? `1 in ${Math.max(1, 
 
 /*
  * What the same sale keeps on her shop over eBay, at the same price: eBay's fee and its fixed charge against the
- * card fee. The tenant's own rates, with the defaults the profit view uses.
+ * card fee. The tenant's own rates, with the defaults the profit view uses; on a private account, the listing's ad rate.
  */
-function shopGain(price, fees) {
+function shopGain(price, fees, listingId = null) {
   if (price == null) return null;
-  const e = fees?.ebay ?? {};
+  const e = ebayFeeRate(fees, listingId);
   const st = fees?.store ?? {};
-  const ebay = price * Number(e.pct ?? 0.128) + Number(e.fixed ?? 0.3);
+  const ebay = price * e.pct + e.fixed;
   const shop = price * Number(st.pct ?? 0.015) + Number(st.fixed ?? 0.2);
   return Math.round((ebay - shop) * 100) / 100;
 }
@@ -733,7 +734,7 @@ function ShopDraft({ r, fees, onSale }) {
 
   const gaps = p ? stepsFor(p, STEPS.filter((x) => x.gate)).filter((x) => isOpen(x.state)) : [];
   const ready = p ? isReady(p) : false;
-  const gain = shopGain(r.price, fees);
+  const gain = shopGain(r.price, fees, r.listing_id);
 
   async function sell() {
     setSelling(true);
@@ -806,7 +807,7 @@ const FIX = {
 };
 
 function ShopNone({ r, fees, onAdd, busy }) {
-  const gain = shopGain(r.price, fees);
+  const gain = shopGain(r.price, fees, r.listing_id);
   return (
     <section className={styles.panel} aria-label="Your shop">
       <header className={styles.panelHead}>
@@ -1066,7 +1067,7 @@ function Reprice({ r, card, reading, fees, onChange, onClose }) {
           const n = next(c);
           const keepNow = c.m?.keepAt(c.now);
           const keepNew = c.m && n != null ? c.m.keepAt(n) : null;
-          const fee = !c.m && c.key === 'ebay' && n != null ? ebayFeeAt(n, fees) : null;
+          const fee = !c.m && c.key === 'ebay' && n != null ? ebayFeeAt(n, fees, r.listing_id) : null;
           const set = (v) => setTyped((t) => ({ ...t, [c.key]: v.toFixed(2) }));
           return (
             <div key={c.key} className={styles.priceRow}>
@@ -1095,6 +1096,12 @@ function Reprice({ r, card, reading, fees, onChange, onClose }) {
               <span className={styles.keepAt} data-tone={keepNew == null ? undefined : keepNew < 0 ? 'negative' : 'positive'} data-num>
                 {keepNew != null ? (keepNew < 0 ? `Loses ${formatGbp(-keepNew)}` : `You keep ${formatGbp(keepNew)}`)
                   : fee != null ? `eBay takes ${formatGbp(fee)}` : ''}
+                {/* A private account: eBay adds its Buyer Protection fee for the buyer, never taken from her price. */}
+                {c.key === 'ebay' && buyersSee(n) != null && (
+                  <span className={styles.buyersSee} title="eBay adds its Buyer Protection fee on top. The buyer pays it, not you.">
+                    Buyers see {formatGbp(buyersSee(n))}
+                  </span>
+                )}
               </span>
             </div>
           );

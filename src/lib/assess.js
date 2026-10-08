@@ -1,3 +1,4 @@
+import { buyersSee, forAccount } from './ebayAccount.js';
 import { hasHerEdits } from './edits.js';
 import { chosenEntry, listingOf, swappedTo } from './product.js';
 import {
@@ -205,8 +206,9 @@ function assessStore(row, tryCost = null, holdPrice = false, tryPosted = 'suppli
 export function assess(row, { tryCost = null, tryPosted = 'supplier', holdPrice = false } = {}) {
   if (row.margin?.channel === 'store') return assessStore(row, tryCost, holdPrice, tryPosted);
   const d = row.draft ?? {};
-  // Postage from the card's own parcel when it has a weight, as on shop cards.
-  const m = atParcel(row.margin ?? {}, d.package?.weight_kg);
+  // Postage from the card's own parcel when it has a weight, as on shop cards. Fees for the account she sells on
+  // (lib/ebayAccount.js): a private seller pays the listing's ad rate and no selling fee.
+  const m = forAccount(atParcel(row.margin ?? {}, d.package?.weight_kg), row.ebay?.listing_id);
   // A listing she or Keepr chose over the research's prices the card now. When it is another product, the shelf and
   // the page the card was costed from are the old product's: only her supplier prices it, and its own market.
   const chosen = chosenEntry(d);
@@ -323,6 +325,8 @@ export function assess(row, { tryCost = null, tryPosted = 'supplier', holdPrice 
   return {
     channels: channelsOf(row),
     m, l, entry, d, best, goods, price, keep, fees, postage, modelled, trusted, warnings, position,
+    // What a buyer pays on a private account, eBay's Buyer Protection fee added; null on business.
+    buyersSee: buyersSee(price),
     costBasis, assumed, costFrom: cheapest, market,
     target, perMonth, entryKeep, entryLoses, entryThin, month, ratio, packCheck, shelfIsCost,
     match: moved ? null : m.match ?? null,

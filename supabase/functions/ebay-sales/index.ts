@@ -1,7 +1,14 @@
 // Pulls eBay orders into channel_sales, with eBay's actual fees.
+//
+// The fees come from eBay's Finances API, line by line (8 October 2026): the selling fee, none on a private account,
+// and the promoted listing's ad fee kept apart in ad_fees, so Finance shows each as charged. An order the Finances
+// API does not have yet keeps the order's own fee figure, marked estimated, as before; a Finances refusal never fails
+// the pull.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { cancelReasonOf, faultOf, lineGross, reasonText, refundedAtOf, refundedOf, statusOf } from '../_shared/ebay/orders.ts';
+import { feesByOrder, transactions } from '../_shared/ebay/finances.ts';
+import { lineFees, placeItemCharges } from './fees.ts';
 
 const EBAY = 'https://api.ebay.com';
 
@@ -193,6 +200,16 @@ Deno.serve(async (req) => {
     const list = await orders(access, since);
     const client = db();
 
+    // eBay's own books for the same stretch. Without them the lines keep the order's figure, as before.
+    let fin: ReturnType<typeof feesByOrder> | null = null;
+    let finError: string | null = null;
+    try {
+      fin = feesByOrder(await transactions(fetch, access, Date.parse(since), Date.now()));
+    } catch (e) {
+      finError = e instanceof Error ? e.message : String(e);
+      console.error('[ebay_sales] finances not read', finError);
+    }
+
     // Older listings match by legacy id, portal listings by SKU.
     const { data: shop } = await client
       .from('store_products')
@@ -236,6 +253,7 @@ Deno.serve(async (req) => {
       const orderFee = money(o.totalMarketplaceFee as { value?: string });
       const haveFee = o.totalMarketplaceFee != null;
       const status = statusOf(o);
+      const booked = fin?.orders.get(o.orderId as string) ?? null;
 
       refs.push(o.orderId as string);
 
@@ -247,6 +265,8 @@ Deno.serve(async (req) => {
         const legacy = String(l.legacyItemId ?? '');
         const sku = (l.sku as string) ?? null;
         const candidate = sku ? candidateBySku.get(sku) : null;
+        const share = orderGross ? before / orderGross : 1 / lines.length;
+        const real = booked ? lineFees(booked, (l.lineItemId as string) ?? null, share) : null;
 
         rows.push({
           tenant_id: tenantId,
@@ -263,9 +283,12 @@ Deno.serve(async (req) => {
           unit_price: qty ? round(gross / qty) : gross,
           gross: round(gross),
           postage_charged: round(money((l.deliveryCost as { shippingCost?: { value?: string } })?.shippingCost)),
-          // eBay reports the fee once per order, so each line takes its share.
-          fees: haveFee ? round(orderGross ? orderFee * (before / orderGross) : orderFee / lines.length) : null,
-          fees_estimated: !haveFee,
+          // eBay's books when they have the order: the selling fee here, the ad fee on its own. Otherwise the order's
+          // own fee figure, reported once per order, so each line takes its share.
+          fees: real ? real.selling : haveFee ? round(orderFee * share) : null,
+          ad_fees: real ? real.ad : null,
+          fee_detail: real ? real.detail : null,
+          fees_estimated: real ? false : !haveFee,
           status,
           // The order's refund, shared across its lines as the fee is.
           refunded: refunded > 0 ? round(orderGross ? refunded * (before / orderGross) : refunded / lines.length) : null,
@@ -277,6 +300,9 @@ Deno.serve(async (req) => {
         });
       });
     }
+
+    // Ad fees billed on their own against an item, not an order, go on that item's latest sale before the charge.
+    const unplacedCharges = fin ? placeItemCharges(rows, fin.items) : 0;
 
     // Rewrite each order whole, so a second pull replaces rather than adds.
     if (refs.length) {
@@ -302,6 +328,11 @@ Deno.serve(async (req) => {
       matched: rows.filter((r) => r.product_id).length,
       refunds: rows.filter((r) => r.refunded != null || r.status !== 'paid').length,
       reasons_found: rows.filter((r) => r.refund_reason).length,
+      // Lines whose fees are eBay's own, and why the rest are not.
+      fees_booked: rows.filter((r) => r.fees_estimated === false && r.fee_detail).length,
+      ad_fees: round(rows.reduce((n, r) => n + Number(r.ad_fees ?? 0), 0)),
+      charges_unplaced: unplacedCharges,
+      finances_error: finError,
       since,
       days: span,
       // Said rather than silently returned short, so a thin month is not read
