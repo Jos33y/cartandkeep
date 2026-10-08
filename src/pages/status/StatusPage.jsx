@@ -9,8 +9,9 @@ import { DeliveryTrack } from '@components/status/DeliveryTrack';
 import { useStatusLastVisit } from '@hooks/useStatusLastVisit';
 import styles from '@styles/pages/status/status-page.module.css';
 
-// What it does for her business first: the shop she sells through before the plumbing under it.
-const ORDER = ['store', 'shopfloor', 'ebay', 'research', 'portal', 'reporting', 'foundations'];
+// What it does for her business first: the shop she sells through before the plumbing under it. A phase missing
+// here is not shown at all, so a new phase in statusItems.js is added here too.
+const ORDER = ['store', 'shopfloor', 'ebay', 'keeper', 'research', 'portal', 'reporting', 'foundations'];
 
 // Top shelf first and set apart: month two is not part of the 42.
 const SHELVES = [

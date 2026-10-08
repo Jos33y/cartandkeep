@@ -83,6 +83,20 @@ const shelf = loadShelves({
 console.log(`\n  ${cards.length} cards to re-source; shelves ${shelf.rows} products from ${shelf.files.length} files, ${shelf.kept} could match`);
 
 const RANK = { barcode: 0, name: 1 };
+// Sizes named in a title. Google's record for one title can carry barcodes for several sizes ("Moleskine Large
+// Notebook Soft" holds the Pocket and the Extra Large too), so a barcode match on a page naming another size is a lead,
+// not a repoint (8 October). "Extra large" is read before "large".
+const SIZE_RX = /\b(extra[- ]large|x-?large|xxl|xl|extra[- ]small|xs|pocket|mini|small|medium|large|jumbo|a3|a4|a5|a6|b5|b6)\b/gi;
+const sizesOf = (t) => new Set([...String(t ?? '').matchAll(SIZE_RX)].map((m) => m[1].toLowerCase().replace(/^(x-?large|xl|extra[- ]large)$/, 'xl').replace(/^(xs|extra[- ]small)$/, 'xs')));
+const otherSize = (title, name) => { const a = sizesOf(title); const b = sizesOf(name); return a.size > 0 && b.size > 0 && ![...a].some((x) => b.has(x)); };
+// A page price far from the shelf's own price is a misread (Cult Pens' page gave 35200 for a notebook the shelf
+// prices in pounds): the shelf price, from products.json, is kept.
+const priceOf = (paid, shelf) => {
+  const p = Number(paid); const s = Number(shelf);
+  if (!(p > 0)) return s > 0 ? s : '';
+  if (s > 0 && (p > s * 5 || p < s / 5)) return s;
+  return p;
+};
 const blocked = new Set();
 const results = [];
 for (const [i, { card, g }] of want.entries()) {
@@ -105,7 +119,7 @@ for (const [i, { card, g }] of want.entries()) {
   let tried = 0;
   const notes = [];
   for (const h of hits) {
-    if (noFetch) { found = { ...h, verdict: h.via === 'barcode' ? 'confirmed, barcode on the shelf' : 'name on the shelf, page not read', price: h.s.price }; break; }
+    if (noFetch) { found = { ...h, verdict: h.via === 'barcode' ? 'confirmed, barcode on the shelf' : 'name on the shelf, page not read', price: h.s.price }; if (otherSize(card.title, h.s.name)) found.verdict += ', but the page names another size'; break; }
     if (tried >= tries) break;
     let host = '';
     try { host = new URL(h.s.url).host; } catch { continue; }
@@ -118,12 +132,13 @@ for (const [i, { card, g }] of want.entries()) {
     const v = barcodeVerdict(g.gtins, got.page.gtin) ?? (got.page.name ? sameProduct(card.title, g.brand, got.page.name, ctx) : 'no name on the page');
     if (!v.startsWith('confirmed')) { notes.push(`${h.s.shop}: ${v}`); continue; }
     const paid = paidPrice(got.page, h.s.url);
-    found = { ...h, verdict: v, price: paid?.price ?? h.s.price, pageName: got.page.name, image: got.page.image };
+    found = { ...h, verdict: v, price: priceOf(paid?.price, h.s.price), pageName: got.page.name, image: got.page.image };
+    if (otherSize(card.title, got.page.name || h.s.name)) found.verdict = `${v}, but the page names another size`;
     break;
   }
   // Only a barcode is sure enough to repoint a card by itself; a name match, even on a page read, is a lead she checks.
   // (29 September: 9 of 22 name matches were still the wrong item.)
-  const sure = Boolean(found && /barcode/.test(found.verdict) && found.verdict.startsWith('confirmed'));
+  const sure = Boolean(found && /barcode/.test(found.verdict) && found.verdict.startsWith('confirmed') && !/another size/.test(found.verdict));
   results.push({
     id: card.id, title: card.title, was: bad, was_page: card.page_name,
     status: found ? (sure ? 'found' : 'found, check it') : 'not found',

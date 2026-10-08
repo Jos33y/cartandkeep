@@ -1,10 +1,10 @@
 # Keepr Agent-01: store card reviewer
 
-Version 3.5, 5 October 2026. Cart & Keep, Brick Dev Commerce.
+Version 3.6, 8 October 2026. Cart & Keep, Brick Dev Commerce.
 
 Version 2 adds what the first two live reviews taught: Home & Garden (57 cards) and Health & Beauty (483 cards). These cover the working method, the flags that find problems fast, the patterns for a wrong match, the sourcing and legal lists, and the lessons that became pipeline rules.
 
-Version 3 adds VAT on shelf prices, how to read a re-source results file, generic titles, barcodes for eBay catalogue listing, and a watch list for each category still to run. Version 3.1 adds the Hardware review (752 cards, 1 October). Version 3.2 adds the Toys & Games review (1,026 cards, 2 October). Version 3.3 adds the Baby & Toddler review (255 cards, 2 October) and postage by weight on eBay cards. Version 3.4 adds the Animals & Pet Supplies review (381 cards, 3 October). Version 3.5 adds the Sporting Goods review (609 cards, 5 October).
+Version 3 adds VAT on shelf prices, how to read a re-source results file, generic titles, barcodes for eBay catalogue listing, and a watch list for each category still to run. Version 3.1 adds the Hardware review (752 cards, 1 October). Version 3.2 adds the Toys & Games review (1,026 cards, 2 October). Version 3.3 adds the Baby & Toddler review (255 cards, 2 October) and postage by weight on eBay cards. Version 3.4 adds the Animals & Pet Supplies review (381 cards, 3 October). Version 3.5 adds the Sporting Goods review (609 cards, 5 October). Version 3.6 adds the Office Supplies review (85 cards, 8 October) and the no-blades rule.
 
 ## What it is
 
@@ -133,7 +133,7 @@ Royal Mail Tracked 48, small or medium parcel, up to 20kg. (Checked against the 
   - lithium batteries only inside a device;
   - alcohol-based wipes and gels: check the limits;
   - sprays that may be aerosols (flea, moth, mould sprays): check the can.
-- **Knives:** kitchen knives and knife sets need an age check at checkout and Royal Mail Tracked Age Verification delivery (Offensive Weapons Act 2019).
+- **Blades:** not sold at all since 6 October (no age check on eBay or in her shop): knives, blades, razors, scissors, shears, secateurs, multi-tools, axes. The store rules stop them before import (`bladed`, the same words as `src/lib/blades.js`). Known false hits in both: Winmau Blade dartboards, the Wilson Blade racket, Razor scooters, NAF Marigold & Cleavers. Note them; don't reject.
 - **Fragile items** (glass, mirrors, ceramics): note the extra packing cost and breakage risk.
 - Output: `shipping` ok, check or no, with the reason.
 
@@ -305,7 +305,7 @@ node scripts/store/key-check.mjs --google=research/google/<category>
 | Toys & Games | done 2 October, see below | |
 | Animals & Pet Supplies | done 3 October, see below | |
 | Electronics (222) | cables, batteries, chargers, ink and toner, big-button phones | counterfeit chargers and cables (authorised sources only); loose lithium batteries can't be posted; Apple and Samsung enforce on eBay; compatible ink is fine, fake branded ink is not |
-| Office Supplies (922) | label tape, ink, shredders, label printers | compatible against original consumables (say which); heavy paper boxes |
+| Office Supplies | done 8 October, see below | |
 | Sporting Goods | done 5 October, see below | |
 | Baby & Toddler | done 2 October, see below | |
 | Vehicles & Parts (888) | car care only | parts for one vehicle; car batteries and aerosols can't post; screenwash and de-icer may be flammable |
@@ -384,7 +384,22 @@ Every pattern Keepr rejected by hand twice was moved upstream, so the next batch
 - **Golf balls** are often counterfeit: authorised sources only.
 - **Re-source leads land on parts.** The search found a spare spool for a reel, bar tape plugs for bar tape and brake pads for a brake. A lead at a third of the card's price is a part.
 
-**Upstream fixes from the Sporting run** (see the Sporting Goods section of `store-rules-2026-09-30.md`): sized kit and fixed-blade knives stopped; fishing rods, bivvies and frozen bait stopped with tackle passing; Decathlon, Argos, Go Outdoors and Mountain Warehouse own label; `shelf-shopify.mjs` reads in pounds and cleans the brand. Still open: Frasers brands and Yogamatters as own label, "freezer", the rod rule's "Ultra Light", Ridge Monkey.
+**Upstream fixes from the Sporting run** (see the Sporting Goods section of `store-rules-2026-09-30.md`): sized kit and fixed-blade knives stopped; fishing rods, bivvies and frozen bait stopped with tackle passing; Decathlon, Argos, Go Outdoors and Mountain Warehouse own label; `shelf-shopify.mjs` reads in pounds and cleans the brand. All four were fixed on 5 October (`ck-sport-fixes-2026-10-05`); 14 more cards, mostly RidgeMonkey, followed in a 6 October batch.
+
+**Office Supplies review patterns (8 October), 85 cards: 63 keep, 18 notes, 3 rejects, 1 re-source:**
+- **The shelves made the category.** None of the 65 shops on file was a stationery shop: the first picks matched planners to Yogamatters and pens to Angling Direct. Cult Pens (11,292 products, 11,678 barcodes), Papersmiths and the makers' own shops (Scribble & Dot, Yop & Tom, Castle Arts) took barcode matches from 2 to 70. 61 of the 85 cards are barcode matches.
+- **Academic years read as models.** "2026-2027" confirmed three different Good Tuesday wall planners on one Papersmiths page. Fixed in `match.mjs` on 8 October; still read any planner, diary or calendar name match for the design name.
+- **Fountain pen against ballpoint.** One range name (Kaweco Lunar Sport, Classic Sport) covers fountain pens, ballpoints and pencils. Fixed in `match.mjs`; check the pen type on name matches anyway.
+- **Notebook sizes.** Moleskine Large and Pocket share names and some barcodes: read the size (Pocket 90x140, Large 130x210).
+- **Set sizes.** Polychromos, Coloursoft and Pigma come in tins of 12, 24, 36 and more. A cost at 1.8 times Google is usually the bigger tin.
+- **Open-box stock.** Zatu's "*A Grade*" is open box or used: reject.
+- **Generic titles:** "A3 Monthly Wall Planner" with no brand.
+- **Dated stock:** 2027 diaries and calendars and 2026-27 academic planners sell September to January. Buy against orders; clear by February.
+- **Makers' own shops** (Scribble & Dot, Yop & Tom, Castle Arts) prove stock at retail. The lead is a trade or wholesale account with the maker.
+- **Odd fits:** a Herschel backpack and a dementia task clock came through Office. Fine to sell; fit "maybe".
+- **Price:** 83 of 85 sit above Google's lowest. Cult Pens and the makers charge full retail: supplier work.
+
+**Upstream fixes from the Office run** (see the Office Supplies section of `store-rules-2026-09-30.md`): Office Depot, MOO and the print shops as own label; printable PDFs, business cards, custom printing and meal kits not shelf; laser pointers restricted; blades stopped in every category; `shelf-shopify.mjs` chooses the UK market through the shop's country selector.
 
 **Watch on eBay cards: the postage band.** On 2 October a Sika jointing compound eBay card (15kg tub on the shelf, 14kg on eBay) was costed at "Evri to 5kg, £2.62". A heavy product priced in the small band makes "You keep" look like profit when it is a loss. On any eBay card, read the weight in the title or pack chip ("Shelf 15000, eBay 14000" means 15kg against 14kg: the chip's numbers are grams or millilitres) against the postage line on the receipt. Fixed the same day: the importers now cost eBay postage by weight, and `scripts/recost-ebay-weight.mjs` re-costed 50 cards already in her queue (see `postage-by-weight-2026-10-02.md`). A weight read from a title can still be wrong (a damaged-box listing read as 22kg for a steam iron): read the courier and negative-keep lists before `--apply`.
 

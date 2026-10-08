@@ -360,3 +360,37 @@ node scripts/store/import-store.mjs --category=<category> --label="<Label>" --bi
 - `--coverage=skip` stops 33,000 coverage rows being re-pointed at a batch of a few cards. The earlier import's coverage stands.
 - The dry run must say "makes a new batch", the expected new count, and "store cards already, left there". Any "refreshed" line means stop.
 - `check-picks` and `import-store` need `--category=<category>`. Without it they read the old shared `research/picks/` files (Hardware).
+
+## Office Supplies (7 to 8 October)
+
+Six exports (October to December 2025, July and August 2026, a September 2026 week), 22,127 products. Most stationery sells under £8: 817 considered in the £8 to £60 window, 352 seen in a shop, 85 new cards.
+
+**Rules (`ck-office-rules-2026-10-07`):**
+- **New `rules/categories/office-supplies.mjs`:**
+  - own label Viking, Niceday, 5 Star, Office Depot, Staples;
+  - `OWN_TITLE` for Office Depot's ranges and the print shops (Snapfish, Vistaprint, Photobox, Printerpix, Instantprint, Helloprint, Solopress);
+  - not shelf: printed business cards (blank card stock and holders pass), custom printing ("your logo", "photo upload", "engraved"), Gousto and HelloFresh recipe boxes;
+  - `BRANDED` makers (Casio, Parker, Pilot, Faber-Castell, Moleskine, Leuchtturm, Fellowes, Dymo and others), so a Casio calculator listed under Sainsbury's passes.
+- **Shared own label:** Smiggle, WHSmith, Sainsburys, Flying Tiger, Muji, Typo, Tesco, The Works, Hobbycraft, Paperchase, MOO, Vistaprint, Snapfish.
+- **Shared not shelf:** digital downloads and printable PDFs ("instant download", "printable PDF", "PDF download"). Printable vinyl, labels and sticker paper pass.
+- **`bladed` (restricted, every category):** the same words and exceptions as `src/lib/blades.js` (no blades since 6 October). The knife postage note is gone. In the window: Sporting 65 more stops (Swiss Army and pocket knives, multi-tools), Pet 1, Office 0. Hardware and Home & Garden not measured; expect scissors, secateurs and saw blades to stop on their next run. Known false hits, shared with the portal: Winmau Blade dartboards, the Wilson Blade racket, Razor scooters, NAF Marigold & Cleavers, a dog costume "with knife".
+- **`laser_pointer` (restricted):** laser pointers and pens, green, 303, 532nm, high power. Consumer pointers over 1mW are not legal to sell in the UK. Presenters, clickers, laser labels, levels and engravers pass. Cat laser toys stop too (judgment call).
+- **False stops fixed:** Crossbow Education reading rulers (weapons), a medication log book and a Mounjaro pen case (medicines), a whisky tasting notebook (alcohol).
+- **Notes fixed:** the paint note no longer fires on gloss paper, carrier bags, business cards, mats or Posca; the nail polish note skips racks and shelves. It still fires on paint pot holders and a paint-by-numbers magnifier (16, a note only).
+- **Tested:** Office own label 1,437 to 2,106; Baby and Pet unchanged in the window apart from a dog costume and a Tesco turkey.
+
+**`shelf-shopify.mjs` (`ck-shopify-uk-market-2026-10-07`):** Cult Pens, Papersmiths and Scribble & Dot priced in naira for a Nigerian IP even with the GBP cookie. The script now posts the UK choice to the shop's `/localization` (its country selector), keeps the cookies it sends back, and adds `currency=GBP&country=GB` to every request. The cart.js check still stops a shop that answers in another currency.
+
+**Shops (all Shopify):** Cult Pens (11,292 products, 32,622 variants, 11,678 barcodes), Papersmiths (2,369, 352 barcodes), Scribble & Dot (62, `--brand="Scribble & Dot"`), Yop & Tom (88, `--brand="Yop & Tom"`), Castle Arts (206, `--brand="Castle Arts"`). Not Shopify or no answer: Pen Heaven, Davpack, Bureau Direct, Pukka Pad. Skipped: Present & Correct (own designs), Ohuhu UK (US warehouse).
+
+**Picks:** barcode 2 to 70, seen 297 to 352, not seen 517 to 456. The gap left is 214 unbranded marketplace titles and brands with 6 or fewer.
+
+**`match.mjs` (`ck-office-match-2026-10-08`):** academic years (2026-2027, 2026-27) are not models; fountain, ballpoint, rollerball and pencil are different products. No query key changed across Office, Sporting, Baby and Pet (99,741 titles).
+
+**Page check:** 95 confirmed after the fix (66 barcode), 60 wrong, 194 unsure. About 20 "wrong, different barcode" are the right model in another colour (Lamy AL-star, Pentel GraphGear, Caran d'Ache 849); Cult Pens stocks every colour. A "same model, other colour" lead would bring them in.
+
+**Import:** 85 cards, 2026-10-08 batch; 1 bigger pack, 1 no price. 83 of 85 above Google's lowest. The subcategory call failed with a 400, so the cards sit under Office Supplies only (to look at once).
+
+**Review:** 63 keep, 18 notes, 3 rejects (Zatu's open-box Ultra PRO binder, a duplicate Good Tuesday A1 planner, a generic "A3 Monthly Wall Planner"), 1 re-source (Moleskine Large on the Pocket page).
+
+**Small bug seen:** a card's shop name is the first shop in its list, not the shop of the page it links to (three cards say Angling Direct while linking to Toolstation, Hannworld and Cult Pens). Cosmetic; worth fixing in `import-store.mjs` (`cost_from.shop` from the link's host).

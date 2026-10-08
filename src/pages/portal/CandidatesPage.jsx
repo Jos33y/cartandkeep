@@ -212,7 +212,9 @@ export function CandidatesPage() {
   const batches = useBatches(tenant?.id);
   const liveIds = useMemo(() => (batches ?? []).map((b) => b.id), [batches]);
   const { suppliers, remember } = useSuppliers(tenant?.id);
-  const { status, rows, index, decide, clear, addNote, addSource, setCategory } = useCandidates(liveIds, { top: tab });
+  const { status, rows, index, decide, clear, addNote, addSource, setCategory, hydrate } = useCandidates(liveIds, { top: tab });
+  // An opened card reads its full market, which the list leaves out (useCandidates hydrate). Again after the rows reload.
+  useEffect(() => { if (openId) hydrate(openId); }, [openId, hydrate, rows]);
   // Two reads land at different times (useCandidates): the light index (every card's category and decision) first,
   // then the full rows for this tab. Each part of the page waits for its own, so nothing reads as zero meanwhile.
   const indexWaiting = index.status === 'loading';

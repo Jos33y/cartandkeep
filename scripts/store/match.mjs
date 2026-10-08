@@ -9,6 +9,8 @@ const SPEC = /^(ip\d{2}|gu\d{1,2}|mr\d{2}|e\d{2}|b\d{2}|g\d{1,2}|t\d{1,2}|\d+in\
 export function modelsIn(title) {
   return [...new Set(String(title).split(/[\s,()/|]+/).map((t) => t.replace(/[^a-z0-9-]/gi, '').toLowerCase())
     .filter((t) => t.length >= 4 && /\d/.test(t) && !UNIT.test(t) && !SPEC.test(t) && !/^(19|20)\d{2}$/.test(t)
+      // An academic or diary year is not a model: 2026-2027, 2026-27, and 2026–2027 (its en dash dropped above).
+      && !/^(19|20)\d{2}-?((19|20)?\d{2})$/.test(t)
       && !/^\d+(\.\d+)?x\d/.test(t)
       && (/[a-z]/.test(t) || t.length >= 5)))];
 }
@@ -65,7 +67,9 @@ const KINDS = [['rat', 'mouse'], ['cat', 'dog'], ['indoor', 'outdoor'], ['left',
   // (3 October: James Wellbeloved Fish & Rice went to Duck & Rice, Harringtons Mixed in Jelly to Fish in Jelly).
   ...pairsOf([...RECIPE]),
   // Tins against pouches: Pedigree tins in jelly went to an 80-pouch pack.
-  ['tins', 'pouches'], ['tin', 'pouch'], ['tins', 'pouch'], ['tin', 'pouches']];
+  ['tins', 'pouches'], ['tin', 'pouch'], ['tins', 'pouch'], ['tin', 'pouches'],
+  // Pens: a fountain pen is not the ballpoint or rollerball of the same range (7 October: Kaweco Lunar Sport).
+  ['fountain', 'ballpoint'], ['fountain', 'rollerball'], ['ballpoint', 'rollerball'], ['fountain', 'pencil'], ['ballpoint', 'pencil']];
 function pairsOf(list) { return list.flatMap((x, i) => list.slice(i + 1).map((y) => [x, y])); }
 
 /*

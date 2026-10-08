@@ -76,6 +76,8 @@ export function useCandidates(batchId, { top = 'all' } = {}) {
   const [index, setIndex] = useState({ status: 'loading', rows: [] });
   const current = useRef(key);
   current.current = key;
+  // Cards whose full market has been read since the rows last loaded (hydrate, below).
+  const hydrated = useRef(new Set());
 
   const loadIndex = useCallback(async () => {
     if (!batchKey) return;
@@ -104,7 +106,7 @@ export function useCandidates(batchId, { top = 'all' } = {}) {
         headroom, hold, same_sku_sellers, bulky, routes, window_series,
         entry,
         sold_30d, avg_sold_price, active_listings, sell_through, trend,
-        seller_concentration, competition, window_start, window_end,
+        seller_concentration, competition:candidate_competition_list, window_start, window_end,
         recommended_channels, recommended_volume, analyst_note,
         decisions ( id, action, reason, note, decided_at ),
         candidate_notes ( id, body, created_at ),
@@ -122,6 +124,8 @@ export function useCandidates(batchId, { top = 'all' } = {}) {
     // A tab changed while the pages were loading: this answer is for the old one.
     if (current.current !== key) return undefined;
     if (error) return setState({ status: 'error', rows: [], error });
+    // Fresh rows carry the list's market again, so an opened card reads its full one again.
+    hydrated.current = new Set();
     setState({ status: 'ready', rows: data.map(flatten).sort(byWorkOrder), error: null });
   }, [key, batchKey, top]);
 
@@ -248,7 +252,19 @@ export function useCandidates(batchId, { top = 'all' } = {}) {
     [],
   );
 
-  return { ...state, index, reload: load, decide, clear, addNote, addSource, setCategory };
+  /*
+   * The list reads a card's market without its competitor listings (0149). An opened card reads them, once, so its
+   * chart and the listings beside it are whole. A failed read leaves the list's copy, which still prices the card.
+   */
+  const hydrate = useCallback(async (candidateId) => {
+    if (!candidateId || hydrated.current.has(candidateId)) return;
+    hydrated.current.add(candidateId);
+    const { data, error } = await supabase.from('candidates').select('id, competition').eq('id', candidateId).maybeSingle();
+    if (error || !data) { hydrated.current.delete(candidateId); return; }
+    setState((s) => ({ ...s, rows: s.rows.map((r) => (r.id === candidateId ? { ...r, competition: data.competition } : r)) }));
+  }, []);
+
+  return { ...state, index, reload: load, decide, clear, addNote, addSource, setCategory, hydrate };
 }
 
 // undefined while resolving, null when there is genuinely no batch. Without the
