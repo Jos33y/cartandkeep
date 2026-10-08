@@ -7,6 +7,7 @@
 
 import { EBAY } from '../_shared/ebay/listing.ts';
 import { APIZ, get, readFees } from '../_shared/ebay/finances.ts';
+import type { Signer } from '../_shared/ebay/sign.ts';
 
 export { sumFees } from '../_shared/ebay/finances.ts';
 
@@ -113,7 +114,7 @@ export type Read = { read: Json; ads: Ad[] | null; errors: string[] };
 const why = (part: string, e: unknown) => `${part}: ${e instanceof Error ? e.message : String(e)}`;
 
 // Every part on its own: one eBay refusal keeps the other two, and says which failed.
-export async function readAll(f: Fetch, access: string): Promise<Read> {
+export async function readAll(f: Fetch, access: string, sign: Signer | null = null): Promise<Read> {
   const read: Json = {};
   const errors: string[] = [];
   let ads: Ad[] | null = null;
@@ -130,7 +131,7 @@ export async function readAll(f: Fetch, access: string): Promise<Read> {
       }
       return { list, found };
     })(),
-    readFees(f, access),
+    readFees(f, access, sign),
   ]);
 
   if (account.status === 'fulfilled') Object.assign(read, account.value);

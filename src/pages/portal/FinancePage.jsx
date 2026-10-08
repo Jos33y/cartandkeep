@@ -8,6 +8,7 @@ import { useFinance, CHANNEL_LABEL } from '@hooks/useFinance';
 import { FAULT, moneyBack } from '@lib/refunds';
 import { loadTenant } from '@lib/tenant';
 import { isPrivate } from '@lib/ebayAccount';
+import { feeLabel } from '@components/ui/portal/EbayAccount';
 import { formatGbp } from '@utils/formatGbp';
 import { portalPath } from '@utils/constants';
 import { Link } from 'react-router';
@@ -28,7 +29,7 @@ export function FinancePage() {
   useEffect(() => { loadTenant().then((t) => setTenant(t ?? null)); }, []);
 
   const {
-    status, months, showing, setMonth, byChannel, totals, products, series, refunds, costs, saveCosts, saveProductCost, reload,
+    status, months, showing, setMonth, byChannel, totals, products, series, refunds, charged, costs, saveCosts, saveProductCost, reload,
     pullEbay, pulling, pulled,
   } = useFinance(tenant?.id);
   const [pullError, setPullError] = useState(null);
@@ -222,7 +223,19 @@ export function FinancePage() {
       {/* A real finding: what eBay charges against what every price on the
           board assumes. Shown only once there is enough to trust it. */}
       {/* Only worth a panel when the real fee and the budget disagree. */}
-      {ebayRate != null && ebay.units >= 5 && !inLine && (() => {
+      {/* A private seller pays no selling fee, so any fee is one eBay charged for a reason: named, not raised. */}
+      {isPrivate() && ebay && ebay.fees + ebay.ads > 0.004 && (
+        <p className={`${styles.insight} ${styles.insightQuiet}`}>
+          <Icon name="IconInfo" className={styles.insightIcon} />
+          <span>
+            eBay charged <strong>{formatGbp(ebay.fees + ebay.ads)}</strong> on {ebay.units} {ebay.units === 1 ? 'sale' : 'sales'}, {(((ebay.fees + ebay.ads) / ebay.revenue) * 100).toFixed(1)}% of what was taken
+            {charged.length > 0 && <>: {charged.map(([k, v], i) => <span key={k}>{i > 0 && ', '}{feeLabel(k).toLowerCase()} {formatGbp(v)}</span>)}</>}.
+            {' '}As a private seller you pay no selling fee.
+          </span>
+        </p>
+      )}
+
+      {!isPrivate() && ebayRate != null && ebay.units >= 5 && !inLine && (() => {
         const budget = budgetOf(ebay);
         return (
           <p className={styles.insight}>
@@ -292,7 +305,7 @@ export function FinancePage() {
                 <Line label="Revenue" value={c.revenue} />
                 <Line label={FEE_LABEL[c.channel] ?? 'Platform fee'} value={-c.fees} />
                 {c.ads > 0 && <Line label="Promoted listings" value={-c.ads} />}
-                <Line label="Postage" value={-c.postage} zero={!c.postage} />
+                <Line label={c.labelled > 0 ? `Postage, eBay labels on ${c.labelled} of ${c.lines}` : 'Postage'} value={-c.postage} zero={!c.postage} />
                 <Line label="Packaging" value={-c.packaging} zero={!c.packaging} />
                 <Line label="Returns provision" value={-c.returns} zero={!c.returns} />
                 <Line label="Cost of goods" value={c.netCovers ? -c.cost : null} />

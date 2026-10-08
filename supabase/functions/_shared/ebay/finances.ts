@@ -1,9 +1,11 @@
 // eBay's Finances API: every charge eBay made, as eBay booked it. Shared by ebay-account (90 days of charges, by kind)
 // and ebay-sales (each order line's real fees, in place of an estimate), so the two can never sum a charge differently.
 //
-// Read only, with the seller's token. Finances lives on apiz.ebay.com, not api.ebay.com.
+// Read only, with the seller's token. Finances lives on apiz.ebay.com, not api.ebay.com, and for a UK seller every
+// call is signed (_shared/ebay/sign.ts).
 
 import { EbayError, MARKETPLACE, readError } from './listing.ts';
+import type { Signer } from './sign.ts';
 
 type Json = Record<string, any>;
 export type Fetch = typeof fetch;
@@ -14,13 +16,14 @@ export const APIZ = 'https://apiz.ebay.com';
 const round = (n: number) => Math.round(n * 100) / 100;
 const pounds = (a: Json | undefined) => Number(a?.value ?? 0) || 0;
 
-export async function get(f: Fetch, url: string, access: string): Promise<Json> {
+export async function get(f: Fetch, url: string, access: string, sign: Signer | null = null): Promise<Json> {
   const res = await f(url, {
     headers: {
       authorization: `Bearer ${access}`,
       'accept-language': 'en-GB',
       'content-language': 'en-GB',
       'X-EBAY-C-MARKETPLACE-ID': MARKETPLACE,
+      ...(sign ? await sign('GET', url) : {}),
     },
   });
   const text = await res.text();
@@ -92,14 +95,14 @@ export function sumFees(transactions: Json[], from: string, to: string, days: nu
   return { from, to, days, sales, sold: round(sold), charged, total };
 }
 
-export async function readFees(f: Fetch, access: string, days = 90, now = Date.now()): Promise<Fees> {
+export async function readFees(f: Fetch, access: string, sign: Signer | null, days = 90, now = Date.now()): Promise<Fees> {
   const from = now - days * 86_400_000;
-  const all = await transactions(f, access, from, now);
+  const all = await transactions(f, access, from, now, sign);
   return sumFees(all, new Date(from).toISOString(), new Date(now).toISOString(), days);
 }
 
 // Every transaction between two times, read 90 days at a time so no one request asks eBay for too long a stretch.
-export async function transactions(f: Fetch, access: string, fromMs: number, toMs: number): Promise<Json[]> {
+export async function transactions(f: Fetch, access: string, fromMs: number, toMs: number, sign: Signer | null = null): Promise<Json[]> {
   const all: Json[] = [];
   const STEP = 90 * 86_400_000;
   for (let start = fromMs; start < toMs; start += STEP) {
@@ -107,7 +110,7 @@ export async function transactions(f: Fetch, access: string, fromMs: number, toM
     const to = new Date(Math.min(start + STEP, toMs)).toISOString();
     for (let offset = 0; offset < 20000; offset += 1000) {
       const q = new URLSearchParams({ filter: `transactionDate:[${from}..${to}]`, limit: '1000', offset: String(offset) });
-      const body = await get(f, `${APIZ}/sell/finances/v1/transaction?${q}`, access);
+      const body = await get(f, `${APIZ}/sell/finances/v1/transaction?${q}`, access, sign);
       const page = (body.transactions ?? []) as Json[];
       all.push(...page);
       if (!body.next || page.length < 1000) break;
@@ -127,7 +130,8 @@ export async function transactions(f: Fetch, access: string, fromMs: number, toM
 // ------------------------------------------------------------ fees by order
 
 export type LineFees = { selling: number; ad: number; detail: Record<string, number> };
-export type OrderFees = { lines: Record<string, LineFees>; order: LineFees };
+// sale: eBay booked the sale itself, so its fees are known. labels: postage labels bought on eBay for the order.
+export type OrderFees = { lines: Record<string, LineFees>; order: LineFees; sale: boolean; labels: number };
 export type ItemCharge = { item: string; at: string; fee: LineFees };
 
 export const noFees = (): LineFees => ({ selling: 0, ad: 0, detail: {} });
@@ -151,9 +155,10 @@ const refOf = (t: Json, kind: string) => ((t.references ?? []) as Json[]).find((
 export function feesByOrder(list: Json[]) {
   const orders = new Map<string, OrderFees>();
   const items: ItemCharge[] = [];
+  let labelsLoose = 0;
   const at = (id: string) => {
     let o = orders.get(id);
-    if (!o) { o = { lines: {}, order: noFees() }; orders.set(id, o); }
+    if (!o) { o = { lines: {}, order: noFees(), sale: false, labels: 0 }; orders.set(id, o); }
     return o;
   };
 
@@ -162,6 +167,7 @@ export function feesByOrder(list: Json[]) {
     if (type === 'SALE' || type === 'REFUND') {
       if (!t.orderId) continue;
       const o = at(String(t.orderId));
+      if (type === 'SALE') o.sale = true;
       const back = type === 'REFUND' ? -1 : 1;
       let placed = 0;
       for (const line of (t.orderLineItems ?? []) as Json[]) {
@@ -173,6 +179,14 @@ export function feesByOrder(list: Json[]) {
         }
       }
       if (!placed && pounds(t.totalFeeAmount)) addFee(o.order, 'SELLING_FEES', back * pounds(t.totalFeeAmount));
+      continue;
+    }
+    // A postage label bought on eBay names the order it was bought for; a voided label comes back as a credit.
+    if (type === 'SHIPPING_LABEL') {
+      const order = t.orderId ?? refOf(t, 'ORDER_ID');
+      const v = (t.bookingEntry === 'CREDIT' ? -1 : 1) * pounds(t.amount);
+      if (order) at(String(order)).labels = round(at(String(order)).labels + v);
+      else labelsLoose = round(labelsLoose + v);
       continue;
     }
     if (type === 'NON_SALE_CHARGE' || type === 'CREDIT') {
@@ -188,5 +202,5 @@ export function feesByOrder(list: Json[]) {
       }
     }
   }
-  return { orders, items };
+  return { orders, items, labelsLoose };
 }

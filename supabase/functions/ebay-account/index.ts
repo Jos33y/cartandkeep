@@ -9,6 +9,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { env, userToken } from '../_shared/ebay/listing.ts';
+import { signerFor } from '../_shared/ebay/sign.ts';
 import { readAll } from './read.ts';
 
 const CORS = {
@@ -54,7 +55,7 @@ Deno.serve(async (req) => {
     if (!cred?.refresh_token) throw new Error('This account is not connected to eBay yet.');
     const access = await userToken(cred.refresh_token);
 
-    const { read, ads, errors } = await readAll(fetch, access);
+    const { read, ads, errors } = await readAll(fetch, access, signerFor(client));
     const { data, error } = await save(read, ads);
     if (error) throw new Error(error.message);
     return json({ account: data, ads: ads?.length ?? null, errors });

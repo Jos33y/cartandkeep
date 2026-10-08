@@ -27,7 +27,7 @@ const FEE_LABEL = {
   HIGH_ITEM_NOT_AS_DESCRIBED_FEE: 'Not as described fee',
   OTHER_FEES: 'Other',
 };
-const feeLabel = (k) => FEE_LABEL[k] ?? k.toLowerCase().replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+export const feeLabel = (k) => FEE_LABEL[k] ?? k.toLowerCase().replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 
 const pct = (v) => `${Math.round(Number(v) * 1000) / 10}%`;
 const round = (v) => Math.round(v * 100) / 100;
@@ -206,28 +206,37 @@ export function EbayAccount({ tenantId }) {
   );
 }
 
+// Postage bought on eBay is her postage, not eBay's cut: shown apart, and left out of the fee share.
+const POSTAGE = new Set(['SHIPPING_LABEL']);
+
 function Charged({ fees }) {
-  const rows = Object.entries(fees.charged ?? {}).sort((a, b) => b[1] - a[1]);
-  const share = fees.sold > 0 ? fees.total / fees.sold : null;
-  if (!rows.length) {
-    return <p className={styles.empty}>Nothing charged{fees.sales ? ` on ${fees.sales} ${fees.sales === 1 ? 'sale' : 'sales'}` : ''}.</p>;
-  }
+  const all = Object.entries(fees.charged ?? {});
+  const rows = all.filter(([k]) => !POSTAGE.has(k)).sort((a, b) => b[1] - a[1]);
+  const labels = all.filter(([k]) => POSTAGE.has(k)).reduce((n, [, v]) => n + v, 0);
+  const total = round(rows.reduce((n, [, v]) => n + v, 0));
+  const share = fees.sold > 0 ? total / fees.sold : null;
+  const sales = `${fees.sales} ${fees.sales === 1 ? 'sale' : 'sales'}`;
   return (
     <>
-      <dl className={styles.charged}>
-        {rows.map(([k, v]) => (
-          <div key={k} className={styles.charge}>
-            <dt>{feeLabel(k)}</dt>
-            <dd data-num data-credit={v < 0 || undefined}>{v < 0 ? `+${formatGbp(-v)}` : formatGbp(v)}</dd>
+      {rows.length ? (
+        <dl className={styles.charged}>
+          {rows.map(([k, v]) => (
+            <div key={k} className={styles.charge}>
+              <dt>{feeLabel(k)}</dt>
+              <dd data-num data-credit={v < 0 || undefined}>{v < 0 ? `+${formatGbp(-v)}` : formatGbp(v)}</dd>
+            </div>
+          ))}
+          <div className={`${styles.charge} ${styles.chargeTotal}`}>
+            <dt>Fees in all</dt>
+            <dd data-num>{formatGbp(total)}</dd>
           </div>
-        ))}
-        <div className={`${styles.charge} ${styles.chargeTotal}`}>
-          <dt>In all</dt>
-          <dd data-num>{formatGbp(fees.total)}</dd>
-        </div>
-      </dl>
+        </dl>
+      ) : (
+        <p className={styles.empty}>No fees{fees.sales ? ` on ${sales}` : ''}.</p>
+      )}
       <p className={styles.foot}>
-        On {formatGbp(fees.sold)} of sales ({fees.sales} {fees.sales === 1 ? 'sale' : 'sales'}){share != null ? <>, <b data-num>{pct(share)}</b> of what was taken</> : null}.
+        {rows.length > 0 && share != null && <><b data-num>{pct(share)}</b> of {formatGbp(fees.sold)} taken ({sales}). </>}
+        {labels > 0 && <>Postage labels bought on eBay, <b data-num>{formatGbp(labels)}</b>, are your postage, not a fee.</>}
       </p>
     </>
   );

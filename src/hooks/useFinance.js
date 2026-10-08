@@ -25,7 +25,7 @@ const sum = (rows, key) => rows.reduce((n, r) => n + Number(r[key] ?? 0), 0);
 const round = (n) => Math.round(n * 100) / 100;
 
 export function useFinance(tenantId) {
-  const [state, setState] = useState({ status: 'loading', rows: [], refunds: [], costs: null, error: null });
+  const [state, setState] = useState({ status: 'loading', rows: [], refunds: [], charges: [], costs: null, error: null });
   const [month, setMonth] = useState(null);
 
   const load = useCallback(async () => {
@@ -49,10 +49,18 @@ export function useFinance(tenantId) {
       .order('sold_at', { ascending: false })
       .limit(500);
 
+    // eBay's own charges on each sale, by name (0151). Read on their own: without them the page shows totals only.
+    const booked = await supabase.from('channel_sales')
+      .select('sold_at, fee_detail')
+      .eq('tenant_id', tenantId).eq('channel', 'ebay').eq('status', 'paid')
+      .not('fee_detail', 'is', null)
+      .limit(5000);
+
     setState({
       status: 'ready',
       rows: profit.data ?? [],
       refunds: back.error ? [] : back.data ?? [],
+      charges: booked.error ? [] : booked.data ?? [],
       costs: tenant.data?.store?.selling_costs ?? {},
       error: null,
     });
@@ -110,6 +118,8 @@ export function useFinance(tenantId) {
       packaging: round(sum(rows, 'packaging')),
       returns: round(sum(rows, 'returns_provision')),
       postage: round(sum(rows, 'postage')),
+      // Lines whose postage is the label bought on eBay (0153), not the product's postage.
+      labelled: sum(rows, 'labelled_lines'),
       cost: round(sum(costed, 'cost_of_goods')),
 
       /*
@@ -217,6 +227,16 @@ export function useFinance(tenantId) {
     return { rows, ...summariseRefunds(rows, sold) };
   }, [state.refunds, showing, products]);
 
+  // What eBay charged on its sales in the period, by the name eBay gives each charge.
+  const charged = useMemo(() => {
+    const out = {};
+    for (const r of state.charges) {
+      if (showing !== 'all' && String(r.sold_at).slice(0, 7) !== String(showing).slice(0, 7)) continue;
+      for (const [k, v] of Object.entries(r.fee_detail ?? {})) out[k] = round((out[k] ?? 0) + Number(v));
+    }
+    return Object.entries(out).filter(([, v]) => Math.abs(v) >= 0.005).sort((a, b) => b[1] - a[1]);
+  }, [state.charges, showing]);
+
   const saveCosts = useCallback(async (next) => {
     const num = (v) => {
       const s = String(v ?? '').trim();
@@ -298,7 +318,7 @@ export function useFinance(tenantId) {
   }, [tenantId, load]);
 
   return {
-    ...state, months, showing, setMonth, byChannel, totals, products, series, refunds, saveCosts, saveProductCost, reload: load,
+    ...state, months, showing, setMonth, byChannel, totals, products, series, refunds, charged, saveCosts, saveProductCost, reload: load,
     pullEbay, pulling, pulled,
   };
 }

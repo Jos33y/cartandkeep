@@ -8,6 +8,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { cancelReasonOf, faultOf, lineGross, reasonText, refundedAtOf, refundedOf, statusOf } from '../_shared/ebay/orders.ts';
 import { feesByOrder, transactions } from '../_shared/ebay/finances.ts';
+import { signerFor } from '../_shared/ebay/sign.ts';
 import { lineFees, placeItemCharges } from './fees.ts';
 
 const EBAY = 'https://api.ebay.com';
@@ -204,7 +205,7 @@ Deno.serve(async (req) => {
     let fin: ReturnType<typeof feesByOrder> | null = null;
     let finError: string | null = null;
     try {
-      fin = feesByOrder(await transactions(fetch, access, Date.parse(since), Date.now()));
+      fin = feesByOrder(await transactions(fetch, access, Date.parse(since), Date.now(), signerFor(client)));
     } catch (e) {
       finError = e instanceof Error ? e.message : String(e);
       console.error('[ebay_sales] finances not read', finError);
@@ -253,7 +254,9 @@ Deno.serve(async (req) => {
       const orderFee = money(o.totalMarketplaceFee as { value?: string });
       const haveFee = o.totalMarketplaceFee != null;
       const status = statusOf(o);
-      const booked = fin?.orders.get(o.orderId as string) ?? null;
+      const found = fin?.orders.get(o.orderId as string) ?? null;
+      // Fees are eBay's only once it has booked the sale itself; a label alone says nothing about fees.
+      const booked = found?.sale ? found : null;
 
       refs.push(o.orderId as string);
 
@@ -288,6 +291,8 @@ Deno.serve(async (req) => {
           fees: real ? real.selling : haveFee ? round(orderFee * share) : null,
           ad_fees: real ? real.ad : null,
           fee_detail: real ? real.detail : null,
+          // What she paid eBay for the order's postage label, shared across its lines. Null: no label bought on eBay.
+          postage_paid: found && found.labels ? round(found.labels * share) : null,
           fees_estimated: real ? false : !haveFee,
           status,
           // The order's refund, shared across its lines as the fee is.
@@ -330,6 +335,9 @@ Deno.serve(async (req) => {
       reasons_found: rows.filter((r) => r.refund_reason).length,
       // Lines whose fees are eBay's own, and why the rest are not.
       fees_booked: rows.filter((r) => r.fees_estimated === false && r.fee_detail).length,
+      labelled_lines: rows.filter((r) => r.postage_paid != null).length,
+      labels: round(rows.reduce((n, r) => n + Number(r.postage_paid ?? 0), 0)),
+      labels_unmatched: fin?.labelsLoose ?? 0,
       ad_fees: round(rows.reduce((n, r) => n + Number(r.ad_fees ?? 0), 0)),
       charges_unplaced: unplacedCharges,
       finances_error: finError,

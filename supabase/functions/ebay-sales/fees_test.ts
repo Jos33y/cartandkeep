@@ -48,3 +48,17 @@ Deno.test('a charge naming only the item goes on its latest sale before it', () 
   assertEquals(left, 1);
   assertEquals(rows.map((r) => r.ad_fees), [0, 4.39, 0]);
 });
+
+Deno.test('postage labels go to the order they name; a voided label comes back; fees need the sale itself', () => {
+  const { orders, labelsLoose } = feesByOrder([
+    { transactionType: 'SHIPPING_LABEL', bookingEntry: 'DEBIT', amount: gbp(2.62), references: [{ referenceId: 'O1', referenceType: 'ORDER_ID' }] },
+    { transactionType: 'SHIPPING_LABEL', bookingEntry: 'DEBIT', amount: gbp(3.1), orderId: 'O1' },
+    { transactionType: 'SHIPPING_LABEL', bookingEntry: 'CREDIT', amount: gbp(3.1), orderId: 'O1' },
+    { transactionType: 'SHIPPING_LABEL', bookingEntry: 'DEBIT', amount: gbp(4), references: [] },
+    { transactionType: 'SALE', orderId: 'O2', orderLineItems: [] },
+  ]);
+  assertEquals(orders.get('O1')!.labels, 2.62);
+  assertEquals(orders.get('O1')!.sale, false);
+  assertEquals(orders.get('O2')!.sale, true);
+  assertEquals(labelsLoose, 4);
+});
